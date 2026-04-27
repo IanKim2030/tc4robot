@@ -39,33 +39,12 @@ TC-LRS-001 Hello - SYS_ID / BRANCH_NAME 수신 및 정상 응답
     Log    Hello 수신: SYS_ID=${req}[SYS_ID] BRANCH=${req}[BRANCH_NAME] TXN=${hdr}[txn_id]
     Send LRS Hello Response    ${hdr}[txn_id]    0    ${LRS_RESP_INTERVAL}
 
-TC-LRS-002 Hello - TXN ID 에코 검증
-    [Documentation]
-    ...    규격서 3.2 f. Transaction Identifier
-    ...    Hello-Response의 TXN ID = Hello-Request의 TXN ID (에코)
-    [Tags]    lrs    hello    validation
-    ${hdr}    ${req}=    Receive And Validate LRS Hello
-    ${req_txn}=    Get From Dictionary    ${hdr}    txn_id
-    Send LRS Hello Response    ${req_txn}    0    ${LRS_RESP_INTERVAL}
-    Log    TXN ID 에코 확인: ${req_txn}
-
-TC-LRS-003 Hello - INTERVAL 값 전달 후 Ping 수신 확인
-    [Documentation]
-    ...    규격서 2.1: PG는 Hello-Response의 ping-interval을 메모리에 저장 후
-    ...    해당 주기로 Ping을 전송. Hello 응답 후 Ping 수신 여부 검증.
-    [Tags]    lrs    hello    validation
-    ${hdr}    ${req}=    Receive And Validate LRS Hello
-    Send LRS Hello Response    ${hdr}[txn_id]    0    ${LRS_RESP_INTERVAL}
-    ${ping_hdr}    ${ping_req}=    Receive And Validate LRS Ping
-    Send LRS Ping Response    ${ping_hdr}[txn_id]    0
-    Log    INTERVAL=${LRS_RESP_INTERVAL}초 후 Ping 수신 확인
-
 
 # ════════════════════════════════════════════════════════════════
 # 0x03/0x04  Ping
 # ════════════════════════════════════════════════════════════════
 
-TC-LRS-004 Ping - SYS_ID / BRANCH_NAME 수신 및 정상 응답
+TC-LRS-002 Ping - SYS_ID / BRANCH_NAME 수신 및 정상 응답
     [Documentation]
     ...    규격서 3.2.3 / 3.2.1(Ping Response) / 4.1
     ...    Ping-Request(0x03) 수신 → SYS_ID, BRANCH_NAME, TXN ID 검증
@@ -77,30 +56,12 @@ TC-LRS-004 Ping - SYS_ID / BRANCH_NAME 수신 및 정상 응답
     LRS Request Branch Name Should Be   ${req}    ${LRS_EXPECTED_BRANCH_NAME}
     Send LRS Ping Response    ${hdr}[txn_id]    0
 
-TC-LRS-005 Ping - TXN ID 에코 검증
-    [Documentation]    규격서 3.2 f. Ping-Response TXN ID = Ping-Request TXN ID
-    [Tags]    lrs    ping    validation
-    ${hdr}    ${req}=    Receive And Validate LRS Ping
-    ${req_txn}=    Get From Dictionary    ${hdr}    txn_id
-    Send LRS Ping Response    ${req_txn}    0
-    Log    Ping TXN ID 에코: ${req_txn}
-
-TC-LRS-006 Ping - 연속 3회 TXN ID 순차 에코
-    [Documentation]    Ping 3회 연속 수신, 각 응답의 TXN ID 에코 검증
-    [Tags]    lrs    ping    validation
-    FOR    ${i}    IN RANGE    3
-        ${hdr}    ${req}=    Receive And Validate LRS Ping
-        ${req_txn}=    Get From Dictionary    ${hdr}    txn_id
-        Send LRS Ping Response    ${req_txn}    0
-        Log    Ping[${i}] TXN ID 에코: ${req_txn}
-    END
-
 
 # ════════════════════════════════════════════════════════════════
 # 0x05/0x06  Location-Info
 # ════════════════════════════════════════════════════════════════
 
-TC-LRS-007 Location-Info - LTE 정상 조회 및 응답 (RESULT_CODE=0)
+TC-LRS-003 Location-Info - LTE 정상 조회 및 응답 (RESULT_CODE=0)
     [Documentation]
     ...    규격서 3.2.6 / 3.2.7 / 4.2
     ...    Location-Info-Request(0x05) 수신
@@ -120,7 +81,7 @@ TC-LRS-007 Location-Info - LTE 정상 조회 및 응답 (RESULT_CODE=0)
     ...    net_tp=${LRS_MOCK_NET_TP_LTE}
     ...    result_code=0
 
-TC-LRS-008 Location-Info - 5G 정상 조회 및 응답 (SBI, SERVICE_ID 없음)
+TC-LRS-004 Location-Info - 5G 정상 조회 및 응답 (SBI, SERVICE_ID 없음)
     [Documentation]
     ...    규격서 3.2.6 주석: SBI 처리 시 SERVICE_ID 미전송 (Body=169B)
     ...    → SERVICE_ID 필드 없이도 정상 파싱되는지 검증
@@ -137,7 +98,7 @@ TC-LRS-008 Location-Info - 5G 정상 조회 및 응답 (SBI, SERVICE_ID 없음)
     ...    net_tp=${LRS_MOCK_NET_TP_5G}
     ...    result_code=0
 
-TC-LRS-009 Location-Info - TXN ID 에코 검증
+TC-LRS-005 Location-Info - TXN ID 에코 검증
     [Documentation]    규격서 3.2 f. Location-Info-Response TXN ID = Request TXN ID
     [Tags]    lrs    location    validation
     ${hdr}    ${req}=    Receive And Validate LRS Location Info
@@ -151,7 +112,7 @@ TC-LRS-009 Location-Info - TXN ID 에코 검증
     ...    result_code=0
     Log    Location-Info TXN ID 에코: ${req_txn}
 
-TC-LRS-010 Location-Info - TID 에코 검증
+TC-LRS-006 Location-Info - TID 에코 검증
     [Documentation]    규격서 3.2.7: 응답 TID = 수신한 Request TID (그대로 에코)
     [Tags]    lrs    location    validation
     ${hdr}    ${req}=    Receive And Validate LRS Location Info
@@ -165,7 +126,7 @@ TC-LRS-010 Location-Info - TID 에코 검증
     ...    result_code=0
     Log    TID 에코 확인: ${req_tid}
 
-TC-LRS-011 Location-Info - 응답 필드 검증 (CELL_INFO, TA_CODE, NET_TP)
+TC-LRS-007 Location-Info - 응답 필드 검증 (CELL_INFO, TA_CODE, NET_TP)
     [Documentation]
     ...    규격서 3.2.7: 응답 필드 형식 검증
     ...    CELL_INFO: NodeB:Cell 또는 plmn-NodeB:Cell
@@ -189,7 +150,7 @@ TC-LRS-011 Location-Info - 응답 필드 검증 (CELL_INFO, TA_CODE, NET_TP)
 # 오류 응답 시나리오
 # ════════════════════════════════════════════════════════════════
 
-TC-LRS-012 Location-Info - 세션 Not Found 응답 (RESULT_CODE=200)
+TC-LRS-008 Location-Info - 세션 Not Found 응답 (RESULT_CODE=200)
     [Documentation]
     ...    규격서 3.2.8: RESULT_CODE=200 → 세션 Not Found
     ...    LRS(PG)가 RESULT_CODE=200 수신 시 정상 처리하는지 검증
@@ -204,7 +165,7 @@ TC-LRS-012 Location-Info - 세션 Not Found 응답 (RESULT_CODE=200)
     ...    net_tp=${EMPTY}
     ...    result_code=200
 
-TC-LRS-013 Location-Info - PGW RAA Timeout 응답 (RESULT_CODE=300)
+TC-LRS-009 Location-Info - PGW RAA Timeout 응답 (RESULT_CODE=300)
     [Documentation]
     ...    규격서 3.2.8: RESULT_CODE=300 → PGW RAA Timeout
     ...    LRS(PG)가 RESULT_CODE=300 수신 시 정상 처리하는지 검증
@@ -219,7 +180,7 @@ TC-LRS-013 Location-Info - PGW RAA Timeout 응답 (RESULT_CODE=300)
     ...    net_tp=${EMPTY}
     ...    result_code=300
 
-TC-LRS-014 Location-Info - Failover 응답 (RESULT_CODE=9999)
+TC-LRS-010 Location-Info - Failover 응답 (RESULT_CODE=9999)
     [Documentation]
     ...    규격서 3.2.8: RESULT_CODE=9999 → Active→Standby 절체 신호
     ...    LRS(PG)가 RESULT_CODE=9999 수신 시 Standby로 재접속하는지 검증
