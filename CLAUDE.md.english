@@ -1,0 +1,75 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this repo is
+
+Robot Framework test suite for SK Telecom **PG (Policy Gateway)** integration, covering three interfaces: **NAG**, **PCF**, and **LRS**. Each interface speaks the same 8-octet binary header but differs in role (client vs. server), body encoding (JSON vs. fixed-length ASCII), and message types. Documentation, comments, test names, and log messages are in Korean — preserve that style when editing.
+
+## Common commands
+
+```bash
+bash run_tests.sh nag                       # NAG suite (client → PG:8012)
+bash run_tests.sh pcf                       # PCF suite (client → PG:8011, also opens NAG session first)
+bash run_tests.sh lrs                       # LRS suite (server, listens on :8890 for LRS(PG))
+bash run_tests.sh all                       # all suites
+bash run_tests.sh smoke                     # only --include smoke
+bash run_tests.sh nag --log-msg             # set PG_LOG_MSG=1 for REQ/RESP tracing
+bash run_tests.sh all 192.168.1.1           # override NAG_PG_HOST / PCF_PG_HOST
+
+# Single test (bypasses run_tests.sh)
+python -m robot --test "TC-NAG-010*" tests/nag/
+python -m robot --test "TC-LRS-006*" tests/lrs/
+
+# Tag filtering
+python -m robot --include negative tests/
+python -m robot --include lte tests/
+```
+
+Output goes to `results/<YYYYMMDD_HHMMSS>/` (`report.html`, `log.html`).
+
+## Architecture
+
+### Three interfaces, one shared protocol header
+
+`resources/TcpHelper.py` is the only Python module — it implements an 8-octet big-endian header (`build_header`/`parse_header`) used by all three interfaces. The first byte distinguishes interface family:
+
+- `0x00` — NAG/PCF (ProtoVer=0), JSON body
+- `0x20` — LRS (ProtoVer=01'B), fixed-length ASCII body packed via `pack_fields` / `unpack_fields`
+
+`txn_id` must never be 0 (regulatory requirement; `Next TXN ID` keyword enforces this).
+
+### Connection direction matters
+
+- **NAG / PCF**: tool acts as **client**, connects to PG. Use `tcp_connect` / `send_message` / `receive_message` (JSON).
+- **LRS**: tool acts as **server**, LRS(PG) connects in. Use `server_start` / `server_accept` / `send_lrs_message` / `receive_lrs_message` (fixed-length ASCII).
+
+The PCF suite is special: its `Suite Setup` (`Suite Connect With NAG`) opens **both** the NAG socket (8012, for session pre-registration) **and** the PCF socket (8011) before any PCF test runs. Both sockets must stay open for the whole suite or `Check PCF And NAG Socket` triggers `Fatal Error`.
+
+### Suite-level socket sharing
+
+Sockets are **opened once per suite** and shared across all test cases via Suite Variables (`${NAG_SOCK}`, `${PCF_SOCK}`, `${LRS_CONN}`, `${LRS_SRV_SOCK}`). Each `Test Setup` calls a `Check ... Socket` keyword that escalates a closed socket to **`Fatal Error`** — Robot Framework then aborts the entire suite, since subsequent tests cannot run without the connection. Do not add per-test connect/disconnect logic.
+
+For LRS, `Suite LRS Accept And Hello` blocks on `Server Accept` waiting for LRS(PG) to dial in (timeout `${LRS_ACCEPT_TIMEOUT}` = 30s). When running the LRS suite, the operator must trigger LRS(PG) to connect within that window.
+
+### Layer map
+
+```
+tests/<iface>/<iface>_tests.robot     ← test cases (TC-NAG-xxx, TC-PCF-xxx, TC-LRS-xxx)
+        │ uses
+        ▼
+resources/common_keywords.robot       ← Robot keywords: Suite setup/teardown, send/recv, validations
+        │ uses (WITH NAME Tcp)
+        ▼
+resources/TcpHelper.py                ← raw socket + header pack/unpack
+```
+
+`resources/variables.robot` centralizes hosts/ports, message-type constants (`${MSG_HELLO_REQ}`, etc.), response codes (`${CODE_*}`, `${LRS_CODE_*}`), and test data (MDNs, APNs, TIDs). Edit values here rather than hardcoding in tests. Many `${LRS_*}` variables are flagged `# TODO: 실환경 ...` and need replacement with real-environment values before LRS suites pass against production PG.
+
+### Message-type constant collisions are intentional
+
+`${MSG_PCF_ZONE_REQ}` and `${MSG_LOC_INFO_REQ}` are both `0x05`; `${MSG_PCF_ZONE_RESP}` and `${MSG_LOC_INFO_RESP}` are both `0x06`. The same opcode means different things on PCF vs. LRS sockets. Use the interface-specific constant name to make intent clear.
+
+### Tags used by --include
+
+`smoke`, `negative`, `validation`, `lte`, `5g`, plus per-interface (`nag`, `pcf`, `lrs`) and per-feature (`hello`, `ping`, `subs-zone`, `subs-cellid`, `location`, `adot`).
