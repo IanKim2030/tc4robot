@@ -150,9 +150,7 @@ Suite LRS Accept And Hello
     ...    LRS Suite Setup 전용
     ...    1) Port 8890 Listen 시작
     ...    2) LRS(PG) 접속 수락 → ${LRS_CONN} 저장
-    ...    3) Hello-Request(0x01) 수신 및 검증
-    ...    4) Hello-Response(0x02) 송신 (RESULT_CODE=0, INTERVAL)
-    ...    이후 TC는 ${LRS_CONN}을 공유하여 사용 (TC별 연결/해제 없음)
+    ...    Hello 처리는 TC-LRS-001 에서 수행 (최초 TC)
     [Arguments]    ${host}=${LRS_SERVER_HOST}    ${port}=${LRS_SERVER_PORT}
     Log    [Suite] LRS 서버 시작 → ${host}:${port} Listen    console=True
     ${srv}=    Tcp.Server Start    ${port}    ${host}
@@ -161,14 +159,6 @@ Suite LRS Accept And Hello
     ${conn}    ${addr}=    Tcp.Server Accept    ${LRS_SRV_SOCK}    ${LRS_ACCEPT_TIMEOUT}
     Set Suite Variable    ${LRS_CONN}    ${conn}
     Log    [Suite] LRS(PG) 접속 수락: ${addr}    console=True
-    # Hello 수신 및 응답
-    ${hdr}    ${raw}=    Tcp.Receive Lrs Message    ${LRS_CONN}
-    Should Be Equal As Numbers    ${hdr}[msg_type]    ${1}
-    ...    msg=Hello-Request(0x01) 기대, 실제 msg_type=${hdr}[msg_type]
-    ${resp_fs}=    Evaluate    [('0', 4), ('${LRS_RESP_INTERVAL}', 4)]
-    ${body}=    Tcp.Pack Fields    ${resp_fs}
-    Tcp.Send Lrs Message    ${LRS_CONN}    ${2}    ${hdr}[txn_id]    ${body}
-    Log    [Suite] LRS Hello 완료 INTERVAL=${LRS_RESP_INTERVAL}    console=True
 
 Suite LRS Disconnect
     [Documentation]    LRS Suite Teardown 전용. 클라이언트 연결 + 서버 소켓 모두 종료.
