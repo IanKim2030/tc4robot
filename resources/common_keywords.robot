@@ -443,53 +443,44 @@ Send LRS Ping Response
 
 
 # ══════════════════════════════════════════════════════════════════
-# LRS Location-Info 처리 (0x05 송신 → 0x06 수신)
-# 도구(PCRF/PCF 역할) → LRS(PG): Request
-# LRS(PG) → 도구              : Response
+# LRS Location-Info 처리 (0x05 수신 → 0x06 송신)
+# LRS(PG) → 도구              : Request
+# 도구(PCRF/PCF 역할) → LRS(PG): Response
 # ══════════════════════════════════════════════════════════════════
 
-Generate LRS TID
-    [Documentation]    23자리 TID 생성: prefix(4)_yyyyMMdd(8)+seq(10)
-    ${date}=    Get Current Date    result_format=%Y%m%d
-    ${seq}=     Get Current Date    result_format=%H%M%S%f
-    ${seq10}=   Get Substring    ${seq}    0    10
-    RETURN    PCF1_${date}${seq10}
-
-Send LRS Location Info Request
-    [Documentation]
-    ...    Location-Info-Request(0x05) 송신: 도구 → LRS(PG)
-    ...    sbi=True 시 SERVICE_ID 미포함 (Body=169B), 기본 175B
-    ...    반환: (txn_id, tid) — 응답 TXN/TID 에코 검증용
-    [Arguments]
-    ...    ${sys_id}        ${branch_name}
-    ...    ${dst_host}      ${apn}    ${mdn}
-    ...    ${svc_id}=${EMPTY}    ${sbi}=${False}
-    ...    ${txn_id}=${NONE}     ${tid}=${NONE}
-    ${txn_id}=    Run Keyword If    $txn_id is None    Next TXN ID
-    ...           ELSE    Set Variable    ${txn_id}
-    ${tid}=    Run Keyword If    $tid is None    Generate LRS TID
-    ...        ELSE    Set Variable    ${tid}
-    ${event_ts}=    Get Timestamp17
-    ${min}=    Evaluate    str('${mdn}')[-10:]
-    ${fs}=    Run Keyword If    ${sbi}
-    ...    Evaluate    [('${sys_id}',4),('${branch_name}',2),('${tid}',23),('${event_ts}',17),('${dst_host}',62),('${apn}',40),('${min}',10),('${mdn}',11)]
-    ...    ELSE
-    ...    Evaluate    [('${sys_id}',4),('${branch_name}',2),('${tid}',23),('${event_ts}',17),('${dst_host}',62),('${apn}',40),('${min}',10),('${mdn}',11),('${svc_id}',6)]
-    ${body}=    Tcp.Pack Fields    ${fs}
-    Send To LRS PG    ${5}    ${txn_id}    ${body}
-    Log    [TX→LRS] Location-Info-Request: MDN=${mdn} TID=${tid} SBI=${sbi}
-    RETURN    ${txn_id}    ${tid}
-
-Receive LRS Location Info Response
-    [Documentation]
-    ...    LRS(PG)로부터 Location-Info-Response(0x06) 수신
-    ...    반환: (header_dict, response_dict)
+Receive And Validate LRS Location Info
+    [Documentation]    LRS(PG)로부터 Location-Info-Request(0x05) 수신 및 msg_type 검증
     ${hdr}    ${raw}=    Receive From LRS PG
-    Should Be Equal As Numbers    ${hdr}[msg_type]    ${6}
-    ...    msg=Location-Info-Response(0x06) 기대, 실제 msg_type=${hdr}[msg_type]
-    ${fs}=    Evaluate    [('SYS_ID',4),('BRANCH_NAME',2),('TID',23),('EVENT_TIMESTAMP',17),('APN',40),('MIN',10),('MDN',11),('CELL_INFO',20),('TA_CODE',6),('NET_TP',6),('RESULT_CODE',4)]
-    ${resp}=    Tcp.Unpack Fields    ${raw}    ${fs}
-    RETURN    ${hdr}    ${resp}
+    Should Be Equal As Numbers    ${hdr}[msg_type]    ${5}
+    ...    msg=Location-Info-Request(0x05) 기대, 실제 msg_type=${hdr}[msg_type]
+    ${total}=    Evaluate    len(${raw})
+    ${fs}=    Run Keyword If    ${total} >= 175
+    ...    Evaluate    [('SYS_ID',4),('BRANCH_NAME',2),('TID',23),('EVENT_TIMESTAMP',17),('DESTINATION_HOST',62),('APN',40),('MIN',10),('MDN',11),('SERVICE_ID',6)]
+    ...    ELSE
+    ...    Evaluate    [('SYS_ID',4),('BRANCH_NAME',2),('TID',23),('EVENT_TIMESTAMP',17),('DESTINATION_HOST',62),('APN',40),('MIN',10),('MDN',11)]
+    ${req}=    Tcp.Unpack Fields    ${raw}    ${fs}
+    RETURN    ${hdr}    ${req}
+
+Send LRS Location Info Response
+    [Documentation]
+    ...    Location-Info-Response(0x06) 송신
+    ...    TID는 Request에서 받은 값 그대로 에코 (규격서 3.2.7)
+    [Arguments]
+    ...    ${txn_id}       ${req}
+    ...    ${cell_info}    ${ta_code}    ${net_tp}
+    ...    ${result_code}=0
+    ${event_ts}=    Get Timestamp17
+    ${sys_id}=      Get From Dictionary    ${req}    SYS_ID
+    ${br}=          Get From Dictionary    ${req}    BRANCH_NAME
+    ${tid}=         Get From Dictionary    ${req}    TID
+    ${apn}=         Get From Dictionary    ${req}    APN
+    ${min}=         Get From Dictionary    ${req}    MIN
+    ${mdn}=         Get From Dictionary    ${req}    MDN
+    ${fs}=    Evaluate
+    ...    [('${sys_id}',4),('${br}',2),('${tid}',23),('${event_ts}',17),('${apn}',40),('${min}',10),('${mdn}',11),('${cell_info}',20),('${ta_code}',6),('${net_tp}',6),('${result_code}',4)]
+    ${body}=    Tcp.Pack Fields    ${fs}
+    Send To LRS PG    ${6}    ${txn_id}    ${body}
+    Log    [TX→LRS] Location-Info-Response: MDN=${mdn} CELL=${cell_info} NET_TP=${net_tp} CODE=${result_code}
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -562,21 +553,3 @@ LRS TID Should Be Valid
     [Arguments]    ${req}
     ${tid}=    Get From Dictionary    ${req}    TID
     Should Match Regexp    ${tid}    ^.{4}_.{18}$    msg=TID 포맷 오류 (23자리): ${tid}
-
-LRS TXN ID Should Match
-    [Arguments]    ${expected}    ${hdr}
-    ${actual}=    Get From Dictionary    ${hdr}    txn_id
-    Should Be Equal As Numbers    ${actual}    ${expected}
-    ...    msg=TXN ID 불일치: expected=${expected}, actual=${actual}
-
-LRS Location Info Should Succeed
-    [Arguments]    ${resp}
-    ${code}=    Get From Dictionary    ${resp}    RESULT_CODE
-    Should Be Equal As Strings    ${code}    0
-    ...    msg=Location-Info 실패: RESULT_CODE=${code}
-
-LRS Location Info TID Should Match
-    [Arguments]    ${expected_tid}    ${resp}
-    ${actual}=    Get From Dictionary    ${resp}    TID
-    Should Be Equal As Strings    ${actual}    ${expected_tid}
-    ...    msg=TID 에코 불일치: expected=${expected_tid}, actual=${actual}

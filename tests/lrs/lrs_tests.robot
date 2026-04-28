@@ -59,169 +59,38 @@ TC-LRS-002 Ping - SYS_ID / BRANCH_NAME 수신 및 정상 응답
 
 # ════════════════════════════════════════════════════════════════
 # 0x05/0x06  Location-Info
-# 도구(PCRF/PCF 역할) → LRS(PG) : Request 송신
-# LRS(PG) → 도구               : Response 수신
+# LRS(PG) → 도구               : Request 수신
+# 도구(PCRF/PCF 역할) → LRS(PG) : Response 송신
 # ════════════════════════════════════════════════════════════════
 
-TC-LRS-003 Location-Info - LTE 정상 조회 (RESULT_CODE=0)
+TC-LRS-003 Location-Info - LTE Request 수신 → Response 송신
     [Documentation]
     ...    규격서 3.2.6 / 3.2.7 / 4.2
-    ...    도구 → LRS(PG): Location-Info-Request(0x05) 송신
-    ...    LRS(PG) → 도구: Location-Info-Response(0x06) 수신
-    ...    → RESULT_CODE=0, CELL_INFO, TA_CODE, NET_TP=L 검증
+    ...    LRS(PG) → 도구: Location-Info-Request(0x05) 수신
+    ...    도구 → LRS(PG): Location-Info-Response(0x06, NET_TP=L) 송신
     [Tags]    lrs    location    lte    smoke
-    ${txn_id}=    Next TXN ID
-    ${req_txn}    ${req_tid}=    Send LRS Location Info Request
-    ...    sys_id=${LRS_SYS_ID}
-    ...    branch_name=${LRS_BRANCH_NAME}
-    ...    dst_host=${LRS_DST_HOST_LTE}
-    ...    apn=${LRS_APN_LTE}
-    ...    mdn=${LRS_MDN_LTE}
-    ...    svc_id=${LRS_SVC_ID_LTE}
-    ...    txn_id=${txn_id}
-    ${hdr}    ${resp}=    Receive LRS Location Info Response
-    LRS TXN ID Should Match    ${txn_id}    ${hdr}
-    LRS Location Info Should Succeed    ${resp}
-    LRS Location Info TID Should Match    ${req_tid}    ${resp}
-    Cell Info Should Be Valid    ${resp}[CELL_INFO]
-    TA Code Should Be Valid      ${resp}[TA_CODE]
-    Should Be Equal As Strings   ${resp}[NET_TP]    L
-    ...    msg=LTE 세션 NET_TP 기대 L, 실제=${resp}[NET_TP]
+    ${hdr}    ${req}=    Receive And Validate LRS Location Info
+    LRS TXN ID Should Not Be Zero    ${hdr}
+    LRS MDN Should Be Valid       ${req}
+    LRS TID Should Be Valid       ${req}
+    Send LRS Location Info Response    ${hdr}[txn_id]    ${req}
+    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
+    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
+    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
+    ...    result_code=${LRS_CODE_SUCCESS}
 
-TC-LRS-004 Location-Info - 5G 정상 조회 (SBI, SERVICE_ID 없음, RESULT_CODE=0)
+TC-LRS-004 Location-Info - 5G Request 수신 → Response 송신 (SBI)
     [Documentation]
     ...    규격서 3.2.6 주석: SBI 처리 시 SERVICE_ID 미전송 (Body=169B)
-    ...    도구 → LRS(PG): Location-Info-Request 송신 (sbi=True)
-    ...    LRS(PG) → 도구: Location-Info-Response 수신
-    ...    → RESULT_CODE=0, NET_TP=S 검증
+    ...    LRS(PG) → 도구: Location-Info-Request(0x05) 수신 (SERVICE_ID 없음)
+    ...    도구 → LRS(PG): Location-Info-Response(0x06, NET_TP=S) 송신
     [Tags]    lrs    location    5g    smoke
-    ${txn_id}=    Next TXN ID
-    ${req_txn}    ${req_tid}=    Send LRS Location Info Request
-    ...    sys_id=${LRS_SYS_ID}
-    ...    branch_name=${LRS_BRANCH_NAME}
-    ...    dst_host=${LRS_DST_HOST_5G}
-    ...    apn=${LRS_APN_5G}
-    ...    mdn=${LRS_MDN_5G}
-    ...    sbi=${True}
-    ...    txn_id=${txn_id}
-    ${hdr}    ${resp}=    Receive LRS Location Info Response
-    LRS TXN ID Should Match    ${txn_id}    ${hdr}
-    LRS Location Info Should Succeed    ${resp}
-    Cell Info Should Be Valid    ${resp}[CELL_INFO]
-    Should Be Equal As Strings   ${resp}[NET_TP]    S
-    ...    msg=5G 세션 NET_TP 기대 S, 실제=${resp}[NET_TP]
-
-TC-LRS-005 Location-Info - TXN ID 에코 검증
-    [Documentation]
-    ...    규격서 3.2 f. Location-Info-Response TXN ID = Request TXN ID
-    [Tags]    lrs    location    validation
-    ${txn_id}=    Next TXN ID
-    ${req_txn}    ${req_tid}=    Send LRS Location Info Request
-    ...    sys_id=${LRS_SYS_ID}
-    ...    branch_name=${LRS_BRANCH_NAME}
-    ...    dst_host=${LRS_DST_HOST_LTE}
-    ...    apn=${LRS_APN_LTE}
-    ...    mdn=${LRS_MDN_LTE}
-    ...    svc_id=${LRS_SVC_ID_LTE}
-    ...    txn_id=${txn_id}
-    ${hdr}    ${resp}=    Receive LRS Location Info Response
-    LRS TXN ID Should Match    ${txn_id}    ${hdr}
-    Log    Location-Info TXN ID 에코: ${txn_id}
-
-TC-LRS-006 Location-Info - TID 에코 검증
-    [Documentation]    규격서 3.2.7: 응답 TID = 요청 TID 그대로 에코
-    [Tags]    lrs    location    validation
-    ${txn_id}=    Next TXN ID
-    ${req_txn}    ${req_tid}=    Send LRS Location Info Request
-    ...    sys_id=${LRS_SYS_ID}
-    ...    branch_name=${LRS_BRANCH_NAME}
-    ...    dst_host=${LRS_DST_HOST_LTE}
-    ...    apn=${LRS_APN_LTE}
-    ...    mdn=${LRS_MDN_LTE}
-    ...    svc_id=${LRS_SVC_ID_LTE}
-    ...    txn_id=${txn_id}
-    ${hdr}    ${resp}=    Receive LRS Location Info Response
-    LRS Location Info TID Should Match    ${req_tid}    ${resp}
-    Log    TID 에코 확인: ${req_tid}
-
-TC-LRS-007 Location-Info - 응답 필드 검증 (CELL_INFO, TA_CODE, NET_TP)
-    [Documentation]
-    ...    규격서 3.2.7: 응답 필드 형식 검증
-    ...    CELL_INFO: NodeB:Cell 또는 plmn-NodeB:Cell
-    ...    TA_CODE: Hex 4자리(ECGI) 또는 6자리(NCGI), 대문자
-    ...    NET_TP: L / S / W
-    [Tags]    lrs    location    validation
-    ${txn_id}=    Next TXN ID
-    ${req_txn}    ${req_tid}=    Send LRS Location Info Request
-    ...    sys_id=${LRS_SYS_ID}
-    ...    branch_name=${LRS_BRANCH_NAME}
-    ...    dst_host=${LRS_DST_HOST_LTE}
-    ...    apn=${LRS_APN_LTE}
-    ...    mdn=${LRS_MDN_LTE}
-    ...    svc_id=${LRS_SVC_ID_LTE}
-    ...    txn_id=${txn_id}
-    ${hdr}    ${resp}=    Receive LRS Location Info Response
-    Cell Info Should Be Valid    ${resp}[CELL_INFO]
-    TA Code Should Be Valid      ${resp}[TA_CODE]
-    Should Be True    '${resp}[NET_TP]' in ['L', 'S', 'W']
-    ...    msg=NET_TP 기대 L/S/W, 실제=${resp}[NET_TP]
-
-
-# ════════════════════════════════════════════════════════════════
-# 오류 응답 시나리오
-# ════════════════════════════════════════════════════════════════
-
-TC-LRS-008 Location-Info - 세션 Not Found (RESULT_CODE=200)
-    [Documentation]
-    ...    규격서 3.2.8: RESULT_CODE=200 → 세션 Not Found
-    ...    세션이 없는 MDN으로 요청 → RESULT_CODE=200 검증
-    [Tags]    lrs    location    negative
-    ${txn_id}=    Next TXN ID
-    ${req_txn}    ${req_tid}=    Send LRS Location Info Request
-    ...    sys_id=${LRS_SYS_ID}
-    ...    branch_name=${LRS_BRANCH_NAME}
-    ...    dst_host=${LRS_DST_HOST_LTE}
-    ...    apn=${LRS_APN_LTE}
-    ...    mdn=${LRS_MDN_NO_SESSION}
-    ...    svc_id=${LRS_SVC_ID_LTE}
-    ...    txn_id=${txn_id}
-    ${hdr}    ${resp}=    Receive LRS Location Info Response
-    ${code}=    Get From Dictionary    ${resp}    RESULT_CODE
-    Should Be Equal As Strings    ${code}    200
-    ...    msg=RESULT_CODE 기대 200, 실제=${code}
-
-TC-LRS-009 Location-Info - PGW RAA Timeout (RESULT_CODE=300)
-    [Documentation]
-    ...    규격서 3.2.8: RESULT_CODE=300 → PGW RAA Timeout
-    [Tags]    lrs    location    negative
-    ${txn_id}=    Next TXN ID
-    ${req_txn}    ${req_tid}=    Send LRS Location Info Request
-    ...    sys_id=${LRS_SYS_ID}
-    ...    branch_name=${LRS_BRANCH_NAME}
-    ...    dst_host=${LRS_DST_HOST_LTE}
-    ...    apn=${LRS_APN_LTE}
-    ...    mdn=${LRS_MDN_LTE}
-    ...    svc_id=${LRS_SVC_ID_LTE}
-    ...    txn_id=${txn_id}
-    ${hdr}    ${resp}=    Receive LRS Location Info Response
-    ${code}=    Get From Dictionary    ${resp}    RESULT_CODE
-    Should Be True    '${code}' in ['0', '300']
-    ...    msg=RESULT_CODE 기대 0 또는 300, 실제=${code}
-
-TC-LRS-010 Location-Info - Failover (RESULT_CODE=9999)
-    [Documentation]
-    ...    규격서 3.2.8: RESULT_CODE=9999 → Active→Standby 절체 신호
-    [Tags]    lrs    location    negative
-    ${txn_id}=    Next TXN ID
-    ${req_txn}    ${req_tid}=    Send LRS Location Info Request
-    ...    sys_id=${LRS_SYS_ID}
-    ...    branch_name=${LRS_BRANCH_NAME}
-    ...    dst_host=${LRS_DST_HOST_LTE}
-    ...    apn=${LRS_APN_LTE}
-    ...    mdn=${LRS_MDN_LTE}
-    ...    svc_id=${LRS_SVC_ID_LTE}
-    ...    txn_id=${txn_id}
-    ${hdr}    ${resp}=    Receive LRS Location Info Response
-    ${code}=    Get From Dictionary    ${resp}    RESULT_CODE
-    Should Be True    '${code}' in ['0', '9999']
-    ...    msg=RESULT_CODE 기대 0 또는 9999, 실제=${code}
+    ${hdr}    ${req}=    Receive And Validate LRS Location Info
+    LRS TXN ID Should Not Be Zero    ${hdr}
+    LRS MDN Should Be Valid       ${req}
+    LRS TID Should Be Valid       ${req}
+    Send LRS Location Info Response    ${hdr}[txn_id]    ${req}
+    ...    cell_info=${LRS_MOCK_CELL_INFO_5G}
+    ...    ta_code=${LRS_MOCK_TA_CODE_5G}
+    ...    net_tp=${LRS_MOCK_NET_TP_5G}
+    ...    result_code=${LRS_CODE_SUCCESS}
