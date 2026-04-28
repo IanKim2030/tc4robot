@@ -31,6 +31,14 @@ ${LRS_SERVER_PORT}        8890       # 규격서 고정값
 ${LRS_ACCEPT_TIMEOUT}     30         # LRS(PG) 접속 대기 최대 시간(초)
 ${LRS_MSG_TIMEOUT}        10         # 메시지 수신 최대 대기 시간(초)
 
+# ════════════════════════════════════════════
+# LRS-PCF 서버 정보 (NAG Suite 전용, Port 8090)
+# Subs-Cellid 처리 시 PG가 Location-Info-Request 를 보내는 채널
+# ════════════════════════════════════════════
+${LRS_PCF_HOST}            0.0.0.0
+${LRS_PCF_PORT}            8090
+${LRS_PCF_ACCEPT_TIMEOUT}  30
+
 # LRS(PG)가 Hello에 실어 보내는 식별값 (검증용)
 ${LRS_EXPECTED_SYS_ID}      PG11
 # TODO: 실환경 LRS(PG)의 BRANCH_NAME (2자리: SS=성수, DS=둔산)

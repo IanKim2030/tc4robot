@@ -44,7 +44,10 @@ python -m robot --include lte tests/
 - **NAG / PCF**: 도구가 **클라이언트**로 PG에 접속. `tcp_connect` / `send_message` / `receive_message` (JSON) 사용.
 - **LRS**: 도구가 **서버** 역할이고 LRS(PG)가 들어오는 접속을 건다. `server_start` / `server_accept` / `send_lrs_message` / `receive_lrs_message` (고정길이 ASCII) 사용.
 
-PCF 슈트는 특수하다. `Suite Setup`(`Suite Connect With NAG`)이 PCF 테스트를 시작하기 **전에** NAG 소켓(8012, 세션 선등록용)과 PCF 소켓(8011)을 **둘 다** 연다. 두 소켓 모두 슈트가 끝날 때까지 살아 있어야 하며, 하나라도 닫히면 `Check PCF And NAG Socket`이 `Fatal Error`로 슈트를 즉시 중단시킨다.
+NAG 슈트와 PCF 슈트는 모두 듀얼 소켓 구조다.
+
+- **NAG 슈트**: `Suite Connect With LRS PCF`가 NAG 클라이언트 소켓(8012)을 열어 Hello로 세션을 등록한 뒤, **LRS-PCF 서버 소켓(8090)** 을 Listen하고 LRS(PG)가 접속해 보낸 Hello-Request(0x01)에 Hello-Response(0x02)까지 처리한다. Subs-Cellid TC가 `0x0b` Request를 보내면 PG는 LRS-PCF 채널로 `0x05` Location-Info-Request를 전달하므로, 이 채널이 미리 살아 있어야 한다. 두 소켓 중 하나라도 닫히면 `Check LRS PCF And NAG Socket`이 `Fatal Error`로 슈트를 즉시 중단한다.
+- **PCF 슈트**: `Suite Connect With NAG`가 PCF 테스트를 시작하기 전에 NAG 소켓(8012, 세션 선등록용)과 PCF 소켓(8011)을 둘 다 연다. 두 소켓 모두 슈트가 끝날 때까지 살아 있어야 하며, 하나라도 닫히면 `Check PCF And NAG Socket`이 `Fatal Error`로 슈트를 즉시 중단한다.
 
 ### Suite 단위 소켓 공유
 

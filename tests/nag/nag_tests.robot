@@ -2,17 +2,17 @@
 Documentation
 ...    NAG 기능 검증 - msg_type 기준 (공유 소켓)
 ...
-...    Suite Setup  : PG TCP 연결 1회 + Hello 완료 → ${NAG_SOCK} 공유
-...    Test Setup   : 소켓 상태 확인 (닫히면 Suite 중단)
-...    각 TC        : ${NAG_SOCK} 공유 사용, TC별 연결/해제 없음
+...    Suite Setup  : NAG → PG(${NAG_PG_PORT}) Hello + LRS-PCF Listen(${LRS_PCF_PORT})
+...                   → LRS(PG) 접속 수락 + Hello 완료 → ${NAG_SOCK}, ${LRS_PCF_CONN} 공유
+...    Test Setup   : NAG / LRS-PCF 양쪽 소켓 상태 확인 (하나라도 닫히면 Suite 중단)
+...    각 TC        : ${NAG_SOCK}, ${LRS_PCF_CONN} 공유 사용, TC별 연결/해제 없음
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
 
-Suite Setup      Suite Connect
-...              ${NAG_PG_HOST}    ${NAG_PG_PORT}    NAG_SOCK    ${NAG_TIMEOUT}
-Suite Teardown   Suite Disconnect
-Test Setup       Check NAG Socket
+Suite Setup      Suite Connect With LRS PCF
+Suite Teardown   Suite Disconnect With LRS PCF
+Test Setup       Check LRS PCF And NAG Socket
 
 *** Test Cases ***
 
@@ -93,24 +93,39 @@ TC-NAG-009 Subs-Zone-Status - 세션 없음 (402)
 
 
 # ── 0x0b/0x0c Subs-Cellid ADOT ───────────────────────────────────
+# 흐름: 0x0b Request 송신 → LRS-PCF 채널로 0x05 수신 → 0x06 응답 → 0x0c Response 수신
 
 TC-NAG-010 Subs-Cellid - 정상
-    [Documentation]    0x0b 전송 → 0x0c 수신, code=200, cell-info 포함, TXN ID 에코
+    [Documentation]    0x0b 송신 → LRS-PCF 0x05/0x06 처리 → 0x0c 수신, code=200, TXN ID 에코
     [Tags]    nag    subs-cellid    adot    smoke
-    ${txn}=    Next TXN ID
-    ${hdr}    ${body}=    Send Subs Cellid
+    ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
-    ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}    txn_id=${txn}
-    Response Msg Type Should Be    ${hdr}    ${12}
+    ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}
+    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info    conn=${LRS_PCF_CONN}
+    Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
+    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
+    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
+    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
+    ...    result_code=${LRS_CODE_SUCCESS}
+    ...    conn=${LRS_PCF_CONN}
+    ${hdr}    ${body}=    Receive Subs Cellid Response
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Cellid Should Succeed    ${body}
 
 TC-NAG-011 Subs-Cellid - 응답 필드 검증
-    [Documentation]    cell-info 포맷, ta-code 포맷, rat-type 범위
+    [Documentation]    LRS-PCF 0x05/0x06 처리 후 cell-info / ta-code / rat-type 검증
     [Tags]    nag    subs-cellid    adot    validation
-    ${hdr}    ${body}=    Send Subs Cellid
+    ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
     ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}
+    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info    conn=${LRS_PCF_CONN}
+    Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
+    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
+    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
+    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
+    ...    result_code=${LRS_CODE_SUCCESS}
+    ...    conn=${LRS_PCF_CONN}
+    ${hdr}    ${body}=    Receive Subs Cellid Response
     Subs Cellid Should Succeed    ${body}
     Cell Info Should Be Valid    ${body}[cell-info]
     TA Code Should Be Valid      ${body}[ta-code]
@@ -118,17 +133,33 @@ TC-NAG-011 Subs-Cellid - 응답 필드 검증
     Should Be True    '${rat}' in ['W', 'L', 'S']
 
 TC-NAG-012 Subs-Cellid - HFC 미가입 (402)
-    [Documentation]    미가입 MDN → code=402
+    [Documentation]    미가입 MDN → LRS-PCF 0x05/0x06 처리 후 code=402
     [Tags]    nag    subs-cellid    adot    negative
-    ${hdr}    ${body}=    Send Subs Cellid
+    ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NO_SS}    10.0.0.1
+    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info    conn=${LRS_PCF_CONN}
+    Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
+    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
+    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
+    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
+    ...    result_code=${LRS_CODE_SUCCESS}
+    ...    conn=${LRS_PCF_CONN}
+    ${hdr}    ${body}=    Receive Subs Cellid Response
     Response Code Should Be    ${body}    402
 
 TC-NAG-013 Subs-Cellid - 세션 없음 (403)
-    [Documentation]    세션 없는 MDN → code=403
+    [Documentation]    세션 없는 MDN → LRS-PCF 0x05/0x06 처리 후 code=403
     [Tags]    nag    subs-cellid    adot    negative
-    ${hdr}    ${body}=    Send Subs Cellid
+    ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NO_SESSION}    10.0.0.2
+    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info    conn=${LRS_PCF_CONN}
+    Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
+    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
+    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
+    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
+    ...    result_code=${LRS_CODE_SUCCESS}
+    ...    conn=${LRS_PCF_CONN}
+    ${hdr}    ${body}=    Receive Subs Cellid Response
     Response Code Should Be    ${body}    403
 
 
