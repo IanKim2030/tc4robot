@@ -46,7 +46,7 @@ Output goes to `results/<YYYYMMDD_HHMMSS>/` (`report.html`, `log.html`).
 
 Both NAG and PCF suites use a dual-socket setup.
 
-- **NAG suite**: `Suite Connect With LRS PCF` opens the NAG client socket (8012) and runs Hello to register the session, then listens on the **LRS-PCF server socket (8090)**, accepts the LRS(PG) connection, and processes the inbound Hello-Request(0x01)/Hello-Response(0x02) exchange. Subs-Cellid TCs send `0x0b` and the PG dispatches a `0x05` Location-Info-Request over the LRS-PCF channel, so this channel must be live before any TC runs. If either socket closes, `Check LRS PCF And NAG Socket` raises `Fatal Error` and aborts the suite.
+- **NAG suite**: `Suite Connect With LRS PCF` opens the NAG client socket (8012) and runs Hello to register the session, then listens on the **LRS-PCF server socket (8890)**, accepts the LRS(PG) connection, and processes the inbound Hello-Request(0x01)/Hello-Response(0x02) exchange. Subs-Cellid TCs send `0x0b` and the PG dispatches a `0x05` Location-Info-Request over the LRS-PCF channel, so this channel must be live before any TC runs. If either socket closes, `Check LRS PCF And NAG Socket` raises `Fatal Error` and aborts the suite.
 - **PCF suite**: `Suite Connect With NAG` opens the NAG socket (8012, for session pre-registration) and the PCF socket (8011) before any PCF test runs. Both must stay open for the whole suite or `Check PCF And NAG Socket` triggers `Fatal Error`.
 
 ### Suite-level socket sharing

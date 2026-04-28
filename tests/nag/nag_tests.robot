@@ -2,10 +2,10 @@
 Documentation
 ...    NAG 기능 검증 - msg_type 기준 (공유 소켓)
 ...
-...    Suite Setup  : NAG → PG(${NAG_PG_PORT}) Hello + LRS-PCF Listen(${LRS_PCF_PORT})
-...                   → LRS(PG) 접속 수락 + Hello 완료 → ${NAG_SOCK}, ${LRS_PCF_CONN} 공유
+...    Suite Setup  : NAG → PG(${NAG_PG_PORT}) Hello + LRS-PCF Listen(${LRS_SERVER_PORT})
+...                   → LRS(PG) 접속 수락 + Hello 완료 → ${NAG_SOCK}, ${LRS_CONN} 공유
 ...    Test Setup   : NAG / LRS-PCF 양쪽 소켓 상태 확인 (하나라도 닫히면 Suite 중단)
-...    각 TC        : ${NAG_SOCK}, ${LRS_PCF_CONN} 공유 사용, TC별 연결/해제 없음
+...    각 TC        : ${NAG_SOCK}, ${LRS_CONN} 공유 사용, TC별 연결/해제 없음
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
@@ -101,13 +101,12 @@ TC-NAG-010 Subs-Cellid - 정상
     ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
     ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}
-    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info    conn=${LRS_PCF_CONN}
+    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info
     Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
     ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
     ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
     ...    net_tp=${LRS_MOCK_NET_TP_LTE}
     ...    result_code=${LRS_CODE_SUCCESS}
-    ...    conn=${LRS_PCF_CONN}
     ${hdr}    ${body}=    Receive Subs Cellid Response
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Cellid Should Succeed    ${body}
@@ -118,13 +117,12 @@ TC-NAG-011 Subs-Cellid - 응답 필드 검증
     ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
     ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}
-    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info    conn=${LRS_PCF_CONN}
+    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info
     Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
     ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
     ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
     ...    net_tp=${LRS_MOCK_NET_TP_LTE}
     ...    result_code=${LRS_CODE_SUCCESS}
-    ...    conn=${LRS_PCF_CONN}
     ${hdr}    ${body}=    Receive Subs Cellid Response
     Subs Cellid Should Succeed    ${body}
     Cell Info Should Be Valid    ${body}[cell-info]
@@ -137,13 +135,12 @@ TC-NAG-012 Subs-Cellid - HFC 미가입 (402)
     [Tags]    nag    subs-cellid    adot    negative
     ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NO_SS}    10.0.0.1
-    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info    conn=${LRS_PCF_CONN}
+    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info
     Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
     ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
     ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
     ...    net_tp=${LRS_MOCK_NET_TP_LTE}
     ...    result_code=${LRS_CODE_SUCCESS}
-    ...    conn=${LRS_PCF_CONN}
     ${hdr}    ${body}=    Receive Subs Cellid Response
     Response Code Should Be    ${body}    402
 
@@ -152,13 +149,12 @@ TC-NAG-013 Subs-Cellid - 세션 없음 (403)
     [Tags]    nag    subs-cellid    adot    negative
     ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NO_SESSION}    10.0.0.2
-    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info    conn=${LRS_PCF_CONN}
+    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info
     Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
     ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
     ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
     ...    net_tp=${LRS_MOCK_NET_TP_LTE}
     ...    result_code=${LRS_CODE_SUCCESS}
-    ...    conn=${LRS_PCF_CONN}
     ${hdr}    ${body}=    Receive Subs Cellid Response
     Response Code Should Be    ${body}    403
 
