@@ -14,7 +14,7 @@ Documentation
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
 
-Suite Setup      Suite LRS Accept And Hello
+Suite Setup      Suite LRS Accept
 Suite Teardown   Suite LRS Disconnect
 Test Setup       Check LRS Socket
 

@@ -50,7 +50,7 @@ PCF 슈트는 특수하다. `Suite Setup`(`Suite Connect With NAG`)이 PCF 테�
 
 소켓은 **슈트당 1회만** 열리고 모든 TC가 Suite Variable(`${NAG_SOCK}`, `${PCF_SOCK}`, `${LRS_CONN}`, `${LRS_SRV_SOCK}`)을 통해 공유한다. 각 `Test Setup`의 `Check ... Socket` 키워드는 소켓이 닫혀 있으면 **`Fatal Error`**를 발생시켜 슈트 전체를 즉시 중단한다 — 연결이 없으면 이후 TC도 의미가 없기 때문이다. TC별 connect/disconnect 로직을 추가하지 말 것.
 
-LRS의 경우 `Suite LRS Accept And Hello`가 `Server Accept`에서 LRS(PG)의 접속을 블로킹 대기한다(타임아웃 `${LRS_ACCEPT_TIMEOUT}` = 30초). LRS 슈트를 돌릴 때는 그 윈도우 안에 LRS(PG)가 접속을 시도하도록 운용자가 준비해야 한다.
+LRS의 경우 `Suite LRS Accept`가 `Server Accept`에서 LRS(PG)의 접속을 블로킹 대기한다(타임아웃 `${LRS_ACCEPT_TIMEOUT}` = 30초). LRS 슈트를 돌릴 때는 그 윈도우 안에 LRS(PG)가 접속을 시도하도록 운용자가 준비해야 한다.
 
 ### 레이어 구조
 

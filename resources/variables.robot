@@ -32,7 +32,7 @@ ${LRS_ACCEPT_TIMEOUT}     30         # LRS(PG) 접속 대기 최대 시간(초)
 ${LRS_MSG_TIMEOUT}        10         # 메시지 수신 최대 대기 시간(초)
 
 # LRS(PG)가 Hello에 실어 보내는 식별값 (검증용)
-${LRS_EXPECTED_SYS_ID}      PG01
+${LRS_EXPECTED_SYS_ID}      PG11
 # TODO: 실환경 LRS(PG)의 BRANCH_NAME (2자리: SS=성수, DS=둔산)
 ${LRS_EXPECTED_BRANCH_NAME}    SS
 

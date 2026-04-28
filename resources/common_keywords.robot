@@ -145,7 +145,7 @@ Check PCF And NAG Socket
 # LRS Suite 소켓 관리 (서버 모드, NAG/PCF와 동일한 Suite 단위 연결 유지)
 # ══════════════════════════════════════════════════════════════════
 
-Suite LRS Accept And Hello
+Suite LRS Accept
     [Documentation]
     ...    LRS Suite Setup 전용
     ...    1) Port 8890 Listen 시작

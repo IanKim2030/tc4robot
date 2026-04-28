@@ -50,7 +50,7 @@ The PCF suite is special: its `Suite Setup` (`Suite Connect With NAG`) opens **b
 
 Sockets are **opened once per suite** and shared across all test cases via Suite Variables (`${NAG_SOCK}`, `${PCF_SOCK}`, `${LRS_CONN}`, `${LRS_SRV_SOCK}`). Each `Test Setup` calls a `Check ... Socket` keyword that escalates a closed socket to **`Fatal Error`** — Robot Framework then aborts the entire suite, since subsequent tests cannot run without the connection. Do not add per-test connect/disconnect logic.
 
-For LRS, `Suite LRS Accept And Hello` blocks on `Server Accept` waiting for LRS(PG) to dial in (timeout `${LRS_ACCEPT_TIMEOUT}` = 30s). When running the LRS suite, the operator must trigger LRS(PG) to connect within that window.
+For LRS, `Suite LRS Accept` blocks on `Server Accept` waiting for LRS(PG) to dial in (timeout `${LRS_ACCEPT_TIMEOUT}` = 30s). When running the LRS suite, the operator must trigger LRS(PG) to connect within that window.
 
 ### Layer map
 
