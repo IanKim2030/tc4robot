@@ -66,23 +66,12 @@ Next TXN ID
 Suite Connect With LRS PCF
     [Documentation]
     ...    NAG Suite Setup 전용
-    ...    1) NAG → PG(${NAG_PG_PORT}) 연결 + Hello (NAG 세션 등록)
-    ...    2) Port ${LRS_SERVER_PORT} Listen + LRS(PG) 접속 수락 + Hello 처리
+    ...    1) Port ${LRS_SERVER_PORT} Listen + LRS(PG) 접속 수락 + Hello 처리
+    ...    2) NAG → PG(${NAG_PG_PORT}) 소켓 연결 (NAG Hello 는 TC-NAG-001 에서 수행)
     ...    Subs-Cellid 처리 시 PG → 도구로 Location-Info-Request 가 들어오는 채널
     [Arguments]    ${nag_host}=${NAG_PG_HOST}    ${nag_port}=${NAG_PG_PORT}
     ...            ${lrs_host}=${LRS_SERVER_HOST}    ${lrs_port}=${LRS_SERVER_PORT}
     ...            ${timeout}=${NAG_TIMEOUT}
-    Log    [Suite] NAG 연결 시작 → ${nag_host}:${nag_port}    console=True
-    ${nag_sock}=    Tcp.Tcp Connect    ${nag_host}    ${nag_port}    ${timeout}
-    Set Suite Variable    ${NAG_SOCK}    ${nag_sock}
-    ${txn}=    Next TXN ID
-    ${payload}=    Create Dictionary    sys-id=${NAG_SYS_ID}    branch-name=${NAG_BRANCH_NAME}
-    Tcp.Send Message    ${NAG_SOCK}    ${1}    ${txn}    ${payload}
-    ${hdr}    ${body}=    Tcp.Receive Message    ${NAG_SOCK}
-    ${code}=    Get From Dictionary    ${body}    code
-    Should Be Equal As Numbers    ${code}    200
-    ...    msg=NAG Hello 실패 (code=${code}). NAG 테스트 시작 불가.
-    Log    [Suite] NAG Hello 성공 code=${code}    console=True
     Log    [Suite] LRS-PCF 서버 시작 → ${lrs_host}:${lrs_port} Listen    console=True
     ${srv}=    Tcp.Server Start    ${lrs_port}    ${lrs_host}
     Set Suite Variable    ${LRS_SRV_SOCK}    ${srv}
@@ -93,6 +82,9 @@ Suite Connect With LRS PCF
     ${hello_hdr}    ${hello_req}=    Receive And Validate LRS Hello
     Send LRS Hello Response    ${hello_hdr}[txn_id]
     Log    [Suite] LRS-PCF Hello 처리 완료 (TXN=${hello_hdr}[txn_id])    console=True
+    Log    [Suite] NAG 연결 시작 → ${nag_host}:${nag_port}    console=True
+    ${nag_sock}=    Tcp.Tcp Connect    ${nag_host}    ${nag_port}    ${timeout}
+    Set Suite Variable    ${NAG_SOCK}    ${nag_sock}
 
 Suite Disconnect With LRS PCF
     [Documentation]    NAG Suite Teardown 전용. NAG + LRS-PCF 모든 소켓 종료.
@@ -493,10 +485,20 @@ Send LRS Ping Response
 # ══════════════════════════════════════════════════════════════════
 
 Receive And Validate LRS Location Info
-    [Documentation]    LRS(PG)로부터 Location-Info-Request(0x05) 수신 및 msg_type 검증
-    ${hdr}    ${raw}=    Receive From LRS PG
-    Should Be Equal As Numbers    ${hdr}[msg_type]    ${5}
-    ...    msg=Location-Info-Request(0x05) 기대, 실제 msg_type=${hdr}[msg_type]
+    [Documentation]
+    ...    LRS(PG)로부터 Location-Info-Request(0x05) 수신 및 msg_type 검증
+    ...    중간에 Ping-Request(0x03)가 오면 Ping-Response(0x04)로 응답하고 계속 대기
+    WHILE    True    limit=10
+        ${hdr}    ${raw}=    Receive From LRS PG
+        IF    ${hdr}[msg_type] == ${5}
+            BREAK
+        END
+        IF    ${hdr}[msg_type] == ${3}
+            Send LRS Ping Response    ${hdr}[txn_id]
+            CONTINUE
+        END
+        Fail    Location-Info-Request(0x05) 기대, 실제 msg_type=${hdr}[msg_type]
+    END
     ${total}=    Get Length    ${raw}
     ${fs}=    Run Keyword If    ${total} == 175
     ...    Evaluate    [('SYS_ID',4),('BRANCH_NAME',2),('TID',23),('EVENT_TIMESTAMP',17),('DESTINATION_HOST',62),('APN',40),('MIN',10),('MDN',11),('SERVICE_ID',6)]

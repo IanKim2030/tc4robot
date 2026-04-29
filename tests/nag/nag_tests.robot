@@ -2,8 +2,9 @@
 Documentation
 ...    NAG 기능 검증 - msg_type 기준 (공유 소켓)
 ...
-...    Suite Setup  : NAG → PG(${NAG_PG_PORT}) Hello + LRS-PCF Listen(${LRS_SERVER_PORT})
-...                   → LRS(PG) 접속 수락 + Hello 완료 → ${NAG_SOCK}, ${LRS_CONN} 공유
+...    Suite Setup  : LRS-PCF Listen(${LRS_SERVER_PORT}) → LRS(PG) 접속 수락 + Hello 처리
+...                   → NAG → PG(${NAG_PG_PORT}) 소켓 연결 → ${NAG_SOCK}, ${LRS_CONN} 공유
+...                   (NAG Hello 는 TC-NAG-001 에서 직접 수행)
 ...    Test Setup   : NAG / LRS-PCF 양쪽 소켓 상태 확인 (하나라도 닫히면 Suite 중단)
 ...    각 TC        : ${NAG_SOCK}, ${LRS_CONN} 공유 사용, TC별 연결/해제 없음
 
