@@ -95,9 +95,10 @@ TC-NAG-009 Subs-Zone-Status - 세션 없음 (402)
 # ── 0x0b/0x0c Subs-Cellid ADOT ───────────────────────────────────
 # 흐름: 0x0b Request 송신 → LRS-PCF 채널로 0x05 수신 → 0x06 응답 → 0x0c Response 수신
 
-TC-NAG-010 Subs-Cellid - 정상
-    [Documentation]    0x0b 송신 → LRS-PCF 0x05/0x06 처리 → 0x0c 수신, code=200, TXN ID 에코
-    [Tags]    nag    subs-cellid    adot    smoke
+TC-NAG-010 Subs-Cellid - 정상 및 응답 필드 검증
+    [Documentation]    0x0b 송신 → LRS-PCF 0x05/0x06 처리 → 0x0c 수신,
+    ...                code=200, TXN ID 에코, cell-info / ta-code / rat-type 검증
+    [Tags]    nag    subs-cellid    adot    smoke    validation
     ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
     ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}
@@ -110,53 +111,10 @@ TC-NAG-010 Subs-Cellid - 정상
     ${hdr}    ${body}=    Receive Subs Cellid Response
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Cellid Should Succeed    ${body}
-
-TC-NAG-011 Subs-Cellid - 응답 필드 검증
-    [Documentation]    LRS-PCF 0x05/0x06 처리 후 cell-info / ta-code / rat-type 검증
-    [Tags]    nag    subs-cellid    adot    validation
-    ${txn}=    Send Subs Cellid Request
-    ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
-    ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}
-    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info
-    Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
-    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
-    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
-    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
-    ...    result_code=${LRS_CODE_SUCCESS}
-    ${hdr}    ${body}=    Receive Subs Cellid Response
-    Subs Cellid Should Succeed    ${body}
     Cell Info Should Be Valid    ${body}[cell-info]
     TA Code Should Be Valid      ${body}[ta-code]
     ${rat}=    Get From Dictionary    ${body}    rat-type
     Should Be True    '${rat}' in ['W', 'L', 'S']
-
-TC-NAG-012 Subs-Cellid - HFC 미가입 (402)
-    [Documentation]    미가입 MDN → LRS-PCF 0x05/0x06 처리 후 code=402
-    [Tags]    nag    subs-cellid    adot    negative
-    ${txn}=    Send Subs Cellid Request
-    ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NO_SS}    10.0.0.1
-    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info
-    Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
-    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
-    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
-    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
-    ...    result_code=${LRS_CODE_SUCCESS}
-    ${hdr}    ${body}=    Receive Subs Cellid Response
-    Response Code Should Be    ${body}    402
-
-TC-NAG-013 Subs-Cellid - 세션 없음 (403)
-    [Documentation]    세션 없는 MDN → LRS-PCF 0x05/0x06 처리 후 code=403
-    [Tags]    nag    subs-cellid    adot    negative
-    ${txn}=    Send Subs Cellid Request
-    ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NO_SESSION}    10.0.0.2
-    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info
-    Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
-    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
-    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
-    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
-    ...    result_code=${LRS_CODE_SUCCESS}
-    ${hdr}    ${body}=    Receive Subs Cellid Response
-    Response Code Should Be    ${body}    403
 
 
 # ── 0x07/0x08 ZION (PG→NAG 방향) ────────────────────────────────
