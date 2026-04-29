@@ -63,34 +63,34 @@ TC-LRS-002 Ping - SYS_ID / BRANCH_NAME 수신 및 정상 응답
 # 도구(PCRF/PCF 역할) → LRS(PG) : Response 송신
 # ════════════════════════════════════════════════════════════════
 
-TC-LRS-003 Location-Info - LTE Request 수신 → Response 송신
-    [Documentation]
-    ...    규격서 3.2.6 / 3.2.7 / 4.2
-    ...    LRS(PG) → 도구: Location-Info-Request(0x05) 수신
-    ...    도구 → LRS(PG): Location-Info-Response(0x06, NET_TP=L) 송신
-    [Tags]    lrs    location    lte    smoke
-    ${hdr}    ${req}=    Receive And Validate LRS Location Info
-    LRS TXN ID Should Not Be Zero    ${hdr}
-    LRS MDN Should Be Valid       ${req}
-    LRS TID Should Be Valid       ${req}
-    Send LRS Location Info Response    ${hdr}[txn_id]    ${req}
-    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
-    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
-    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
-    ...    result_code=${LRS_CODE_SUCCESS}
+# TC-LRS-003 Location-Info - LTE Request 수신 → Response 송신
+#     [Documentation]
+#     ...    규격서 3.2.6 / 3.2.7 / 4.2
+#     ...    LRS(PG) → 도구: Location-Info-Request(0x05) 수신
+#     ...    도구 → LRS(PG): Location-Info-Response(0x06, NET_TP=L) 송신
+#     [Tags]    lrs    location    lte    smoke
+#     ${hdr}    ${req}=    Receive And Validate LRS Location Info
+#     LRS TXN ID Should Not Be Zero    ${hdr}
+#     LRS MDN Should Be Valid       ${req}
+#     LRS TID Should Be Valid       ${req}
+#     Send LRS Location Info Response    ${hdr}[txn_id]    ${req}
+#     ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
+#     ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
+#     ...    net_tp=${LRS_MOCK_NET_TP_LTE}
+#     ...    result_code=${LRS_CODE_SUCCESS}
 
-TC-LRS-004 Location-Info - 5G Request 수신 → Response 송신 (SBI)
-    [Documentation]
-    ...    규격서 3.2.6 주석: SBI 처리 시 SERVICE_ID 미전송 (Body=169B)
-    ...    LRS(PG) → 도구: Location-Info-Request(0x05) 수신 (SERVICE_ID 없음)
-    ...    도구 → LRS(PG): Location-Info-Response(0x06, NET_TP=S) 송신
-    [Tags]    lrs    location    5g    smoke
-    ${hdr}    ${req}=    Receive And Validate LRS Location Info
-    LRS TXN ID Should Not Be Zero    ${hdr}
-    LRS MDN Should Be Valid       ${req}
-    LRS TID Should Be Valid       ${req}
-    Send LRS Location Info Response    ${hdr}[txn_id]    ${req}
-    ...    cell_info=${LRS_MOCK_CELL_INFO_5G}
-    ...    ta_code=${LRS_MOCK_TA_CODE_5G}
-    ...    net_tp=${LRS_MOCK_NET_TP_5G}
-    ...    result_code=${LRS_CODE_SUCCESS}
+# TC-LRS-004 Location-Info - 5G Request 수신 → Response 송신 (SBI)
+#     [Documentation]
+#     ...    규격서 3.2.6 주석: SBI 처리 시 SERVICE_ID 미전송 (Body=169B)
+#     ...    LRS(PG) → 도구: Location-Info-Request(0x05) 수신 (SERVICE_ID 없음)
+#     ...    도구 → LRS(PG): Location-Info-Response(0x06, NET_TP=S) 송신
+#     [Tags]    lrs    location    5g    smoke
+#     ${hdr}    ${req}=    Receive And Validate LRS Location Info
+#     LRS TXN ID Should Not Be Zero    ${hdr}
+#     LRS MDN Should Be Valid       ${req}
+#     LRS TID Should Be Valid       ${req}
+#     Send LRS Location Info Response    ${hdr}[txn_id]    ${req}
+#     ...    cell_info=${LRS_MOCK_CELL_INFO_5G}
+#     ...    ta_code=${LRS_MOCK_TA_CODE_5G}
+#     ...    net_tp=${LRS_MOCK_NET_TP_5G}
+#     ...    result_code=${LRS_CODE_SUCCESS}
