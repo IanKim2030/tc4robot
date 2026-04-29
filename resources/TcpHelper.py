@@ -224,7 +224,8 @@ def unpack_fields(data: bytes, field_specs: list) -> dict:
     for name, size in field_specs:
         size = int(size)
         chunk = data[offset:offset + size]
-        result[name] = chunk.decode('ascii', errors='replace').strip()
+        decoded = chunk.decode('ascii', errors='replace').replace('\x00', '')
+        result[name] = decoded.strip()
         offset += size
     return result
 
