@@ -497,8 +497,8 @@ Receive And Validate LRS Location Info
     ${hdr}    ${raw}=    Receive From LRS PG
     Should Be Equal As Numbers    ${hdr}[msg_type]    ${5}
     ...    msg=Location-Info-Request(0x05) 기대, 실제 msg_type=${hdr}[msg_type]
-    ${total}=    Evaluate    len(${raw})
-    ${fs}=    Run Keyword If    ${total} >= 175
+    ${total}=    Get Length    ${raw}
+    ${fs}=    Run Keyword If    ${total} == 175
     ...    Evaluate    [('SYS_ID',4),('BRANCH_NAME',2),('TID',23),('EVENT_TIMESTAMP',17),('DESTINATION_HOST',62),('APN',40),('MIN',10),('MDN',11),('SERVICE_ID',6)]
     ...    ELSE
     ...    Evaluate    [('SYS_ID',4),('BRANCH_NAME',2),('TID',23),('EVENT_TIMESTAMP',17),('DESTINATION_HOST',62),('APN',40),('MIN',10),('MDN',11)]
