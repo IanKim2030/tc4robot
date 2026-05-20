@@ -1,4 +1,3 @@
-# tc4robot
 
 
 
@@ -18,4 +17,5 @@
 * **통신 방식:** REST API (HTTPS), gRPC, Socket, SFTP, DB Link 등
 * **데이터 포맷:** JSON, XML, Fixed Length (고정길이 전문), CSV 등
 * **상태:** 대기 / 설계중 / 개발중 / 테스트중 / 완료 / 보류
-BNOTI 
+
+
