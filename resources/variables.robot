@@ -211,7 +211,7 @@ ${UPM_TEST_ADDR_BUNJI2}    1
 # TODO: 실환경 NWDAF 서비스 IP/Port 확인 후 교체
 # ════════════════════════════════════════════
 ${NWDAF_HOST}             192.168.15.141
-${NWDAF_PORT}             8013        # TODO: 실환경 NWDAF 서비스 Port
+${NWDAF_PORT}             10305
 ${NWDAF_TIMEOUT}          10
 
 # ════════════════════════════════════════════
