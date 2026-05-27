@@ -204,3 +204,173 @@ ${UPM_TEST_ADDR_GU}        강남구
 ${UPM_TEST_ADDR_DONG}      청담동
 ${UPM_TEST_ADDR_BUNJI1}    77
 ${UPM_TEST_ADDR_BUNJI2}    1
+
+# ════════════════════════════════════════════
+# NWDAF PG 접속 정보 (클라이언트 모드)
+# 방향: NWDAF → PG (Notification 주력, 응답 사실상 없음)
+# TODO: 실환경 NWDAF 서비스 IP/Port 확인 후 교체
+# ════════════════════════════════════════════
+${NWDAF_HOST}             192.168.15.141
+${NWDAF_PORT}             8013        # TODO: 실환경 NWDAF 서비스 Port
+${NWDAF_TIMEOUT}          10
+
+# ════════════════════════════════════════════
+# NWDAF Header — Message Type (Byte0 하위 3bit)
+# ════════════════════════════════════════════
+${NWDAF_MT_REQ}           ${1}        # 0b001 Request
+${NWDAF_MT_RESP}          ${4}        # 0b100 Response
+${NWDAF_MT_NOTI}          ${2}        # 0b010 Notification ← NWDAF 주력
+
+# ════════════════════════════════════════════
+# NWDAF Service Id (Header Byte1-2)
+# ════════════════════════════════════════════
+${NWDAF_SID_SUBSCRIBER}   ${773}      # 0x0305 SC → PG 가입자 단위 QoS 제어
+${NWDAF_SID_CELL}         ${774}      # 0x0306 SC → PG 기지국 단위 QoS 제어
+${NWDAF_SID_SERVICE}      ${775}      # 0x0307 SC → PG 서비스 단위 QoS 제어 (P-GW 제외)
+
+# ════════════════════════════════════════════
+# NWDAF QOS_HDR(0x3A) PCEF Type
+# ════════════════════════════════════════════
+${NWDAF_PCEF_PGW}         ${1}        # 0x01 P-GW QoS Control
+${NWDAF_PCEF_DPI}         ${2}        # 0x02 DPI QoS Control
+${NWDAF_PCEF_VOMS}        ${4}        # 0x04 VOMS QoS Control
+${NWDAF_PCEF_APRS}        ${8}        # 0x08 APRS QoS Control
+${NWDAF_PCEF_ENB}         ${16}       # 0x10 eNB QoS Control
+
+# ════════════════════════════════════════════
+# NWDAF QOS_CONTROL_TYPE (TAG 0x0E)
+# ════════════════════════════════════════════
+${NWDAF_QCT_SUBSCRIBER}   ${1}        # 0x01 가입자 단위
+${NWDAF_QCT_APP}          ${2}        # 0x02 Application 단위
+${NWDAF_QCT_CELL}         ${3}        # 0x03 기지국 단위
+
+# ════════════════════════════════════════════
+# NWDAF NETWORK (TAG 0x1F) — 규격 기준
+# TODO: C++ 코드는 0x01=3G, 0x02=LTE, 0x03=5G 분기. 실환경 채택값 확인
+# ════════════════════════════════════════════
+${NWDAF_NET_2G}           ${0}        # 0x00 (규격)
+${NWDAF_NET_WCDMA}        ${1}        # 0x01 (규격)
+${NWDAF_NET_LTE}          ${2}        # 0x02 (규격)
+
+# ════════════════════════════════════════════
+# NWDAF USER_OPERATION_TYPE (TAG 0x24)
+# ════════════════════════════════════════════
+${NWDAF_USEROP_ADD}       ${0}        # 0x00 Add
+${NWDAF_USEROP_CHANGE}    ${1}        # 0x01 Change
+${NWDAF_USEROP_DELETE}    ${2}        # 0x02 Delete
+
+# ════════════════════════════════════════════
+# NWDAF CONTROL_UNIT (TAG 0x40) — String
+# ════════════════════════════════════════════
+${NWDAF_CU_CELL}          1
+${NWDAF_CU_ENODEB}        2
+${NWDAF_CU_SECTOR}        3
+${NWDAF_CU_NODEB}         4
+${NWDAF_CU_RNC}           5
+${NWDAF_CU_WMSC}          6
+
+# ════════════════════════════════════════════
+# NWDAF SUPPORT_TYPE (TAG 0x41) — eNB
+# ════════════════════════════════════════════
+${NWDAF_SUPPORT_APPLY}    1           # 제어 적용
+${NWDAF_SUPPORT_RELEASE}  2           # 해지
+
+# ════════════════════════════════════════════
+# NWDAF ARP_QCI_FLAG (TAG 0x3F) — eNB
+# ════════════════════════════════════════════
+${NWDAF_ARPQCI_ARP}       ${0}
+${NWDAF_ARPQCI_QCI}       ${1}
+${NWDAF_ARPQCI_BOTH}      ${2}
+
+# ════════════════════════════════════════════
+# NWDAF QUICK_SUPPORT (TAG 0x3B)
+# ════════════════════════════════════════════
+${NWDAF_QUICK_NOW}        ${0}        # 즉시
+${NWDAF_QUICK_AFTER}      ${1}        # Update 후
+
+# ════════════════════════════════════════════
+# NWDAF 테스트 데이터
+# TODO: 실환경 PG/PDB 와 매칭되는 값으로 교체
+# ════════════════════════════════════════════
+${NWDAF_TEST_MDN}              01012345678
+${NWDAF_TEST_IMSI}             450050123456789
+${NWDAF_TEST_MCC_MNC}          450005
+${NWDAF_TEST_DEVICE_IP}        10.10.10.10
+${NWDAF_TEST_CELL_ID}          123456:0
+${NWDAF_TEST_PGW_HOST}         ltepgw3.skt.net
+${NWDAF_TEST_PCRF_HOST}        ltepcrf01.skt.net
+${NWDAF_TEST_PGW_IP}           211.234.100.10
+${NWDAF_TEST_QOS_POLICY}       QoS200K
+${NWDAF_TEST_QCI}              9
+${NWDAF_TEST_APP_TYPE}         Streaming
+${NWDAF_TEST_TIMER}            ${300}    # 초 단위 (5분)
+${NWDAF_TEST_LOAD_STATUS}      ${1}      # PG load_status (의미는 규격 추가 확인)
+${NWDAF_TEST_CATEGORY_LIST}    Streaming,Download,Upload,Web,Game,VoIP
+${NWDAF_TEST_POLICY_LIST}      QoS200K,QoS400K,QoS200K,QoS1M,QoS400K,QoS200K
+
+# ════════════════════════════════════════════
+# NWDAF TLV TAG (Header Catalog) — 자주 쓰는 것만
+# ════════════════════════════════════════════
+${NWDAF_TAG_MIN}                ${1}      # 0x01
+${NWDAF_TAG_MDN}                ${2}      # 0x02
+${NWDAF_TAG_MSISDN}             ${3}      # 0x03
+${NWDAF_TAG_IMSI}               ${4}      # 0x04
+${NWDAF_TAG_PRODUCT_ID}         ${5}      # 0x05
+${NWDAF_TAG_PRODUCT_NAME}       ${6}      # 0x06
+${NWDAF_TAG_DATA_USAGE_LEVEL}   ${7}      # 0x07
+${NWDAF_TAG_CREATE_DATE}        ${8}      # 0x08
+${NWDAF_TAG_CREATE_TIME}        ${9}      # 0x09
+${NWDAF_TAG_PROCESS_TYPE}       ${10}     # 0x0A
+${NWDAF_TAG_LOCATION_ID}        ${11}     # 0x0B
+${NWDAF_TAG_STATUS}             ${12}     # 0x0C
+${NWDAF_TAG_PCEF_TYPE}          ${13}     # 0x0D
+${NWDAF_TAG_QOS_CONTROL_TYPE}   ${14}     # 0x0E
+${NWDAF_TAG_PGW_IP}             ${15}     # 0x0F
+${NWDAF_TAG_QOS_POLICY}         ${16}     # 0x10
+${NWDAF_TAG_QCI}                ${17}     # 0x11
+${NWDAF_TAG_APP_TYPE}           ${18}     # 0x12
+${NWDAF_TAG_PGW_HOST_NAME}      ${19}     # 0x13
+${NWDAF_TAG_TOTAL_USAGE}        ${20}     # 0x14
+${NWDAF_TAG_TOTAL_USER}         ${21}     # 0x15
+${NWDAF_TAG_IN_USER}            ${22}     # 0x16
+${NWDAF_TAG_OUT_USER}           ${23}     # 0x17
+${NWDAF_TAG_TRY_USER}           ${24}     # 0x18
+${NWDAF_TAG_TRY_COUNT}          ${25}     # 0x19
+${NWDAF_TAG_CONCURRENT_USER}    ${26}     # 0x1A
+${NWDAF_TAG_UP_TOTAL_USAGE}     ${27}     # 0x1B
+${NWDAF_TAG_UP_TOTAL_USER}      ${28}     # 0x1C
+${NWDAF_TAG_DN_TOTAL_USAGE}     ${29}     # 0x1D
+${NWDAF_TAG_DN_TOTAL_USER}      ${30}     # 0x1E
+${NWDAF_TAG_NETWORK}            ${31}     # 0x1F
+${NWDAF_TAG_TIMER}              ${32}     # 0x20
+${NWDAF_TAG_TIMESTAMP}          ${33}     # 0x21
+${NWDAF_TAG_IMSI_MCC_MNC}       ${34}     # 0x22
+${NWDAF_TAG_DEVICE_IP}          ${35}     # 0x23
+${NWDAF_TAG_USER_OPERATION}     ${36}     # 0x24
+${NWDAF_TAG_RESULT}             ${37}     # 0x25
+${NWDAF_TAG_REASON}             ${38}     # 0x26
+${NWDAF_TAG_IP_VERSION}         ${39}     # 0x27
+${NWDAF_TAG_PCRF_HOST_NAME}     ${45}     # 0x2D
+${NWDAF_TAG_ROAMING}            ${46}     # 0x2E
+${NWDAF_TAG_NAT_IP}             ${47}     # 0x2F
+${NWDAF_TAG_TRANSACTION_ID}     ${48}     # 0x30
+${NWDAF_TAG_DN_USAGE}           ${49}     # 0x31
+${NWDAF_TAG_HEAVY_USER}         ${50}     # 0x32
+${NWDAF_TAG_MEDIUM_USER}        ${51}     # 0x33
+${NWDAF_TAG_LIGHT_USER}         ${52}     # 0x34
+${NWDAF_TAG_CELL_AVG_USAGE}     ${53}     # 0x35
+${NWDAF_TAG_USER_USAGE}         ${54}     # 0x36
+${NWDAF_TAG_USER_RATIO}         ${55}     # 0x37
+${NWDAF_TAG_RCT_3M_USAGE}       ${56}     # 0x38
+${NWDAF_TAG_RCT_1M_USAGE}       ${57}     # 0x39
+${NWDAF_TAG_QOS_HDR}            ${58}     # 0x3A
+${NWDAF_TAG_QUICK_SUPPORT}      ${59}     # 0x3B
+${NWDAF_TAG_ENB_ARP}            ${60}     # 0x3C
+${NWDAF_TAG_SERVICE_TYPE}       ${61}     # 0x3D
+${NWDAF_TAG_CATEGORY}           ${62}     # 0x3E
+${NWDAF_TAG_ARP_QCI_FLAG}       ${63}     # 0x3F
+${NWDAF_TAG_CONTROL_UNIT}       ${64}     # 0x40
+${NWDAF_TAG_SUPPORT_TYPE}       ${65}     # 0x41
+${NWDAF_TAG_ARP_CAPABILITY}     ${66}     # 0x42
+${NWDAF_TAG_ARP_VULNERABILITY}  ${67}     # 0x43
+${NWDAF_TAG_MULTI_MESSAGE}      ${255}    # 0xFF

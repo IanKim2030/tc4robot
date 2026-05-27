@@ -16,6 +16,9 @@ pip3 install robotframework
 | 06 | PG.UPM  | ... | 작업중 | .... |
 
 
+| 90 | PG.SCMQOS | ITM - PG.SCMQOS | ... | 적용필요 | 기지국 혼잡제어 | 
+| 91 | PG.NWMQOS | NWDAF - PG.NWMQOS | PG_연동 규격서_V1.2_20240920 | 적용필요 | 기지국 혼잡제어 | 
+
 
 
 ---
@@ -29,11 +32,12 @@ pip3 install robotframework
 -- 
 
 ## 📑 구성 요소 및 약어 목록
+
 | 약어 (Acronym) | 용어 (Full Name) | 주요 역할 및 설명 |
 | :--- | :--- | :--- |
 | PG | PCRF Gateway | ... |
 | NAG | Network Access Gateway | ... |
-| MSS | Mobile Switching Server/System | .. |
+| MSS | Mobile Switching Server/System | 통화 경로 제어 및 가입자 위치 관리 |
 | ABC | A-side, B-side / Call Processing | .. |
 | HD Voice | High Definition Voice | .. |
 | HFC | Home-Fi Call | ..|
@@ -42,5 +46,9 @@ pip3 install robotframework
 | CDS | Customer Data Distributed | ... |
 | RDS | Reserved Data Distributed | ... |
 | ITM | Integrated Traffic Manager/Management | 통신망 내에서 가입자 데이터베이스와 연동하여 트래픽 정책을 제어하고, 가입자의 서비스 품질(QoS)과 정책 정보를 실시간으로 관리하는 시스템 |
+
+
+
+| PG.BNOTI | BaroD Noti | ... |
 
 
