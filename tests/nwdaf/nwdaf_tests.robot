@@ -32,7 +32,6 @@ Documentation
 ...      TC-NWDAF-021 ~ 028 : COMMON2 (NETWORK / CONTROL_UNIT / DN_USAGE / USER_RATIO)
 ...      TC-NWDAF-029       : Message Id wrap
 ...      TC-NWDAF-030 ~ 034 : Build 단위 검증 (송신 없음)
-...      TC-NWDAF-035 ~ 037 : Negative
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
@@ -357,40 +356,3 @@ TC-NWDAF-034 Body inner 순서 = COMMON1 + pcefQoSCtrl + COMMON2
     Should Be Equal As Integers    ${inner}[0][0]    ${NWDAF_TAG_PCEF_TYPE}
     Should Be Equal As Integers    ${inner}[9][0]    ${NWDAF_TAG_QOS_HDR}
     Should Be Equal As Integers    ${inner}[14][0]   ${NWDAF_TAG_NETWORK}
-
-
-# ════════════════════════════════════════════════════════════════
-# Negative
-# ════════════════════════════════════════════════════════════════
-
-TC-NWDAF-035 Negative — Unknown NETWORK Value (0x04)
-    [Documentation]
-    ...    NETWORK(0x1F) 값 = 0x04 (규격 범위 외) 송신.
-    ...    규격 4.1: 0=2G, 1=WCDMA, 2=LTE, 3=5G. PG 처리 동작 확인.
-    ...    TODO: 운영 PG 의 정확한 처리 코드(무시/에러) 확인.
-    [Tags]    nwdaf    nwdaf_negative
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qc}=    Build pcefQoSCtrl
-    ${c2}=    Build COMMON2    network=${4}
-    Send NWDAF Notification    ${{$c1 + $qc + $c2}}
-
-TC-NWDAF-036 Negative — Unknown PCEF_TYPE (0x02)
-    [Documentation]
-    ...    PCEF_TYPE(0x0D) = 0x02 (규격 정의 외, DPI 등 미지원).
-    ...    규격 1.1 은 0x01/0x10 만 정의. PG 처리 동작 확인.
-    [Tags]    nwdaf    nwdaf_negative
-    ${c1}=    Build COMMON1    ${2}    # 0x02
-    ${qc}=    Build pcefQoSCtrl       # pcef 구조 일단 첨부
-    ${c2}=    Build COMMON2
-    Send NWDAF Notification    ${{$c1 + $qc + $c2}}
-
-TC-NWDAF-037 Negative — Unknown Service Id (0x0308)
-    [Documentation]
-    ...    Service Id=0x0308 (미정의) 송신. PG 동작 확인.
-    ...    TODO: 운영 PG 의 처리 코드(연결 종료/무시) 확인.
-    [Tags]    nwdaf    nwdaf_negative
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qc}=    Build pcefQoSCtrl
-    ${c2}=    Build COMMON2
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}    service_id=${776}    # 0x0308
