@@ -29,7 +29,7 @@ Documentation
 ...      TC-NWDAF-003 ~ 010 : pcefQoSCtrl (STATUS / QUICK_SUPPORT / QOS_POLICY)
 ...      TC-NWDAF-011 ~ 017 : enodebQoSCtl (SUPPORT_TYPE / ARP_QCI_FLAG / ENB_ARP)
 ...      TC-NWDAF-018 ~ 019 : COMMON1 (RCT_3M/1M_USAGE 경계)
-...      TC-NWDAF-020 ~ 028 : COMMON2 (NETWORK / CONTROL_UNIT / DN_USAGE / USER_RATIO)
+...      TC-NWDAF-021 ~ 028 : COMMON2 (NETWORK / CONTROL_UNIT / DN_USAGE / USER_RATIO)
 ...      TC-NWDAF-029       : Message Id wrap
 ...      TC-NWDAF-030 ~ 034 : Build 단위 검증 (송신 없음)
 ...      TC-NWDAF-035 ~ 037 : Negative
@@ -192,14 +192,6 @@ TC-NWDAF-019 COMMON1 RCT Usage 경계 최대 (9,999,999)
 # ════════════════════════════════════════════════════════════════
 # COMMON2 — NETWORK 종별 (규격 4.1)
 # ════════════════════════════════════════════════════════════════
-
-TC-NWDAF-020 COMMON2 NETWORK 2G (0)
-    [Tags]    nwdaf    nwdaf_common2    nwdaf_network
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qc}=    Build pcefQoSCtrl
-    ${c2}=    Build COMMON2    network=${NWDAF_NET_2G}
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
 
 TC-NWDAF-021 COMMON2 NETWORK WCDMA (1)
     [Tags]    nwdaf    nwdaf_common2    nwdaf_network
