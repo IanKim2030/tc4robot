@@ -298,7 +298,7 @@ TAG_ARP_VULNERABILITY  = 0x43    # uint8 0=Enable, 1=Disable
 # COMMON2 (필수) — Cell 통계
 TAG_CELL_ID            = 0x0B    # string e.g. '123456:0'
 TAG_USING_USER         = 0x1A    # uint32 동시 가입자 수
-TAG_NETWORK            = 0x1F    # uint8 0=2G,1=WCDMA,2=LTE,3=5G
+TAG_NETWORK            = 0x1F    # uint32 0=2G,1=WCDMA,2=LTE,3=5G (4B value)
 TAG_DN_USAGE           = 0x31    # uint32, 0~9,999,999 KB
 TAG_HEAVY_USER         = 0x32    # uint32
 TAG_CELL_AVG_USAGE     = 0x35    # uint32, 0~9,999,999 KB
@@ -414,7 +414,7 @@ def build_common2(network: int, control_unit: int, cell_id: str,
     user_ratio     : 0=Enable, 1=Disable (규격 4.9 원문)
     """
     return [
-        pack_uint8 (TAG_NETWORK,        network),
+        pack_uint32(TAG_NETWORK,        network),
         pack_uint8 (TAG_CONTROL_UNIT,   control_unit),
         pack_string(TAG_CELL_ID,        cell_id),
         pack_uint32(TAG_DN_USAGE,       dn_usage),

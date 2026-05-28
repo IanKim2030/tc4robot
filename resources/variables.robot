@@ -349,7 +349,7 @@ ${NWDAF_TAG_ARP_VULNERABILITY}  ${67}     # 0x43 uint8 0|1
 # COMMON2 (4절, 필수)
 ${NWDAF_TAG_CELL_ID}            ${11}     # 0x0B string '123456:0'
 ${NWDAF_TAG_USING_USER}         ${26}     # 0x1A uint32 동시 가입자 수
-${NWDAF_TAG_NETWORK}            ${31}     # 0x1F uint8  0|1|2|3
+${NWDAF_TAG_NETWORK}            ${31}     # 0x1F uint32 0|1|2|3 (4B value)
 ${NWDAF_TAG_DN_USAGE}           ${49}     # 0x31 uint32 KB
 ${NWDAF_TAG_HEAVY_USER}         ${50}     # 0x32 uint32
 ${NWDAF_TAG_CELL_AVG_USAGE}     ${53}     # 0x35 uint32 KB
