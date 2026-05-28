@@ -228,6 +228,27 @@ TC-NWDAF Multi TLV (Tag MSB=1) — 2B Length
     ${sub}=    Tlv.Unpack Multi Message    ${tlvs}[0][2]
     Length Should Be    ${sub}    ${2}
 
+TC-NWDAF Notification Body 는 MULTI_MESSAGE(0xFF) 단일 TLV
+    [Documentation]
+    ...    build_nwdaf_notification 결과 Body 가 단일 MULTI_MESSAGE(0xFF) TLV 이고
+    ...    그 안에 inner TLV 들이 순서대로 들어있는지 검증 (송신 없음).
+    [Tags]    nwdaf    nwdaf_smoke    validation
+    ${tlvs}=    New TLV List
+    Add Uint8 TLV     ${tlvs}    ${NWDAF_TAG_QOS_CONTROL_TYPE}    ${NWDAF_QCT_SUBSCRIBER}
+    Add String TLV    ${tlvs}    ${NWDAF_TAG_MDN}                 ${NWDAF_TEST_MDN}
+    ${packet}=    Tlv.Build Nwdaf Notification    ${NWDAF_SID_SUBSCRIBER}    ${291}    ${tlvs}
+    ${hdr_bytes}=    Evaluate    $packet[:8]
+    ${body}=         Evaluate    $packet[8:]
+    ${hdr}=    Tlv.Parse Nwdaf Header    ${hdr_bytes}
+    Length Should Be    ${body}    ${hdr}[body_length]
+    ${top}=    Tlv.Unpack Tlv Stream    ${body}
+    Length Should Be    ${top}    ${1}
+    Should Be Equal As Integers    ${top}[0][0]    ${NWDAF_TAG_MULTI_MESSAGE}
+    ${inner}=    Tlv.Unpack Multi Message    ${top}[0][2]
+    Length Should Be    ${inner}    ${2}
+    Should Be Equal As Integers    ${inner}[0][0]    ${NWDAF_TAG_QOS_CONTROL_TYPE}
+    Should Be Equal As Integers    ${inner}[1][0]    ${NWDAF_TAG_MDN}
+
 
 # ════════════════════════════════════════════════════════════════
 # Negative

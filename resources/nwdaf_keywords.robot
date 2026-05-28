@@ -5,7 +5,7 @@ Documentation
 ...    [인터페이스]
 ...      방향   : NWDAF(테스트 도구, Client) → PG (Server)
 ...      포트   : ${NWDAF_PORT} (TODO: 실환경 값 확인)
-...      Body   : TLV 바이너리 (일반 TLV + Multi TLV)
+...      Body   : MULTI_MESSAGE(0xFF) TLV 하나로 inner TLV 들을 감싼 바이너리
 ...      주력   : Notification(0b010) 단방향, 응답 거의 없음
 ...
 ...    [Suite 정책]

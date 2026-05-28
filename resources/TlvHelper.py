@@ -6,7 +6,7 @@ TlvHelper.py  —  NWDAF 연동 헬퍼 (TLV 바이너리 Body)
   - 방향   : NWDAF → PG (Notification 주력, 응답 사실상 없음)
   - 포트   : ${NWDAF_PORT} (실환경 확인 필요)
   - 헤더   : 8 Octet, Big Endian (SKT PG-SC Message Format 규격)
-  - Body   : TLV 스트림 (일반 TLV + Multi TLV 혼재)
+  - Body   : MULTI_MESSAGE(0xFF) TLV 하나로 inner TLV 스트림을 감싼 형태
 
 [헤더 구조 (8 Octet, Big Endian)]
   Byte 0      : bitfield
@@ -464,10 +464,12 @@ def build_nwdaf_packet(msg_type: int, service_id: int, message_id: int,
                        tlvs) -> bytes:
     """
     완전한 NWDAF 패킷(헤더 + Body) 생성.
+    Body 는 inner TLV 들을 MULTI_MESSAGE(0xFF) TLV 하나로 감싼다 (규격).
+    즉 Body = [0xFF][Length(2B,BE)][inner TLV 스트림] 단일 TLV.
     tlvs: pack_tlv / pack_uintXX / pack_string / pack_qos_hdr_xxx 등으로 만든
           bytes 들의 시퀀스
     """
-    body = b''.join(bytes(t) for t in tlvs)
+    body = pack_multi_message(tlvs)
     header = build_nwdaf_header(msg_type, service_id, message_id, len(body))
     return header + body
 
