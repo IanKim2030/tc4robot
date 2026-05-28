@@ -55,9 +55,7 @@ MSG_TYPE_REQ  = 0b001  # 0x01
 MSG_TYPE_RESP = 0b100  # 0x04
 MSG_TYPE_NOTI = 0b010  # 0x02
 
-SERVICE_ID_SUBSCRIBER = 0x0305
-SERVICE_ID_CELL       = 0x0306
-SERVICE_ID_SERVICE    = 0x0307
+SERVICE_ID_SUBSCRIBER = 0x0305    # 가입자 단위 (QOS_CONTROL_TYPE=0x01) — 주 사용
 
 
 # ── 소켓 (NAG/PCF/UPM 과 동일한 Client 패턴) ─────────────────────
@@ -268,192 +266,173 @@ def unpack_multi_message(value: bytes) -> list:
 
 
 # ══════════════════════════════════════════════════════════════════
-# QOS_HDR (TAG=0x3A) PCEF 별 빌더
+# TLV 태그 catalog — 규격 4개 섹션에서 사용하는 태그만 정의.
+# 본 catalog 외 태그는 운영 PG 가 인식하지 않을 수 있음.
 # ──────────────────────────────────────────────────────────────────
-# 주의:
-#   PCEF별 내부 서브 TLV 순서/태그는 C++ 코드(CNWQosGateway::ParsingPacket)
-#   기반 "추정"이며 규격서에 명시되지 않음. 운영 PG 대상 검증 후 확정 필요.
-#   - PGW: QOS_POLICY(0x10) → STATUS(0x0C, LoadStatus 의미)
-#          → TIMER(0x20)    → QUICK_SUPPORT(0x3B)
-#   - DPI: (CATEGORY(0x3E) + QOS_POLICY(0x10)) × N
-#          → STATUS(0x0C)   → TIMER(0x20) → QUICK_SUPPORT(0x3B)
-#   - ENB: SUPPORT_TYPE(0x41) → ARP_QCI_FLAG(0x3F) → ENB_ARP(0x3C)
-#          → ARP_CAPABILITY(0x42) → ARP_VULNERABILITY(0x43)
-#          → QCI(0x11)      → TIMER(0x20)
-#   - VOMS/APRS: 규격 추가 확인 필요 (placeholder)
-# ══════════════════════════════════════════════════════════════════
+# COMMON1 (필수) — 가입자 식별 + 사용량
+TAG_MIN                = 0x01    # string, 가입자 MIN
+TAG_MDN                = 0x02    # string, 가입자 MDN
+TAG_CREATE_DATE        = 0x08    # string 'YYYYMMDD'
+TAG_CREATE_TIME        = 0x09    # string 'HHmmss'
+TAG_PCEF_TYPE          = 0x0D    # uint8 0x01=P-GW/SMF, 0x10=eNB
+TAG_QOS_CONTROL_TYPE   = 0x0E    # uint8 0x01=가입자 단위
+TAG_PGW_IP_ADDRESS     = 0x0F    # string, PGW IP
+TAG_RCT_3M_USAGE       = 0x38    # uint32, 0~9,999,999 KB
+TAG_RCT_1M_USAGE       = 0x39    # uint32, 0~9,999,999 KB
 
-# TLV 태그 상수 (5절 catalog)
-TAG_MIN                = 0x01
-TAG_MDN                = 0x02
-TAG_MSISDN             = 0x03
-TAG_IMSI               = 0x04
-TAG_PRODUCT_ID         = 0x05
-TAG_PRODUCT_NAME       = 0x06
-TAG_DATA_USAGE_LEVEL   = 0x07
-TAG_CREATE_DATE        = 0x08
-TAG_CREATE_TIME        = 0x09
-TAG_PROCESS_TYPE       = 0x0A
-TAG_LOCATION_ID        = 0x0B
-TAG_STATUS             = 0x0C
-TAG_PCEF_TYPE          = 0x0D
-TAG_QOS_CONTROL_TYPE   = 0x0E
-TAG_PGW_IP_ADDRESS     = 0x0F
-TAG_QOS_POLICY         = 0x10
-TAG_QCI                = 0x11
-TAG_APP_TYPE           = 0x12
-TAG_PGW_HOST_NAME      = 0x13
-TAG_TOTAL_USAGE        = 0x14
-TAG_TOTAL_USER         = 0x15
-TAG_IN_USER            = 0x16
-TAG_OUT_USER           = 0x17
-TAG_TRY_USER           = 0x18
-TAG_TRY_COUNT          = 0x19
-TAG_CONCURRENT_USER    = 0x1A
-TAG_UP_TOTAL_USAGE     = 0x1B
-TAG_UP_TOTAL_USER      = 0x1C
-TAG_DN_TOTAL_USAGE     = 0x1D
-TAG_DN_TOTAL_USER      = 0x1E
-TAG_NETWORK            = 0x1F
-TAG_TIMER              = 0x20
-TAG_TIMESTAMP          = 0x21
-TAG_IMSI_MCC_MNC       = 0x22
-TAG_DEVICE_IP          = 0x23
-TAG_USER_OPERATION     = 0x24
-TAG_RESULT             = 0x25
-TAG_REASON             = 0x26
-TAG_IP_VERSION         = 0x27
-TAG_PGW_GROUP_ID       = 0x28
-TAG_CA_SUPPORTED_DEV   = 0x29
-TAG_CA_CATEGORY        = 0x2A
-TAG_RULE_BASED_NAME    = 0x2B
-TAG_LIMIT_OVER         = 0x2C
-TAG_PCRF_HOST_NAME     = 0x2D
-TAG_ROAMING            = 0x2E
-TAG_NAT_IP             = 0x2F
-TAG_TRANSACTION_ID     = 0x30
-TAG_DN_USAGE           = 0x31
-TAG_HEAVY_USER         = 0x32
-TAG_MEDIUM_USER        = 0x33
-TAG_LIGHT_USER         = 0x34
-TAG_CELL_AVG_USAGE     = 0x35
-TAG_USER_USAGE         = 0x36
-TAG_USER_RATIO         = 0x37
-TAG_RCT_3M_USAGE       = 0x38
-TAG_RCT_1M_USAGE       = 0x39
-TAG_QOS_HDR            = 0x3A
-TAG_QUICK_SUPPORT      = 0x3B
-TAG_ENB_ARP            = 0x3C
-TAG_SERVICE_TYPE       = 0x3D
-TAG_CATEGORY           = 0x3E
-TAG_ARP_QCI_FLAG       = 0x3F
-TAG_CONTROL_UNIT       = 0x40
-TAG_SUPPORT_TYPE       = 0x41
-TAG_ARP_CAPABILITY     = 0x42
-TAG_ARP_VULNERABILITY  = 0x43
+# pcefQoSCtrl (PCEF_TYPE=0x01) sub-fields
+TAG_QOS_HDR            = 0x3A    # uint8 flag: 0x01=PGW, 0x10=eNB (값으로 분기)
+TAG_QOS_POLICY         = 0x10    # string, NWDAF→PCRF rule
+TAG_STATUS             = 0x0C    # string '0'=Normal '1'=Minor '2'=Major '3'=Critical
+TAG_TIMER              = 0x20    # pcef=uint16 sec, enb=string sec (규격 그대로)
+TAG_QUICK_SUPPORT      = 0x3B    # string '0'=즉시제어 '1'=update 후
 
+# enodebQoSCtl (PCEF_TYPE=0x10) sub-fields (QOS_HDR/TIMER 는 위와 공유)
+TAG_QCI                = 0x11    # uint8
+TAG_ENB_ARP            = 0x3C    # uint8 12=Band 3->5/1, 13=Band 1/5->3
+TAG_ARP_QCI_FLAG       = 0x3F    # uint8 0=ARP, 1=QCI, 2=ARP&QCI
+TAG_SUPPORT_TYPE       = 0x41    # uint8 1=제어, 2=해지
+TAG_ARP_CAPABILITY     = 0x42    # uint8 0=Enable, 1=Disable
+TAG_ARP_VULNERABILITY  = 0x43    # uint8 0=Enable, 1=Disable
+
+# COMMON2 (필수) — Cell 통계
+TAG_CELL_ID            = 0x0B    # string e.g. '123456:0'
+TAG_USING_USER         = 0x1A    # uint32 동시 가입자 수
+TAG_NETWORK            = 0x1F    # uint8 0=2G,1=WCDMA,2=LTE,3=5G
+TAG_DN_USAGE           = 0x31    # uint32, 0~9,999,999 KB
+TAG_HEAVY_USER         = 0x32    # uint32
+TAG_CELL_AVG_USAGE     = 0x35    # uint32, 0~9,999,999 KB
+TAG_USER_USAGE         = 0x36    # uint32, Heavy/Medium/Light 합 KB
+TAG_USER_RATIO         = 0x37    # uint8 0=Enable, 1=Disable
+TAG_CONTROL_UNIT       = 0x40    # uint8 1=Cell..6=WMSC
+
+# Body wrapper
 TAG_MULTI_MESSAGE      = 0xFF
 
-# PCEF Type (QOS_HDR 첫 서브 필드 / PCEF_TYPE 값)
-PCEF_PGW   = 0x01
-PCEF_DPI   = 0x02
-PCEF_VOMS  = 0x04
-PCEF_APRS  = 0x08
-PCEF_ENB   = 0x10
+# PCEF_TYPE / QOS_HDR 값 (규격 1.1, 2.1, 3.1)
+PCEF_PGW   = 0x01    # P-GW / SMF (pcefQoSCtrl 사용)
+PCEF_ENB   = 0x10    # eNB        (enodebQoSCtl 사용)
 
 
-def pack_qos_hdr_pgw(qos_policy: str, load_status: int,
-                     valid_timer: int, quick_support: int) -> bytes:
+# ══════════════════════════════════════════════════════════════════
+# Section 별 TLV 묶음 빌더
+# ──────────────────────────────────────────────────────────────────
+# 규격상 Body 구조 = COMMON1 + (pcefQoSCtrl | enodebQoSCtl) + COMMON2
+# QOS_HDR(0x3A) 은 wrapper 가 아니라 flat 한 numeric 플래그 TLV 이며,
+# 그 값으로 뒤따르는 sub-field 묶음의 의미를 분기한다.
+# ══════════════════════════════════════════════════════════════════
+
+def build_common1(pcef_type: int, qos_control_type: int,
+                  create_date: str, create_time: str,
+                  pgw_ip: str, min_val: str, mdn: str,
+                  rct_3m_usage: int, rct_1m_usage: int) -> list:
     """
-    QOS_HDR(0x3A) PGW(0x01) 서브 TLV 구성 (추정).
-    TODO: 운영 PG 검증 후 서브 구조/순서 확정.
+    COMMON1 (1절, 필수) TLV bytes 리스트.
+
+    pcef_type        : 0x01=P-GW/SMF, 0x10=eNB — 이후 QoSCtrl 분기 결정
+    qos_control_type : 0x01=가입자 단위
+    create_date      : 'YYYYMMDD'
+    create_time      : 'HHmmss'
+    pgw_ip           : PGW IP (PG 의 PCRF 선택 입력)
+    min_val          : 가입자 MIN
+    mdn              : 가입자 MDN
+    rct_3m_usage     : 최근 3분 사용량 (KB, 0~9,999,999)
+    rct_1m_usage     : 최근 1분 사용량 (KB, 0~9,999,999)
     """
-    inner = b''.join([
-        pack_uint8(TAG_PCEF_TYPE,    PCEF_PGW),
-        pack_string(TAG_QOS_POLICY,  qos_policy),
-        pack_uint8(TAG_STATUS,       load_status),
-        pack_uint16(TAG_TIMER,       valid_timer),
-        pack_uint8(TAG_QUICK_SUPPORT, quick_support),
-    ])
-    return pack_tlv(TAG_QOS_HDR, inner)
+    return [
+        pack_uint8 (TAG_PCEF_TYPE,        pcef_type),
+        pack_uint8 (TAG_QOS_CONTROL_TYPE, qos_control_type),
+        pack_string(TAG_CREATE_DATE,      create_date),
+        pack_string(TAG_CREATE_TIME,      create_time),
+        pack_string(TAG_PGW_IP_ADDRESS,   pgw_ip),
+        pack_string(TAG_MIN,              min_val),
+        pack_string(TAG_MDN,              mdn),
+        pack_uint32(TAG_RCT_3M_USAGE,     rct_3m_usage),
+        pack_uint32(TAG_RCT_1M_USAGE,     rct_1m_usage),
+    ]
 
 
-def pack_qos_hdr_dpi(categories, policies, load_status: int,
-                     valid_timer: int, quick_support: int) -> bytes:
+def build_pcef_qos_ctrl(qos_policy: str, status: str,
+                        timer: int, quick_support: str) -> list:
     """
-    QOS_HDR(0x3A) DPI(0x02) 서브 TLV 구성 (추정).
-    categories: ['cat1', 'cat2', ...]   (최대 6개, 규격 추정)
-    policies  : ['QoS200K', ...]        (categories 와 같은 길이)
-    TODO: 6쌍 미만일 때 채움/생략 규칙 운영 PG 검증.
+    pcefQoSCtrl (2절, PCEF_TYPE=0x01) TLV bytes 리스트.
+
+    qos_policy    : NWDAF→PCRF rule 문자열
+    status        : '0'=Normal '1'=Minor '2'=Major '3'=Critical
+    timer         : 0=미사용, >0 이면 sec
+    quick_support : '0'=즉시제어, '1'=update 수신 후 제어
     """
-    if len(categories) != len(policies):
-        raise ValueError(
-            f"DPI categories/policies 길이 불일치: {len(categories)} vs {len(policies)}"
-        )
-    pairs = b''
-    for cat, pol in zip(categories, policies):
-        pairs += pack_string(TAG_CATEGORY,    cat)
-        pairs += pack_string(TAG_QOS_POLICY,  pol)
-    inner = (
-        pack_uint8(TAG_PCEF_TYPE, PCEF_DPI)
-        + pairs
-        + pack_uint8(TAG_STATUS,       load_status)
-        + pack_uint16(TAG_TIMER,       valid_timer)
-        + pack_uint8(TAG_QUICK_SUPPORT, quick_support)
-    )
-    return pack_tlv(TAG_QOS_HDR, inner)
+    return [
+        pack_uint8 (TAG_QOS_HDR,       PCEF_PGW),     # 0x01 flag
+        pack_string(TAG_QOS_POLICY,    qos_policy),
+        pack_string(TAG_STATUS,        status),
+        pack_uint16(TAG_TIMER,         timer),
+        pack_string(TAG_QUICK_SUPPORT, quick_support),
+    ]
 
 
-def pack_qos_hdr_voms(qos_policy: str, load_status: int,
-                      valid_timer: int, quick_support: int) -> bytes:
+def build_enb_qos_ctrl(support_type: int, arp_qci_flag: int, enb_arp: int,
+                       arp_capability: int, arp_vulnerability: int,
+                       qci: int, timer: int) -> list:
     """
-    QOS_HDR(0x3A) VOMS(0x04) — 규격 추가 확인 필요.
-    TODO: 임시로 PGW 구조 재사용. 실제 VOMS 서브 필드 확정 후 교체.
+    enodebQoSCtl (3절, PCEF_TYPE=0x10) TLV bytes 리스트.
+
+    support_type     : 1=제어, 2=해지
+    arp_qci_flag     : 0=ARP, 1=QCI, 2=ARP&QCI
+    enb_arp          : 12=Band 3->5/1, 13=Band 1/5->3
+    arp_capability   : 0=Enable, 1=Disable
+    arp_vulnerability: 0=Enable, 1=Disable
+    qci              : QCI 값
+    timer            : sec (규격 3.8 은 string 명시 → ASCII 십진수로 인코딩)
     """
-    inner = (
-        pack_uint8(TAG_PCEF_TYPE,     PCEF_VOMS)
-        + pack_string(TAG_QOS_POLICY, qos_policy)
-        + pack_uint8(TAG_STATUS,      load_status)
-        + pack_uint16(TAG_TIMER,      valid_timer)
-        + pack_uint8(TAG_QUICK_SUPPORT, quick_support)
-    )
-    return pack_tlv(TAG_QOS_HDR, inner)
+    return [
+        pack_uint8 (TAG_QOS_HDR,           PCEF_ENB),    # 0x10 flag
+        pack_uint8 (TAG_SUPPORT_TYPE,      support_type),
+        pack_uint8 (TAG_ARP_QCI_FLAG,      arp_qci_flag),
+        pack_uint8 (TAG_ENB_ARP,           enb_arp),
+        pack_uint8 (TAG_ARP_CAPABILITY,    arp_capability),
+        pack_uint8 (TAG_ARP_VULNERABILITY, arp_vulnerability),
+        pack_uint8 (TAG_QCI,               qci),
+        pack_string(TAG_TIMER,             str(int(timer))),
+    ]
 
 
-def pack_qos_hdr_aprs(qos_policy: str, load_status: int,
-                      valid_timer: int, quick_support: int) -> bytes:
+def build_common2(network: int, control_unit: int, cell_id: str,
+                  dn_usage: int, using_user: int, cell_avg_usage: int,
+                  heavy_user: int, user_usage: int, user_ratio: int) -> list:
     """
-    QOS_HDR(0x3A) APRS(0x08) — 규격 추가 확인 필요.
-    TODO: 임시로 PGW 구조 재사용. 실제 APRS 서브 필드 확정 후 교체.
+    COMMON2 (4절, 필수) TLV bytes 리스트.
+
+    network        : 0=2G, 1=WCDMA, 2=LTE, 3=5G
+    control_unit   : 1=Cell, 2=eNodeB, 3=Sector, 4=NodeB, 5=RNC, 6=WMSC
+    cell_id        : '123456:0' 형식
+    dn_usage       : 기지국 단위 Download 사용량 (KB)
+    using_user     : 동시 가입자 수
+    cell_avg_usage : 셀 평균 사용량 (KB)
+    heavy_user     : Heavy 가입자 수
+    user_usage     : Heavy/Medium/Light 가입자 사용량 합 (KB)
+    user_ratio     : 0=Enable, 1=Disable (규격 4.9 원문)
     """
-    inner = (
-        pack_uint8(TAG_PCEF_TYPE,     PCEF_APRS)
-        + pack_string(TAG_QOS_POLICY, qos_policy)
-        + pack_uint8(TAG_STATUS,      load_status)
-        + pack_uint16(TAG_TIMER,      valid_timer)
-        + pack_uint8(TAG_QUICK_SUPPORT, quick_support)
-    )
-    return pack_tlv(TAG_QOS_HDR, inner)
+    return [
+        pack_uint8 (TAG_NETWORK,        network),
+        pack_uint8 (TAG_CONTROL_UNIT,   control_unit),
+        pack_string(TAG_CELL_ID,        cell_id),
+        pack_uint32(TAG_DN_USAGE,       dn_usage),
+        pack_uint32(TAG_USING_USER,     using_user),
+        pack_uint32(TAG_CELL_AVG_USAGE, cell_avg_usage),
+        pack_uint32(TAG_HEAVY_USER,     heavy_user),
+        pack_uint32(TAG_USER_USAGE,     user_usage),
+        pack_uint8 (TAG_USER_RATIO,     user_ratio),
+    ]
 
 
-def pack_qos_hdr_enb(support_type: int, arp_qci_flag: int, enb_arp: int,
-                     capability: int, vulnerability: int,
-                     qci: str, valid_timer: int) -> bytes:
+def build_notification_body(common1: list, qos_ctrl: list, common2: list) -> list:
     """
-    QOS_HDR(0x3A) eNB(0x10) 서브 TLV 구성 (추정).
-    TODO: 운영 PG 검증 후 서브 구조/순서 확정.
+    Notification Body 의 inner TLV 리스트 조립.
+    COMMON1 + (pcefQoSCtrl | enodebQoSCtl) + COMMON2 순서.
+    반환된 리스트를 send_nwdaf_notification 의 tlvs 인자로 그대로 넘기면 됨.
     """
-    inner = b''.join([
-        pack_uint8(TAG_PCEF_TYPE,        PCEF_ENB),
-        pack_uint8(TAG_SUPPORT_TYPE,     support_type),
-        pack_uint8(TAG_ARP_QCI_FLAG,     arp_qci_flag),
-        pack_uint8(TAG_ENB_ARP,          enb_arp),
-        pack_uint8(TAG_ARP_CAPABILITY,   capability),
-        pack_uint8(TAG_ARP_VULNERABILITY, vulnerability),
-        pack_string(TAG_QCI,             qci),
-        pack_uint16(TAG_TIMER,           valid_timer),
-    ])
-    return pack_tlv(TAG_QOS_HDR, inner)
+    return list(common1) + list(qos_ctrl) + list(common2)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -466,8 +445,9 @@ def build_nwdaf_packet(msg_type: int, service_id: int, message_id: int,
     완전한 NWDAF 패킷(헤더 + Body) 생성.
     Body 는 inner TLV 들을 MULTI_MESSAGE(0xFF) TLV 하나로 감싼다 (규격).
     즉 Body = [0xFF][Length(2B,BE)][inner TLV 스트림] 단일 TLV.
-    tlvs: pack_tlv / pack_uintXX / pack_string / pack_qos_hdr_xxx 등으로 만든
-          bytes 들의 시퀀스
+    tlvs: build_notification_body() 가 반환한 리스트, 또는
+          build_common1 / build_pcef_qos_ctrl / build_enb_qos_ctrl /
+          build_common2 가 반환한 리스트를 이어붙인 bytes 시퀀스.
     """
     body = pack_multi_message(tlvs)
     header = build_nwdaf_header(msg_type, service_id, message_id, len(body))
