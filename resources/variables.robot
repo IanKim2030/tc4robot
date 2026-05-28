@@ -81,7 +81,7 @@ ${MSG_UPM_SUBS_CHANGE_RESP}   ${6}     # 0x06  UPM → PG
 ${MSG_UPM_SUBS_INFO_REQ}      ${7}     # 0x07  PG → UPM (가입자 Cell Info 요청)
 ${MSG_UPM_SUBS_INFO_RESP}     ${8}     # 0x08  UPM → PG
 ${MSG_UPM_CELLINFO_NOTI_REQ}  ${9}     # 0x09  UPM → PG (변경 Cell Info NOTI)
-${MSG_UPM_CELLINFO_NOTI_RESP} ${10}    # 0x0a  PG → UPM
+${MSG_UPM_CELLINFO_NOTI_RESP}  ${10}    # 0x0a  PG → UPM
 ${MSG_UPM_SUBS_SYNC_REQ}      ${11}    # 0x0b  UPM → PG (전체 동기화 요청)
 ${MSG_UPM_SUBS_SYNC_RESP}     ${12}    # 0x0c  PG → UPM
 ${MSG_UPM_INFO_CHANGE_REQ}    ${13}    # 0x0d  PG → UPM (상품/Device 변경)
@@ -185,7 +185,7 @@ ${UPM_RC_SUCCESS}          SC0000  # 성공
 ${UPM_RC_FAIL}             FA0000  # 실패
 ${UPM_HELLO_CODE_OK}       ${200}
 ${UPM_HELLO_CODE_BAD_VER}  ${400}
-${UPM_HELLO_CODE_FAILOVER} ${9999} # UPM 미접속 / 종료 시 PG 가 반환
+${UPM_HELLO_CODE_FAILOVER}  ${9999} # UPM 미접속 / 종료 시 PG 가 반환
 
 # ════════════════════════════════════════════
 # UPM 테스트 데이터 (HFC 가입자)
@@ -289,8 +289,8 @@ ${NWDAF_ARPQCI_BOTH}      ${2}
 # ════════════════════════════════════════════
 # ENB_ARP (TAG 0x3C) — 규격 3.4
 # ════════════════════════════════════════════
-${NWDAF_ENB_ARP_BAND_35}  ${12}       # Band 3->5/1 (=Band 5)
-${NWDAF_ENB_ARP_BAND_153} ${13}       # Band 1/5->3 (=Band 1)
+${NWDAF_ENB_ARP_BAND_35}   ${12}      # Band 3->5/1 (=Band 5)
+${NWDAF_ENB_ARP_BAND_153}  ${13}      # Band 1/5->3 (=Band 1)
 
 # ════════════════════════════════════════════
 # ARP_CAPABILITY / ARP_VULNERABILITY / USER_RATIO 공통 (0=Enable, 1=Disable)
