@@ -22,6 +22,7 @@ Documentation
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
+Resource    ../../resources/upm_keywords.robot
 
 Suite Setup      Suite UPM Connect
 Suite Teardown   Suite UPM Disconnect

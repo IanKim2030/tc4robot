@@ -10,6 +10,7 @@ Documentation
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
+Resource    ../../resources/nag_keywords.robot
 
 Suite Setup      Suite Connect With LRS PCF
 Suite Teardown   Suite Disconnect With LRS PCF

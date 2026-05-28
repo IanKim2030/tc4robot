@@ -8,6 +8,7 @@ Documentation
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
+Resource    ../../resources/pcf_keywords.robot
 
 Suite Setup      Suite Connect With NAG
 ...              ${PCF_PG_HOST}    ${PCF_PG_PORT}    ${PCF_TIMEOUT}

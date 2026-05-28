@@ -13,6 +13,7 @@ Documentation
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
+Resource    ../../resources/lrs_keywords.robot
 
 Suite Setup      Suite LRS Accept
 Suite Teardown   Suite LRS Disconnect
