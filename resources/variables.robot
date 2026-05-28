@@ -252,7 +252,7 @@ ${NWDAF_NET_5G}           ${3}        # 0x03
 # ════════════════════════════════════════════
 # CONTROL_UNIT (TAG 0x40, numeric) — 규격 4.2
 # ════════════════════════════════════════════
-${NWDAF_CU_CELL}          ${1}
+${NWDAF_CU_CELL}          ${48}       # 0x31
 ${NWDAF_CU_ENODEB}        ${2}
 ${NWDAF_CU_SECTOR}        ${3}
 ${NWDAF_CU_NODEB}         ${4}
