@@ -40,6 +40,21 @@ Robot Framework ${변수} 로 주입한다.
   # 단독 실행 (주입될 값 미리보기)
   python DynamicVars.py /PG/CFG/PG01.cfg /PG/CFG/PG02.cfg
 
+리모트(SSH/SFTP) 파일
+---------------------
+  경로를 'user@host:/path' 또는 'host:/path' 형태로 주면 SSH 로 읽는다.
+  Variables    ../resources/DynamicVars.py    pg@192.168.10.44:/PG/CFG/PG.cfg    prefix=PG
+
+  인증 (보안상 Variables 인자에 비밀번호를 넣지 않는다 — RF 로그에 남음):
+    PG_ROBOT_SSH_USER   사용자 (경로의 user@ 가 우선, 없으면 이 값, 없으면 OS 계정)
+    PG_ROBOT_SSH_PORT   포트 (기본 22)
+    PG_ROBOT_SSH_KEY    개인키 파일 경로 (미지정 시 ~/.ssh 기본 키 / ssh-agent 사용)
+    PG_ROBOT_SSH_PASS   비밀번호 (키 인증이 안 될 때만; 환경변수로만 받음)
+  예) export PG_ROBOT_SSH_KEY=~/.ssh/id_rsa
+      robot tests/
+  접속/읽기 실패 시 그 파일만 건너뛰고 경고를 남긴다(전체 테스트는 계속).
+  로컬·원격 파일을 같은 줄에 섞어 써도 된다.
+
 PG 설정 파일 포맷 (INI 유사)
 ----------------------------
     [COMMON]
@@ -47,12 +62,13 @@ PG 설정 파일 포맷 (INI 유사)
     BRANCH_NAME=SS
     FILE_LOG_PATH=/LOG
     DB_CONNOPT=DSN=192.168.10.35;CONNTYPE=1;...   ← 값에 = ; 포함돼도 보존
-    #HA_PEER=...                                  ← 주석처리 라인은 자동 무시
+    #HA_PEER=...                                  ← 주석(#, //) 라인은 자동 무시
 
 인코딩
 ------
-    encoding 미지정 → utf-8 → euc-kr → cp949 → latin-1 순서로 자동 시도.
-    (한국 레거시 통신 환경의 ISO-8859/EUC-KR 파일 자동 대응)
+    encoding 미지정 → utf-8 → euc-kr → cp949 순서로 strict 시도,
+    전부 실패하면 cp949+replace 로 손상 바이트만 치환해 읽는다.
+    (한국 레거시 통신 환경의 ISO-8859/EUC-KR/혼합·손상 파일 대응)
     encoding=euc-kr 처럼 명시하면 그 인코딩만 사용.
 """
 
@@ -104,16 +120,19 @@ class PgConfigLoader:
     def _expand_inputs(self):
         """
         입력 인자를 실제 파일 목록으로 펼친다.
-          - 파일 경로  → 그대로
-          - 디렉터리   → 그 안의 *.cfg 전부
-          - 와일드카드 → glob 검색
+          - 원격 경로(user@host:/path) → 그대로 (glob/디렉터리 처리 안 함)
+          - 로컬 디렉터리   → 그 안의 *.cfg 전부
+          - 로컬 와일드카드 → glob 검색
+          - 로컬 파일       → 그대로
         """
         paths = []
         for item in self.config_paths:
             item = item.strip()
             if not item:
                 continue
-            if os.path.isdir(item):
+            if self._is_remote(item):
+                paths.append(item)               # 원격은 그대로 (SSH 에서 처리)
+            elif os.path.isdir(item):
                 paths.extend(sorted(glob.glob(os.path.join(item, "*.cfg"))))
             elif any(ch in item for ch in "*?["):
                 paths.extend(sorted(glob.glob(item)))
@@ -121,27 +140,107 @@ class PgConfigLoader:
                 paths.append(item)
         return paths
 
+    # ── 원격(SSH) 경로 처리 ────────────────────────────────────────
+    @staticmethod
+    def _is_remote(path):
+        """
+        원격 경로인지 판별: 'user@host:/path' 또는 'host:/path' 형태.
+        윈도우 드라이브 경로(C:\\..., C:/...)와 헷갈리지 않게,
+        host 는 '@' 를 포함하거나, 점(.)을 포함하거나, 2글자 이상인 경우만 인정.
+        (드라이브 문자는 보통 1글자라 C:/... 는 로컬로 처리됨)
+        """
+        m = re.match(r"^(?:[^@/\s]+@)?([A-Za-z0-9._\-]+):(/.*)$", path)
+        if not m:
+            return False
+        host = m.group(1)
+        # user@ 가 있으면 무조건 원격. 없으면 host 가 점 포함 or 2글자 이상일 때만.
+        if "@" in path.split(":", 1)[0]:
+            return True
+        return ("." in host) or (len(host) >= 2)
+
+    @staticmethod
+    def _split_remote(path):
+        """
+        'user@host:/path' → (user, host, '/path')
+        user 가 없으면 None (SSH 기본/환경변수 사용).
+        """
+        userhost, _, remote_path = path.partition(":")
+        if "@" in userhost:
+            user, _, host = userhost.partition("@")
+        else:
+            user, host = None, userhost
+        return user or None, host, remote_path
+
+    def _read_remote_bytes(self, path):
+        """
+        SSH/SFTP 로 원격 파일 바이트를 읽어 반환.
+
+        인증 (보안상 Variables 인자에 비밀번호를 넣지 않는다):
+          - 사용자: 경로의 user@ → 없으면 env PG_ROBOT_SSH_USER → 없으면 OS 계정
+          - 포트  : env PG_ROBOT_SSH_PORT (기본 22)
+          - 인증  : 1) SSH 키 (env PG_ROBOT_SSH_KEY 경로 또는 ~/.ssh 의 기본 키)
+                    2) 비밀번호는 env PG_ROBOT_SSH_PASS 로만 받음 (로그에 안 남김)
+          - 호스트키: 운영 편의를 위해 AutoAddPolicy
+                    (보안 강화가 필요하면 known_hosts 검증으로 바꿀 것)
+        """
+        import paramiko
+
+        user, host, remote_path = self._split_remote(path)
+        user = user or os.getenv("PG_ROBOT_SSH_USER") or os.getenv("USER") or "root"
+        port = int(os.getenv("PG_ROBOT_SSH_PORT", "22"))
+        key_path = os.getenv("PG_ROBOT_SSH_KEY")
+        password = os.getenv("PG_ROBOT_SSH_PASS")
+
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        connect_kwargs = {
+            "hostname": host, "port": port, "username": user,
+            "timeout": 10, "allow_agent": True, "look_for_keys": True,
+        }
+        if key_path:
+            connect_kwargs["key_filename"] = key_path
+        if password:
+            connect_kwargs["password"] = password
+
+        print(f"[DynamicVars] SSH 접속: {user}@{host}:{port} → {remote_path}")
+        client.connect(**connect_kwargs)
+        try:
+            sftp = client.open_sftp()
+            with sftp.open(remote_path, "rb") as f:
+                data = f.read()
+            sftp.close()
+        finally:
+            client.close()
+        return data
+
+    def _read_bytes(self, path):
+        """경로가 원격이면 SSH 로, 아니면 로컬 파일에서 바이트를 읽는다."""
+        if self._is_remote(path):
+            return self._read_remote_bytes(path)
+        with open(path, "rb") as f:
+            return f.read()
+
     # ── 인코딩 자동 감지 읽기 ──────────────────────────────────────
     def _read_text(self, path):
         """
-        파일을 읽어 (텍스트, 사용된인코딩) 튜플 반환.
-        encoding 이 지정돼 있으면 그것만 사용하고,
+        파일 바이트(_read_bytes: 로컬/원격 공통)를 읽어
+        (텍스트, 사용된인코딩) 튜플 반환.
+
+        encoding 이 지정돼 있으면 그것만 사용하고(손상 대비 replace),
         없으면 FALLBACK_ENCODINGS 를 순서대로 깨끗이(strict) 시도한다.
 
-        모든 인코딩이 strict 로 실패하면(= 파일에 손상/혼합 바이트가 있으면),
+        모든 인코딩이 strict 로 실패하면(= 손상/혼합 바이트가 있으면),
         cp949 + errors='replace' 로 손상 바이트만 치환해 읽는다.
-        설정값(KEY=VALUE)은 대부분 ASCII 라 영향이 없고,
-        깨지는 건 한글 주석/설명 줄 정도다. 이렇게 해서 절대 죽지 않게 한다.
+        설정값(KEY=VALUE)은 대부분 ASCII 라 영향이 없다.
         """
+        data = self._read_bytes(path)
+
         if self.encoding:
-            # 명시 인코딩도 손상 대비해 replace 허용
-            with open(path, encoding=self.encoding, errors="replace") as f:
-                return f.read(), self.encoding
+            return data.decode(self.encoding, errors="replace"), self.encoding
 
         for enc in self.FALLBACK_ENCODINGS:
             try:
-                with open(path, encoding=enc) as f:
-                    text = f.read()
+                text = data.decode(enc)
                 if enc != "utf-8":
                     print(f"[DynamicVars] 인코딩 자동감지: {enc} ({path})")
                 return text, enc
@@ -151,8 +250,7 @@ class PgConfigLoader:
         # 전부 실패 → 손상/혼합 바이트가 섞인 파일. replace 로 강제 디코딩.
         print(f"[DynamicVars] ⚠ 인코딩 strict 실패 → cp949/replace 로 읽음 "
               f"(손상 바이트 치환, 설정값엔 영향 적음): {path}")
-        with open(path, encoding="cp949", errors="replace") as f:
-            return f.read(), "cp949(replace)"
+        return data.decode("cp949", errors="replace"), "cp949(replace)"
 
     # ── 이름 정규화 / 파일명 → 접두사 ──────────────────────────────
     @staticmethod
@@ -260,11 +358,17 @@ class PgConfigLoader:
             (깨진 바이트가 섞인 줄을 값으로 오인하지 않도록)
         """
         one = {}
-        if not os.path.exists(path):
+        remote = self._is_remote(path)
+        if not remote and not os.path.exists(path):
             print(f"[DynamicVars] config 파일 없음, 건너뜀: {path}")
             return one
 
-        text, _ = self._read_text(path)
+        try:
+            text, _ = self._read_text(path)
+        except Exception as e:
+            # 원격 접속 실패/파일 없음 등에서 전체 테스트가 죽지 않도록 건너뜀
+            print(f"[DynamicVars] ⚠ 읽기 실패, 건너뜀 ({type(e).__name__}: {e}): {path}")
+            return one
         file_prefix = self._resolve_prefix(path)
         want_section = self.want_section   # None 이면 전체 섹션
         want_keys = self.want_keys         # None 이면 전체 키
