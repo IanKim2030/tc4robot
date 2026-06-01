@@ -55,7 +55,6 @@ PG 설정 파일 포맷 (INI 유사)
 import os
 import re
 import glob
-import configparser
 
 
 class PgConfigLoader:
@@ -67,7 +66,10 @@ class PgConfigLoader:
     # 한국 레거시 통신 환경: 대부분 ASCII 거나 EUC-KR/CP949.
     # file 명령이 'ISO-8859' 로 보는 건 비ASCII 바이트가 섞였다는 뜻이라
     # euc-kr → cp949 를 먼저 시도하고, 마지막에 latin-1(절대 실패 안 함) 로 폴백.
-    FALLBACK_ENCODINGS = ("utf-8", "euc-kr", "cp949", "latin-1")
+    # 인코딩 strict 시도 순서. latin-1 은 의도적으로 제외:
+    # latin-1 은 모든 바이트를 받아들여 '성공'해버려서 한글이 깨진 채 읽히고
+    # replace 폴백에 도달하지 못한다. strict 로 전부 실패하면 cp949/replace 로 간다.
+    FALLBACK_ENCODINGS = ("utf-8", "euc-kr", "cp949")
 
     def __init__(self, *config_paths, prefix=None, section=None, encoding=None):
         # ── 방어 처리 ──
@@ -118,14 +120,18 @@ class PgConfigLoader:
         """
         파일을 읽어 (텍스트, 사용된인코딩) 튜플 반환.
         encoding 이 지정돼 있으면 그것만 사용하고,
-        없으면 FALLBACK_ENCODINGS 를 순서대로 시도한다.
-        latin-1 은 모든 바이트를 받아들이므로 최종 폴백으로 항상 성공한다.
+        없으면 FALLBACK_ENCODINGS 를 순서대로 깨끗이(strict) 시도한다.
+
+        모든 인코딩이 strict 로 실패하면(= 파일에 손상/혼합 바이트가 있으면),
+        cp949 + errors='replace' 로 손상 바이트만 치환해 읽는다.
+        설정값(KEY=VALUE)은 대부분 ASCII 라 영향이 없고,
+        깨지는 건 한글 주석/설명 줄 정도다. 이렇게 해서 절대 죽지 않게 한다.
         """
         if self.encoding:
-            with open(path, encoding=self.encoding) as f:
+            # 명시 인코딩도 손상 대비해 replace 허용
+            with open(path, encoding=self.encoding, errors="replace") as f:
                 return f.read(), self.encoding
 
-        last_err = None
         for enc in self.FALLBACK_ENCODINGS:
             try:
                 with open(path, encoding=enc) as f:
@@ -133,29 +139,14 @@ class PgConfigLoader:
                 if enc != "utf-8":
                     print(f"[DynamicVars] 인코딩 자동감지: {enc} ({path})")
                 return text, enc
-            except UnicodeDecodeError as e:
-                last_err = e
+            except UnicodeDecodeError:
                 continue
-        # 여기 도달하면 latin-1 도 실패한 것(사실상 불가) → 원본 에러 전달
-        raise last_err
 
-    # ── // 주석 제거 ───────────────────────────────────────────────
-    @staticmethod
-    def _strip_slash_comments(text):
-        """
-        configparser 는 '#' 과 ';' 만 주석으로 알고 '//' 는 모른다.
-        줄 맨 앞(앞쪽 공백 포함)에서 시작하는 '//' 줄을 통째로 제거한다.
-
-        값 중간의 '//' 는 건드리지 않는다(보존).
-          예) URL=http://host/api   ← '//' 가 값에 있어도 그대로 유지
-        '#' 인라인 주석을 끄는 정책과 동일하게, '//' 도 줄 시작에서만 주석 처리.
-        """
-        out = []
-        for line in text.splitlines():
-            if line.lstrip().startswith("//"):
-                continue  # 주석 줄 → 제거
-            out.append(line)
-        return "\n".join(out)
+        # 전부 실패 → 손상/혼합 바이트가 섞인 파일. replace 로 강제 디코딩.
+        print(f"[DynamicVars] ⚠ 인코딩 strict 실패 → cp949/replace 로 읽음 "
+              f"(손상 바이트 치환, 설정값엔 영향 적음): {path}")
+        with open(path, encoding="cp949", errors="replace") as f:
+            return f.read(), "cp949(replace)"
 
     # ── 이름 정규화 / 파일명 → 접두사 ──────────────────────────────
     @staticmethod
@@ -187,7 +178,7 @@ class PgConfigLoader:
     # ── 파일 1개 파싱 ──────────────────────────────────────────────
     def _parse_one_config(self, path):
         """
-        설정 파일 1개의 모든 섹션을 파싱해
+        설정 파일 1개의 모든 섹션을 관대하게(lenient) 파싱해
         {파일접두사_섹션접두사_키: 값} dict 로 반환.
 
         변수명:
@@ -196,14 +187,23 @@ class PgConfigLoader:
                 PG.cfg 의 [NAG]    PORT       → ${PG_NAG_PORT}
 
           - FILE_PREFIX    : prefix= 명시 시 그 값, 아니면 파일명에서 도출
-          - SECTION_PREFIX : 섹션명을 대문자로 (공백/기호는 '_')
+          - SECTION_PREFIX : 섹션명을 대문자로 ([COMMON] → COMMON)
+                             섹션 헤더가 없으면 빈 값
           - section= 가 지정되면 그 섹션만 읽고, 미지정이면 전체 섹션
 
-        주의:
-          - optionxform=str → 키 대소문자 보존 (안 하면 소문자화됨)
-          - 인라인 주석 끔 → DB_CONNOPT 의 ';' 가 잘리지 않게
-          - 주석 라인(# 및 //)은 자동 무시 (값 안의 '//' 는 보존)
-          - 인코딩은 _read_text 가 자동 감지 (ISO-8859/EUC-KR 등 레거시 대응)
+        configparser 대신 직접 줄 단위로 파싱하는 이유:
+          실제 운영 파일(PG_V2.cfg)에 인코딩이 혼합/손상된 한글 주석 줄이 있어
+          configparser 의 엄격한 파싱이 ParsingError 로 죽는다.
+          여기서는 'KEY=VALUE' 와 '[SECTION]' 만 인식하고,
+          형식에 안 맞거나 깨진 줄은 조용히 건너뛴다.
+
+        규칙:
+          - 빈 줄, '#' / '//' / ';' 로 시작하는 줄 → 주석/무시
+          - '[이름]' → 섹션 헤더
+          - 첫 '=' 기준으로 KEY=VALUE 분리 (값에 '=' 가 더 있어도 보존)
+          - '=' 없는 줄(깨진 한글 설명 등) → 건너뜀
+          - KEY 는 대문자/숫자/_ 로만 이뤄진 정상적인 키만 인정
+            (깨진 바이트가 섞인 줄을 값으로 오인하지 않도록)
         """
         one = {}
         if not os.path.exists(path):
@@ -211,30 +211,45 @@ class PgConfigLoader:
             return one
 
         text, _ = self._read_text(path)
-        text = self._strip_slash_comments(text)
-        parser = configparser.ConfigParser()
-        parser.optionxform = str
-        parser.read_string(text, source=path)
-
         file_prefix = self._resolve_prefix(path)
+        want = self._normalize(self.section) if self.section else None
 
-        # 읽을 섹션 결정: section= 지정 시 그것만, 아니면 파일의 전체 섹션
-        if self.section:
-            if not parser.has_section(self.section):
-                print(f"[DynamicVars] [{self.section}] 섹션 없음, 건너뜀: {path}")
-                return one
-            sections = [self.section]
-        else:
-            sections = parser.sections()
+        cur_section = ""          # 섹션 헤더 이전 줄도 허용(섹션 없는 파일 대비)
+        seen_sections = set()
+        skipped = 0
+        for raw in text.splitlines():
+            line = raw.strip()
+            if not line or line[0] in "#;" or line.startswith("//"):
+                continue
+            # 섹션 헤더
+            if line.startswith("[") and line.endswith("]"):
+                cur_section = self._normalize(line[1:-1])
+                continue
+            # KEY=VALUE
+            if "=" not in line:
+                skipped += 1
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            # 정상 키만 인정: 영문/숫자/_/- 등. 깨진 바이트가 섞인 키는 거른다.
+            if not re.match(r"^[A-Za-z0-9_.\-]+$", key):
+                skipped += 1
+                continue
 
-        for sec in sections:
-            sec_prefix = self._normalize(sec)
-            for key, value in parser.items(sec):
-                parts = [p for p in (file_prefix, sec_prefix, key) if p]
-                one["_".join(parts)] = value
+            # section= 필터
+            if want is not None and cur_section != want:
+                continue
 
+            seen_sections.add(cur_section)
+            key_norm = self._normalize(key)
+            parts = [p for p in (file_prefix, cur_section, key_norm) if p]
+            one["_".join(parts)] = value.strip()
+
+        note = f"섹션 {len(seen_sections)}개" if seen_sections else "섹션0"
+        if skipped:
+            note += f", 건너뛴 줄 {skipped}개"
         print(f"[DynamicVars] config 파싱: {len(one)}개 "
-              f"[{file_prefix or '접두사없음'}] 섹션 {len(sections)}개 ({path})")
+              f"[{file_prefix or '접두사없음'}] {note} ({path})")
         return one
 
     # ── config 파일 전체 ───────────────────────────────────────────
