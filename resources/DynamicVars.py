@@ -16,8 +16,10 @@ Robot Framework ${변수} 로 주입한다.
     예) PG.cfg 의 [COMMON] PACKAGE_ID → ${PG_COMMON_PACKAGE_ID}
         PG.cfg 의 [NAG]    PORT       → ${PG_NAG_PORT}
 
-    파일의 모든 섹션을 읽는다. 특정 섹션만 읽으려면 section= 지정.
-        Variables  DynamicVars.py  /PG/CFG/PG.cfg  section=COMMON
+    파일의 모든 섹션을 읽는다. 특정 섹션/키만 읽으려면 section= 지정.
+        section=COMMON                  → COMMON 섹션 전체
+        section=COMMON:ORACLE_SID,PORT  → COMMON 섹션의 그 키들만
+        (미지정이면 전체 섹션·전체 키)
     파일이 여러 개면 각 파일명이 FILE_PREFIX 가 되어 충돌하지 않는다.
 
 사용법 (export 불필요, 인자로 파일명 전달)
@@ -91,6 +93,8 @@ class PgConfigLoader:
         self.config_paths = paths
         self.prefix = opts["prefix"] if opts["prefix"] is not None else self.DEFAULT_PREFIX
         self.section = opts["section"] if opts["section"] is not None else self.DEFAULT_SECTION
+        # section 스펙 파싱: "COMMON:ORACLE_SID,PORT" → (섹션명, {키집합})
+        self.want_section, self.want_keys = self._parse_section_spec(self.section)
         # encoding 미지정 → 자동 감지(FALLBACK_ENCODINGS 순서대로 시도)
         self.encoding = opts["encoding"] or None
 
@@ -155,6 +159,28 @@ class PgConfigLoader:
         return re.sub(r"[^0-9A-Za-z]+", "_", name).upper().strip("_")
 
     @classmethod
+    def _parse_section_spec(cls, spec):
+        """
+        section= 스펙을 (섹션명, 키집합) 으로 파싱한다.
+
+          ""                       → (None, None)        전체 섹션, 전체 키
+          "COMMON"                 → ("COMMON", None)    COMMON 섹션 전체 키
+          "COMMON:ORACLE_SID,PORT" → ("COMMON", {"ORACLE_SID","PORT"})
+                                                          COMMON 의 그 키들만
+
+        섹션명/키는 변수명과 같게 _normalize 로 맞춰 비교한다.
+        (키 집합이 None 이면 키 필터 없음 = 전체)
+        """
+        if not spec:
+            return None, None
+        sec_part, sep, keys_part = spec.partition(":")
+        section = cls._normalize(sec_part) if sec_part else None
+        keys = None
+        if sep and keys_part.strip():
+            keys = {cls._normalize(k) for k in keys_part.split(",") if k.strip()}
+        return section, keys
+
+    @classmethod
     def _prefix_from_path(cls, path):
         """
         파일명(확장자 제외)을 대문자 접두사로 변환.
@@ -189,7 +215,10 @@ class PgConfigLoader:
           - FILE_PREFIX    : prefix= 명시 시 그 값, 아니면 파일명에서 도출
           - SECTION_PREFIX : 섹션명을 대문자로 ([COMMON] → COMMON)
                              섹션 헤더가 없으면 빈 값
-          - section= 가 지정되면 그 섹션만 읽고, 미지정이면 전체 섹션
+          - section= 로 섹션/키 필터:
+              미지정              → 전체 섹션·전체 키
+              section=COMMON      → COMMON 섹션 전체
+              section=COMMON:K1,K2→ COMMON 섹션의 K1,K2 키만
 
         configparser 대신 직접 줄 단위로 파싱하는 이유:
           실제 운영 파일(PG_V2.cfg)에 인코딩이 혼합/손상된 한글 주석 줄이 있어
@@ -212,7 +241,8 @@ class PgConfigLoader:
 
         text, _ = self._read_text(path)
         file_prefix = self._resolve_prefix(path)
-        want = self._normalize(self.section) if self.section else None
+        want_section = self.want_section   # None 이면 전체 섹션
+        want_keys = self.want_keys         # None 이면 전체 키
 
         cur_section = ""          # 섹션 헤더 이전 줄도 허용(섹션 없는 파일 대비)
         seen_sections = set()
@@ -236,12 +266,15 @@ class PgConfigLoader:
                 skipped += 1
                 continue
 
-            # section= 필터
-            if want is not None and cur_section != want:
+            # 섹션 필터
+            if want_section is not None and cur_section != want_section:
+                continue
+            key_norm = self._normalize(key)
+            # 키 필터 (section=COMMON:KEY1,KEY2 형태일 때만 적용)
+            if want_keys is not None and key_norm not in want_keys:
                 continue
 
             seen_sections.add(cur_section)
-            key_norm = self._normalize(key)
             parts = [p for p in (file_prefix, cur_section, key_norm) if p]
             one["_".join(parts)] = value.strip()
 
