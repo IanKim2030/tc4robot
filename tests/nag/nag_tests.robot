@@ -13,7 +13,7 @@ Resource    ../../resources/nag_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/nag_keywords.robot
 
-Variables    ../resources/DynamicVars.py /PG/CFG/BarodNoti.cfg section=Barod.IF:Barod.IF.Port.NAG=NAG_PG_PORT
+Variables    ../resources/DynamicVars.py   /PG/CFG/BarodNoti.cfg   section=Barod.IF:Barod.IF.Port.NAG=NAG_PG_PORT
 
 
 Suite Setup      Suite Connect With LRS PCF
