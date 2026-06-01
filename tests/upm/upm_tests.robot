@@ -21,6 +21,7 @@ Documentation
 ...    참고용으로 주석 처리되어 있음. PG 이벤트 트리거가 가능해지면 주석 해제.
 
 Resource    ../../resources/variables.robot
+Resource    ../../resources/upm_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/upm_keywords.robot
 

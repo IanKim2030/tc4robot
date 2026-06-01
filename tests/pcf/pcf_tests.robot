@@ -7,6 +7,7 @@ Documentation
 ...    각 TC        : ${PCF_SOCK} 공유 사용, TC별 연결/해제 없음
 
 Resource    ../../resources/variables.robot
+Resource    ../../resources/pcf_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/pcf_keywords.robot
 

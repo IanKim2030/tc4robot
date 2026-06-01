@@ -34,6 +34,7 @@ Documentation
 ...      TC-NWDAF-030 ~ 034 : Build 단위 검증 (송신 없음)
 
 Resource    ../../resources/variables.robot
+Resource    ../../resources/nwdaf_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/nwdaf_keywords.robot
 
