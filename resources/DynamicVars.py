@@ -17,9 +17,11 @@ Robot Framework ${변수} 로 주입한다.
         PG.cfg 의 [NAG]    PORT       → ${PG_NAG_PORT}
 
     파일의 모든 섹션을 읽는다. 특정 섹션/키만 읽으려면 section= 지정.
-        section=COMMON                  → COMMON 섹션 전체
-        section=COMMON:ORACLE_SID,PORT  → COMMON 섹션의 그 키들만
-        (미지정이면 전체 섹션·전체 키)
+        section=COMMON                  → COMMON 섹션 전체 (접두사 적용)
+        section=COMMON:ORACLE_SID,PORT  → 그 키들만, 변수명=키 이름
+                                          (${ORACLE_SID}, ${PORT}, 접두사 없음)
+        section=COMMON:ORACLE_SID=DB_SID→ 그 키만, 변수명=별칭 (${DB_SID})
+        (미지정이면 전체 섹션·전체 키, 접두사 적용)
     파일이 여러 개면 각 파일명이 FILE_PREFIX 가 되어 충돌하지 않는다.
 
 사용법 (export 불필요, 인자로 파일명 전달)
@@ -93,7 +95,7 @@ class PgConfigLoader:
         self.config_paths = paths
         self.prefix = opts["prefix"] if opts["prefix"] is not None else self.DEFAULT_PREFIX
         self.section = opts["section"] if opts["section"] is not None else self.DEFAULT_SECTION
-        # section 스펙 파싱: "COMMON:ORACLE_SID,PORT" → (섹션명, {키집합})
+        # section 스펙 파싱: "COMMON:ORACLE_SID=DB_SID" → ("COMMON", {키:별칭})
         self.want_section, self.want_keys = self._parse_section_spec(self.section)
         # encoding 미지정 → 자동 감지(FALLBACK_ENCODINGS 순서대로 시도)
         self.encoding = opts["encoding"] or None
@@ -161,24 +163,46 @@ class PgConfigLoader:
     @classmethod
     def _parse_section_spec(cls, spec):
         """
-        section= 스펙을 (섹션명, 키집합) 으로 파싱한다.
+        section= 스펙을 (섹션명, 키별칭맵) 으로 파싱한다.
 
-          ""                       → (None, None)        전체 섹션, 전체 키
-          "COMMON"                 → ("COMMON", None)    COMMON 섹션 전체 키
-          "COMMON:ORACLE_SID,PORT" → ("COMMON", {"ORACLE_SID","PORT"})
-                                                          COMMON 의 그 키들만
+          ""                          → (None, None)
+                                         전체 섹션, 전체 키 (접두사 적용)
+          "COMMON"                    → ("COMMON", None)
+                                         COMMON 섹션 전체 키 (접두사 적용)
+          "COMMON:ORACLE_SID,PORT"    → ("COMMON", {"ORACLE_SID":"ORACLE_SID",
+                                                     "PORT":"PORT"})
+                                         그 키들만, 변수명 = 키 이름(접두사 없음)
+          "COMMON:ORACLE_SID=DB_SID"  → ("COMMON", {"ORACLE_SID":"DB_SID"})
+                                         그 키만, 변수명 = 별칭 DB_SID(접두사 없음)
+          혼합도 가능:
+          "COMMON:ORACLE_SID=DB_SID,PORT"
+                                      → ("COMMON", {"ORACLE_SID":"DB_SID",
+                                                    "PORT":"PORT"})
 
-        섹션명/키는 변수명과 같게 _normalize 로 맞춰 비교한다.
-        (키 집합이 None 이면 키 필터 없음 = 전체)
+        반환 맵의 key 는 매칭용(_normalize 된 원본 키),
+        value 는 최종 변수명(_normalize 된 별칭 또는 키 이름).
+        키 맵이 None 이면 키 필터 없음(= 전체, 접두사 적용).
         """
         if not spec:
             return None, None
         sec_part, sep, keys_part = spec.partition(":")
         section = cls._normalize(sec_part) if sec_part else None
-        keys = None
-        if sep and keys_part.strip():
-            keys = {cls._normalize(k) for k in keys_part.split(",") if k.strip()}
-        return section, keys
+        if not (sep and keys_part.strip()):
+            return section, None
+
+        key_map = {}
+        for item in keys_part.split(","):
+            item = item.strip()
+            if not item:
+                continue
+            # "원본키=별칭" 또는 "원본키"
+            raw_key, eq, alias = item.partition("=")
+            k = cls._normalize(raw_key)
+            if not k:
+                continue
+            # 별칭 주면 별칭, 안 주면 키 이름 그대로
+            key_map[k] = cls._normalize(alias) if (eq and alias.strip()) else k
+        return section, (key_map or None)
 
     @classmethod
     def _prefix_from_path(cls, path):
@@ -215,10 +239,11 @@ class PgConfigLoader:
           - FILE_PREFIX    : prefix= 명시 시 그 값, 아니면 파일명에서 도출
           - SECTION_PREFIX : 섹션명을 대문자로 ([COMMON] → COMMON)
                              섹션 헤더가 없으면 빈 값
-          - section= 로 섹션/키 필터:
-              미지정              → 전체 섹션·전체 키
-              section=COMMON      → COMMON 섹션 전체
-              section=COMMON:K1,K2→ COMMON 섹션의 K1,K2 키만
+          - section= 로 섹션/키 필터 및 변수명 지정:
+              미지정              → 전체 섹션·전체 키 (접두사 적용)
+              section=COMMON      → COMMON 섹션 전체 (접두사 적용)
+              section=COMMON:K1,K2→ 그 키들만, 변수명=키 이름(접두사 없음)
+              section=COMMON:K1=A → 그 키만, 변수명=별칭 A(접두사 없음)
 
         configparser 대신 직접 줄 단위로 파싱하는 이유:
           실제 운영 파일(PG_V2.cfg)에 인코딩이 혼합/손상된 한글 주석 줄이 있어
@@ -270,13 +295,20 @@ class PgConfigLoader:
             if want_section is not None and cur_section != want_section:
                 continue
             key_norm = self._normalize(key)
-            # 키 필터 (section=COMMON:KEY1,KEY2 형태일 때만 적용)
+            # 키 필터 (section=COMMON:KEY... 형태일 때만 적용)
             if want_keys is not None and key_norm not in want_keys:
                 continue
 
             seen_sections.add(cur_section)
-            parts = [p for p in (file_prefix, cur_section, key_norm) if p]
-            one["_".join(parts)] = value.strip()
+            if want_keys is not None:
+                # 키를 명시적으로 지정한 경우:
+                # 변수명 = 별칭(or 키 이름) 그대로, 파일/섹션 접두사 안 붙임
+                var_name = want_keys[key_norm]
+            else:
+                # 전체/섹션 단위: 기존대로 접두사 적용
+                parts = [p for p in (file_prefix, cur_section, key_norm) if p]
+                var_name = "_".join(parts)
+            one[var_name] = value.strip()
 
         note = f"섹션 {len(seen_sections)}개" if seen_sections else "섹션0"
         if skipped:
