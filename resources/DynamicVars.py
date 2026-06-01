@@ -7,15 +7,14 @@ Robot Framework ${변수} 로 주입한다.
 
 생성되는 변수명 규칙
 --------------------
-    PREFIX 미지정 → 키 그대로
-        예) PG.cfg 의 PACKAGE_ID → ${PACKAGE_ID}
-    PREFIX 지정   → {PREFIX}_{키}
-        예) prefix=PG, PG.cfg 의 PACKAGE_ID → ${PG_PACKAGE_ID}
+    PREFIX 미지정 → 파일명을 접두사로 사용 (파일마다 다름)
+        예) PG.cfg 의 PACKAGE_ID    → ${PG_PACKAGE_ID}
+            PG01.cfg 의 PACKAGE_ID  → ${PG01_PACKAGE_ID}
+    PREFIX 지정   → 그 값을 모든 파일에 공통 적용
+        예) prefix=PG, 어느 파일이든 PACKAGE_ID → ${PG_PACKAGE_ID}
 
-    여러 파일에 같은 키가 있으면 나중 파일이 앞 파일을 덮어쓴다(경고 출력).
-    파일별로 구분이 필요하면 Variables 를 나눠 선언하고 prefix= 를 다르게 준다.
-        Variables  DynamicVars.py  /PG/CFG/NAG.cfg  prefix=NAG
-        Variables  DynamicVars.py  /PG/CFG/PCF.cfg  prefix=PCF
+    파일명 기반이면 파일마다 접두사가 달라 같은 키도 충돌하지 않는다.
+        Variables  DynamicVars.py  /PG/CFG/NAG.cfg  /PG/CFG/PCF.cfg
         → ${NAG_PACKAGE_ID}, ${PCF_PACKAGE_ID}
 
 사용법 (export 불필요, 인자로 파일명 전달)
@@ -51,6 +50,7 @@ PG 설정 파일 포맷 (INI 유사)
 """
 
 import os
+import re
 import glob
 import configparser
 
@@ -136,11 +136,36 @@ class PgConfigLoader:
         # 여기 도달하면 latin-1 도 실패한 것(사실상 불가) → 원본 에러 전달
         raise last_err
 
+    # ── 파일명 → 접두사 ────────────────────────────────────────────
+    @staticmethod
+    def _prefix_from_path(path):
+        """
+        파일명(확장자 제외)을 대문자 접두사로 변환.
+          /PG/CFG/PG.cfg      → PG
+          /PG/CFG/PG01.cfg    → PG01
+          /PG/CFG/pg-nag.conf → PG_NAG
+        """
+        stem = os.path.splitext(os.path.basename(path))[0]
+        return re.sub(r"[^0-9A-Za-z]+", "_", stem).upper().strip("_")
+
+    def _resolve_prefix(self, path):
+        """
+        이 파일에 쓸 접두사를 결정한다.
+          - prefix= 가 명시돼 있으면  → 그 값 (모든 파일 공통)
+          - 명시 안 돼 있으면        → 파일명에서 도출 (파일마다 다름)
+        """
+        if self.prefix:
+            return self.prefix
+        return self._prefix_from_path(path)
+
     # ── 파일 1개 파싱 ──────────────────────────────────────────────
     def _parse_one_config(self, path):
         """
-        설정 파일 1개를 파싱해 {키: 값} dict 로 반환.
-        (공통 PREFIX 는 마지막 _apply_prefix 단계에서 일괄 적용)
+        설정 파일 1개를 파싱해 {접두사_키: 값} dict 로 반환.
+
+        접두사:
+          - prefix= 명시 시 그 값, 아니면 파일명에서 도출
+            (PG.cfg → PG_ , PG01.cfg → PG01_)
 
         주의:
           - optionxform=str → 키 대소문자 보존 (안 하면 소문자화됨)
@@ -162,10 +187,12 @@ class PgConfigLoader:
             print(f"[DynamicVars] [{self.section}] 섹션 없음, 건너뜀: {path}")
             return one
 
+        prefix = self._resolve_prefix(path)
         for key, value in parser.items(self.section):
-            one[key] = value
+            var_name = f"{prefix}_{key}" if prefix else key
+            one[var_name] = value
 
-        print(f"[DynamicVars] config 파싱: {len(one)}개 ({path})")
+        print(f"[DynamicVars] config 파싱: {len(one)}개 [{prefix or '접두사없음'}] ({path})")
         return one
 
     # ── config 파일 전체 ───────────────────────────────────────────
@@ -191,20 +218,13 @@ class PgConfigLoader:
         print(f"[DynamicVars] config 총 {len(result)}개, 파일 {len(paths)}개")
         return result
 
-    # ── 공통 PREFIX 적용 ───────────────────────────────────────────
-    def _apply_prefix(self, raw):
-        """모든 변수명 앞에 공통 PREFIX 를 붙인다. PREFIX 가 비면 그대로."""
-        if not self.prefix:
-            return dict(raw)
-        return {f"{self.prefix}_{key}": value for key, value in raw.items()}
-
     # ── 최종 결과 ──────────────────────────────────────────────────
     def get_variables(self):
-        """설정 파일들을 읽어 병합하고 공통 PREFIX 를 적용해 반환."""
-        merged = self._load_from_process_config()
-        result = self._apply_prefix(merged)
+        """설정 파일들을 읽어 병합해 반환. (접두사는 파일별 파싱에서 이미 적용됨)"""
+        result = self._load_from_process_config()
+        mode = self.prefix if self.prefix else "파일명 기반"
         print(f"[DynamicVars] 최종 주입 {len(result)}개 "
-              f"(prefix={self.prefix or '없음'}, section={self.section})")
+              f"(prefix={mode}, section={self.section})")
         return result
 
 
