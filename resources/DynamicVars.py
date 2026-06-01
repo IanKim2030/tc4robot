@@ -7,13 +7,16 @@ Robot Framework ${변수} 로 주입한다.
 
 생성되는 변수명 규칙
 --------------------
-    {PREFIX}_{파일접두사}_{키}
-        PREFIX      : 모든 변수에 공통으로 붙는 접두사 (기본 "CFG")
-        파일접두사  : 설정 파일명(확장자 제외)을 대문자로 변환 → 파일 간 충돌 방지
-        키          : 설정 파일의 KEY 그대로
+    PREFIX 미지정 → 키 그대로
+        예) PG.cfg 의 PACKAGE_ID → ${PACKAGE_ID}
+    PREFIX 지정   → {PREFIX}_{키}
+        예) prefix=PG, PG.cfg 의 PACKAGE_ID → ${PG_PACKAGE_ID}
 
-    예) PREFIX=CFG, PG01.cfg 의 FILE_LOG_PATH
-        → ${CFG_PG01_FILE_LOG_PATH}
+    여러 파일에 같은 키가 있으면 나중 파일이 앞 파일을 덮어쓴다(경고 출력).
+    파일별로 구분이 필요하면 Variables 를 나눠 선언하고 prefix= 를 다르게 준다.
+        Variables  DynamicVars.py  /PG/CFG/NAG.cfg  prefix=NAG
+        Variables  DynamicVars.py  /PG/CFG/PCF.cfg  prefix=PCF
+        → ${NAG_PACKAGE_ID}, ${PCF_PACKAGE_ID}
 
 사용법 (export 불필요, 인자로 파일명 전달)
 ------------------------------------------
@@ -48,7 +51,6 @@ PG 설정 파일 포맷 (INI 유사)
 """
 
 import os
-import re
 import glob
 import configparser
 
@@ -56,7 +58,7 @@ import configparser
 class PgConfigLoader:
     """PG 설정 파일을 읽어 Robot 변수 dict 로 만들어주는 클래스."""
 
-    DEFAULT_PREFIX = "CFG"     # 모든 변수명에 붙는 공통 접두사
+    DEFAULT_PREFIX = ""        # prefix 미지정 시 접두사 없음 (키 그대로)
     DEFAULT_SECTION = "COMMON"
     # 인코딩 자동 감지 시도 순서.
     # 한국 레거시 통신 환경: 대부분 ASCII 거나 EUC-KR/CP949.
@@ -108,17 +110,6 @@ class PgConfigLoader:
                 paths.append(item)
         return paths
 
-    # ── 파일명 → 접두사 ────────────────────────────────────────────
-    @staticmethod
-    def _prefix_from_path(path):
-        """
-        파일명(확장자 제외)을 대문자 접두사로 변환.
-          /PG/CFG/PG01.cfg    → PG01
-          /PG/CFG/pg-nag.conf → PG_NAG
-        """
-        stem = os.path.splitext(os.path.basename(path))[0]
-        return re.sub(r"[^0-9A-Za-z]+", "_", stem).upper().strip("_")
-
     # ── 인코딩 자동 감지 읽기 ──────────────────────────────────────
     def _read_text(self, path):
         """
@@ -146,9 +137,9 @@ class PgConfigLoader:
         raise last_err
 
     # ── 파일 1개 파싱 ──────────────────────────────────────────────
-    def _parse_one_config(self, path, file_prefix):
+    def _parse_one_config(self, path):
         """
-        설정 파일 1개를 파싱해 {파일접두사_키: 값} dict 로 반환.
+        설정 파일 1개를 파싱해 {키: 값} dict 로 반환.
         (공통 PREFIX 는 마지막 _apply_prefix 단계에서 일괄 적용)
 
         주의:
@@ -172,9 +163,9 @@ class PgConfigLoader:
             return one
 
         for key, value in parser.items(self.section):
-            one[f"{file_prefix}_{key}"] = value
+            one[key] = value
 
-        print(f"[DynamicVars] config 파싱: {len(one)}개 [{file_prefix}] ({path})")
+        print(f"[DynamicVars] config 파싱: {len(one)}개 ({path})")
         return one
 
     # ── config 파일 전체 ───────────────────────────────────────────
@@ -185,21 +176,17 @@ class PgConfigLoader:
             print("[DynamicVars] config 입력 없음, 건너뜀")
             return result
 
-        used_prefixes = {}   # 파일접두사 → 사용 횟수
         for path in paths:
-            file_prefix = self._prefix_from_path(path)
-
-            # 파일접두사 충돌 방지: 같은 접두사가 또 나오면 _2, _3... 을 붙인다.
-            # (예: PG01.cfg 와 pg01.conf 가 둘 다 PG01 로 변환되는 경우)
-            count = used_prefixes.get(file_prefix, 0) + 1
-            used_prefixes[file_prefix] = count
-            if count > 1:
-                new_prefix = f"{file_prefix}_{count}"
-                print(f"[DynamicVars] ⚠ 파일접두사 '{file_prefix}' 중복 → "
-                      f"'{new_prefix}' 로 분리: {path}")
-                file_prefix = new_prefix
-
-            result.update(self._parse_one_config(path, file_prefix))
+            one = self._parse_one_config(path)
+            # 파일접두사 없이 키를 그대로 쓰므로, 여러 파일에 같은 키가 있으면
+            # 나중 파일이 앞 파일을 덮어쓴다. 조용히 사라지지 않게 경고를 띄운다.
+            # (구분이 필요하면 파일마다 다른 prefix= 를 주면 됨)
+            dup = set(result) & set(one)
+            for k in dup:
+                if result[k] != one[k]:
+                    print(f"[DynamicVars] ⚠ 키 '{k}' 중복: "
+                          f"'{result[k]}' → '{one[k]}' 로 덮어씀 ({path})")
+            result.update(one)
 
         print(f"[DynamicVars] config 총 {len(result)}개, 파일 {len(paths)}개")
         return result
