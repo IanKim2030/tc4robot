@@ -139,6 +139,24 @@ class PgConfigLoader:
         # 여기 도달하면 latin-1 도 실패한 것(사실상 불가) → 원본 에러 전달
         raise last_err
 
+    # ── // 주석 제거 ───────────────────────────────────────────────
+    @staticmethod
+    def _strip_slash_comments(text):
+        """
+        configparser 는 '#' 과 ';' 만 주석으로 알고 '//' 는 모른다.
+        줄 맨 앞(앞쪽 공백 포함)에서 시작하는 '//' 줄을 통째로 제거한다.
+
+        값 중간의 '//' 는 건드리지 않는다(보존).
+          예) URL=http://host/api   ← '//' 가 값에 있어도 그대로 유지
+        '#' 인라인 주석을 끄는 정책과 동일하게, '//' 도 줄 시작에서만 주석 처리.
+        """
+        out = []
+        for line in text.splitlines():
+            if line.lstrip().startswith("//"):
+                continue  # 주석 줄 → 제거
+            out.append(line)
+        return "\n".join(out)
+
     # ── 이름 정규화 / 파일명 → 접두사 ──────────────────────────────
     @staticmethod
     def _normalize(name):
@@ -184,7 +202,7 @@ class PgConfigLoader:
         주의:
           - optionxform=str → 키 대소문자 보존 (안 하면 소문자화됨)
           - 인라인 주석 끔 → DB_CONNOPT 의 ';' 가 잘리지 않게
-          - 주석(#) 라인은 configparser 가 자동 무시
+          - 주석 라인(# 및 //)은 자동 무시 (값 안의 '//' 는 보존)
           - 인코딩은 _read_text 가 자동 감지 (ISO-8859/EUC-KR 등 레거시 대응)
         """
         one = {}
@@ -193,6 +211,7 @@ class PgConfigLoader:
             return one
 
         text, _ = self._read_text(path)
+        text = self._strip_slash_comments(text)
         parser = configparser.ConfigParser()
         parser.optionxform = str
         parser.read_string(text, source=path)
