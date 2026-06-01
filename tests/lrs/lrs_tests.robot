@@ -15,6 +15,9 @@ Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/lrs_keywords.robot
 
+
+Variables    ../resources/DynamicVars.py    /PG/CFG/PG.CFG COMMON
+
 Suite Setup      Suite LRS Accept
 Suite Teardown   Suite LRS Disconnect
 Test Setup       Check LRS Socket

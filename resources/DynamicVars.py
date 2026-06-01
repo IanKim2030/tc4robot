@@ -7,15 +7,18 @@ Robot Framework ${변수} 로 주입한다.
 
 생성되는 변수명 규칙
 --------------------
-    PREFIX 미지정 → 파일명을 접두사로 사용 (파일마다 다름)
-        예) PG.cfg 의 PACKAGE_ID    → ${PG_PACKAGE_ID}
-            PG01.cfg 의 PACKAGE_ID  → ${PG01_PACKAGE_ID}
-    PREFIX 지정   → 그 값을 모든 파일에 공통 적용
-        예) prefix=PG, 어느 파일이든 PACKAGE_ID → ${PG_PACKAGE_ID}
+    {FILE_PREFIX}_{SECTION_PREFIX}_{KEY}
+        FILE_PREFIX    : prefix= 명시 시 그 값, 아니면 파일명에서 도출
+                         (PG.cfg → PG, PG01.cfg → PG01)
+        SECTION_PREFIX : 섹션명을 대문자로 ([COMMON] → COMMON)
+        KEY            : 설정 파일의 KEY 그대로
 
-    파일명 기반이면 파일마다 접두사가 달라 같은 키도 충돌하지 않는다.
-        Variables  DynamicVars.py  /PG/CFG/NAG.cfg  /PG/CFG/PCF.cfg
-        → ${NAG_PACKAGE_ID}, ${PCF_PACKAGE_ID}
+    예) PG.cfg 의 [COMMON] PACKAGE_ID → ${PG_COMMON_PACKAGE_ID}
+        PG.cfg 의 [NAG]    PORT       → ${PG_NAG_PORT}
+
+    파일의 모든 섹션을 읽는다. 특정 섹션만 읽으려면 section= 지정.
+        Variables  DynamicVars.py  /PG/CFG/PG.cfg  section=COMMON
+    파일이 여러 개면 각 파일명이 FILE_PREFIX 가 되어 충돌하지 않는다.
 
 사용법 (export 불필요, 인자로 파일명 전달)
 ------------------------------------------
@@ -59,7 +62,7 @@ class PgConfigLoader:
     """PG 설정 파일을 읽어 Robot 변수 dict 로 만들어주는 클래스."""
 
     DEFAULT_PREFIX = ""        # prefix 미지정 시 접두사 없음 (키 그대로)
-    DEFAULT_SECTION = "COMMON"
+    DEFAULT_SECTION = ""       # 빈 값 = 파일의 모든 섹션을 읽음
     # 인코딩 자동 감지 시도 순서.
     # 한국 레거시 통신 환경: 대부분 ASCII 거나 EUC-KR/CP949.
     # file 명령이 'ISO-8859' 로 보는 건 비ASCII 바이트가 섞였다는 뜻이라
@@ -85,7 +88,7 @@ class PgConfigLoader:
 
         self.config_paths = paths
         self.prefix = opts["prefix"] if opts["prefix"] is not None else self.DEFAULT_PREFIX
-        self.section = opts["section"] or self.DEFAULT_SECTION
+        self.section = opts["section"] if opts["section"] is not None else self.DEFAULT_SECTION
         # encoding 미지정 → 자동 감지(FALLBACK_ENCODINGS 순서대로 시도)
         self.encoding = opts["encoding"] or None
 
@@ -136,9 +139,14 @@ class PgConfigLoader:
         # 여기 도달하면 latin-1 도 실패한 것(사실상 불가) → 원본 에러 전달
         raise last_err
 
-    # ── 파일명 → 접두사 ────────────────────────────────────────────
+    # ── 이름 정규화 / 파일명 → 접두사 ──────────────────────────────
     @staticmethod
-    def _prefix_from_path(path):
+    def _normalize(name):
+        """문자열을 변수명 조각으로 정규화: 대문자화, 영숫자 외는 '_'."""
+        return re.sub(r"[^0-9A-Za-z]+", "_", name).upper().strip("_")
+
+    @classmethod
+    def _prefix_from_path(cls, path):
         """
         파일명(확장자 제외)을 대문자 접두사로 변환.
           /PG/CFG/PG.cfg      → PG
@@ -146,7 +154,7 @@ class PgConfigLoader:
           /PG/CFG/pg-nag.conf → PG_NAG
         """
         stem = os.path.splitext(os.path.basename(path))[0]
-        return re.sub(r"[^0-9A-Za-z]+", "_", stem).upper().strip("_")
+        return cls._normalize(stem)
 
     def _resolve_prefix(self, path):
         """
@@ -161,11 +169,17 @@ class PgConfigLoader:
     # ── 파일 1개 파싱 ──────────────────────────────────────────────
     def _parse_one_config(self, path):
         """
-        설정 파일 1개를 파싱해 {접두사_키: 값} dict 로 반환.
+        설정 파일 1개의 모든 섹션을 파싱해
+        {파일접두사_섹션접두사_키: 값} dict 로 반환.
 
-        접두사:
-          - prefix= 명시 시 그 값, 아니면 파일명에서 도출
-            (PG.cfg → PG_ , PG01.cfg → PG01_)
+        변수명:
+          {FILE_PREFIX}_{SECTION_PREFIX}_{KEY}
+            예) PG.cfg 의 [COMMON] PACKAGE_ID → ${PG_COMMON_PACKAGE_ID}
+                PG.cfg 의 [NAG]    PORT       → ${PG_NAG_PORT}
+
+          - FILE_PREFIX    : prefix= 명시 시 그 값, 아니면 파일명에서 도출
+          - SECTION_PREFIX : 섹션명을 대문자로 (공백/기호는 '_')
+          - section= 가 지정되면 그 섹션만 읽고, 미지정이면 전체 섹션
 
         주의:
           - optionxform=str → 키 대소문자 보존 (안 하면 소문자화됨)
@@ -183,16 +197,25 @@ class PgConfigLoader:
         parser.optionxform = str
         parser.read_string(text, source=path)
 
-        if not parser.has_section(self.section):
-            print(f"[DynamicVars] [{self.section}] 섹션 없음, 건너뜀: {path}")
-            return one
+        file_prefix = self._resolve_prefix(path)
 
-        prefix = self._resolve_prefix(path)
-        for key, value in parser.items(self.section):
-            var_name = f"{prefix}_{key}" if prefix else key
-            one[var_name] = value
+        # 읽을 섹션 결정: section= 지정 시 그것만, 아니면 파일의 전체 섹션
+        if self.section:
+            if not parser.has_section(self.section):
+                print(f"[DynamicVars] [{self.section}] 섹션 없음, 건너뜀: {path}")
+                return one
+            sections = [self.section]
+        else:
+            sections = parser.sections()
 
-        print(f"[DynamicVars] config 파싱: {len(one)}개 [{prefix or '접두사없음'}] ({path})")
+        for sec in sections:
+            sec_prefix = self._normalize(sec)
+            for key, value in parser.items(sec):
+                parts = [p for p in (file_prefix, sec_prefix, key) if p]
+                one["_".join(parts)] = value
+
+        print(f"[DynamicVars] config 파싱: {len(one)}개 "
+              f"[{file_prefix or '접두사없음'}] 섹션 {len(sections)}개 ({path})")
         return one
 
     # ── config 파일 전체 ───────────────────────────────────────────
@@ -224,7 +247,7 @@ class PgConfigLoader:
         result = self._load_from_process_config()
         mode = self.prefix if self.prefix else "파일명 기반"
         print(f"[DynamicVars] 최종 주입 {len(result)}개 "
-              f"(prefix={mode}, section={self.section})")
+              f"(prefix={mode}, section={self.section or '전체'})")
         return result
 
 
