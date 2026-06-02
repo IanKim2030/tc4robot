@@ -51,14 +51,15 @@ Robot Framework ${변수} 로 주입한다.
     PG_ROBOT_SSH_USER   사용자 (경로의 user@ 가 우선, 없으면 이 값, 없으면 OS 계정)
     PG_ROBOT_SSH_PORT   포트 (기본 22)
     PG_ROBOT_SSH_KEY    개인키 파일 경로 (미지정 시 ~/.ssh 기본 키 / ssh-agent 사용)
-    PG_ROBOT_SSH_PASS   비밀번호 (키 인증이 안 될 때만; sshpass 설치 필요)
-  예) export PG_ROBOT_SSH_KEY=~/.ssh/id_rsa
+    PG_ROBOT_SSH_PASS   비밀번호 (sshpass 불필요 — pty 로 프롬프트에 응답)
+  예) export PG_ROBOT_SSH_PASS='pg1234'
       robot tests/
   접속/읽기 실패 시 그 파일만 건너뛰고 경고를 남긴다(전체 테스트는 계속).
   로컬·원격 파일을 같은 줄에 섞어 써도 된다.
 
   전제: 실행 머신에 ssh 클라이언트가 있어야 한다(리눅스엔 기본 설치).
-        키 인증이 가장 간단하고 안전. 비밀번호 인증은 sshpass 가 필요하다.
+        비밀번호 인증은 PG_ROBOT_SSH_PASS, 키 인증은 PG_ROBOT_SSH_KEY 로.
+        둘 다 없으면 ~/.ssh 기본 키/ssh-agent 로 키 인증을 시도한다.
 
 PG 설정 파일 포맷 (INI 유사)
 ----------------------------
@@ -179,21 +180,25 @@ class PgConfigLoader:
     def _read_remote_bytes(self, path):
         """
         시스템의 ssh 명령으로 원격 파일 바이트를 읽어 반환.
-        외부 라이브러리(paramiko 등) 없이 표준 라이브러리만 사용하므로
+        외부 라이브러리(paramiko, sshpass 등) 없이 표준 라이브러리만 사용하므로
         Python 3.6.8 환경에서도 추가 설치 없이 동작한다.
 
-        실행 형태:  ssh [옵션] user@host "cat -- '/remote/path'"
-        stdout(바이트)을 그대로 받는다. (cat 은 바이너리 그대로 출력)
+        인증 방식:
+          - PG_ROBOT_SSH_PASS 가 있으면 → pty 로 ssh 의 password 프롬프트에 응답
+                                          (sshpass 불필요)
+          - 없으면                     → 키 인증(BatchMode) subprocess
 
-        인증/옵션 (보안상 Variables 인자에 비밀번호를 넣지 않는다):
+        옵션:
           - 사용자  : 경로의 user@ → env PG_ROBOT_SSH_USER → OS 계정
           - 포트    : env PG_ROBOT_SSH_PORT (기본 22)
-          - 키      : env PG_ROBOT_SSH_KEY (있으면 -i 로 지정, 없으면 ~/.ssh 기본)
-          - 비밀번호: env PG_ROBOT_SSH_PASS (있으면 sshpass 사용; 없으면 키 인증)
+          - 키      : env PG_ROBOT_SSH_KEY (있으면 -i 로 지정)
           - 호스트키: 운영 편의를 위해 StrictHostKeyChecking=no
-                     (보안 강화 필요 시 이 옵션을 제거)
+
+        파일 내용 추출:
+          pty 에서는 프롬프트/에코가 출력에 섞이므로,
+          원격 명령을 'echo MARKER; cat 파일; echo MARKER' 로 감싸
+          두 마커 사이만 정확히 추출한다.
         """
-        import subprocess
         import shlex
 
         user, host, remote_path = self._split_remote(path)
@@ -206,35 +211,137 @@ class PgConfigLoader:
             "ssh",
             "-p", str(port),
             "-o", "StrictHostKeyChecking=no",
-            "-o", "BatchMode=" + ("no" if password else "yes"),  # 키 인증 시 무대화
             "-o", "ConnectTimeout=10",
         ]
         if key_path:
             ssh_cmd += ["-i", os.path.expanduser(key_path)]
-        ssh_cmd.append(f"{user}@{host}")
-        # 원격에서 cat 으로 파일을 바이너리 그대로 출력. 경로는 안전하게 quote.
-        ssh_cmd.append("cat -- " + shlex.quote(remote_path))
-
-        # 비밀번호 인증이면 sshpass 로 감싼다(설치돼 있어야 함).
-        if password:
-            cmd = ["sshpass", "-e"] + ssh_cmd        # -e: 환경변수 SSHPASS 사용
-        else:
-            cmd = ssh_cmd
-
-        # sshpass 가 읽는 환경변수명은 SSHPASS. PG_ROBOT_SSH_PASS 를 옮겨준다.
-        env = dict(os.environ)
-        if password:
-            env["SSHPASS"] = password
 
         print(f"[DynamicVars] SSH 접속: {user}@{host}:{port} → {remote_path}")
-        proc = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            env=env, timeout=30,
-        )
-        if proc.returncode != 0:
-            err = proc.stderr.decode("utf-8", "replace").strip()
-            raise RuntimeError(f"ssh 실패(rc={proc.returncode}): {err}")
-        return proc.stdout
+
+        if password:
+            # 비밀번호 인증: pty 로 프롬프트에 응답. base64 마커로 내용 구분.
+            marker = "__DVMARK_%d__" % os.getpid()
+            # cat 결과를 base64 로 감싸 출력 → 바이너리/개행/터미널 변환 문제 회피
+            remote = (
+                "echo %s; base64 < %s; echo %s"
+                % (marker, shlex.quote(remote_path), marker)
+            )
+            ssh_cmd += ["-o", "NumberOfPasswordPrompts=1",
+                        "-tt",                       # pty 강제(프롬프트 받기)
+                        "%s@%s" % (user, host), remote]
+            raw = self._run_ssh_with_password(ssh_cmd, password)
+            return self._extract_marked_base64(raw, marker, password)
+        else:
+            # 키 인증: 일반 subprocess, cat 바이너리 그대로
+            import subprocess
+            ssh_cmd += ["-o", "BatchMode=yes",
+                        "%s@%s" % (user, host),
+                        "cat -- " + shlex.quote(remote_path)]
+            proc = subprocess.run(
+                ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                timeout=30,
+            )
+            if proc.returncode != 0:
+                err = proc.stderr.decode("utf-8", "replace").strip()
+                raise RuntimeError("ssh 실패(rc=%d): %s" % (proc.returncode, err))
+            return proc.stdout
+
+    @staticmethod
+    def _run_ssh_with_password(cmd, password, timeout=30):
+        """
+        pty 로 ssh 를 실행하고 password 프롬프트가 뜨면 비밀번호를 써넣는다.
+        ssh 의 전체 출력(bytes)을 반환. (sshpass 없이 표준 pty 만 사용)
+        """
+        import pty
+        import select
+        import re
+        import time
+
+        pid, fd = pty.fork()
+        if pid == 0:  # 자식: ssh 실행
+            try:
+                os.execvp(cmd[0], cmd)
+            except Exception:
+                os._exit(127)
+        # 부모: 출력 읽으며 프롬프트에 응답
+        out = b""
+        buf = b""
+        sent = False
+        deadline = time.time() + timeout
+        prompt_re = re.compile(rb"[Pp]assword:|passphrase")
+        try:
+            while True:
+                if time.time() > deadline:
+                    break
+                r, _, _ = select.select([fd], [], [], 0.5)
+                if fd in r:
+                    try:
+                        chunk = os.read(fd, 4096)
+                    except OSError:
+                        break
+                    if not chunk:
+                        break
+                    out += chunk
+                    buf += chunk
+                    if not sent and prompt_re.search(buf):
+                        os.write(fd, password.encode() + b"\n")
+                        sent = True
+                        buf = b""
+                else:
+                    wpid, _ = os.waitpid(pid, os.WNOHANG)
+                    if wpid != 0:
+                        # 자식 종료: 남은 출력 흡수
+                        while True:
+                            r, _, _ = select.select([fd], [], [], 0.2)
+                            if fd not in r:
+                                break
+                            try:
+                                c = os.read(fd, 4096)
+                            except OSError:
+                                break
+                            if not c:
+                                break
+                            out += c
+                        break
+        finally:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        return out
+
+    @staticmethod
+    def _extract_marked_base64(raw, marker, password=None):
+        """
+        ssh 출력(raw bytes)에서 두 marker 사이의 base64 를 찾아 디코딩.
+        프롬프트 에코/CR 등이 섞여 있어도 마커 기준으로 정확히 추출한다.
+        에러 메시지에 비밀번호가 에코됐을 수 있으니 마스킹한다.
+        """
+        import base64
+        import re
+
+        def _mask(text):
+            if password:
+                text = text.replace(password, "***")
+            return text
+
+        mark = marker.encode()
+        # 마커가 2번 나타남: 사이의 내용만
+        parts = raw.split(mark)
+        if len(parts) < 3:
+            # 인증 실패 등으로 마커가 안 나온 경우 → 에러 메시지 추출
+            text = _mask(raw.decode("utf-8", "replace"))
+            if re.search(r"[Pp]ermission denied|denied|No route|refused|timeout",
+                         text):
+                raise RuntimeError("ssh 비밀번호 인증/접속 실패: %s"
+                                   % text.strip()[-200:])
+            raise RuntimeError("원격 출력에서 파일 내용을 찾지 못함 "
+                               "(마커 누락). 출력 일부: %s"
+                               % text.strip()[-200:])
+        b64 = parts[1]
+        # base64 외 문자(개행, CR, 공백) 제거
+        b64_clean = re.sub(rb"[^A-Za-z0-9+/=]", b"", b64)
+        return base64.b64decode(b64_clean)
 
     def _read_bytes(self, path):
         """경로가 원격이면 SSH 로, 아니면 로컬 파일에서 바이트를 읽는다."""
