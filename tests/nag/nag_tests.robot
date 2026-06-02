@@ -2,11 +2,10 @@
 Documentation
 ...    NAG 기능 검증 - msg_type 기준 (공유 소켓)
 ...
-...    Suite Setup  : LRS-PCF Listen(${LRS_SERVER_PORT}) → LRS(PG) 접속 수락 + Hello 처리
-...                   → NAG → PG(${NAG_PG_PORT}) 소켓 연결 → ${NAG_SOCK}, ${LRS_CONN} 공유
+...    Suite Setup  : NAG → PG(${NAG_PG_PORT}) 소켓 연결 → ${NAG_SOCK} 공유
 ...                   (NAG Hello 는 TC-NAG-001 에서 직접 수행)
-...    Test Setup   : NAG / LRS-PCF 양쪽 소켓 상태 확인 (하나라도 닫히면 Suite 중단)
-...    각 TC        : ${NAG_SOCK}, ${LRS_CONN} 공유 사용, TC별 연결/해제 없음
+...    Test Setup   : NAG 소켓 상태 확인 (닫히면 Suite 중단)
+...    각 TC        : ${NAG_SOCK} 공유 사용, TC별 연결/해제 없음
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/nag_variables.robot
@@ -16,9 +15,9 @@ Resource    ../../resources/nag_keywords.robot
 Variables    ../../resources/DynamicVars.py   pg@192.168.15.141:/PG/CFG/BarodNoti.cfg   section=Barod.IF:Barod.IF.Port.NAG=NAG_PG_PORT
 
 
-Suite Setup      Suite Connect With LRS PCF
-Suite Teardown   Suite Disconnect With LRS PCF
-Test Setup       Check LRS PCF And NAG Socket
+Suite Setup      Suite Connect NAG
+Suite Teardown   Suite Disconnect NAG
+Test Setup       Check NAG Socket
 
 *** Test Cases ***
 
@@ -99,21 +98,16 @@ TC-NAG-009 Subs-Zone-Status - 세션 없음 (402)
 
 
 # ── 0x0b/0x0c Subs-Cellid ADOT ───────────────────────────────────
-# 흐름: 0x0b Request 송신 → LRS-PCF 채널로 0x05 수신 → 0x06 응답 → 0x0c Response 수신
+# 흐름: 0x0b Request 송신 → 0x0c Response 수신
+#       (PG 가 LRS-PCF 와 연동해 위치 정보를 조회하는 처리는 PG 내부에서 수행)
 
 TC-NAG-010 Subs-Cellid - 정상 및 응답 필드 검증
-    [Documentation]    0x0b 송신 → LRS-PCF 0x05/0x06 처리 → 0x0c 수신,
+    [Documentation]    0x0b 송신 → 0x0c 수신,
     ...                code=200, TXN ID 에코, cell-info / ta-code / rat-type 검증
     [Tags]    nag    subs-cellid    adot    smoke    validation
     ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
     ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}
-    ${lrs_hdr}    ${lrs_req}=    Receive And Validate LRS Location Info
-    Send LRS Location Info Response    ${lrs_hdr}[txn_id]    ${lrs_req}
-    ...    cell_info=${LRS_MOCK_CELL_INFO_LTE}
-    ...    ta_code=${LRS_MOCK_TA_CODE_LTE}
-    ...    net_tp=${LRS_MOCK_NET_TP_LTE}
-    ...    result_code=${LRS_CODE_SUCCESS}
     ${hdr}    ${body}=    Receive Subs Cellid Response
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Cellid Should Succeed    ${body}

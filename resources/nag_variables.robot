@@ -1,10 +1,6 @@
 *** Settings ***
 Documentation
 ...    NAG 인터페이스 변수 (접속 정보 / 메시지 타입 / 응답 코드 / NAG·PCF 공용 테스트 데이터)
-...
-...    NAG 슈트는 LRS-PCF 서버 소켓(8890)을 함께 사용하므로 LRS 변수에 의존한다.
-...    (nag_keywords.robot → lrs_keywords.robot 구조와 동일)
-Resource   ${CURDIR}/lrs_variables.robot
 
 *** Variables ***
 

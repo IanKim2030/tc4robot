@@ -6,15 +6,13 @@ Documentation
 ...      방향   : 테스트 도구(NAG 역할 / Client) → PG (Server, Port ${NAG_PG_PORT})
 ...      Body   : JSON (Tcp.Send Message / Receive Message)
 ...
-...    [Suite 정책 — Dual Socket]
-...      Suite Setup    : Suite Connect With LRS PCF
-...        1) Port ${LRS_SERVER_PORT} Listen + LRS(PG) 접속 수락 + Hello 처리
-...        2) NAG → PG(${NAG_PG_PORT}) 소켓 연결
-...      Test Setup     : Check LRS PCF And NAG Socket (둘 중 하나라도 닫히면 Fatal Error)
-...      Suite Teardown : Suite Disconnect With LRS PCF
+...    [Suite 정책 — Single Socket]
+...      Suite Setup    : Suite Connect NAG (NAG → PG(${NAG_PG_PORT}) 소켓 연결)
+...      Test Setup     : Check NAG Socket (닫히면 Fatal Error)
+...      Suite Teardown : Suite Disconnect NAG
 ...
-...      Subs-Cellid TC 가 0x0b 송신 시 PG 가 LRS-PCF 채널로 0x05 Location-Info-Request
-...      를 전달하므로 이 채널이 미리 살아 있어야 한다.
+...      Subs-Cellid(0x0b) 송신 시 PG 가 LRS-PCF 와 연동해 위치 정보를 조회하지만,
+...      그 처리는 PG 내부에서 이뤄지므로 도구는 0x0c Response 만 수신/검증한다.
 ...
 ...    [메시지 흐름]
 ...      0x01 Hello / 0x03 Ping  (NAG → PG)
@@ -28,7 +26,6 @@ Library    DateTime
 Library    BuiltIn
 Library    ${CURDIR}/TcpHelper.py    WITH NAME    Tcp
 Resource   ${CURDIR}/common_keywords.robot
-Resource   ${CURDIR}/lrs_keywords.robot
 
 *** Variables ***
 ${NAG_SOCK}      ${NONE}
@@ -37,47 +34,29 @@ ${NAG_SOCK}      ${NONE}
 *** Keywords ***
 
 # ══════════════════════════════════════════════════════════════════
-# NAG Suite 연결 관리 (LRS-PCF 선등록 포함)
+# NAG Suite 연결 관리 (단일 소켓)
 # ══════════════════════════════════════════════════════════════════
 
-Suite Connect With LRS PCF
+Suite Connect NAG
     [Documentation]
-    ...    NAG Suite Setup 전용
-    ...    1) Port ${LRS_SERVER_PORT} Listen + LRS(PG) 접속 수락 + Hello 처리
-    ...    2) NAG → PG(${NAG_PG_PORT}) 소켓 연결 (NAG Hello 는 TC-NAG-001 에서 수행)
-    ...    Subs-Cellid 처리 시 PG → 도구로 Location-Info-Request 가 들어오는 채널
+    ...    NAG Suite Setup 전용. NAG → PG(${NAG_PG_PORT}) 소켓 1회 연결.
+    ...    (NAG Hello 는 TC-NAG-001 에서 수행)
     [Arguments]    ${nag_host}=${NAG_PG_HOST}    ${nag_port}=${NAG_PG_PORT}
-    ...            ${lrs_host}=${LRS_SERVER_HOST}    ${lrs_port}=${LRS_SERVER_PORT}
     ...            ${timeout}=${NAG_TIMEOUT}
-    Log    [Suite] LRS-PCF 서버 시작 → ${lrs_host}:${lrs_port} Listen    console=True
-    ${srv}=    Tcp.Server Start    ${lrs_port}    ${lrs_host}
-    Set Suite Variable    ${LRS_SRV_SOCK}    ${srv}
-    Log    [Suite] LRS(PG) 접속 대기 중...    console=True
-    ${conn}    ${addr}=    Tcp.Server Accept    ${LRS_SRV_SOCK}    ${LRS_ACCEPT_TIMEOUT}
-    Set Suite Variable    ${LRS_CONN}    ${conn}
-    Log    [Suite] LRS(PG) 접속 수락: ${addr}    console=True
-    ${hello_hdr}    ${hello_req}=    Receive And Validate LRS Hello
-    Send LRS Hello Response    ${hello_hdr}[txn_id]
-    Log    [Suite] LRS-PCF Hello 처리 완료 (TXN=${hello_hdr}[txn_id])    console=True
     Log    [Suite] NAG 연결 시작 → ${nag_host}:${nag_port}    console=True
     ${nag_sock}=    Tcp.Tcp Connect    ${nag_host}    ${nag_port}    ${timeout}
     Set Suite Variable    ${NAG_SOCK}    ${nag_sock}
 
-Suite Disconnect With LRS PCF
-    [Documentation]    NAG Suite Teardown 전용. NAG + LRS-PCF 모든 소켓 종료.
-    Run Keyword If    $LRS_CONN is not None         Tcp.Client Close    ${LRS_CONN}
-    Run Keyword If    $LRS_SRV_SOCK is not None     Tcp.Server Stop    ${LRS_SRV_SOCK}
-    Run Keyword If    $NAG_SOCK is not None         Tcp.Tcp Close    ${NAG_SOCK}
-    Log    [Suite] NAG + LRS-PCF 연결 종료    console=True
+Suite Disconnect NAG
+    [Documentation]    NAG Suite Teardown 전용. NAG 소켓 종료.
+    Run Keyword If    $NAG_SOCK is not None    Tcp.Tcp Close    ${NAG_SOCK}
+    Log    [Suite] NAG 연결 종료    console=True
 
-Check LRS PCF And NAG Socket
-    [Documentation]    NAG Test Setup 전용. NAG 또는 LRS-PCF 소켓이 닫히면 Fatal Error.
+Check NAG Socket
+    [Documentation]    NAG Test Setup 전용. NAG 소켓이 닫히면 Fatal Error.
     ${ok_nag}=    Tcp.Is Connected    ${NAG_SOCK}
-    ${ok_lrs}=    Tcp.Is Connected    ${LRS_CONN}
     Run Keyword If    not ${ok_nag}
     ...    Fatal Error    NAG 소켓이 닫혀 있습니다. 이후 TC를 실행할 수 없습니다.
-    Run Keyword If    not ${ok_lrs}
-    ...    Fatal Error    LRS-PCF 소켓이 닫혀 있습니다. 이후 TC를 실행할 수 없습니다.
 
 
 # ══════════════════════════════════════════════════════════════════

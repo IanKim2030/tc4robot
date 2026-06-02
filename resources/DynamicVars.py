@@ -81,6 +81,20 @@ PG 설정 파일 포맷 (INI 유사)
 import os
 import re
 import glob
+import sys
+
+
+def _p(msg):
+    """콘솔 출력 헬퍼.
+    Windows cp949 등 stdout 인코딩에서 표현 불가한 문자(예: ⚠)가 섞여 있어도
+    UnicodeEncodeError 로 죽지 않도록 안전하게 출력한다.
+    (변수 파일 import 중 print 가 죽으면 전체 슈트가 로드 실패한다)
+    """
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        print(str(msg).encode(enc, "replace").decode(enc, "replace"))
 
 
 class PgConfigLoader:
@@ -216,7 +230,7 @@ class PgConfigLoader:
         if key_path:
             ssh_cmd += ["-i", os.path.expanduser(key_path)]
 
-        print(f"[DynamicVars] SSH 접속: {user}@{host}:{port} → {remote_path}")
+        _p(f"[DynamicVars] SSH 접속: {user}@{host}:{port} → {remote_path}")
 
         if password:
             # 비밀번호 인증: pty 로 프롬프트에 응답. base64 마커로 내용 구분.
@@ -372,13 +386,13 @@ class PgConfigLoader:
             try:
                 text = data.decode(enc)
                 if enc != "utf-8":
-                    print(f"[DynamicVars] 인코딩 자동감지: {enc} ({path})")
+                    _p(f"[DynamicVars] 인코딩 자동감지: {enc} ({path})")
                 return text, enc
             except UnicodeDecodeError:
                 continue
 
         # 전부 실패 → 손상/혼합 바이트가 섞인 파일. replace 로 강제 디코딩.
-        print(f"[DynamicVars] ⚠ 인코딩 strict 실패 → cp949/replace 로 읽음 "
+        _p(f"[DynamicVars] ⚠ 인코딩 strict 실패 → cp949/replace 로 읽음 "
               f"(손상 바이트 치환, 설정값엔 영향 적음): {path}")
         return data.decode("cp949", errors="replace"), "cp949(replace)"
 
@@ -490,14 +504,14 @@ class PgConfigLoader:
         one = {}
         remote = self._is_remote(path)
         if not remote and not os.path.exists(path):
-            print(f"[DynamicVars] config 파일 없음, 건너뜀: {path}")
+            _p(f"[DynamicVars] config 파일 없음, 건너뜀: {path}")
             return one
 
         try:
             text, _ = self._read_text(path)
         except Exception as e:
             # 원격 접속 실패/파일 없음 등에서 전체 테스트가 죽지 않도록 건너뜀
-            print(f"[DynamicVars] ⚠ 읽기 실패, 건너뜀 ({type(e).__name__}: {e}): {path}")
+            _p(f"[DynamicVars] ⚠ 읽기 실패, 건너뜀 ({type(e).__name__}: {e}): {path}")
             return one
         file_prefix = self._resolve_prefix(path)
         want_section = self.want_section   # None 이면 전체 섹션
@@ -547,7 +561,7 @@ class PgConfigLoader:
         note = f"섹션 {len(seen_sections)}개" if seen_sections else "섹션0"
         if skipped:
             note += f", 건너뛴 줄 {skipped}개"
-        print(f"[DynamicVars] config 파싱: {len(one)}개 "
+        _p(f"[DynamicVars] config 파싱: {len(one)}개 "
               f"[{file_prefix or '접두사없음'}] {note} ({path})")
         return one
 
@@ -556,7 +570,7 @@ class PgConfigLoader:
         result = {}
         paths = self._expand_inputs()
         if not paths:
-            print("[DynamicVars] config 입력 없음, 건너뜀")
+            _p("[DynamicVars] config 입력 없음, 건너뜀")
             return result
 
         for path in paths:
@@ -567,11 +581,11 @@ class PgConfigLoader:
             dup = set(result) & set(one)
             for k in dup:
                 if result[k] != one[k]:
-                    print(f"[DynamicVars] ⚠ 키 '{k}' 중복: "
+                    _p(f"[DynamicVars] ⚠ 키 '{k}' 중복: "
                           f"'{result[k]}' → '{one[k]}' 로 덮어씀 ({path})")
             result.update(one)
 
-        print(f"[DynamicVars] config 총 {len(result)}개, 파일 {len(paths)}개")
+        _p(f"[DynamicVars] config 총 {len(result)}개, 파일 {len(paths)}개")
         return result
 
     # ── 최종 결과 ──────────────────────────────────────────────────
@@ -579,7 +593,7 @@ class PgConfigLoader:
         """설정 파일들을 읽어 병합해 반환. (접두사는 파일별 파싱에서 이미 적용됨)"""
         result = self._load_from_process_config()
         mode = self.prefix if self.prefix else "파일명 기반"
-        print(f"[DynamicVars] 최종 주입 {len(result)}개 "
+        _p(f"[DynamicVars] 최종 주입 {len(result)}개 "
               f"(prefix={mode}, section={self.section or '전체'})")
         return result
 
@@ -598,4 +612,4 @@ def get_variables(*args):
 if __name__ == "__main__":
     import sys
     import json
-    print(json.dumps(get_variables(*sys.argv[1:]), ensure_ascii=False, indent=2))
+    _p(json.dumps(get_variables(*sys.argv[1:]), ensure_ascii=False, indent=2))
