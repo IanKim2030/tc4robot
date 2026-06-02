@@ -1,6 +1,13 @@
 
 
-pip3 install robotframework
+
+
+
+
+python -m venv .venv
+pip install robotframework 
+pip install robotframework-databaselibrary pyodbc
+
 
 
 

@@ -40,20 +40,25 @@ Robot Framework ${변수} 로 주입한다.
   # 단독 실행 (주입될 값 미리보기)
   python DynamicVars.py /PG/CFG/PG01.cfg /PG/CFG/PG02.cfg
 
-리모트(SSH/SFTP) 파일
----------------------
+리모트(SSH) 파일
+----------------
   경로를 'user@host:/path' 또는 'host:/path' 형태로 주면 SSH 로 읽는다.
+  시스템의 ssh 명령(subprocess)을 쓰므로 paramiko 등 추가 설치가 필요 없다.
+  (Python 3.6.8 등 구버전 환경에서도 동작)
   Variables    ../resources/DynamicVars.py    pg@192.168.10.44:/PG/CFG/PG.cfg    prefix=PG
 
   인증 (보안상 Variables 인자에 비밀번호를 넣지 않는다 — RF 로그에 남음):
     PG_ROBOT_SSH_USER   사용자 (경로의 user@ 가 우선, 없으면 이 값, 없으면 OS 계정)
     PG_ROBOT_SSH_PORT   포트 (기본 22)
     PG_ROBOT_SSH_KEY    개인키 파일 경로 (미지정 시 ~/.ssh 기본 키 / ssh-agent 사용)
-    PG_ROBOT_SSH_PASS   비밀번호 (키 인증이 안 될 때만; 환경변수로만 받음)
+    PG_ROBOT_SSH_PASS   비밀번호 (키 인증이 안 될 때만; sshpass 설치 필요)
   예) export PG_ROBOT_SSH_KEY=~/.ssh/id_rsa
       robot tests/
   접속/읽기 실패 시 그 파일만 건너뛰고 경고를 남긴다(전체 테스트는 계속).
   로컬·원격 파일을 같은 줄에 섞어 써도 된다.
+
+  전제: 실행 머신에 ssh 클라이언트가 있어야 한다(리눅스엔 기본 설치).
+        키 인증이 가장 간단하고 안전. 비밀번호 인증은 sshpass 가 필요하다.
 
 PG 설정 파일 포맷 (INI 유사)
 ----------------------------
@@ -173,45 +178,63 @@ class PgConfigLoader:
 
     def _read_remote_bytes(self, path):
         """
-        SSH/SFTP 로 원격 파일 바이트를 읽어 반환.
+        시스템의 ssh 명령으로 원격 파일 바이트를 읽어 반환.
+        외부 라이브러리(paramiko 등) 없이 표준 라이브러리만 사용하므로
+        Python 3.6.8 환경에서도 추가 설치 없이 동작한다.
 
-        인증 (보안상 Variables 인자에 비밀번호를 넣지 않는다):
-          - 사용자: 경로의 user@ → 없으면 env PG_ROBOT_SSH_USER → 없으면 OS 계정
-          - 포트  : env PG_ROBOT_SSH_PORT (기본 22)
-          - 인증  : 1) SSH 키 (env PG_ROBOT_SSH_KEY 경로 또는 ~/.ssh 의 기본 키)
-                    2) 비밀번호는 env PG_ROBOT_SSH_PASS 로만 받음 (로그에 안 남김)
-          - 호스트키: 운영 편의를 위해 AutoAddPolicy
-                    (보안 강화가 필요하면 known_hosts 검증으로 바꿀 것)
+        실행 형태:  ssh [옵션] user@host "cat -- '/remote/path'"
+        stdout(바이트)을 그대로 받는다. (cat 은 바이너리 그대로 출력)
+
+        인증/옵션 (보안상 Variables 인자에 비밀번호를 넣지 않는다):
+          - 사용자  : 경로의 user@ → env PG_ROBOT_SSH_USER → OS 계정
+          - 포트    : env PG_ROBOT_SSH_PORT (기본 22)
+          - 키      : env PG_ROBOT_SSH_KEY (있으면 -i 로 지정, 없으면 ~/.ssh 기본)
+          - 비밀번호: env PG_ROBOT_SSH_PASS (있으면 sshpass 사용; 없으면 키 인증)
+          - 호스트키: 운영 편의를 위해 StrictHostKeyChecking=no
+                     (보안 강화 필요 시 이 옵션을 제거)
         """
-        import paramiko
+        import subprocess
+        import shlex
 
         user, host, remote_path = self._split_remote(path)
         user = user or os.getenv("PG_ROBOT_SSH_USER") or os.getenv("USER") or "root"
-        port = int(os.getenv("PG_ROBOT_SSH_PORT", "22"))
+        port = os.getenv("PG_ROBOT_SSH_PORT", "22")
         key_path = os.getenv("PG_ROBOT_SSH_KEY")
         password = os.getenv("PG_ROBOT_SSH_PASS")
 
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        connect_kwargs = {
-            "hostname": host, "port": port, "username": user,
-            "timeout": 10, "allow_agent": True, "look_for_keys": True,
-        }
+        ssh_cmd = [
+            "ssh",
+            "-p", str(port),
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "BatchMode=" + ("no" if password else "yes"),  # 키 인증 시 무대화
+            "-o", "ConnectTimeout=10",
+        ]
         if key_path:
-            connect_kwargs["key_filename"] = key_path
+            ssh_cmd += ["-i", os.path.expanduser(key_path)]
+        ssh_cmd.append(f"{user}@{host}")
+        # 원격에서 cat 으로 파일을 바이너리 그대로 출력. 경로는 안전하게 quote.
+        ssh_cmd.append("cat -- " + shlex.quote(remote_path))
+
+        # 비밀번호 인증이면 sshpass 로 감싼다(설치돼 있어야 함).
         if password:
-            connect_kwargs["password"] = password
+            cmd = ["sshpass", "-e"] + ssh_cmd        # -e: 환경변수 SSHPASS 사용
+        else:
+            cmd = ssh_cmd
+
+        # sshpass 가 읽는 환경변수명은 SSHPASS. PG_ROBOT_SSH_PASS 를 옮겨준다.
+        env = dict(os.environ)
+        if password:
+            env["SSHPASS"] = password
 
         print(f"[DynamicVars] SSH 접속: {user}@{host}:{port} → {remote_path}")
-        client.connect(**connect_kwargs)
-        try:
-            sftp = client.open_sftp()
-            with sftp.open(remote_path, "rb") as f:
-                data = f.read()
-            sftp.close()
-        finally:
-            client.close()
-        return data
+        proc = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=env, timeout=30,
+        )
+        if proc.returncode != 0:
+            err = proc.stderr.decode("utf-8", "replace").strip()
+            raise RuntimeError(f"ssh 실패(rc={proc.returncode}): {err}")
+        return proc.stdout
 
     def _read_bytes(self, path):
         """경로가 원격이면 SSH 로, 아니면 로컬 파일에서 바이트를 읽는다."""
