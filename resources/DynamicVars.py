@@ -115,15 +115,25 @@ class PgConfigLoader:
         # ── 방어 처리 ──
         # RF 버전에 따라 prefix=/section=/encoding= 가 named 가 아닌
         # 위치 문자열("prefix=PG")로 넘어올 수 있어, 경로에서 분리해 흡수한다.
+        # SSH 옵션(user/port/key/pass)도 같은 방식으로 위치 인자에서 흡수한다.
+        #   pass=/password= → 비밀번호. variables.robot 의 ${PG_ROBOT_SSH_PASS} 를
+        #   `Variables ... pass=${PG_ROBOT_SSH_PASS}` 로 넘기면 OS 환경변수 없이도 동작.
+        #   (주의: Variables 인자는 RF 로그에 남으므로 운영 환경에서는 환경변수 권장)
         paths = []
-        opts = {"prefix": prefix, "section": section, "encoding": encoding}
+        opts = {"prefix": prefix, "section": section, "encoding": encoding,
+                "user": None, "port": None, "key": None, "password": None}
+        aliases = {
+            "prefix": "prefix", "section": "section", "encoding": "encoding",
+            "user": "user", "port": "port", "key": "key",
+            "pass": "password", "password": "password",
+        }
         for arg in config_paths:
             arg = str(arg)
             base = arg.replace("\\", "/").split("/")[-1]   # 파일명 부분만 검사
             if "=" in base:
-                key, _, val = arg.partition("=")
-                key = key.strip().lower()
-                if key in opts:
+                raw_key, _, val = arg.partition("=")
+                key = aliases.get(raw_key.strip().lower())
+                if key is not None:
                     opts[key] = val.strip()
                     continue
             paths.append(arg)
@@ -135,6 +145,11 @@ class PgConfigLoader:
         self.want_section, self.want_keys = self._parse_section_spec(self.section)
         # encoding 미지정 → 자동 감지(FALLBACK_ENCODINGS 순서대로 시도)
         self.encoding = opts["encoding"] or None
+        # SSH 옵션: 인자 우선, 없으면 _read_remote_bytes 에서 환경변수로 폴백
+        self.ssh_user = opts["user"] or None
+        self.ssh_port = opts["port"] or None
+        self.ssh_key = opts["key"] or None
+        self.ssh_password = opts["password"] or None
 
     # ── 입력 경로 펼치기 ───────────────────────────────────────────
     def _expand_inputs(self):
@@ -216,10 +231,12 @@ class PgConfigLoader:
         import shlex
 
         user, host, remote_path = self._split_remote(path)
-        user = user or os.getenv("PG_ROBOT_SSH_USER") or os.getenv("USER") or "root"
-        port = os.getenv("PG_ROBOT_SSH_PORT", "22")
-        key_path = os.getenv("PG_ROBOT_SSH_KEY")
-        password = os.getenv("PG_ROBOT_SSH_PASS")
+        # 우선순위: 경로의 user@ > Variables 인자(self.ssh_*) > 환경변수 > 기본값
+        user = (user or self.ssh_user
+                or os.getenv("PG_ROBOT_SSH_USER") or os.getenv("USER") or "root")
+        port = self.ssh_port or os.getenv("PG_ROBOT_SSH_PORT", "22")
+        key_path = self.ssh_key or os.getenv("PG_ROBOT_SSH_KEY")
+        password = self.ssh_password or os.getenv("PG_ROBOT_SSH_PASS")
 
         ssh_cmd = [
             "ssh",

@@ -12,7 +12,7 @@ Resource    ../../resources/nag_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/nag_keywords.robot
 
-Variables    ../../resources/DynamicVars.py   pg@192.168.15.141:/PG/CFG/BarodNoti.cfg   section=Barod.IF:Barod.IF.Port.NAG=NAG_PG_PORT
+Variables    ../../resources/DynamicVars.py   pg@192.168.15.141:/PG/CFG/BarodNoti.cfg   section=Barod.IF:Barod.IF.Port.NAG=NAG_PG_PORT   pass=${PG_ROBOT_SSH_PASS}
 
 
 Suite Setup      Suite Connect NAG

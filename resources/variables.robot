@@ -20,3 +20,12 @@ ${MSG_HELLO_REQ}              ${1}     # 0x01
 ${MSG_HELLO_RESP}             ${2}     # 0x02
 ${MSG_PING_REQ}               ${3}     # 0x03
 ${MSG_PING_RESP}              ${4}     # 0x04
+
+# ════════════════════════════════════════════
+# DynamicVars 원격(SSH) cfg 읽기용 인증 정보
+# 사용: 각 슈트의 Variables 임포트에 `pass=${PG_ROBOT_SSH_PASS}` 로 전달
+#   (이 Resource 가 Variables 줄보다 먼저 임포트돼야 치환됨)
+# 비우면 OS 환경변수 PG_ROBOT_SSH_PASS 로 폴백한다.
+# 주의: 값을 채우면 RF 로그에 남으므로, 운영 환경에선 환경변수 사용 권장.
+# ════════════════════════════════════════════
+${PG_ROBOT_SSH_PASS}         pg1234    # TODO: 실환경 SSH 비밀번호

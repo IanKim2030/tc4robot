@@ -19,7 +19,7 @@ Resource    ../../resources/cds_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/cds_keywords.robot
 
-Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=CDS:SYSTEM_ID=PG_CDS_PG_V2_SYSTEM_ID
+Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=CDS:SYSTEM_ID=PG_CDS_PG_V2_SYSTEM_ID    pass=${PG_ROBOT_SSH_PASS}
 
 Suite Setup      Suite CDS Connect
 Suite Teardown   Suite CDS Disconnect
