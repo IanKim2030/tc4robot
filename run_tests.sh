@@ -7,6 +7,7 @@
 #   LRS    서버 모드      ← LRS(PG) 접속 (Port 8890)
 #   UPM    클라이언트 모드 → PG 서버 (Port 10506, HFC 가입자 Cell List 연동)
 #   NWDAF  클라이언트 모드 → PG 서버 (Port ${NWDAF_PORT}, TLV Notification 주력)
+#   CDS    클라이언트 듀얼소켓 → PG.CDS (Schannel 9200 / Rchannel 9201, 48B 고정전문)
 #
 # 사용법:
 #   bash run_tests.sh nag              # NAG 전체
@@ -14,7 +15,8 @@
 #   bash run_tests.sh lrs              # LRS 전체 (서버 모드, LRS(PG) 접속 대기)
 #   bash run_tests.sh upm              # UPM 전체 (PG.BSUBS 연동)
 #   bash run_tests.sh nwdaf            # NWDAF 전체 (TLV Notification)
-#   bash run_tests.sh all              # NAG + PCF + LRS + UPM + NWDAF 전체
+#   bash run_tests.sh cds              # CDS 전체 (PG.CDS 듀얼소켓 접속)
+#   bash run_tests.sh all              # NAG + PCF + LRS + UPM + NWDAF + CDS 전체
 #   bash run_tests.sh smoke            # smoke 태그만
 #   bash run_tests.sh nag --log-msg    # REQ/RESP 시각 출력 ON
 #   bash run_tests.sh all 192.168.1.1  # NAG/PCF/UPM/NWDAF HOST 오버라이드
@@ -54,6 +56,7 @@ if [ -n "${EXTRA_ARGS[0]}" ] && [[ "${EXTRA_ARGS[0]}" =~ ^[0-9] ]]; then
         "--variable" "PCF_PG_HOST:${HOST}"
         "--variable" "UPM_PG_HOST:${HOST}"
         "--variable" "NWDAF_HOST:${HOST}"
+        "--variable" "CDS_PG_HOST:${HOST}"
     )
     echo " HOST 오버라이드: ${HOST}"
     EXTRA_ARGS=("${EXTRA_ARGS[@]:1}")
@@ -78,6 +81,7 @@ case "${TARGET}" in
     lrs)        "${BASE_CMD[@]}" tests/lrs/ ;;
     upm)        "${BASE_CMD[@]}" tests/upm/ ;;
     nwdaf)      "${BASE_CMD[@]}" tests/nwdaf/ ;;
+    cds)        "${BASE_CMD[@]}" tests/cds/ ;;
     all)        "${BASE_CMD[@]}" tests/ ;;
     smoke)      "${BASE_CMD[@]}" --include smoke tests/ ;;
     negative)   "${BASE_CMD[@]}" --include negative tests/ ;;

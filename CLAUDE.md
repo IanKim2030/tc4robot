@@ -13,6 +13,7 @@ bash run_tests.sh nag                       # NAG 슈트 (클라이언트 → PG
 bash run_tests.sh pcf                       # PCF 슈트 (클라이언트 → PG:8011, NAG 세션 선등록 포함)
 bash run_tests.sh lrs                       # LRS 슈트 (서버 모드, :8890 Listen)
 bash run_tests.sh upm                       # UPM 슈트 (클라이언트 → PG:10506, HFC 가입자 Cell List)
+bash run_tests.sh cds                       # CDS 슈트 (클라이언트 듀얼소켓 → PG.CDS Schannel:9200/Rchannel:9201, 48B 고정전문)
 bash run_tests.sh all                       # 전체 슈트
 bash run_tests.sh smoke                     # --include smoke 만
 bash run_tests.sh nag --log-msg             # PG_LOG_MSG=1 → REQ/RESP 추적 로그 ON
@@ -22,6 +23,7 @@ bash run_tests.sh all 192.168.1.1           # NAG/PCF/UPM_PG_HOST 일괄 오버�
 python -m robot --test "TC-NAG-010*" tests/nag/
 python -m robot --test "TC-LRS-006*" tests/lrs/
 python -m robot --test "TC-UPM-005*" tests/upm/
+python -m robot --test "TC-CDS-001*" tests/cds/
 
 # 태그 필터
 python -m robot --include negative tests/
@@ -40,6 +42,8 @@ python -m robot --include lte tests/
 - `0x20` — LRS (ProtoVer=01'B), Body는 `pack_fields` / `unpack_fields`로 다루는 고정길이 ASCII
 
 `txn_id`는 절대 0이 될 수 없다(규격 명시). `Next TXN ID` 키워드가 이 제약을 강제한다.
+
+**CDS는 예외다.** CDS 인터페이스(CDS 표준 인터페이스 규격 Ver6.0)는 8-옥텟 공통 헤더를 쓰지 않고 **48-옥텟 빅엔디안 헤더**(Message ID/Transaction ID(date+seq)/System·Application ID/Continue Flag/Serial No/Data Size)를 쓰며, 별도 모듈 `resources/CdsHelper.py`(`pack_cds_header`/`parse_cds_header`/`send_cds`/`receive_cds`)가 이를 구현한다. 정수 필드는 `htonl/htons`(big-endian) 송신. 도구는 **CDS 역할로 PG.CDS에 능동 접속**하며 Schannel(9200)/Rchannel(9201) **듀얼 소켓**을 쓴다(NAG 듀얼소켓과 유사). 포트/`SYSTEM_ID`는 `PG_V2.cfg [CDS]`에서 `DynamicVars`로 읽고 미수신 시 기본값(9200/9201, `PG01`)을 쓴다.
 
 ### 접속 방향이 인터페이스마다 다르다
 
@@ -93,4 +97,4 @@ UPM은 능동 송신과 수동 수신이 모두 있는 양방향 인터페이스
 
 ### --include 로 쓰이는 태그
 
-`smoke`, `negative`, `validation`, `lte`, `5g`, 인터페이스별(`nag`, `pcf`, `lrs`, `upm`), 기능별(`hello`, `ping`, `subs-zone`, `subs-cellid`, `location`, `adot`, `cellinfo-noti`, `subs-sync`, `subs-info`, `subs-change`, `info-change`).
+`smoke`, `negative`, `validation`, `lte`, `5g`, 인터페이스별(`nag`, `pcf`, `lrs`, `upm`, `cds`), 기능별(`hello`, `ping`, `subs-zone`, `subs-cellid`, `location`, `adot`, `cellinfo-noti`, `subs-sync`, `subs-info`, `subs-change`, `info-change`, `connect`, `process-state`, `command`, `subs-data`, `upload`, `release`).
