@@ -101,10 +101,10 @@ ${LRS_HC_ANS}               ANS
 ${LRS_SI_PATH}              /SESSION-INFO-RETRIEVAL
 ${LRS_SI_FROM_IP}          112.172.129.68   # From 필드: PG 에 등록된 IP 여야 함(아니면 403)
 ${LRS_SI_REQ_ID}           wapgw03-01-6-00039
-${LRS_SI_PGW_GROUP_ID}     X-SKT-SClientC-LteIp
-${LRS_SI_CLIENT_IP}        10.123.35.32     # 조회 대상 단말 IP
+${LRS_SI_PGW_GROUP_ID}     ${EMPTY}
+${LRS_SI_CLIENT_IP}        2001:0d88:131f:0000::/64    # 조회 대상 단말 IP
 ${LRS_SI_MIN}              ${EMPTY}
-${LRS_SI_MDN}              ${EMPTY}
+${LRS_SI_MDN}              01020300553
 ${LRS_SI_IMSI}             ${EMPTY}
 
 # SESSION-INFO 응답 상태코드 (규격)
