@@ -122,6 +122,28 @@ def _recv_exact(sock, n: int) -> bytes:
     return bytes(buf)
 
 
+# ── raw 텍스트 송수신 (LRS 클라이언트 Health Check: "REQ"/"ANS") ──
+
+def send_text(sock, text, encoding='ascii'):
+    """
+    헤더 없이 텍스트를 그대로 송신 (LRS Health Check "REQ" 등).
+    """
+    if not is_connected(sock):
+        raise ConnectionClosed("소켓이 이미 닫혀 있습니다")
+    try:
+        sock.sendall(str(text).encode(encoding))
+    except (OSError, BrokenPipeError) as e:
+        raise ConnectionClosed(f"소켓 전송 오류: {e}") from e
+
+
+def recv_text(sock, nbytes, encoding='ascii'):
+    """
+    정확히 nbytes 만큼 수신해 문자열로 반환 (LRS Health Check "ANS" 등).
+    """
+    data = _recv_exact(sock, int(nbytes))
+    return data.decode(encoding, errors='replace')
+
+
 # ── 헤더 처리 공통 ────────────────────────────────────────────────
 
 def build_header(msg_type: int, body_length: int, txn_id: int,

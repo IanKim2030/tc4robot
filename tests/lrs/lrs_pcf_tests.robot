@@ -1,6 +1,6 @@
 *** Settings ***
 Documentation
-...    LRS(PG) → PCRF/PCF 위치 정보 처리 연동 규격서 v0.8 기능 검증
+...    LRS-PCF 연동 (LRS(PG) → PCRF/PCF 위치 정보 처리) 규격서 v0.8 기능 검증
 ...
 ...    [테스트 대상]
 ...    LRS(PG) → 테스트 도구(PCRF/PCF 서버 역할, Port 8890)
@@ -29,7 +29,7 @@ Test Setup       Check LRS Socket
 *** Test Cases ***
 
 # ════════════════════════════════════════════════════════════════
-# 0x01/0x02  Hello  ← 접속 후 최초 수신 메시지
+#  Hello  ← 접속 후 최초 수신 메시지
 # ════════════════════════════════════════════════════════════════
 
 TC-LRS-001 Hello - SYS_ID / BRANCH_NAME 수신 및 정상 응답
@@ -49,7 +49,8 @@ TC-LRS-001 Hello - SYS_ID / BRANCH_NAME 수신 및 정상 응답
 
 
 # ════════════════════════════════════════════════════════════════
-# 0x03/0x04  Ping
+#  Ping
+# 
 # ════════════════════════════════════════════════════════════════
 
 TC-LRS-002 Ping - SYS_ID / BRANCH_NAME 수신 및 정상 응답
@@ -66,15 +67,15 @@ TC-LRS-002 Ping - SYS_ID / BRANCH_NAME 수신 및 정상 응답
 
 
 # ════════════════════════════════════════════════════════════════
-# 0x05/0x06  Location-Info
-# LRS(PG) → 도구               : Request 수신
-# 도구(PCRF/PCF 역할) → LRS(PG) : Response 송신
+#  Location-Info
+# ROBOT   → LRS(PG) : Response 송신
+# LRS(PG) → ROBOT   : Request 수신
 # ════════════════════════════════════════════════════════════════
 
 # TC-LRS-003 Location-Info - LTE Request 수신 → Response 송신
 #     [Documentation]
 #     ...    규격서 3.2.6 / 3.2.7 / 4.2
-#     ...    LRS(PG) → 도구: Location-Info-Request(0x05) 수신
+#     ...    ROBOT → PG.LRS → 도구: Location-Info-Request(0x05) 수신
 #     ...    도구 → LRS(PG): Location-Info-Response(0x06, NET_TP=L) 송신
 #     [Tags]    lrs    location    lte    smoke
 #     ${hdr}    ${req}=    Receive And Validate LRS Location Info
