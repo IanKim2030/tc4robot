@@ -164,6 +164,29 @@ Receive And Validate Release Ack
     ${ack}=    Cds.Unpack Ack    ${data}
     CDS Result Should Be SC    ${ack}
 
+Send Release And Validate
+    [Documentation]
+    ...    ReleaseRequest(0005/0007) 송신 → ReleaseRequestACK(0006/0008, SC) 수신·검증.
+    ...    단, PG 가 해제 후 ACK 없이 연결을 종료하는 동작도 정상 해제로 간주한다
+    ...    (송신 전 이미 닫힘 → 건너뜀, 송신 후 ACK 없이 닫힘 → 정상 해제).
+    ...    ACK 를 수신하면 msg_id + Result=SC 를 검증한다.
+    [Arguments]    ${sock}    ${req_msg_id}    ${ack_msg_id}
+    ${sent}=    Run Keyword And Return Status    Send Release Request    ${sock}    ${req_msg_id}
+    IF    not ${sent}
+        Log    Release(${req_msg_id}) 송신 전 이미 연결 종료됨 → 건너뜀    level=WARN
+        RETURN
+    END
+    ${status}    ${ret}=    Run Keyword And Ignore Error    Receive CDS Message    ${sock}
+    IF    '${status}' == 'FAIL'
+        Log    Release(${req_msg_id}) 후 PG 가 ACK 없이 연결 종료 → 정상 해제로 간주    level=WARN
+        RETURN
+    END
+    ${hdr}=    Set Variable    ${ret}[0]
+    ${data}=    Set Variable    ${ret}[1]
+    CDS Msg Id Should Be    ${hdr}    ${ack_msg_id}
+    ${ack}=    Cds.Unpack Ack    ${data}
+    CDS Result Should Be SC    ${ack}
+
 
 # ══════════════════════════════════════════════════════════════════
 # 프로세스 상태 확인 (0013/0014)

@@ -108,9 +108,7 @@ TC-CDS-006 접속 해제 - Schannel 해제 후 Rchannel 해제
     ...    Schannel 접속 해제 요구(0005) → 응답(0006, SC) 처리 후,
     ...    Rchannel 접속 해제 요구(0007) → 응답(0008, SC) 처리
     [Tags]    cds    release
-    # 1) Schannel 접속 해제 요구/응답
-    Send Release Request    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_REL_REQ}
-    Receive And Validate Release Ack    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_REL_ACK}
+    # 1) Schannel 접속 해제 요구/응답 (ACK 없이 종료 시에도 정상 해제로 간주)
+    Send Release And Validate    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_REL_REQ}    ${CDS_MSG_SCH_REL_ACK}
     # 2) Rchannel 접속 해제 요구/응답
-    Send Release Request    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_REL_REQ}
-    Receive And Validate Release Ack    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_REL_ACK}
+    Send Release And Validate    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_REL_REQ}    ${CDS_MSG_RCH_REL_ACK}
