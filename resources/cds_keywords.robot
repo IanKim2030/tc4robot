@@ -107,16 +107,20 @@ Next CDS TID
 
 Send CDS Message
     [Documentation]
-    ...    CDS 메시지 송신(헤더 필드는 변수에서 채움).
-    ...    tid_date/tid_seq 미지정 시 0(Zero) TID (접속/해제/상태확인용).
+    ...    CDS 메시지 송신(헤더 필드는 변수/기본값에서 채움).
+    ...    tid_date/tid_seq 미지정 시 오늘 날짜 + 증가 seq 자동 생성(Next CDS TID).
+    ...    Continue Flag 기본 1(비연속), Serial No 기본 3.
     [Arguments]    ${sock}    ${msg_id}
-    ...            ${tid_date}=00000000    ${tid_seq}=${0}
-    ...            ${data}=${EMPTY}    ${cont_flag}=${0}    ${serial_no}=${0}
+    ...            ${tid_date}=${NONE}    ${tid_seq}=${NONE}
+    ...            ${data}=${EMPTY}    ${cont_flag}=${1}    ${serial_no}=${3}
+    IF    $tid_date is None or $tid_seq is None
+        ${tid_date}    ${tid_seq}=    Next CDS TID
+    END
     Cds.Send Cds    ${sock}    ${msg_id}    ${tid_date}    ${tid_seq}
     ...    ${CDS_SRC_SYS_ID}    ${CDS_SYSTEM_ID}
     ...    src_app=${CDS_SRC_APP_ID}    dst_app=${CDS_DST_APP_ID}
     ...    data=${data}    cont_flag=${cont_flag}    serial_no=${serial_no}
-    Log    [TX→PG.CDS] msg_id=${msg_id} tid=${tid_date}/${tid_seq}
+    Log    [TX→PG.CDS] msg_id=${msg_id} tid=${tid_date}/${tid_seq} cont=${cont_flag} ser=${serial_no}
 
 Receive CDS Message
     [Documentation]    CDS 메시지 수신 → (header_dict, data_bytes)
@@ -131,7 +135,7 @@ Receive CDS Message
 # ══════════════════════════════════════════════════════════════════
 
 Send Connection Request
-    [Documentation]    ConnectionRequest(0001/0003) 송신. TID=0(Zero), Data 없음.
+    [Documentation]    ConnectionRequest(0001/0003) 송신. TID=오늘+증가seq, Data 없음.
     [Arguments]    ${sock}    ${msg_id}
     Send CDS Message    ${sock}    ${msg_id}
 
@@ -148,7 +152,7 @@ Validate Connection Ack
 # ══════════════════════════════════════════════════════════════════
 
 Send Process State Request
-    [Documentation]    ProcessStateRequest(0013) 송신(Schannel). T-ID 는 의미 없음(0).
+    [Documentation]    ProcessStateRequest(0013) 송신(Schannel). T-ID 는 의미 없음(자동 생성).
     Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_PROC_STATE_REQ}
 
 Receive And Validate Process State Ack

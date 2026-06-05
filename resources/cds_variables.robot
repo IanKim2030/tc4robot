@@ -30,9 +30,9 @@ ${CDS_UP_RCH_PORT}        6101
 #   PG.CDS 식별자로, 헤더 Destination System ID 로 사용.
 # ════════════════════════════════════════════
 ${CDS_SYSTEM_ID_DEFAULT}  PG01             # config 미수신 시 기본 SYSTEM_ID
-${CDS_SRC_SYS_ID}         CDS01            # TODO: 로봇(CDS) 자신의 System ID
-${CDS_SRC_APP_ID}         ${EMPTY}         # TODO: Source Application ID (필요시)
-${CDS_DST_APP_ID}         ${EMPTY}         # TODO: Destination Application ID (필요시)
+${CDS_SRC_SYS_ID}         SCSL00           # 로봇(CDS) 자신의 System ID (6자)
+${CDS_SRC_APP_ID}         TEMP             # Source Application ID (6자 패딩 → 'TEMP  ')
+${CDS_DST_APP_ID}         TEMP             # Destination Application ID (6자 패딩 → 'TEMP  ')
 
 # ════════════════════════════════════════════
 # Message ID (규격 11. 메시지 식별자 요약)
