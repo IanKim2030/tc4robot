@@ -27,6 +27,7 @@ CDS(Customer data Distributed Server) 연동 전용.
 소켓 수명주기/수신 헬퍼는 TcpHelper(클라이언트 모드)를 재사용한다.
 """
 
+import socket
 import struct
 
 from TcpHelper import (          # 소켓 생성/종료/상태/정확수신 재사용
@@ -66,16 +67,18 @@ def pack_cds_header(msg_id, tid_date, tid_seq,
     tid_date : 'YYYYMMDD' (8자) / tid_seq : 정수(최초 접속시 0)
     """
     buf = bytearray()
-    buf += struct.pack('>I', int(msg_id))            # Message ID
-    buf += _pack_char(tid_date, 8)                   # TID date(8)
-    buf += struct.pack('>I', int(tid_seq))           # TID seq(4)
-    buf += _pack_char(src_sys, 6)                     # Source System ID
-    buf += _pack_char(dst_sys, 6)                     # Destination System ID
-    buf += _pack_char(src_app, 6)                     # Source Application ID
-    buf += _pack_char(dst_app, 6)                     # Destination Application ID
-    buf += struct.pack('>H', int(cont_flag))         # Continue Flag
-    buf += struct.pack('>H', int(serial_no))         # Serial No
-    buf += struct.pack('>I', int(data_size))         # Data Size
+    # 정수 필드는 htonl/htons(host→network) 후 '<' 로 패킹 → wire 는 big-endian
+    # (TcpHelper.build_header 와 동일 컨벤션)
+    buf += struct.pack('<I', socket.htonl(int(msg_id)))      # Message ID
+    buf += _pack_char(tid_date, 8)                           # TID date(8)
+    buf += struct.pack('<I', socket.htonl(int(tid_seq)))     # TID seq(4)
+    buf += _pack_char(src_sys, 6)                            # Source System ID
+    buf += _pack_char(dst_sys, 6)                            # Destination System ID
+    buf += _pack_char(src_app, 6)                            # Source Application ID
+    buf += _pack_char(dst_app, 6)                            # Destination Application ID
+    buf += struct.pack('<H', socket.htons(int(cont_flag)))   # Continue Flag
+    buf += struct.pack('<H', socket.htons(int(serial_no)))   # Serial No
+    buf += struct.pack('<I', socket.htonl(int(data_size)))   # Data Size
     return bytes(buf)
 
 
@@ -85,16 +88,17 @@ def parse_cds_header(header_bytes):
         raise ConnectionClosed(
             f"CDS 헤더 크기 오류: {len(header_bytes)} bytes (expected {HEADER_SIZE})"
         )
-    msg_id   = struct.unpack('>I', header_bytes[0:4])[0]
+    # '<' 로 언패킹 후 ntohl/ntohs(network→host) — pack 의 역순
+    msg_id   = socket.ntohl(struct.unpack('<I', header_bytes[0:4])[0])
     tid_date = _unpack_char(header_bytes[4:12])
-    tid_seq  = struct.unpack('>I', header_bytes[12:16])[0]
+    tid_seq  = socket.ntohl(struct.unpack('<I', header_bytes[12:16])[0])
     src_sys  = _unpack_char(header_bytes[16:22])
     dst_sys  = _unpack_char(header_bytes[22:28])
     src_app  = _unpack_char(header_bytes[28:34])
     dst_app  = _unpack_char(header_bytes[34:40])
-    cont_flag = struct.unpack('>H', header_bytes[40:42])[0]
-    serial_no = struct.unpack('>H', header_bytes[42:44])[0]
-    data_size = struct.unpack('>I', header_bytes[44:48])[0]
+    cont_flag = socket.ntohs(struct.unpack('<H', header_bytes[40:42])[0])
+    serial_no = socket.ntohs(struct.unpack('<H', header_bytes[42:44])[0])
+    data_size = socket.ntohl(struct.unpack('<I', header_bytes[44:48])[0])
     return {
         'msg_id':     msg_id,
         'tid_date':   tid_date,
@@ -156,10 +160,10 @@ def pack_ack(result, reason=0, tid_date=None, tid_seq=None):
     """
     buf = bytearray()
     buf += _pack_char(result, 2)
-    buf += struct.pack('>H', int(reason))
+    buf += struct.pack('<H', socket.htons(int(reason)))
     if tid_date is not None or tid_seq is not None:
         buf += _pack_char(tid_date, 8)
-        buf += struct.pack('>I', int(tid_seq or 0))
+        buf += struct.pack('<I', socket.htonl(int(tid_seq or 0)))
     return bytes(buf)
 
 
@@ -171,23 +175,23 @@ def unpack_ack(data):
     result = {}
     if len(data) >= 4:
         result['result'] = _unpack_char(data[0:2])
-        result['reason'] = struct.unpack('>H', data[2:4])[0]
+        result['reason'] = socket.ntohs(struct.unpack('<H', data[2:4])[0])
     if len(data) >= 16:
         result['tid_date'] = _unpack_char(data[4:12])
-        result['tid_seq']  = struct.unpack('>I', data[12:16])[0]
+        result['tid_seq']  = socket.ntohl(struct.unpack('<I', data[12:16])[0])
     return result
 
 
 def pack_process_state(state):
     """ProcessStateRequestACK Data: Process State uint16(2)."""
-    return struct.pack('>H', int(state))
+    return struct.pack('<H', socket.htons(int(state)))
 
 
 def unpack_process_state(data):
     """ProcessStateRequestACK Data 파싱 → 정수(1=Normal, 2=Abnormal)."""
     if len(data) < 2:
         raise ConnectionClosed(f"ProcessState Data 크기 오류: {len(data)} bytes")
-    return struct.unpack('>H', data[0:2])[0]
+    return socket.ntohs(struct.unpack('<H', data[0:2])[0])
 
 
 def pack_result_data(result, payload=b''):
