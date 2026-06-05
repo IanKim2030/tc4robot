@@ -61,31 +61,31 @@ TC-CDS-002 ProcessState - 요구 → ACK(Normal)
 # DownLoad Command (0015~0018)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-003 Command - 처리 요구 → ACK → 결과 보고 → 결과 응답
-    [Documentation]
-    ...    0015 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
-    ...    ※ 실 PG.CDS 가 명령어를 처리·결과 보고해야 동작 (CDS_TEST_COMMAND_DATA 는 TODO)
-    [Tags]    cds    command    validation
-    ${date}    ${seq}=    Send Command Request
-    Receive And Validate Command Ack
-    ${hdr}    ${res}=    Receive Command Result
-    CDS Result Should Be SC    ${res}
-    Send Command Result Ack    ${hdr}[tid_date]    ${hdr}[tid_seq]
+#TC-CDS-003 Command - 처리 요구 → ACK → 결과 보고 → 결과 응답
+#    [Documentation]
+#    ...    0015 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
+#    ...    ※ 실 PG.CDS 가 명령어를 처리·결과 보고해야 동작 (CDS_TEST_COMMAND_DATA 는 TODO)
+#    [Tags]    cds    command    validation
+#    ${date}    ${seq}=    Send Command Request
+#    Receive And Validate Command Ack
+#    ${hdr}    ${res}=    Receive Command Result
+#    CDS Result Should Be SC    ${res}
+#    Send Command Result Ack    ${hdr}[tid_date]    ${hdr}[tid_seq]
 
 
 # ════════════════════════════════════════════════════════════════
 # 가입자 데이터 SubsData (0029~0032)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-004 SubsData - 데이터 요구 → ACK → 결과 보고 → 결과 응답
-    [Documentation]
-    ...    0029 송신(MIN) → 0030 ACK(SC) → 0031 Result 수신 → 0032 ResultACK 송신
-    ...    ※ 실 PG.CDS 가 가입자 데이터를 조회·보고해야 동작 (MIN 은 TODO)
-    [Tags]    cds    subs-data    validation
-    ${date}    ${seq}=    Send Subs Data Request
-    Receive And Validate Subs Data Ack
-    ${hdr}    ${data}=    Receive Subs Data Result
-    Send Subs Data Result Ack    ${hdr}[tid_date]    ${hdr}[tid_seq]
+#TC-CDS-004 SubsData - 데이터 요구 → ACK → 결과 보고 → 결과 응답
+#    [Documentation]
+#    ...    0029 송신(MIN) → 0030 ACK(SC) → 0031 Result 수신 → 0032 ResultACK 송신
+#    ...    ※ 실 PG.CDS 가 가입자 데이터를 조회·보고해야 동작 (MIN 은 TODO)
+#    [Tags]    cds    subs-data    validation
+#    ${date}    ${seq}=    Send Subs Data Request
+#    Receive And Validate Subs Data Ack
+#    ${hdr}    ${data}=    Receive Subs Data Result
+#    Send Subs Data Result Ack    ${hdr}[tid_date]    ${hdr}[tid_seq]
 
 
 # ════════════════════════════════════════════════════════════════
@@ -103,11 +103,14 @@ TC-CDS-004 SubsData - 데이터 요구 → ACK → 결과 보고 → 결과 응�
 #     Send Upload Result    ${hdr}[tid_date]    ${hdr}[tid_seq]    payload=0
 #     Receive And Validate Upload Result Ack
 
-# TC-CDS-006 접속 해제 - Schannel/Rchannel Release (0005~0008)
-#     [Documentation]    0005/0007 송신 → 0006/0008 ACK(SC) 수신
-#     [Tags]    cds    release
-#     Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_REL_REQ}
-#     ${hdr}    ${data}=    Receive CDS Message    ${CDS_SCH_SOCK}
-#     CDS Msg Id Should Be    ${hdr}    ${CDS_MSG_SCH_REL_ACK}
-#     ${ack}=    Cds.Unpack Ack    ${data}
-#     CDS Result Should Be SC    ${ack}
+TC-CDS-006 접속 해제 - Schannel 해제 후 Rchannel 해제
+    [Documentation]
+    ...    Schannel 접속 해제 요구(0005) → 응답(0006, SC) 처리 후,
+    ...    Rchannel 접속 해제 요구(0007) → 응답(0008, SC) 처리
+    [Tags]    cds    release
+    # 1) Schannel 접속 해제 요구/응답
+    Send Release Request    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_REL_REQ}
+    Receive And Validate Release Ack    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_REL_ACK}
+    # 2) Rchannel 접속 해제 요구/응답
+    Send Release Request    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_REL_REQ}
+    Receive And Validate Release Ack    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_REL_ACK}

@@ -148,6 +148,24 @@ Validate Connection Ack
 
 
 # ══════════════════════════════════════════════════════════════════
+# 접속 해제 요구/응답 (0005~0008)
+# ══════════════════════════════════════════════════════════════════
+
+Send Release Request
+    [Documentation]    ReleaseRequest(0005/0007) 송신. Data 없음.
+    [Arguments]    ${sock}    ${msg_id}
+    Send CDS Message    ${sock}    ${msg_id}
+
+Receive And Validate Release Ack
+    [Documentation]    ReleaseRequestACK(0006/0008) 수신 → msg_id + Result=SC.
+    [Arguments]    ${sock}    ${expected_msg_id}
+    ${hdr}    ${data}=    Receive CDS Message    ${sock}
+    CDS Msg Id Should Be    ${hdr}    ${expected_msg_id}
+    ${ack}=    Cds.Unpack Ack    ${data}
+    CDS Result Should Be SC    ${ack}
+
+
+# ══════════════════════════════════════════════════════════════════
 # 프로세스 상태 확인 (0013/0014)
 # ══════════════════════════════════════════════════════════════════
 
