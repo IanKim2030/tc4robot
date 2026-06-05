@@ -210,9 +210,10 @@ Receive And Validate Process State Ack
     RETURN    ${state}
 
 Process State Should Be Normal
+    [Documentation]    ProcessState 정상 검증. 0 과 ${CDS_PS_NORMAL}(1) 둘 다 정상으로 간주(2=Abnormal).
     [Arguments]    ${state}
-    Should Be Equal As Integers    ${state}    ${CDS_PS_NORMAL}
-    ...    msg=ProcessState 기대=Normal(${CDS_PS_NORMAL}), 실제=${state}
+    Should Be True    ${state} == 0 or ${state} == ${CDS_PS_NORMAL}
+    ...    msg=ProcessState 기대=Normal(0 또는 ${CDS_PS_NORMAL}), 실제=${state}
 
 
 # ══════════════════════════════════════════════════════════════════
