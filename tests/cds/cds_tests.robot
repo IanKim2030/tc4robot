@@ -69,16 +69,16 @@ TC-CDS-002 ProcessState - S채널/R채널 각각 요구 → ACK(Normal)
 # DownLoad Command (0015~0018)
 # ════════════════════════════════════════════════════════════════
 
-#TC-CDS-003 Command - 처리 요구 → ACK → 결과 보고 → 결과 응답
-#    [Documentation]
-#    ...    0015 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
-#    ...    ※ 실 PG.CDS 가 명령어를 처리·결과 보고해야 동작 (CDS_TEST_COMMAND_DATA 는 TODO)
-#    [Tags]    cds    command    validation
-#    ${date}    ${seq}=    Send Command Request
-#    Receive And Validate Command Ack
-#    ${hdr}    ${res}=    Receive Command Result
-#    CDS Result Should Be SC    ${res}
-#    Send Command Result Ack    ${hdr}[tid_date]    ${hdr}[tid_seq]
+TC-CDS-003 Download - CmdReq 요청 → ACK → 결과 보고 → 결과 응답
+    [Documentation]
+    ...    0015 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
+    ...    ※ 실 PG.CDS 가 명령어를 처리·결과 보고해야 동작 (CDS_TEST_COMMAND_DATA 는 TODO)
+    [Tags]    cds    command    validation
+    ${date}    ${seq}=    Send Command Request
+    Receive And Validate Command Ack
+    ${hdr}    ${res}=    Receive Command Result
+    CDS Result Should Be SC    ${res}
+    Send Command Result Ack    ${hdr}[tid_date]    ${hdr}[tid_seq]
 
 
 # ════════════════════════════════════════════════════════════════

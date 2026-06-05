@@ -79,8 +79,44 @@ ${CDS_ERR_UNRECOG_MSG}         ${52}     # UnrecognizedMessage
 ${CDS_ERR_SYSTEM_FAILURE}      ${57}     # SystemFailure
 
 # ════════════════════════════════════════════
-# 테스트 데이터
-# TODO: 실환경 명령어/가입자 데이터 포맷으로 교체 (규격 "추후 결정")
+# CommandRequest(0015) Body Code 정의 (업무 코드, 2자리)
+#   Body 구조: Code(2) + MDN(12) + New MDN(12) + MIN(10) = 36B
 # ════════════════════════════════════════════
-${CDS_TEST_COMMAND_DATA}       A1                       # Command Data (opCode 예시)
+${CDS_CODE_NEW}                A1     # 신규
+${CDS_CODE_DEVICE_CHG}         C1     # 기기변경
+${CDS_CODE_SIGNAL_CHG}         C2     # 신호방식변경
+${CDS_CODE_CODE_CHG}           C3     # 코드방식변경
+${CDS_CODE_USAGE_CHG}          C4     # 이용종류변경
+${CDS_CODE_DEVICE_REPLACE}     C5     # 기기대체 (A/S)
+${CDS_CODE_CALLNO_CANCEL}      D2     # 호출번호해지
+${CDS_CODE_CALLNO_APPLY}       D3     # 호출번호신청
+${CDS_CODE_NUMINFO_REG}        D5     # 번호안내등록
+${CDS_CODE_NUMINFO_CANCEL}     D4     # 번호안내해지
+${CDS_CODE_OFFICE_OUT}         E1     # 수용국전출
+${CDS_CODE_OFFICE_IN}          E2     # 수용국전입
+${CDS_CODE_SUSPEND}            F1     # 일시정지
+${CDS_CODE_SUSPEND_RELEASE}    F2     # 일시정지해제
+${CDS_CODE_USE_STOP}           F3     # 사용정지
+${CDS_CODE_USE_STOP_RELEASE}   F4     # 사용정지해제
+${CDS_CODE_DORMANT}            F5     # 휴지
+${CDS_CODE_DORMANT_RELEASE}    F6     # 휴지해제
+${CDS_CODE_VAS_CHG}            I1     # 부가서비스변경
+${CDS_CODE_VAS_APPLY}          I2     # 부가서비스신청
+${CDS_CODE_VAS_CANCEL}         I3     # 부가서비스해지
+${CDS_CODE_NAME_CHG}           M1     # 명의변경
+${CDS_CODE_VOICE_PROMPT_CHG}   Y3     # Voice Prompt 변경
+${CDS_CODE_PASSWORD_RESET}     Y4     # Password Reset
+${CDS_CODE_SWITCH_INFO_SEARCH}  Y5    # 교환기등록정보 검색
+${CDS_CODE_FORCED_TERMINATE}   Z1     # 직권해지
+${CDS_CODE_TERMINATE}          Z2     # 가입해지
+
+# ════════════════════════════════════════════
+# 테스트 데이터
+# TODO: 실환경 명령어/가입자 데이터 값으로 교체
+# ════════════════════════════════════════════
+# CommandRequest body 필드 (Code 2 / MDN 12 / New MDN 12 / MIN 10)
+${CDS_TEST_CMD_CODE}           ${CDS_CODE_NEW}          # 기본 업무 코드 (신규 A1)
+${CDS_TEST_MDN}                01012345678              # MDN (최대 12자)
+${CDS_TEST_NEW_MDN}            ${EMPTY}                 # New MDN (번호변경 시에만)
+${CDS_TEST_MIN}                1012345678               # MIN (10자)
 ${CDS_TEST_SUBS_MIN}           01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)

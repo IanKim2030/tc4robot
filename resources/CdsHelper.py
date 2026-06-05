@@ -211,3 +211,22 @@ def unpack_result_data(data):
         'result':  _unpack_char(data[0:2]) if len(data) >= 2 else '',
         'payload': data[2:] if len(data) > 2 else b'',
     }
+
+
+def pack_command_body(code, mdn='', new_mdn='', min_=''):
+    """
+    CommandRequest(0015) Body 패킹 (고정 36B, ASCII 공백 패딩):
+      Code(2) + MDN(12) + New MDN(12) + MIN(10)
+    """
+    return (_pack_char(code, 2) + _pack_char(mdn, 12)
+            + _pack_char(new_mdn, 12) + _pack_char(min_, 10))
+
+
+def unpack_command_body(data):
+    """CommandRequest Body(36B) 파싱 → dict(code, mdn, new_mdn, min)."""
+    return {
+        'code':    _unpack_char(data[0:2]),
+        'mdn':     _unpack_char(data[2:14]),
+        'new_mdn': _unpack_char(data[14:26]),
+        'min':     _unpack_char(data[26:36]),
+    }

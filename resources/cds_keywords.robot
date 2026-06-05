@@ -221,11 +221,16 @@ Process State Should Be Normal
 # ══════════════════════════════════════════════════════════════════
 
 Send Command Request
-    [Documentation]    CommandRequest(0015) 송신(Schannel). 반환: tid_date, tid_seq.
-    [Arguments]    ${command_data}=${CDS_TEST_COMMAND_DATA}
+    [Documentation]
+    ...    CommandRequest(0015) 송신(Schannel).
+    ...    Body = Code(2) + MDN(12) + New MDN(12) + MIN(10) = 36B.
+    ...    반환: tid_date, tid_seq.
+    [Arguments]    ${code}=${CDS_TEST_CMD_CODE}    ${mdn}=${CDS_TEST_MDN}
+    ...            ${new_mdn}=${CDS_TEST_NEW_MDN}    ${min}=${CDS_TEST_MIN}
+    ${body}=    Cds.Pack Command Body    ${code}    ${mdn}    ${new_mdn}    ${min}
     ${date}    ${seq}=    Next CDS TID
     Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_CMD_REQ}
-    ...    tid_date=${date}    tid_seq=${seq}    data=${command_data}
+    ...    tid_date=${date}    tid_seq=${seq}    data=${body}
     RETURN    ${date}    ${seq}
 
 Receive And Validate Command Ack
