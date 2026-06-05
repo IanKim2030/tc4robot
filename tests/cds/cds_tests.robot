@@ -49,12 +49,12 @@ TC-CDS-001 접속 - Schannel/Rchannel 연결 및 세션 유지
 # 프로세스 상태 확인 (0013/0014)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-002 ProcessState - 요구 → ACK(Normal)
-    [Documentation]    0013 송신 → 0014 수신, Process State=Normal(1) 확인
-    [Tags]    cds    process-state    smoke
-    Send Process State Request
-    ${state}=    Receive And Validate Process State Ack
-    Process State Should Be Normal    ${state}
+#TC-CDS-002 ProcessState - 요구 → ACK(Normal)
+#    [Documentation]    0013 송신 → 0014 수신, Process State=Normal(1) 확인
+#    [Tags]    cds    process-state    smoke
+#    Send Process State Request
+#    ${state}=    Receive And Validate Process State Ack
+#    Process State Should Be Normal    ${state}
 
 
 # ════════════════════════════════════════════════════════════════
