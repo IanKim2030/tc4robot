@@ -7,10 +7,10 @@ Documentation
 ...      채널   : Schannel(${CDS_SCH_PORT}) / Rchannel(${CDS_RCH_PORT})
 ...      Body   : 48B 헤더 + Data (CdsHelper, big-endian)
 ...
-...    [Suite 정책 — Dual Socket]
+...    [Suite 정책 — Dual Socket, Rchannel 우선]
 ...      Suite Setup    : Suite CDS Connect
-...        1) Schannel/Rchannel 2개 소켓 연결
-...        2) Schannel/Rchannel ConnectionRequest 송신 + ACK 검증(세션 등록)
+...        1) Rchannel 연결 → RchannelConnectionRequest(0003) + ACK(0004) (세션 등록)
+...        2) 성공 후 Schannel 연결 → SchannelConnectionRequest(0001) + ACK(0002)
 ...      Test Setup     : Check CDS Sockets (둘 중 하나라도 닫히면 Fatal Error)
 ...      Suite Teardown : Suite CDS Disconnect
 ...
@@ -60,21 +60,21 @@ Suite CDS Connect
     ${sid}=    Resolve CDS System Id
     Set Suite Variable    ${CDS_SYSTEM_ID}    ${sid}
     Set Suite Variable    ${CDS_TID_SEQ}    ${0}
-    Log    [Suite] CDS Schannel 연결 → ${host}:${sch_port} (DST_SYS=${sid})    console=True
-    ${sch}=    Cds.Tcp Connect    ${host}    ${sch_port}    ${timeout}
-    Set Suite Variable    ${CDS_SCH_SOCK}    ${sch}
-    Log    [Suite] CDS Rchannel 연결 → ${host}:${rch_port}    console=True
+    # 1) Rchannel 먼저: TCP 연결 → RchannelConnectionRequest(0003) → ACK(0004)
+    Log    [Suite] CDS Rchannel 연결 → ${host}:${rch_port} (DST_SYS=${sid})    console=True
     ${rch}=    Cds.Tcp Connect    ${host}    ${rch_port}    ${timeout}
     Set Suite Variable    ${CDS_RCH_SOCK}    ${rch}
-    # Schannel 접속 요구/응답
-    Send Connection Request    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_CONN_REQ}
-    ${hdr}    ${data}=    Receive CDS Message    ${CDS_SCH_SOCK}
-    Validate Connection Ack    ${hdr}    ${data}    ${CDS_MSG_SCH_CONN_ACK}
-    # Rchannel 접속 요구/응답
     Send Connection Request    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_CONN_REQ}
-    ${hdr2}    ${data2}=    Receive CDS Message    ${CDS_RCH_SOCK}
-    Validate Connection Ack    ${hdr2}    ${data2}    ${CDS_MSG_RCH_CONN_ACK}
-    Log    [Suite] CDS 접속 완료 (Schannel/Rchannel)    console=True
+    ${hdr}    ${data}=    Receive CDS Message    ${CDS_RCH_SOCK}
+    Validate Connection Ack    ${hdr}    ${data}    ${CDS_MSG_RCH_CONN_ACK}
+    # 2) Rchannel 등록 성공 후 Schannel: TCP 연결 → SchannelConnectionRequest(0001) → ACK(0002)
+    Log    [Suite] CDS Schannel 연결 → ${host}:${sch_port}    console=True
+    ${sch}=    Cds.Tcp Connect    ${host}    ${sch_port}    ${timeout}
+    Set Suite Variable    ${CDS_SCH_SOCK}    ${sch}
+    Send Connection Request    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_CONN_REQ}
+    ${hdr2}    ${data2}=    Receive CDS Message    ${CDS_SCH_SOCK}
+    Validate Connection Ack    ${hdr2}    ${data2}    ${CDS_MSG_SCH_CONN_ACK}
+    Log    [Suite] CDS 접속 완료 (Rchannel→Schannel)    console=True
 
 Suite CDS Disconnect
     [Documentation]    CDS Suite Teardown 전용. Release 요구(best-effort) 후 소켓 종료.
