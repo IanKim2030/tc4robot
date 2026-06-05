@@ -193,12 +193,18 @@ Send Release And Validate
 # ══════════════════════════════════════════════════════════════════
 
 Send Process State Request
-    [Documentation]    ProcessStateRequest(0013) 송신: CDS → PG.CDS, Schannel. T-ID 는 의미 없음(자동 생성).
-    Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_PROC_STATE_REQ}
+    [Documentation]
+    ...    ProcessStateRequest(0013) 송신: CDS → PG.CDS. T-ID 는 의미 없음(자동 생성).
+    ...    요구/ACK 는 동일 채널 내에서 완결(Schannel·Rchannel 각각). 기본 Schannel.
+    [Arguments]    ${sock}=${CDS_SCH_SOCK}
+    Send CDS Message    ${sock}    ${CDS_MSG_PROC_STATE_REQ}
 
 Receive And Validate Process State Ack
-    [Documentation]    ProcessStateRequestACK(0014) 수신: PG.CDS → CDS, Rchannel → ProcessState 반환(1=Normal).
-    ${hdr}    ${data}=    Receive CDS Message    ${CDS_RCH_SOCK}
+    [Documentation]
+    ...    ProcessStateRequestACK(0014) 수신: 요구를 보낸 동일 채널에서 수신(PG.CDS → CDS).
+    ...    → ProcessState 반환(1=Normal). 기본 Schannel.
+    [Arguments]    ${sock}=${CDS_SCH_SOCK}
+    ${hdr}    ${data}=    Receive CDS Message    ${sock}
     CDS Msg Id Should Be    ${hdr}    ${CDS_MSG_PROC_STATE_ACK}
     ${state}=    Cds.Unpack Process State    ${data}
     RETURN    ${state}
