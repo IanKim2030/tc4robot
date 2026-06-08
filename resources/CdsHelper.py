@@ -213,20 +213,199 @@ def unpack_result_data(data):
     }
 
 
-def pack_command_body(code, mdn='', new_mdn='', min_=''):
+# CommandRequest(0015) Body 전체 레이아웃 (svc_code 별 가변 채움, ASCII 공백 패딩)
+# ──────────────────────────────────────────────────────────────────
+#   (field_name, length) 의 순서가 곧 wire 직렬화 순서다.
+#   ※ 이 순서는 레거시 CDS 도구의 clear() 필드 선언 순서를 그대로 옮긴 것이다.
+#     (레거시 serialize 메서드 원본은 공유되지 않아 clear() 선언 순서 = 전문 순서로 간주)
+#     실 규격(CDS Ver6.0) 필드 배치와 다르면 이 리스트의 순서/길이만 교체하면 된다.
+_CMD_LAYOUT = [
+    ('svc_code',                       2),
+    ('mdn',                           12),
+    ('new_mdn',                       12),
+    ('min',                           10),
+    ('new_min',                       10),
+    ('prod_id',                       10),
+    ('data_prod_id',                  10),
+    ('network',                        8),
+    ('block_data_roaming_id',          1),
+    ('block_data_roaming_provider_id', 1),
+    ('allow_mvoip_yn',                 1),
+    ('tablet_yn',                      1),
+    ('os_ver',                         2),
+    ('device_model',                   4),
+    ('block_harmful_yn',               1),
+    ('block_roaming_data_yn',          1),
+    ('block_roaming_mvoip_yn',         1),
+    ('zone_code',                      4),
+    ('ca',                             1),
+    ('aprf',                           1),
+    ('imsi',                          15),
+    ('mvno',                           1),
+    ('limit',                          1),
+    ('qos_param',                      1),
+    ('start_time',                    12),
+    ('coupon_type',                    2),
+    ('coupon_pin',                    11),
+    ('ms_type',                        1),
+    ('category_lte',                   2),
+    ('category_5g',                    2),
+    ('device_type',                    1),
+    ('coupon_category',                1),
+    ('real_start_time',               12),
+    ('addr',                         170),
+    ('product_type',                   2),
+    ('reserve',                       30),
+]
+
+COMMAND_BODY_SIZE = sum(size for _, size in _CMD_LAYOUT)   # = 357
+
+
+class UnsupportedCommandCode(ValueError):
+    """gen() 에서 지원하지 않는 svc_code 를 만났을 때."""
+
+
+def _fill_command_fields(code, kw, f):
     """
-    CommandRequest(0015) Body 패킹 (고정 36B, ASCII 공백 패딩):
-      Code(2) + MDN(12) + New MDN(12) + MIN(10)
+    svc_code(=code) 별로 채울 필드를 f(dict) 에 세팅한다.
+    레거시 CDS 도구의 gen(section, value) if/elif 체인을 그대로 옮긴 것이며,
+    분기 평가 순서가 동작을 좌우하므로(앞 분기가 먼저 매칭) 순서를 보존한다.
+    값은 kw(키워드 인자 dict) 에서 동일 이름으로 읽는다. 누락 필드는 공백 유지.
     """
-    return (_pack_char(code, 2) + _pack_char(mdn, 12)
-            + _pack_char(new_mdn, 12) + _pack_char(min_, 10))
+    v = code
+
+    def s(*names):
+        for n in names:
+            f[n] = kw.get(n, '')
+
+    if v == 'A1':
+        s('mdn', 'min', 'prod_id', 'data_prod_id', 'network', 'tablet_yn',
+          'os_ver', 'device_model', 'ca', 'aprf', 'imsi', 'mvno', 'limit',
+          'ms_type', 'category_lte', 'category_5g', 'device_type', 'product_type')
+    elif v == '1X':
+        s('mdn', 'prod_id', 'product_type', 'addr')
+    elif v == '1Y':
+        s('mdn', 'prod_id', 'product_type')
+    elif v == 'D3':
+        s('mdn', 'new_mdn', 'min', 'new_min', 'prod_id', 'data_prod_id',
+          'network', 'tablet_yn', 'os_ver', 'device_model', 'ca', 'aprf',
+          'imsi', 'mvno', 'limit', 'category_lte', 'category_5g',
+          'device_type', 'product_type')
+    elif v == 'Z1':
+        s('mdn', 'prod_id', 'network', 'tablet_yn', 'os_ver', 'device_model',
+          'ca', 'aprf', 'imsi', 'mvno', 'limit', 'ms_type')
+    elif v == 'IU' or v == 'IX':
+        s('mdn', 'imsi', 'mvno', 'limit')
+    elif v in ('Y5', 'Y6', 'Y7', 'Y8'):
+        s('mdn', 'limit', 'zone_code')
+    elif v == 'Y9' or v == 'YX':
+        s('mdn', 'limit', 'zone_code', 'start_time', 'coupon_type', 'coupon_pin')
+    elif v == 'K1' or v == 'K5':
+        s('mdn', 'limit', 'start_time', 'coupon_type', 'coupon_pin', 'coupon_category')
+    elif v == '91' or v == '92':
+        s('mdn', 'limit', 'start_time', 'coupon_type', 'coupon_pin',
+          'coupon_category', 'real_start_time')
+    elif v in ('SS', 'ST', 'SU', 'SV'):
+        s('mdn', 'limit', 'start_time', 'coupon_type')
+    elif v in ('K2', 'K3', 'K4', 'K6', 'K7'):
+        s('mdn', 'limit', 'coupon_pin')
+    elif v == 'QI' or v == 'QJ':
+        s('mdn', 'prod_id', 'mvno', 'limit')
+    elif (v[0] == 'Q' and v[1] <= 'D') or (v[0] == 'H' and v[1] <= '6') or \
+         v in ('HL', 'HM', 'H9', 'HA', 'L5', 'L6', 'L9', 'LA'):
+        s('mdn', 'limit', 'qos_param')
+    elif (v[0] == 'Q') or (v[0] == 'H') or (v[0] == 'L' and v[1] >= '7') or \
+         (v[0] == 'Y' and v[1] >= '3') or (v[0] == 'I' and v[1] >= '6') or \
+         v in ('SW', 'SX', 'IC', 'ID') or v[0] in ('N', 'J', 'R', 'W', 'O'):
+        s('mdn', 'limit')
+    elif v == 'G1':
+        s('mdn', 'prod_id', 'data_prod_id', 'network', 'tablet_yn', 'os_ver',
+          'device_model', 'ca', 'aprf', 'imsi', 'mvno', 'limit', 'ms_type',
+          'category_lte', 'category_5g', 'device_type', 'product_type')
+    elif v == 'C1':
+        f['min'] = kw.get('mdn', '')          # 레거시: min ← mdn
+        s('mdn', 'new_min', 'prod_id', 'data_prod_id', 'network', 'tablet_yn',
+          'os_ver', 'device_model', 'ca', 'aprf', 'imsi', 'mvno', 'limit',
+          'ms_type', 'category_lte', 'category_5g', 'device_type', 'product_type')
+    elif v == 'I2' or v == 'I3':
+        f['min'] = kw.get('mdn', '')          # 레거시: min ← mdn
+        s('mdn', 'block_data_roaming_id', 'block_data_roaming_provider_id',
+          'block_harmful_yn', 'mvno', 'limit')
+    elif v == 'I4' or v == 'I5':
+        s('mdn', 'allow_mvoip_yn', 'mvno', 'limit')
+    elif v == 'L1' or v == 'L2':
+        s('mdn', 'block_roaming_data_yn', 'limit', 'qos_param')
+    elif v == 'L3' or v == 'L4':
+        s('mdn', 'block_roaming_mvoip_yn', 'limit', 'qos_param')
+    elif v in ('Y1', 'Y2', 'YA', 'YB'):
+        s('mdn', 'prod_id', 'limit')
+    elif v == 'ZZ':
+        s('mdn', 'prod_id', 'limit')
+    elif v[0] == 'L':
+        s('mdn', 'limit', 'qos_param')
+    elif v in (
+        'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'SA', 'SB', 'SC',
+        'SD', 'SE', 'SF', 'SG', 'SJ', 'SK',
+        'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'TA', 'TB', 'TC', 'TD', 'TE', 'TF',
+        'TG', 'TH', 'TI', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO', 'TP', 'TQ', 'TR',
+        'TS', 'TT', 'TU', 'TV', 'TW', 'TX', 'TY', 'TZ',
+        'R5', 'R6', 'R7', 'R8', 'R9', 'RA', 'RB', 'RC', 'RD', 'RE', 'RF', 'RG',
+        'RP', 'RQ', 'RR', 'RS', 'RX', 'RY',
+        'U1', 'U2', 'U3', 'U4', 'IV', 'IW',
+        'M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'MA', 'MB', 'MC',
+        'MD', 'ME',
+        'F1', 'F2', 'F3', 'F4', 'F7', 'F8', 'F9', 'FA', 'FB', 'FC', 'FI', 'FJ',
+        'FK', 'FL', 'FM', 'FN', 'FO', 'FP', 'FQ', 'FR', 'FS', 'FT',
+        'X1', 'P3', 'P4', 'P5', 'P6', 'P7',
+        '11', '12', '13', '14', '15', '16',
+        '73', '74', '75', '76', '77', '78', '7B', '7C', '7D', '7E', '7F', '7G',
+        '7P', '7Q', '7R', '7S',
+        '8W', '8X', '8Y', '8Z',
+        'Z2', 'Z3', 'Z4', 'Z5',
+        'OV', 'OW',
+        '1T', '1U', '1V', '1W',
+    ):
+        s('mdn', 'prod_id', 'limit')
+    elif v in (
+        'IY', 'IZ', 'HY', 'HZ', 'HU', 'HV', 'HW', 'SY', 'SZ',
+        'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9', 'EA', 'EB', 'EC',
+        'ED', 'EE', 'EF', 'EG', 'EH', 'EI', 'EJ', 'EK', 'EL', 'EM', 'EN', 'EO',
+        'EP', 'EQ',
+    ):
+        s('mdn', 'limit')
+    else:
+        raise UnsupportedCommandCode(code)
+
+
+def pack_command_body(code, **fields):
+    """
+    CommandRequest(0015) Body 패킹 (svc_code 별 가변, ASCII 공백 패딩, 총 357B).
+
+    code     : 업무 코드(svc_code, 2자). 이 값에 따라 채울 필드가 결정된다.
+    fields   : 필드명=값 키워드 인자 (예: mdn=..., prod_id=..., imsi=...).
+               code 와 무관한 필드를 줘도 무시되고, code 가 요구하는 필드 중
+               누락된 것은 공백으로 채워진다.
+
+    레거시 CDS 도구의 clear()+gen() 을 옮긴 것으로, 전체 고정길이 레코드를
+    만든 뒤 code 에 해당하는 필드만 채운다. wire 순서는 _CMD_LAYOUT 을 따른다.
+    지원하지 않는 code 면 UnsupportedCommandCode 예외.
+    """
+    if code is None or len(str(code)) != 2:
+        raise UnsupportedCommandCode(code)
+    code = str(code)
+    f = {name: '' for name, _ in _CMD_LAYOUT}
+    f['svc_code'] = code
+    _fill_command_fields(code, fields, f)
+    buf = b''.join(_pack_char(f.get(name, ''), size) for name, size in _CMD_LAYOUT)
+    return buf
 
 
 def unpack_command_body(data):
-    """CommandRequest Body(36B) 파싱 → dict(code, mdn, new_mdn, min)."""
-    return {
-        'code':    _unpack_char(data[0:2]),
-        'mdn':     _unpack_char(data[2:14]),
-        'new_mdn': _unpack_char(data[14:26]),
-        'min':     _unpack_char(data[26:36]),
-    }
+    """CommandRequest Body(357B) 파싱 → 필드명→값 dict (_CMD_LAYOUT 순서)."""
+    result = {}
+    offset = 0
+    for name, size in _CMD_LAYOUT:
+        chunk = data[offset:offset + size]
+        result[name] = _unpack_char(chunk)
+        offset += size
+    return result

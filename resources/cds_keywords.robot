@@ -223,11 +223,15 @@ Process State Should Be Normal
 Send Command Request
     [Documentation]
     ...    CommandRequest(0015) 송신(Schannel).
-    ...    Body = Code(2) + MDN(12) + New MDN(12) + MIN(10) = 36B.
+    ...    Body = svc_code(code) 별 가변 고정길이 레코드(357B, _CMD_LAYOUT 순서).
+    ...    필드 값은 키워드 인자로 전달한다(mdn/new_mdn/min 은 기본값 제공,
+    ...    그 외 필드는 &{extra} 로 추가: 예) prod_id=... imsi=... limit=...).
+    ...    code 에 무관한 필드는 무시되고, 누락 필드는 공백으로 채워진다.
     ...    반환: tid_date, tid_seq.
     [Arguments]    ${code}=${CDS_TEST_CMD_CODE}    ${mdn}=${CDS_TEST_MDN}
-    ...            ${new_mdn}=${CDS_TEST_NEW_MDN}    ${min}=${CDS_TEST_MIN}
-    ${body}=    Cds.Pack Command Body    ${code}    ${mdn}    ${new_mdn}    ${min}
+    ...            ${new_mdn}=${CDS_TEST_NEW_MDN}    ${min}=${CDS_TEST_MIN}    &{extra}
+    ${body}=    Cds.Pack Command Body    ${code}
+    ...    mdn=${mdn}    new_mdn=${new_mdn}    min=${min}    &{extra}
     ${date}    ${seq}=    Next CDS TID
     Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_CMD_REQ}
     ...    tid_date=${date}    tid_seq=${seq}    data=${body}

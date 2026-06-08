@@ -80,7 +80,9 @@ ${CDS_ERR_SYSTEM_FAILURE}      ${57}     # SystemFailure
 
 # ════════════════════════════════════════════
 # CommandRequest(0015) Body Code 정의 (업무 코드, 2자리)
-#   Body 구조: Code(2) + MDN(12) + New MDN(12) + MIN(10) = 36B
+#   Body 구조: svc_code(2) 별 가변 고정길이 레코드(총 357B).
+#   채울 필드는 CdsHelper._CMD_LAYOUT(=레거시 clear() 순서)/_fill_command_fields(code) 참조.
+#   필드 값은 'Send Command Request' 에 키워드 인자로 전달(mdn/new_mdn/min 기본값, 그 외 &{extra}).
 # ════════════════════════════════════════════
 ${CDS_CODE_NEW}                A1     # 신규
 ${CDS_CODE_DEVICE_CHG}         C1     # 기기변경
@@ -114,7 +116,7 @@ ${CDS_CODE_TERMINATE}          Z2     # 가입해지
 # 테스트 데이터
 # TODO: 실환경 명령어/가입자 데이터 값으로 교체
 # ════════════════════════════════════════════
-# CommandRequest body 필드 (Code 2 / MDN 12 / New MDN 12 / MIN 10)
+# CommandRequest body 기본 필드 (그 외 필드는 Send Command Request 에 &{extra} 로 전달)
 ${CDS_TEST_CMD_CODE}           ${CDS_CODE_NEW}          # 기본 업무 코드 (신규 A1)
 ${CDS_TEST_MDN}                01012345678              # MDN (최대 12자)
 ${CDS_TEST_NEW_MDN}            ${EMPTY}                 # New MDN (번호변경 시에만)
