@@ -229,9 +229,10 @@ Send Command Request
     ...    code 에 무관한 필드는 무시되고, 누락 필드는 공백으로 채워진다.
     ...    반환: tid_date, tid_seq.
     [Arguments]    ${code}=${CDS_TEST_CMD_CODE}    ${mdn}=${CDS_TEST_MDN}
-    ...            ${new_mdn}=${CDS_TEST_NEW_MDN}    ${min}=${CDS_TEST_MIN}    &{extra}
+    ...            ${new_mdn}=${CDS_TEST_NEW_MDN}    ${min}=${CDS_TEST_MIN}
+    ...            ${prod_id}=${CDS_TEST_PROD_ID}    &{extra}
     ${body}=    Cds.Pack Command Body    ${code}
-    ...    mdn=${mdn}    new_mdn=${new_mdn}    min=${min}    &{extra}
+    ...    mdn=${mdn}    new_mdn=${new_mdn}    min=${min}    prod_id=${prod_id}    &{extra}
     ${date}    ${seq}=    Next CDS TID
     Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_CMD_REQ}
     ...    tid_date=${date}    tid_seq=${seq}    data=${body}

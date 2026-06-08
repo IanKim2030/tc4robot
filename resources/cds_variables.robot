@@ -118,7 +118,8 @@ ${CDS_CODE_TERMINATE}          Z2     # 가입해지
 # ════════════════════════════════════════════
 # CommandRequest body 기본 필드 (그 외 필드는 Send Command Request 에 &{extra} 로 전달)
 ${CDS_TEST_CMD_CODE}           ${CDS_CODE_NEW}          # 기본 업무 코드 (신규 A1)
-${CDS_TEST_MDN}                01012345678              # MDN (최대 12자)
+${CDS_TEST_MDN}                01053543393              # MDN (최대 12자)
 ${CDS_TEST_NEW_MDN}            ${EMPTY}                 # New MDN (번호변경 시에만)
 ${CDS_TEST_MIN}                1012345678               # MIN (10자)
+${CDS_TEST_PROD_ID}            ${EMPTY}                 # PROD_ID (10자, 신규/변경 코드에서 사용)
 ${CDS_TEST_SUBS_MIN}           01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
