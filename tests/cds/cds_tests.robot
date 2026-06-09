@@ -49,7 +49,7 @@ TC-CDS-001 접속 - Schannel/Rchannel 연결 및 세션 유지
 # 프로세스 상태 확인 (0013/0014)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-002 ProcessState - S채널/R채널 각각 요구 → ACK(Normal)
+TC-CDS-002 상태확인 - ProcessStateReuqest(0013) S/R채널 각각 → ACK(0014)
     [Documentation]
     ...    요구/ACK 는 각 채널 내에서 완결 (규격 2.4)
     ...    Schannel: 요구(0013) → ACK(0014) / Rchannel: 요구(0013) → ACK(0014)
@@ -69,7 +69,7 @@ TC-CDS-002 ProcessState - S채널/R채널 각각 요구 → ACK(Normal)
 # DownLoad Command (0015~0018)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-003 Download - CmdReq 요청 → ACK → 결과 보고 → 결과 응답
+TC-CDS-003 Download - CommandRequest → ACK → CommandResult → ACK
     [Documentation]
     ...    0015 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
     ...    ※ 실 PG.CDS 가 명령어를 처리·결과 보고해야 동작 (CDS_TEST_COMMAND_DATA 는 TODO)
@@ -85,7 +85,7 @@ TC-CDS-003 Download - CmdReq 요청 → ACK → 결과 보고 → 결과 응답
 # 가입자 데이터 SubsData (0029~0032)
 # ════════════════════════════════════════════════════════════════
 
-#TC-CDS-004 SubsData - 데이터 요구 → ACK → 결과 보고 → 결과 응답
+#TC-CDS-004 SubsData - SubsDataRequest → ACK → SubsDataResult → ACK
 #    [Documentation]
 #    ...    0029 송신(MIN) → 0030 ACK(SC) → 0031 Result 수신 → 0032 ResultACK 송신
 #    ...    ※ 실 PG.CDS 가 가입자 데이터를 조회·보고해야 동작 (MIN 은 TODO)

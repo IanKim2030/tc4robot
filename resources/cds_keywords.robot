@@ -344,4 +344,4 @@ CDS Msg Id Should Be
 CDS Result Should Be SC
     [Arguments]    ${ack}
     Should Be Equal As Strings    ${ack}[result]    ${CDS_RESULT_SC}
-    ...    msg=Result 기대=SC, 실제=${ack}[result] (reason=${ack}[reason])
+    ...    msg=Result 기대=SC, 실제=${ack}[result]
