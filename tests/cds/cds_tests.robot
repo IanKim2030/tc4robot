@@ -69,35 +69,35 @@ TC-CDS-002 상태확인 - ProcessStateReuqest(0013) S/R채널 각각 → ACK(001
 # DownLoad Command (0015~0018)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-003 Download - [A1 신규] CommandRequest → ACK → Result → ACK
+TC-CDS-003 Download(A1 신규) - Request → ACK → Result → ACK
     [Documentation]
     ...    0015(A1 신규) 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
     ...    ※ 실 PG.CDS 가 명령어를 처리·결과 보고해야 동작
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_NEW}
 
-TC-CDS-007 Download - [C1 기변] CommandRequest → ACK → Result → ACK
+TC-CDS-004 Download(C1 기변) - Request → ACK → Result → ACK
     [Documentation]    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_DEVICE_CHG}
 
-TC-CDS-008 Download - [D3 번변] CommandRequest → ACK → Result → ACK
+TC-CDS-005 Download(D3 번변) - Request → ACK → Result → ACK
     [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_CALLNO_APPLY}
 
-TC-CDS-009 Download - [G1 정변] CommandRequest → ACK → Result → ACK
+TC-CDS-006 Download(G1 정변) - Request → ACK → Result → ACK
     [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_G1}
 
-TC-CDS-010 Download - [Z1 직권해지] CommandRequest → ACK → Result → ACK
+TC-CDS-007 Download(Z1 직해) - Request → ACK → Result → ACK
     [Documentation]    0015(Z1 직권해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_FORCED_TERMINATE}
 
-TC-CDS-011 Download - [1X] CommandRequest → ACK → Result → ACK
-    [Documentation]    0015(1X) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+TC-CDS-008 Download(1X HFC가입) - Request → ACK → Result → ACK
+    [Documentation]    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_1X}
 
@@ -106,7 +106,7 @@ TC-CDS-011 Download - [1X] CommandRequest → ACK → Result → ACK
 # 가입자 데이터 SubsData (0029~0032)
 # ════════════════════════════════════════════════════════════════
 
-#TC-CDS-004 SubsData - SubsDataRequest → ACK → SubsDataResult → ACK
+#TC-CDS-100 SubsData - SubsDataRequest → ACK → SubsDataResult → ACK
 #    [Documentation]
 #    ...    0029 송신(MIN) → 0030 ACK(SC) → 0031 Result 수신 → 0032 ResultACK 송신
 #    ...    ※ 실 PG.CDS 가 가입자 데이터를 조회·보고해야 동작 (MIN 은 TODO)
@@ -121,7 +121,7 @@ TC-CDS-011 Download - [1X] CommandRequest → ACK → Result → ACK
 # UpLoad (0025~0028) — PG(Server)가 먼저 송신해야 동작 → 주석 처리
 # ════════════════════════════════════════════════════════════════
 
-# TC-CDS-005 UpLoad - 요구 수신 → ACK → 결과 보고 → 결과 응답
+# TC-CDS-101 UpLoad - 요구 수신 → ACK → 결과 보고 → 결과 응답
 #     [Documentation]
 #     ...    PG 발신 UploadRequest(0025) 수신 → 0026 ACK 송신 →
 #     ...    0027 UploadResult 송신 → 0028 ResultACK 수신
@@ -132,7 +132,7 @@ TC-CDS-011 Download - [1X] CommandRequest → ACK → Result → ACK
 #     Send Upload Result    ${hdr}[tid_date]    ${hdr}[tid_seq]    payload=0
 #     Receive And Validate Upload Result Ack
 
-TC-CDS-006 접속 해제 - Schannel 해제 후 Rchannel 해제
+TC-CDS-900 접속 해제 - Schannel 해제 후 Rchannel 해제
     [Documentation]
     ...    Schannel 접속 해제 요구(0005) → 응답(0006, SC) 처리 후,
     ...    Rchannel 접속 해제 요구(0007) → 응답(0008, SC) 처리
