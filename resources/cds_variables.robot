@@ -125,6 +125,7 @@ ${CDS_TEST_PROD_ID}            NA00003479               # product_id (10자, pro
 ${CDS_TEST_LIMIT}              ${EMPTY}                 # limitSubsFlag (1자, TODO: 실환경 값)
 ${CDS_TEST_PROD_TYPE}          ${EMPTY}                 # produGenType  (2자, TODO: 실환경 값)
 # 코드별 추가 필드 (Send Command Request &{extra} 로 전달)
-${CDS_TEST_NEW_MDN}            01053543394              # new_mdn (D3 번호변경 시)
+${CDS_TEST_NEW_MDN}            01053543394              # new_mdn (C1 기기변경 시)
 ${CDS_TEST_MIN}                1053543393               # min     (A1/D3 등)
+${CDS_TEST_NEW_MIN}            1053543394               # new_min (C1 기기변경 시)
 ${CDS_TEST_SUBS_MIN}           01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
