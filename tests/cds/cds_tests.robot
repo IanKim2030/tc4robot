@@ -79,7 +79,7 @@ TC-CDS-003 Download(A1 신규) - Request → ACK → Result → ACK
 TC-CDS-004 Download(C1 기변) - Request → ACK → Result → ACK
     [Documentation]    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_DEVICE_CHG}
+    Command Download Flow    ${CDS_CODE_DEVICE_CHG}    new_mdn=${CDS_TEST_NEW_MDN}
 
 TC-CDS-005 Download(D3 번변) - Request → ACK → Result → ACK
     [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
