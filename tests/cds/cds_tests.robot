@@ -101,6 +101,16 @@ TC-CDS-008 Download(1X HFC가입) - Request → ACK → Result → ACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_1X}
 
+TC-CDS-009 Download(I2 부가서비스신청) - Request → ACK → Result → ACK
+    [Documentation]    0015(I2 부가서비스신청) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_VAS_APPLY}
+
+TC-CDS-010 Download(I3 부가서비스해지) - Request → ACK → Result → ACK
+    [Documentation]    0015(I3 부가서비스해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_VAS_CANCEL}
+
 
 # ════════════════════════════════════════════════════════════════
 # 가입자 데이터 SubsData (0029~0032)

@@ -118,10 +118,13 @@ ${CDS_CODE_1X}                 1X     # 1X (TODO: 규격 확인)
 # 테스트 데이터
 # TODO: 실환경 명령어/가입자 데이터 값으로 교체
 # ════════════════════════════════════════════
-# CommandRequest body 기본 필드 (그 외 필드는 Send Command Request 에 &{extra} 로 전달)
+# CommandRequest body — 공통 4개 필드 (스펙: mdn / product_id / limitSubsFlag / produGenType)
 ${CDS_TEST_CMD_CODE}           ${CDS_CODE_NEW}          # 기본 업무 코드 (신규 A1)
-${CDS_TEST_MDN}                01053543393              # MDN (최대 12자)
-${CDS_TEST_NEW_MDN}            01053543394                 # New MDN (번호변경 시에만)
-${CDS_TEST_MIN}                1053543393               # MIN (10자)
-${CDS_TEST_PROD_ID}            NA00003479               # PROD_ID (10자, 신규/변경 코드에서 사용)
+${CDS_TEST_MDN}                01053543393              # mdn        (12자)
+${CDS_TEST_PROD_ID}            NA00003479               # product_id (10자, prod_id)
+${CDS_TEST_LIMIT}              ${EMPTY}                 # limitSubsFlag (1자, TODO: 실환경 값)
+${CDS_TEST_PROD_TYPE}          ${EMPTY}                 # produGenType  (2자, TODO: 실환경 값)
+# 코드별 추가 필드 (Send Command Request &{extra} 로 전달)
+${CDS_TEST_NEW_MDN}            01053543394              # new_mdn (D3 번호변경 시)
+${CDS_TEST_MIN}                1053543393               # min     (A1/D3 등)
 ${CDS_TEST_SUBS_MIN}           01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
