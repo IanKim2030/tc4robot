@@ -345,3 +345,14 @@ CDS Result Should Be SC
     [Arguments]    ${ack}
     Should Be Equal As Strings    ${ack}[result]    ${CDS_RESULT_SC}
     ...    msg=Result 기대=SC, 실제=${ack}[result]
+
+Command Download Flow
+    [Documentation]
+    ...    CommandRequest(0015) → ACK(0016, SC) → Result(0017, SC) → ResultACK(0018) 전체 흐름.
+    ...    code 별 공통 순서이며 추가 필드는 &{extra} 로 전달한다.
+    [Arguments]    ${code}    &{extra}
+    Send Command Request    code=${code}    &{extra}
+    Receive And Validate Command Ack
+    ${hdr}    ${res}=    Receive Command Result
+    CDS Result Should Be SC    ${res}
+    Send Command Result Ack    ${hdr}[tid_date]    ${hdr}[tid_seq]

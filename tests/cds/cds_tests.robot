@@ -69,16 +69,37 @@ TC-CDS-002 상태확인 - ProcessStateReuqest(0013) S/R채널 각각 → ACK(001
 # DownLoad Command (0015~0018)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-003 Download - CommandRequest → ACK → CommandResult → ACK
+TC-CDS-003 Download - [A1 신규] CommandRequest → ACK → Result → ACK
     [Documentation]
-    ...    0015 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
-    ...    ※ 실 PG.CDS 가 명령어를 처리·결과 보고해야 동작 (CDS_TEST_COMMAND_DATA 는 TODO)
+    ...    0015(A1 신규) 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
+    ...    ※ 실 PG.CDS 가 명령어를 처리·결과 보고해야 동작
     [Tags]    cds    command    validation
-    ${date}    ${seq}=    Send Command Request
-    Receive And Validate Command Ack
-    ${hdr}    ${res}=    Receive Command Result
-    CDS Result Should Be SC    ${res}
-    Send Command Result Ack    ${hdr}[tid_date]    ${hdr}[tid_seq]
+    Command Download Flow    ${CDS_CODE_NEW}
+
+TC-CDS-007 Download - [C1 기변] CommandRequest → ACK → Result → ACK
+    [Documentation]    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_DEVICE_CHG}
+
+TC-CDS-008 Download - [D3 번변] CommandRequest → ACK → Result → ACK
+    [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_CALLNO_APPLY}
+
+TC-CDS-009 Download - [G1 정변] CommandRequest → ACK → Result → ACK
+    [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_G1}
+
+TC-CDS-010 Download - [Z1 직권해지] CommandRequest → ACK → Result → ACK
+    [Documentation]    0015(Z1 직권해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_FORCED_TERMINATE}
+
+TC-CDS-011 Download - [1X] CommandRequest → ACK → Result → ACK
+    [Documentation]    0015(1X) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_1X}
 
 
 # ════════════════════════════════════════════════════════════════
