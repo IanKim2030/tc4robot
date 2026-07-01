@@ -255,10 +255,9 @@ _CMD_LAYOUT = [
     ('real_start_time',               12),
     ('addr',                         170),
     ('product_type',                   2),
-    ('reserve',                       30),
 ]
 
-COMMAND_BODY_SIZE = sum(size for _, size in _CMD_LAYOUT)   # = 357
+COMMAND_BODY_SIZE = sum(size for _, size in _CMD_LAYOUT)   # = 327
 
 
 class UnsupportedCommandCode(ValueError):
@@ -283,7 +282,7 @@ def _fill_command_fields(code, kw, f):
           'os_ver', 'device_model', 'ca', 'aprf', 'imsi', 'mvno', 'limit',
           'ms_type', 'category_lte', 'category_5g', 'device_type', 'product_type')
     elif v == '1X':
-        s('mdn', 'prod_id', 'product_type', 'addr')
+        s('mdn', 'prod_id', 'limit', 'product_type', 'addr')
     elif v == '1Y':
         s('mdn', 'prod_id', 'product_type')
     elif v == 'D3':
@@ -379,7 +378,7 @@ def _fill_command_fields(code, kw, f):
 
 def pack_command_body(code, **fields):
     """
-    CommandRequest(0015) Body 패킹 (svc_code 별 가변, ASCII 공백 패딩, 총 357B).
+    CommandRequest(0015) Body 패킹 (svc_code 별 가변, ASCII 공백 패딩, 총 327B).
 
     code     : 업무 코드(svc_code, 2자). 이 값에 따라 채울 필드가 결정된다.
     fields   : 필드명=값 키워드 인자 (예: mdn=..., prod_id=..., imsi=...).
@@ -401,7 +400,7 @@ def pack_command_body(code, **fields):
 
 
 def unpack_command_body(data):
-    """CommandRequest Body(357B) 파싱 → 필드명→값 dict (_CMD_LAYOUT 순서)."""
+    """CommandRequest Body(327B) 파싱 → 필드명→값 dict (_CMD_LAYOUT 순서)."""
     result = {}
     offset = 0
     for name, size in _CMD_LAYOUT:

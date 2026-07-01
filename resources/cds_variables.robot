@@ -80,7 +80,7 @@ ${CDS_ERR_SYSTEM_FAILURE}      ${57}     # SystemFailure
 
 # ════════════════════════════════════════════
 # CommandRequest(0015) Body Code 정의 (업무 코드, 2자리)
-#   Body 구조: svc_code(2) 별 가변 고정길이 레코드(총 357B).
+#   Body 구조: svc_code(2) 별 가변 고정길이 레코드(총 327B).
 #   채울 필드는 CdsHelper._CMD_LAYOUT(=레거시 clear() 순서)/_fill_command_fields(code) 참조.
 #   필드 값은 'Send Command Request' 에 키워드 인자로 전달(mdn/new_mdn/min 기본값, 그 외 &{extra}).
 # ════════════════════════════════════════════
@@ -122,7 +122,7 @@ ${CDS_CODE_1X}                 1X     # 1X (TODO: 규격 확인)
 ${CDS_TEST_CMD_CODE}           ${CDS_CODE_NEW}          # 기본 업무 코드 (신규 A1)
 ${CDS_TEST_MDN}                01053543393              # mdn        (12자)
 ${CDS_TEST_PROD_ID}            NA00003479               # product_id (10자, prod_id)
-${CDS_TEST_LIMIT}              ${EMPTY}                 # limitSubsFlag (1자, TODO: 실환경 값)
+${CDS_TEST_LIMIT}              0                        # limitSubsFlag (1자, TODO: 실환경 값)
 ${CDS_TEST_PROD_TYPE}          ${EMPTY}                 # produGenType  (2자, TODO: 실환경 값)
 # 코드별 추가 필드 (Send Command Request &{extra} 로 전달)
 ${CDS_TEST_NEW_MDN}            01053543394              # new_mdn (C1 기기변경 시)
