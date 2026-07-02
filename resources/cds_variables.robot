@@ -129,3 +129,4 @@ ${CDS_TEST_NEW_MDN}            01053543394              # new_mdn (C1 기기변�
 ${CDS_TEST_MIN}                1053543393               # min     (A1/D3 등)
 ${CDS_TEST_NEW_MIN}            1053543394               # new_min (C1 기기변경 시)
 ${CDS_TEST_SUBS_MIN}           01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
+${CDS_TEST_ADDR}               서울특별시 강남구 테헤란로 123      # addr (1X HFC 가입 시, 170byte, cp949 인코딩, TODO: 실환경 값)

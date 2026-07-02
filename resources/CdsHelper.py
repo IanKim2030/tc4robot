@@ -43,18 +43,18 @@ HEADER_SIZE = 48
 
 # ── 내부: char 고정길이 필드 패킹/언패킹 ──────────────────────────
 
-def _pack_char(value, size):
-    """ASCII 고정길이 필드: size 초과는 자르고, 미만은 공백 패딩."""
+def _pack_char(value, size, encoding='ascii'):
+    """고정길이 필드: size 초과는 자르고, 미만은 공백 패딩."""
     s = '' if value is None else str(value)
-    enc = s.encode('ascii', errors='replace')
+    enc = s.encode(encoding, errors='replace')
     if len(enc) >= size:
         return enc[:size]
     return enc + b' ' * (size - len(enc))
 
 
-def _unpack_char(data):
+def _unpack_char(data, encoding='ascii'):
     """고정길이 char 필드 → strip 한 문자열."""
-    return data.decode('ascii', errors='replace').replace('\x00', '').strip()
+    return data.decode(encoding, errors='replace').replace('\x00', '').strip()
 
 
 # ── 48B 헤더 패킹/파싱 ────────────────────────────────────────────
@@ -259,6 +259,10 @@ _CMD_LAYOUT = [
 
 COMMAND_BODY_SIZE = sum(size for _, size in _CMD_LAYOUT)   # = 327
 
+# addr(주소)만 한글 포함 가능 → DB(골디락스 UHC / 알티베이스 MS949)와 맞춰 cp949 로 인코딩.
+# 그 외 필드는 전부 코드/번호류라 ASCII 그대로 둔다.
+_FIELD_ENCODING = {'addr': 'cp949'}
+
 
 class UnsupportedCommandCode(ValueError):
     """gen() 에서 지원하지 않는 svc_code 를 만났을 때."""
@@ -395,7 +399,10 @@ def pack_command_body(code, **fields):
     f = {name: '' for name, _ in _CMD_LAYOUT}
     f['svc_code'] = code
     _fill_command_fields(code, fields, f)
-    buf = b''.join(_pack_char(f.get(name, ''), size) for name, size in _CMD_LAYOUT)
+    buf = b''.join(
+        _pack_char(f.get(name, ''), size, encoding=_FIELD_ENCODING.get(name, 'ascii'))
+        for name, size in _CMD_LAYOUT
+    )
     return buf
 
 
@@ -405,6 +412,6 @@ def unpack_command_body(data):
     offset = 0
     for name, size in _CMD_LAYOUT:
         chunk = data[offset:offset + size]
-        result[name] = _unpack_char(chunk)
+        result[name] = _unpack_char(chunk, encoding=_FIELD_ENCODING.get(name, 'ascii'))
         offset += size
     return result

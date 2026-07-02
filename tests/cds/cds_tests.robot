@@ -99,7 +99,7 @@ TC-CDS-007 Download(Z1 직해) - Request → ACK → Result → ACK
 TC-CDS-008 Download(1X HFC가입) - Request → ACK → Result → ACK
     [Documentation]    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_1X}
+    Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_TEST_ADDR}
 
 TC-CDS-009 Download(I2 부가서비스신청) - Request → ACK → Result → ACK
     [Documentation]    0015(I2 부가서비스신청) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
