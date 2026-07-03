@@ -56,7 +56,10 @@ Suite UPM Connect
     ...    msg=UPM Hello 실패 (code=${code}). UPM 테스트 시작 불가.
     ${pi}=    Get Ping Interval    ${body}
     Set Suite Variable    ${UPM_PING_INTERVAL}    ${pi}
-    Log    [Suite] UPM Hello 성공 code=${code} ping-interval=${pi}    console=True
+    ${key_list}=    Get UPM Key List    ${body}
+    Set Suite Variable    ${UPM_KEY_LIST}    ${key_list}
+    ${key_count}=    Get Length    ${key_list}
+    Log    [Suite] UPM Hello 성공 code=${code} ping-interval=${pi} keyList=${key_count}건    console=True
 
 Suite UPM Disconnect
     [Documentation]    UPM Suite Teardown 전용. UPM 소켓 종료.
@@ -125,6 +128,36 @@ Send UPM Hello
     ${payload}=    Create Dictionary    sys-id=${sys_id}    branch-name=${branch_name}
     ${hdr}    ${body}=    Send And Receive UPM    ${1}    ${txn_id}    ${payload}
     RETURN    ${hdr}    ${body}
+
+Get UPM Key List
+    [Documentation]
+    ...    Hello-Response 의 keyList 배열 추출 (num/salt/iv/key 암호화 키 묶음).
+    ...    없으면 빈 리스트 반환 (구버전 PG 호환).
+    [Arguments]    ${resp_body}
+    ${ok}=    Run Keyword And Return Status
+    ...    Dictionary Should Contain Key    ${resp_body}    keyList
+    ${key_list}=    Run Keyword If    ${ok}
+    ...    Get From Dictionary    ${resp_body}    keyList
+    ...    ELSE    Create List
+    RETURN    ${key_list}
+
+UPM Key List Should Be Valid
+    [Documentation]
+    ...    Hello-Response keyList 배열 존재 및 각 항목의 num/salt/iv/key 값 존재 확인
+    [Arguments]    ${key_list}
+    Should Not Be Empty    ${key_list}    msg=keyList 가 비어 있습니다.
+    FOR    ${item}    IN    @{key_list}
+        Dictionary Should Contain Key    ${item}    num
+        Dictionary Should Contain Key    ${item}    salt
+        Dictionary Should Contain Key    ${item}    iv
+        Dictionary Should Contain Key    ${item}    key
+        ${salt}=    Get From Dictionary    ${item}    salt
+        ${iv}=      Get From Dictionary    ${item}    iv
+        ${key}=     Get From Dictionary    ${item}    key
+        Should Not Be Empty    ${salt}    msg=keyList.salt 값이 비어 있습니다.
+        Should Not Be Empty    ${iv}      msg=keyList.iv 값이 비어 있습니다.
+        Should Not Be Empty    ${key}     msg=keyList.key 값이 비어 있습니다.
+    END
 
 
 # ══════════════════════════════════════════════════════════════════

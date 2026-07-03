@@ -44,6 +44,12 @@ TC-UPM-001 Hello - ping-interval 응답 확인
     Should Be True    ${UPM_PING_INTERVAL} > 0
     ...    msg=ping-interval 미수신 또는 0 (실제=${UPM_PING_INTERVAL})
 
+TC-UPM-016 Hello - keyList 암호화 키 목록 확인
+    [Documentation]
+    ...    Hello-Response 에 추가된 keyList 배열 검증
+    ...    항목별 num(정수) / salt / iv / key(Base64 문자열) 형식 확인
+    [Tags]    upm    hello    smoke
+    UPM Key List Should Be Valid    ${UPM_KEY_LIST}
 
 # ════════════════════════════════════════════════════════════════
 # 0x03/0x04  Ping (UPM → PG)
