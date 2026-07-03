@@ -32,7 +32,7 @@ Test Setup       Check UPM Socket
 *** Test Cases ***
 
 # ════════════════════════════════════════════════════════════════
-# 0x01/0x02  Hello (UPM → PG)
+# 0x01/0x02  Hello (UPM → PG.BSUBS)
 # ════════════════════════════════════════════════════════════════
 # Suite Setup 에서 이미 Hello 1회 처리. 본 TC 는 ping-interval 응답 형식만 재확인.
 
@@ -52,7 +52,7 @@ TC-UPM-002 Hello - keyList 암호화 키 목록 확인
     UPM Key List Should Be Valid    ${UPM_KEY_LIST}
 
 # ════════════════════════════════════════════════════════════════
-# 0x03/0x04  Ping (UPM → PG)
+# 0x03/0x04  Ping (UPM → PG.BSUBS)
 # ════════════════════════════════════════════════════════════════
 
 TC-UPM-003 Ping - 정상 응답
@@ -67,10 +67,10 @@ TC-UPM-003 Ping - 정상 응답
     UPM Ping Should Succeed    ${body}
 
 # ════════════════════════════════════════════════════════════════
-# 0x09/0x0a  CellInfo-Noti (UPM → PG)  변경 가입자 Cell Info NOTI
+# 0x09/0x0a  CellInfo-Noti (UPM → PG.BSUBS)  변경 가입자 Cell Info NOTI
 # ════════════════════════════════════════════════════════════════
 
-TC-UPM-005 CellInfo-Noti - 단일 가입자 단일 Cell
+TC-UPM-101 CellInfo-Noti - 단일 가입자 단일 Cell
     [Documentation]
     ...    규격 6.4.1 / 6.4.2
     ...    msg-type=02 NOTI 송신 → 0x0a 응답 result-code=SC0000
@@ -84,7 +84,7 @@ TC-UPM-005 CellInfo-Noti - 단일 가입자 단일 Cell
     TXN ID Should Match    ${txn}    ${hdr}
     CellInfo Noti Should Succeed    ${body}
 
-TC-UPM-006 CellInfo-Noti - 단일 가입자 다중 Cell
+TC-UPM-102 CellInfo-Noti - 단일 가입자 다중 Cell
     [Documentation]
     ...    한 MDN 에 cell-list 2건 (NodeB:Cell + plmn-NodeB:Cell 혼합)
     [Tags]    upm    cellinfo-noti
@@ -95,7 +95,7 @@ TC-UPM-006 CellInfo-Noti - 단일 가입자 다중 Cell
     ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
     CellInfo Noti Should Succeed    ${body}
 
-TC-UPM-007 CellInfo-Noti - 다중 가입자 (2건)
+TC-UPM-103 CellInfo-Noti - 다중 가입자 (2건)
     [Documentation]    subsList 에 MDN 2건 (규격 6.4.1 예시 JSON)
     [Tags]    upm    cellinfo-noti
     ${c_a}=    Build Cell Item    9999:99    11111
@@ -106,7 +106,7 @@ TC-UPM-007 CellInfo-Noti - 다중 가입자 (2건)
     ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
     CellInfo Noti Should Succeed    ${body}
 
-TC-UPM-008 CellInfo-Noti - ta-code Optional 미포함
+TC-UPM-104 CellInfo-Noti - ta-code Optional 미포함
     [Documentation]    cell-list 항목에서 ta-code 생략 (Optional 필드)
     [Tags]    upm    cellinfo-noti    validation
     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}
@@ -120,7 +120,7 @@ TC-UPM-008 CellInfo-Noti - ta-code Optional 미포함
 # 0x0b/0x0c  Subs-Sync (UPM → PG)  전체 가입자 동기화 요청
 # ════════════════════════════════════════════════════════════════
 
-TC-UPM-009 Subs-Sync - 전체 동기화 요청 (code-type=05)
+TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
     [Documentation]
     ...    규격 6.6.1 / 6.6.2
     ...    UPM → PG 0x0b 송신 → 0x0c 수신, fileinfo 포함 가능, result-code=SC0000
@@ -132,7 +132,7 @@ TC-UPM-009 Subs-Sync - 전체 동기화 요청 (code-type=05)
     Subs Sync Should Succeed    ${body}
     UPM Code Type Should Be    ${body}    ${UPM_CT_SYNC_ALL}
 
-TC-UPM-010 Subs-Sync - TXN ID 순차 에코
+TC-UPM-202 Subs-Sync - TXN ID 순차 에코
     [Documentation]    Subs-Sync 2회 연속 → TXN ID 에코 검증
     [Tags]    upm    subs-sync    validation
     FOR    ${i}    IN RANGE    2
@@ -149,7 +149,7 @@ TC-UPM-010 Subs-Sync - TXN ID 순차 에코
 #    운영 환경 트리거 가능 시 주석 해제하여 사용.
 # ════════════════════════════════════════════════════════════════
 
-# TC-UPM-011 Subs-Info - 가입(code-type=01) 요청 수신 → 빈 cell-list 응답
+# TC-UPM-301 Subs-Info - 가입(code-type=01) 요청 수신 → 빈 cell-list 응답
 #     [Documentation]
 #     ...    규격 6.3.1 / 6.3.2
 #     ...    PG → UPM Subs-Info-Request(0x07) 수신 → 필드 검증
@@ -163,7 +163,7 @@ TC-UPM-010 Subs-Sync - TXN ID 순차 에코
 #     Dictionary Should Contain Key    ${body}    service-id
 #     Send Subs Info Response    ${hdr}[txn_id]    ${body}    result_code=${UPM_RC_SUCCESS}
 
-# TC-UPM-012 Subs-Info - 해지(code-type=03) 요청 수신
+# TC-UPM-302 Subs-Info - 해지(code-type=03) 요청 수신
 #     [Documentation]
 #     ...    규격 6.3.1 주석: code-type=03 인 경우 addr/device-type/product-type 미전송
 #     ...    응답에서도 subsList/cell-list 미전송
@@ -173,7 +173,7 @@ TC-UPM-010 Subs-Sync - TXN ID 순차 에코
 #     UPM MDN Should Be Valid    ${body}
 #     Send Subs Info Response    ${hdr}[txn_id]    ${body}
 
-# TC-UPM-013 Subs-Info - cell-list 채워서 응답
+# TC-UPM-3033 Subs-Info - cell-list 채워서 응답
 #     [Documentation]    실제 가입자 Cell 정보 1건 채워서 응답
 #     [Tags]    upm    subs-info
 #     ${hdr}    ${body}=    Receive Subs Info Request
