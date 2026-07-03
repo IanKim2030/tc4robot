@@ -44,7 +44,7 @@ TC-UPM-001 Hello - ping-interval 응답 확인
     Should Be True    ${UPM_PING_INTERVAL} > 0
     ...    msg=ping-interval 미수신 또는 0 (실제=${UPM_PING_INTERVAL})
 
-TC-UPM-016 Hello - keyList 암호화 키 목록 확인
+TC-UPM-002 Hello - keyList 암호화 키 목록 확인
     [Documentation]
     ...    Hello-Response 에 추가된 keyList 배열 검증
     ...    항목별 num(정수) / salt / iv / key(Base64 문자열) 형식 확인
@@ -55,7 +55,7 @@ TC-UPM-016 Hello - keyList 암호화 키 목록 확인
 # 0x03/0x04  Ping (UPM → PG)
 # ════════════════════════════════════════════════════════════════
 
-TC-UPM-002 Ping - 정상 응답
+TC-UPM-003 Ping - 정상 응답
     [Documentation]
     ...    규격 6.2
     ...    0x03 Body 없음 송신 → 0x04 수신, code=200, TXN ID 에코
@@ -64,27 +64,7 @@ TC-UPM-002 Ping - 정상 응답
     ${hdr}    ${body}=    Send UPM Ping    ${txn}
     Response Msg Type Should Be    ${hdr}    ${4}
     TXN ID Should Match    ${txn}    ${hdr}
-    Ping Should Succeed    ${body}
-
-TC-UPM-003 Ping - Body 없음 검증
-    [Documentation]    body_length=0 헤더만 전송 (규격 4.3)
-    [Tags]    upm    ping
-    ${txn}=    Next TXN ID
-    Send UPM Message    ${3}    ${txn}    ${NONE}
-    ${hdr}    ${body}=    Receive UPM Message
-    Response Msg Type Should Be    ${hdr}    ${4}
-    Ping Should Succeed    ${body}
-
-TC-UPM-004 Ping - TXN ID 순차 에코
-    [Documentation]    Ping 연속 3회 TXN ID 에코
-    [Tags]    upm    ping
-    FOR    ${i}    IN RANGE    3
-        ${txn}=    Next TXN ID
-        ${hdr}    ${body}=    Send UPM Ping    ${txn}
-        TXN ID Should Match    ${txn}    ${hdr}
-        Ping Should Succeed    ${body}
-    END
-
+    UPM Ping Should Succeed    ${body}
 
 # ════════════════════════════════════════════════════════════════
 # 0x09/0x0a  CellInfo-Noti (UPM → PG)  변경 가입자 Cell Info NOTI

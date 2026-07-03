@@ -171,6 +171,14 @@ Send UPM Ping
     ${hdr}    ${body}=    Send And Receive UPM    ${3}    ${txn_id}    ${NONE}
     RETURN    ${hdr}    ${body}
 
+UPM Ping Should Succeed
+    [Documentation]
+    ...    UPM Ping-Response(0x04) Body 는 {"sys-id":"PG01"} 형식 (code 없음)
+    ...    NAG/PCF 공용 Ping Should Succeed(code=200 검증) 와 다름 — UPM 전용으로 사용
+    [Arguments]    ${resp_body}
+    Dictionary Should Contain Key    ${resp_body}    sys-id
+    ...    msg=Ping-Response 에 sys-id 없음: ${resp_body}
+
 
 # ══════════════════════════════════════════════════════════════════
 # UPM Subs-Info (0x07/0x08)  PG → UPM 요청 → UPM → PG 응답
