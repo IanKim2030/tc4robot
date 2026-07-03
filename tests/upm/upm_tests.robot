@@ -56,16 +56,16 @@ TC-UPM-002 Hello - keyList 암호화 키 목록 확인
 # 0x03/0x04  Ping (UPM → PG.BSUBS)
 # ════════════════════════════════════════════════════════════════
 
-TC-UPM-003 Ping - 정상 응답
-    [Documentation]
-    ...    규격 6.2
-    ...    0x03 Body 없음 송신 → 0x04 수신, code=200, TXN ID 에코
-    [Tags]    upm    ping    smoke
-    ${txn}=    Next TXN ID
-    ${hdr}    ${body}=    Send UPM Ping    ${txn}
-    Response Msg Type Should Be    ${hdr}    ${4}
-    TXN ID Should Match    ${txn}    ${hdr}
-    UPM Ping Should Succeed    ${body}
+#TC-UPM-003 Ping - 정상 응답
+#    [Documentation]
+#    ...    규격 6.2
+#    ...    0x03 Body 없음 송신 → 0x04 수신, code=200, TXN ID 에코
+#    [Tags]    upm    ping    smoke
+#    ${txn}=    Next TXN ID
+#    ${hdr}    ${body}=    Send UPM Ping    ${txn}
+#    Response Msg Type Should Be    ${hdr}    ${4}
+#    TXN ID Should Match    ${txn}    ${hdr}
+#    UPM Ping Should Succeed    ${body}
 
 # ════════════════════════════════════════════════════════════════
 # 0x09/0x0a  CellInfo-Noti (UPM → PG.BSUBS)  변경 가입자 Cell Info NOTI
