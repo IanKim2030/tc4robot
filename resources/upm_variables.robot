@@ -14,8 +14,8 @@ Documentation
 ${UPM_PG_HOST}         192.168.15.141
 ${UPM_PG_PORT}         10506            # 규격서 10. 서비스 접속 정보
 ${UPM_TIMEOUT}         10
-${UPM_SYS_ID}          UPM01            # 5자리 이내 Peer Name
-${UPM_BRANCH_NAME}     BR               # SS=성수, DS=둔산, BR=보라매
+${UPM_SYS_ID}          UPMSIM           # 5자리 이내 Peer Name
+${UPM_BRANCH_NAME}     DS               # SS=성수, DS=둔산, BR=보라매
 ${UPM_HELLO_TIMEOUT}   5                # 규격서 3.1: 연결 후 5초 이내 Hello 송신
 
 # ════════════════════════════════════════════
