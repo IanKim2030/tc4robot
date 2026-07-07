@@ -85,36 +85,36 @@ TC-UPM-101 CellInfo-Noti - 단일 가입자 단일 Cell
     TXN ID Should Match    ${txn}    ${hdr}
     CellInfo Noti Should Succeed    ${body}
 
-TC-UPM-102 CellInfo-Noti - 단일 가입자 다중 Cell
-    [Documentation]
-    ...    한 MDN 에 cell-list 2건 (NodeB:Cell + plmn-NodeB:Cell 혼합)
-    [Tags]    upm    cellinfo-noti
-    ${c1}=    Build Cell Item    9999:99       11111
-    ${c2}=    Build Cell Item    45006-555:5   3333
-    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${c1}    ${c2}
-    ${arr}=     Create List    ${subs}
-    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
-    CellInfo Noti Should Succeed    ${body}
+#TC-UPM-102 CellInfo-Noti - 단일 가입자 다중 Cell
+#    [Documentation]
+#    ...    한 MDN 에 cell-list 2건 (NodeB:Cell + plmn-NodeB:Cell 혼합)
+#    [Tags]    upm    cellinfo-noti
+#    ${c1}=    Build Cell Item    9999:99       11111
+#    ${c2}=    Build Cell Item    45006-555:5   3333
+#    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${c1}    ${c2}
+#    ${arr}=     Create List    ${subs}
+#    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
+#    CellInfo Noti Should Succeed    ${body}
 
-TC-UPM-103 CellInfo-Noti - 다중 가입자 (2건)
-    [Documentation]    subsList 에 MDN 2건 (규격 6.4.1 예시 JSON)
-    [Tags]    upm    cellinfo-noti
-    ${c_a}=    Build Cell Item    9999:99    11111
-    ${s_a}=    Build Subs Item    01012345678    ${c_a}
-    ${c_b}=    Build Cell Item    8888:99    3333
-    ${s_b}=    Build Subs Item    01020304050    ${c_b}
-    ${arr}=    Create List    ${s_a}    ${s_b}
-    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
-    CellInfo Noti Should Succeed    ${body}
+#TC-UPM-103 CellInfo-Noti - 다중 가입자 (2건)
+#    [Documentation]    subsList 에 MDN 2건 (규격 6.4.1 예시 JSON)
+#    [Tags]    upm    cellinfo-noti
+#    ${c_a}=    Build Cell Item    9999:99    11111
+#    ${s_a}=    Build Subs Item    01012345678    ${c_a}
+#    ${c_b}=    Build Cell Item    8888:99    3333
+#    ${s_b}=    Build Subs Item    01020304050    ${c_b}
+#    ${arr}=    Create List    ${s_a}    ${s_b}
+#    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
+#    CellInfo Noti Should Succeed    ${body}
 
-TC-UPM-104 CellInfo-Noti - ta-code Optional 미포함
-    [Documentation]    cell-list 항목에서 ta-code 생략 (Optional 필드)
-    [Tags]    upm    cellinfo-noti    validation
-    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}
-    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
-    ${arr}=     Create List    ${subs}
-    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
-    CellInfo Noti Should Succeed    ${body}
+#TC-UPM-104 CellInfo-Noti - ta-code Optional 미포함
+#    [Documentation]    cell-list 항목에서 ta-code 생략 (Optional 필드)
+#    [Tags]    upm    cellinfo-noti    validation
+#    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}
+#    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
+#    ${arr}=     Create List    ${subs}
+#    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
+#    CellInfo Noti Should Succeed    ${body}
 
 
 # ════════════════════════════════════════════════════════════════

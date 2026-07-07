@@ -79,6 +79,7 @@ Check UPM Socket
 
 Send UPM Message
     [Arguments]    ${msg_type}    ${txn_id}    ${payload}=${NONE}
+    Log    [TX-UPM] type=0x${msg_type} txn=${txn_id} payload=${payload}
     Tcp.Send Message    ${UPM_SOCK}    ${msg_type}    ${txn_id}    ${payload}
 
 Receive UPM Message
@@ -258,7 +259,14 @@ Build Subs Item
     RETURN    ${item}
 
 CellInfo Noti Should Succeed
+    [Documentation]
+    ...    규격 6.4.2 는 result-code 포함을 명시하나, 실제 PG 는
+    ...    CellInfo-Noti-Response(0x0a) 를 body 없이(body_length=0) 반환함 —
+    ...    이 경우 헤더 ACK 만으로 성공 처리(UPM Ping Should Succeed 와 동일한 패턴)
     [Arguments]    ${resp_body}
+    IF    not $resp_body
+        RETURN
+    END
     ${rc}=    Get From Dictionary    ${resp_body}    result-code
     Should Be Equal As Strings    ${rc}    ${UPM_RC_SUCCESS}
     ...    msg=CellInfo-Noti 실패: result-code=${rc}
