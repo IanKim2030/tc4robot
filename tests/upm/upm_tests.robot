@@ -28,7 +28,7 @@ Resource    ../../resources/upm_keywords.robot
 Suite Setup      Suite UPM Connect
 Suite Teardown   Suite UPM Disconnect
 Test Setup       Check UPM Socket
-Test Teardown    Sleep    1s
+#Test Teardown    Sleep    1s
 
 *** Test Cases ***
 

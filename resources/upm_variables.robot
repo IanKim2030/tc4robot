@@ -61,8 +61,8 @@ ${UPM_HELLO_CODE_FAILOVER}  ${9999} # UPM 미접속 / 종료 시 PG 가 반환
 # UPM 테스트 데이터 (HFC 가입자)
 # TODO: 실환경 PG/PDB 와 매칭되는 값으로 교체
 # ════════════════════════════════════════════
-${UPM_TEST_MDN}            01012345678
-${UPM_TEST_MDN_NEW}        01087654321        # 번호 변경 후 신규 MDN
+${UPM_TEST_MDN}            01053543393
+${UPM_TEST_MDN_NEW}        01053543333        # 번호 변경 후 신규 MDN
 ${UPM_TEST_SERVICE_ID}     ZN100001
 ${UPM_TEST_DEVICE_TYPE}    S                  # W=3G, L=LTE, N=NSA, S=SA
 ${UPM_TEST_PRODUCT_TYPE}   03                 # 01=3G, 02=LTE, 03=5G
