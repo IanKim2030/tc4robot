@@ -230,13 +230,17 @@ Send CellInfo Noti
     ...    UPM → PG CellInfo-Noti-Request(0x09) 송신 + 응답(0x0a) 수신
     ...    subs_list 예: [{mdn, cell-list:[{cell-info, ta-code}]}]
     ...    제약: subs_list 최대 100 개 (규격서 6.4.1)
-    [Arguments]    ${subs_list}    ${txn_id}=${NONE}    ${sys_id}=${UPM_SYS_ID}    ${branch}=${UPM_BRANCH_NAME}
+    ...    code-type: 01=HFC가입 02=Cell List변경 03=HFC해지 04=번호변경 05=전체동기화 06=상품/Device변경
+    [Arguments]
+    ...    ${subs_list}    ${txn_id}=${NONE}
+    ...    ${code_type}=${UPM_CT_CELL_CHANGE}
+    ...    ${sys_id}=${UPM_SYS_ID}    ${branch}=${UPM_BRANCH_NAME}
     ${txn_id}=    Run Keyword If    $txn_id is None    Next TXN ID
     ...           ELSE    Set Variable    ${txn_id}
     ${tid}=    Next UPM TID    ${sys_id}
     ${ts17}=   Get Event Timestamp
     ${payload}=    Create Dictionary
-    ...    msg-type=${UPM_MT_NOTI}
+    ...    code-type=${code_type}
     ...    sys-id=${sys_id}                branch-name=${branch}
     ...    tid=${tid}                      event-timestamp=${ts17}
     ...    subsList=${subs_list}

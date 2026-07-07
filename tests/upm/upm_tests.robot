@@ -40,7 +40,7 @@ Test Teardown    Sleep    1s
 TC-UPM-001 Hello - ping-interval 응답 확인
     [Documentation]
     ...    규격 6.1
-    ...    Suite Setup 에서 수신한 Hello-Response 의 ping-interval 이 양수인지 검증
+    ...    Hello-Response 의 ping-interval 이 양수인지 검증
     [Tags]    upm    hello    smoke
     Should Be True    ${UPM_PING_INTERVAL} > 0
     ...    msg=ping-interval 미수신 또는 0 (실제=${UPM_PING_INTERVAL})
@@ -59,7 +59,7 @@ TC-UPM-002 Hello - keyList 암호화 키 목록 확인
 TC-UPM-003 Ping - 정상 응답
     [Documentation]
     ...    규격 6.2
-    ...    0x03 Body="\r\n" 송신 → 0x04 수신, TXN ID 에코
+    ...    0x03 송신 → 0x04 수신, TXN ID 에코
     [Tags]    upm    ping    smoke
     ${txn}=    Next TXN ID
     ${hdr}    ${body}=    Send UPM Ping    ${txn}
@@ -74,7 +74,7 @@ TC-UPM-003 Ping - 정상 응답
 TC-UPM-101 CellInfo-Noti - 단일 가입자 단일 Cell
     [Documentation]
     ...    규격 6.4.1 / 6.4.2
-    ...    msg-type=02 NOTI 송신 → 0x0a 응답 result-code=SC0000
+    ...    code-type=02(Cell List 변경) NOTI 송신 → 0x0a 응답 result-code=SC0000
     [Tags]    upm    cellinfo-noti    smoke
     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
     ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
@@ -85,7 +85,79 @@ TC-UPM-101 CellInfo-Noti - 단일 가입자 단일 Cell
     TXN ID Should Match    ${txn}    ${hdr}
     CellInfo Noti Should Succeed    ${body}
 
-#TC-UPM-102 CellInfo-Noti - 단일 가입자 다중 Cell
+TC-UPM-102 CellInfo-Noti - code-type=01 HFC 서비스 가입
+    [Documentation]    규격 6.4.1 code-type 목록: 01=HFC 서비스 가입
+    [Tags]    upm    cellinfo-noti
+    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
+    ${arr}=     Create List    ${subs}
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}    ${txn}    ${UPM_CT_SUBSCRIBE}
+    Response Msg Type Should Be    ${hdr}    ${10}
+    TXN ID Should Match    ${txn}    ${hdr}
+    CellInfo Noti Should Succeed    ${body}
+
+TC-UPM-103 CellInfo-Noti - code-type=02 Cell List 변경
+    [Documentation]    규격 6.4.1 code-type 목록: 02=Cell List 변경
+    [Tags]    upm    cellinfo-noti
+    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
+    ${arr}=     Create List    ${subs}
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}    ${txn}    ${UPM_CT_CELL_CHANGE}
+    Response Msg Type Should Be    ${hdr}    ${10}
+    TXN ID Should Match    ${txn}    ${hdr}
+    CellInfo Noti Should Succeed    ${body}
+
+TC-UPM-104 CellInfo-Noti - code-type=03 HFC 서비스 해지
+    [Documentation]    규격 6.4.1 code-type 목록: 03=HFC 서비스 해지
+    [Tags]    upm    cellinfo-noti
+    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
+    ${arr}=     Create List    ${subs}
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}    ${txn}    ${UPM_CT_TERMINATE}
+    Response Msg Type Should Be    ${hdr}    ${10}
+    TXN ID Should Match    ${txn}    ${hdr}
+    CellInfo Noti Should Succeed    ${body}
+
+TC-UPM-105 CellInfo-Noti - code-type=04 가입자 번호 변경
+    [Documentation]    규격 6.4.1 code-type 목록: 04=가입자 번호 변경
+    [Tags]    upm    cellinfo-noti
+    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
+    ${arr}=     Create List    ${subs}
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}    ${txn}    ${UPM_CT_MDN_CHANGE}
+    Response Msg Type Should Be    ${hdr}    ${10}
+    TXN ID Should Match    ${txn}    ${hdr}
+    CellInfo Noti Should Succeed    ${body}
+
+TC-UPM-106 CellInfo-Noti - code-type=05 전체 가입자 정보 요청
+    [Documentation]    규격 6.4.1 code-type 목록: 05=전체 가입자 정보 요청
+    [Tags]    upm    cellinfo-noti
+    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
+    ${arr}=     Create List    ${subs}
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}    ${txn}    ${UPM_CT_SYNC_ALL}
+    Response Msg Type Should Be    ${hdr}    ${10}
+    TXN ID Should Match    ${txn}    ${hdr}
+    CellInfo Noti Should Succeed    ${body}
+
+TC-UPM-107 CellInfo-Noti - code-type=06 가입자 상품/Device 변경
+    [Documentation]    규격 6.4.1 code-type 목록: 06=가입자 상품/Device 변경
+    [Tags]    upm    cellinfo-noti
+    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
+    ${arr}=     Create List    ${subs}
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}    ${txn}    ${UPM_CT_INFO_CHANGE}
+    Response Msg Type Should Be    ${hdr}    ${10}
+    TXN ID Should Match    ${txn}    ${hdr}
+    CellInfo Noti Should Succeed    ${body}
+
+#TC-UPM-151 CellInfo-Noti - 단일 가입자 다중 Cell
 #    [Documentation]
 #    ...    한 MDN 에 cell-list 2건 (NodeB:Cell + plmn-NodeB:Cell 혼합)
 #    [Tags]    upm    cellinfo-noti
@@ -96,7 +168,7 @@ TC-UPM-101 CellInfo-Noti - 단일 가입자 단일 Cell
 #    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
 #    CellInfo Noti Should Succeed    ${body}
 
-#TC-UPM-103 CellInfo-Noti - 다중 가입자 (2건)
+#TC-UPM-152 CellInfo-Noti - 다중 가입자 (2건)
 #    [Documentation]    subsList 에 MDN 2건 (규격 6.4.1 예시 JSON)
 #    [Tags]    upm    cellinfo-noti
 #    ${c_a}=    Build Cell Item    9999:99    11111
@@ -107,7 +179,7 @@ TC-UPM-101 CellInfo-Noti - 단일 가입자 단일 Cell
 #    ${hdr}    ${body}=    Send CellInfo Noti    ${arr}
 #    CellInfo Noti Should Succeed    ${body}
 
-#TC-UPM-104 CellInfo-Noti - ta-code Optional 미포함
+#TC-UPM-153 CellInfo-Noti - ta-code Optional 미포함
 #    [Documentation]    cell-list 항목에서 ta-code 생략 (Optional 필드)
 #    [Tags]    upm    cellinfo-noti    validation
 #    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}
