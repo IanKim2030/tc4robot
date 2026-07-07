@@ -59,7 +59,7 @@ TC-UPM-002 Hello - keyList 암호화 키 목록 확인
 TC-UPM-003 Ping - 정상 응답
     [Documentation]
     ...    규격 6.2
-    ...    0x03 Body 없음 송신 → 0x04 수신, code=200, TXN ID 에코
+    ...    0x03 Body="\r\n" 송신 → 0x04 수신, TXN ID 에코
     [Tags]    upm    ping    smoke
     ${txn}=    Next TXN ID
     ${hdr}    ${body}=    Send UPM Ping    ${txn}

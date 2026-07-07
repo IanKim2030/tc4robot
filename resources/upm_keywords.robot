@@ -166,10 +166,11 @@ UPM Key List Should Be Valid
 # ══════════════════════════════════════════════════════════════════
 
 Send UPM Ping
+    [Documentation]    Body 에 "\r\n" 전송 (Keep-Alive 용 개행)
     [Arguments]    ${txn_id}=${NONE}
     ${txn_id}=    Run Keyword If    $txn_id is None    Next TXN ID
     ...           ELSE    Set Variable    ${txn_id}
-    ${hdr}    ${body}=    Send And Receive UPM    ${3}    ${txn_id}    ${NONE}
+    ${hdr}    ${body}=    Send And Receive UPM    ${3}    ${txn_id}    \r\n
     RETURN    ${hdr}    ${body}
 
 UPM Ping Should Succeed

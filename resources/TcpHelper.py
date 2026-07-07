@@ -181,13 +181,19 @@ def parse_header(header_bytes: bytes) -> dict:
 
 def send_message(sock, msg_type: int, txn_id: int, payload=None) -> None:
     """
-    NAG/PCF용: 헤더(Byte0=0x00) + JSON Body 전송
-    payload=None → Body 없음 (Ping-Request 등)
+    NAG/PCF/UPM용: 헤더(Byte0=0x00) + Body 전송
+    payload=None       → Body 없음
+    payload=str/bytes  → 그대로 raw Body 전송 (예: Ping Keep-Alive용 "\\r\\n")
+    payload=dict/list  → JSON 인코딩하여 전송
     """
     if not is_connected(sock):
         raise ConnectionClosed("소켓이 이미 닫혀 있습니다")
     if payload is None:
         body_bytes = b''
+    elif isinstance(payload, (bytes, bytearray)):
+        body_bytes = bytes(payload)
+    elif isinstance(payload, str):
+        body_bytes = payload.encode('utf-8')
     else:
         body_str   = json.dumps(payload, ensure_ascii=False, separators=(',', ':'))
         body_bytes = body_str.encode('utf-8')
