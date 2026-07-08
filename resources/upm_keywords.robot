@@ -202,13 +202,12 @@ Send Subs Info Response
     ...    ${cell_list}=${NONE}
     ...    ${result_code}=${UPM_RC_SUCCESS}
     ...    ${sys_id}=${UPM_SYS_ID}
-    ${msg_type_v}=    Get From Dictionary    ${req_body}    msg-type
     ${code_type}=     Get From Dictionary    ${req_body}    code-type
     ${branch}=        Get From Dictionary    ${req_body}    branch-name
     ${tid}=           Get From Dictionary    ${req_body}    tid
     ${mdn}=           Get From Dictionary    ${req_body}    mdn
     ${payload}=    Create Dictionary
-    ...    msg-type=${msg_type_v}        code-type=${code_type}
+    ...    code-type=${code_type}
     ...    sys-id=${sys_id}              branch-name=${branch}
     ...    tid=${tid}                    result-code=${result_code}
     IF    '${code_type}' != '03'
