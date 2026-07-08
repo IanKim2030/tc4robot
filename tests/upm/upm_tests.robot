@@ -103,15 +103,13 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
 
 # ════════════════════════════════════════════════════════════════
 # 0x07/0x08  Subs-Info (PG.BSUBS → UPM)  HFC 가입자 Cell Info 요청
-# ※ PG 측에서 실제 CDS 이벤트가 발생해야 0x07 이 수신됨.
-#    운영 환경 트리거 가능 시 주석 해제하여 사용.
 # ════════════════════════════════════════════════════════════════
 
-# TC-UPM-301 Subs-Info - 가입(code-type=01) 요청 수신 → 빈 cell-list 응답
+# TC-UPM-301 Subs-Info - 가입(code-type=01)
 #     [Documentation]
-#     ...    규격 6.3.1 / 6.3.2
-#     ...    PG → UPM Subs-Info-Request(0x07) 수신 → 필드 검증
-#     ...    → UPM → PG Subs-Info-Response(0x08) result-code=SC0000 송신
+#     ...    CDS.1X
+#     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
+#     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
 #     [Tags]    upm    subs-info    smoke
 #     ${hdr}    ${body}=    Receive Subs Info Request
 #     UPM MDN Should Be Valid              ${body}
@@ -121,22 +119,15 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
 #     Dictionary Should Contain Key    ${body}    service-id
 #     Send Subs Info Response    ${hdr}[txn_id]    ${body}    result_code=${UPM_RC_SUCCESS}
 
- TC-UPM-302 Subs-Info - 해지(code-type=03) 요청 수신
-     [Documentation]
-     ...    규격 6.3.1 주석: code-type=03 인 경우 addr/device-type/product-type 미전송
-     ...    응답에는 cell-list 채운 subsList 포함
-     [Tags]    upm    subs-info    validation
-     ${hdr}    ${body}=    Receive Subs Info Request
-     UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
-     UPM MDN Should Be Valid    ${body}
-     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
-     ${cells}=   Create List    ${cell}
-     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}
-
-# TC-UPM-3033 Subs-Info - cell-list 채워서 응답
-#     [Documentation]    실제 가입자 Cell 정보 1건 채워서 응답
-#     [Tags]    upm    subs-info
+# TC-UPM-302 Subs-Info - 해지(code-type=03)
+#     [Documentation]
+#     ...    CDS.1Y
+#     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
+#     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
+#     [Tags]    upm    subs-info    validation
 #     ${hdr}    ${body}=    Receive Subs Info Request
+#     UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
+#     UPM MDN Should Be Valid    ${body}
 #     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
 #     ${cells}=   Create List    ${cell}
 #     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}
@@ -147,16 +138,17 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
 # ※ PG 측 실제 번호 변경 이벤트 발생 필요 → 주석 처리
 # ════════════════════════════════════════════════════════════════
 
-# TC-UPM-014 Subs-Change - 번호 변경(code-type=04) 수신 → 정상 응답
-#     [Documentation]
-#     ...    규격 6.5.1 / 6.5.2
-#     ...    PG → UPM 0x05 (mdn, new-mdn) 수신 → 0x06 result-code=SC0000 송신
-#     [Tags]    upm    subs-change    smoke
-#     ${hdr}    ${body}=    Receive Subs Change Request
-#     UPM Code Type Should Be    ${body}    ${UPM_CT_MDN_CHANGE}
-#     UPM MDN Should Be Valid    ${body}
-#     Dictionary Should Contain Key    ${body}    new-mdn
-#     Send Subs Change Response    ${hdr}[txn_id]    ${body}
+ TC-UPM-401 Subs-Change - 번호 변경(code-type=04)
+     [Documentation]
+     ...    CDS.D3
+     ...    0x05 PG.BSUBS → UPM 0x05 (mdn, new-mdn) 
+     ...    → 0x06 result-code=SC0000 송신
+     [Tags]    upm    subs-change    smoke
+     ${hdr}    ${body}=    Receive Subs Change Request
+     UPM Code Type Should Be    ${body}    ${UPM_CT_MDN_CHANGE}
+     UPM MDN Should Be Valid    ${body}
+     Dictionary Should Contain Key    ${body}    new-mdn
+     Send Subs Change Response    ${hdr}[txn_id]    ${body}
 
 
 # ════════════════════════════════════════════════════════════════
