@@ -91,25 +91,25 @@ TC-CDS-006 Download(G1 정변) - Request → ACK → Result → ACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_G1}
 
-TC-CDS-007 Download(Z1 직해) - Request → ACK → Result → ACK
-    [Documentation]    0015(Z1 직권해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_FORCED_TERMINATE}
-
-TC-CDS-008 Download(1X HFC가입) - Request → ACK → Result → ACK
+TC-CDS-007 Download(1X HFC가입) - Request → ACK → Result → ACK
     [Documentation]    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_TEST_ADDR}
 
-TC-CDS-009 Download(I2 부가서비스신청) - Request → ACK → Result → ACK
+TC-CDS-008 Download(I2 부가서비스신청) - Request → ACK → Result → ACK
     [Documentation]    0015(I2 부가서비스신청) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_VAS_APPLY}
 
-TC-CDS-010 Download(I3 부가서비스해지) - Request → ACK → Result → ACK
+TC-CDS-009 Download(I3 부가서비스해지) - Request → ACK → Result → ACK
     [Documentation]    0015(I3 부가서비스해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_VAS_CANCEL}
+
+TC-CDS-010 Download(Z1 직해) - Request → ACK → Result → ACK
+    [Documentation]    0015(Z1 직권해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_FORCED_TERMINATE}
 
 
 # ════════════════════════════════════════════════════════════════

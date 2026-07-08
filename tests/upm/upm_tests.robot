@@ -101,26 +101,25 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
     UPM Code Type Should Be    ${body}    ${UPM_CT_SYNC_ALL}
 
 
-
 # ════════════════════════════════════════════════════════════════
 # 0x07/0x08  Subs-Info (PG.BSUBS → UPM)  HFC 가입자 Cell Info 요청
 # ※ PG 측에서 실제 CDS 이벤트가 발생해야 0x07 이 수신됨.
 #    운영 환경 트리거 가능 시 주석 해제하여 사용.
 # ════════════════════════════════════════════════════════════════
 
-# TC-UPM-301 Subs-Info - 가입(code-type=01) 요청 수신 → 빈 cell-list 응답
-#     [Documentation]
-#     ...    규격 6.3.1 / 6.3.2
-#     ...    PG → UPM Subs-Info-Request(0x07) 수신 → 필드 검증
-#     ...    → UPM → PG Subs-Info-Response(0x08) result-code=SC0000 송신
-#     [Tags]    upm    subs-info    smoke
-#     ${hdr}    ${body}=    Receive Subs Info Request
-#     UPM MDN Should Be Valid              ${body}
-#     UPM Branch Name Should Be Valid      ${body}
-#     UPM Event Timestamp Should Be Valid  ${body}
-#     Dictionary Should Contain Key    ${body}    tid
-#     Dictionary Should Contain Key    ${body}    service-id
-#     Send Subs Info Response    ${hdr}[txn_id]    ${body}    result_code=${UPM_RC_SUCCESS}
+ TC-UPM-301 Subs-Info - 가입(code-type=01) 요청 수신 → 빈 cell-list 응답
+     [Documentation]
+     ...    규격 6.3.1 / 6.3.2
+     ...    PG → UPM Subs-Info-Request(0x07) 수신 → 필드 검증
+     ...    → UPM → PG Subs-Info-Response(0x08) result-code=SC0000 송신
+     [Tags]    upm    subs-info    smoke
+     ${hdr}    ${body}=    Receive Subs Info Request
+     UPM MDN Should Be Valid              ${body}
+     UPM Branch Name Should Be Valid      ${body}
+     UPM Event Timestamp Should Be Valid  ${body}
+     Dictionary Should Contain Key    ${body}    tid
+     Dictionary Should Contain Key    ${body}    service-id
+     Send Subs Info Response    ${hdr}[txn_id]    ${body}    result_code=${UPM_RC_SUCCESS}
 
 # TC-UPM-302 Subs-Info - 해지(code-type=03) 요청 수신
 #     [Documentation]
