@@ -124,12 +124,14 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
  TC-UPM-302 Subs-Info - 해지(code-type=03) 요청 수신
      [Documentation]
      ...    규격 6.3.1 주석: code-type=03 인 경우 addr/device-type/product-type 미전송
-     ...    응답에서도 subsList/cell-list 미전송
+     ...    응답에는 cell-list 채운 subsList 포함
      [Tags]    upm    subs-info    validation
      ${hdr}    ${body}=    Receive Subs Info Request
      UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
      UPM MDN Should Be Valid    ${body}
-     Send Subs Info Response    ${hdr}[txn_id]    ${body}
+     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+     ${cells}=   Create List    ${cell}
+     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}
 
 # TC-UPM-3033 Subs-Info - cell-list 채워서 응답
 #     [Documentation]    실제 가입자 Cell 정보 1건 채워서 응답

@@ -196,7 +196,7 @@ Receive Subs Info Request
 Send Subs Info Response
     [Documentation]
     ...    UPM → PG Subs-Info-Response(0x08)
-    ...    code-type=03(해지) 인 경우 subsList 미포함
+    ...    code-type 관계없이 subsList 포함 (code-type=03 해지 도 동일)
     [Arguments]
     ...    ${txn_id}    ${req_body}
     ...    ${cell_list}=${NONE}
@@ -210,13 +210,11 @@ Send Subs Info Response
     ...    code-type=${code_type}
     ...    sys-id=${sys_id}              branch-name=${branch}
     ...    tid=${tid}                    result-code=${result_code}
-    IF    '${code_type}' != '03'
-        ${cl}=    Run Keyword If    $cell_list is None    Create List
-        ...       ELSE    Set Variable    ${cell_list}
-        ${subs}=    Create Dictionary    mdn=${mdn}    cell-list=${cl}
-        ${arr}=     Create List    ${subs}
-        Set To Dictionary    ${payload}    subsList=${arr}
-    END
+    ${cl}=    Run Keyword If    $cell_list is None    Create List
+    ...       ELSE    Set Variable    ${cell_list}
+    ${subs}=    Create Dictionary    mdn=${mdn}    cell-list=${cl}
+    ${arr}=     Create List    ${subs}
+    Set To Dictionary    ${payload}    subsList=${arr}
     Send UPM Message    ${8}    ${txn_id}    ${payload}
 
 
