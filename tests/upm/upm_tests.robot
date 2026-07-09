@@ -160,16 +160,14 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
 # ════════════════════════════════════════════════════════════════
 # 0x0d/0x0e  Subs-Info (PG.BSUBS → UPM)  HFC 서비스 해지
 # ════════════════════════════════════════════════════════════════
- TC-UPM-399 Subs-Info - HFC 서비스 해지(code-type=03)
-     [Documentation]
-     ...    CDS.1Y (HFC 서비스 해지)
-     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
-     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
-     [Tags]    upm    subs-info    validation
-     ${hdr}    ${body}=    Receive Subs Info Request
-     UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
-     UPM MDN Should Be Valid    ${body}
-     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
-     ${cells}=   Create List    ${cell}
-     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}
-
+# TC-UPM-399 Subs-Info - HFC 서비스 해지(code-type=03)  ->
+#     [Documentation]
+#     ...    CDS.1Y (HFC 서비스 해지)
+#     ...    UPM 요청/응답 없음. PG.BSUBS에서만 MSG_SUBS_DELETE_REQUEST 처리함.
+#     [Tags]    upm    subs-info    validation
+#     ${hdr}    ${body}=    Receive Subs Info Request
+#     UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
+#     UPM MDN Should Be Valid    ${body}
+#     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+#     ${cells}=   Create List    ${cell}
+#     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}

@@ -112,7 +112,8 @@ ${CDS_CODE_SWITCH_INFO_SEARCH}  Y5    # 교환기등록정보 검색
 ${CDS_CODE_G1}                 G1     # G1 (TODO: 규격 확인)
 ${CDS_CODE_FORCED_TERMINATE}   Z1     # 직권해지
 ${CDS_CODE_TERMINATE}          Z2     # 가입해지
-${CDS_CODE_1X}                 1X     # 1X (TODO: 규격 확인)
+${CDS_CODE_1X}                 1X     # HFC 서비스 가입
+${CDS_CODE_1Y}                 1Y     # HFC 서비스 해지
 
 # ════════════════════════════════════════════
 # 테스트 데이터

@@ -72,21 +72,20 @@ TC-CDS-002 상태확인 - ProcessStateReuqest(0013) S/R채널 각각 → ACK(001
 TC-CDS-003 Download(A1 신규) - Request → ACK → Result → ACK
     [Documentation]
     ...    0015(A1 신규) 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
-    ...    ※ 실 PG.CDS 가 명령어를 처리·결과 보고해야 동작
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_NEW}
 
-TC-CDS-004 Download(C1 기변) - Request → ACK → Result → ACK
+TC-CDS-004 Download(C1 기기변경) - Request → ACK → Result → ACK
     [Documentation]    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_DEVICE_CHG}    new_mdn=${CDS_TEST_NEW_MDN}    new_min=${CDS_TEST_NEW_MIN}
 
-TC-CDS-005 Download(D3 번변) - Request → ACK → Result → ACK
+TC-CDS-005 Download(D3 번호변경) - Request → ACK → Result → ACK
     [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_CALLNO_APPLY}
 
-TC-CDS-006 Download(G1 정변) - Request → ACK → Result → ACK
+TC-CDS-006 Download(G1 정보변경) - Request → ACK → Result → ACK
     [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_G1}
@@ -106,11 +105,15 @@ TC-CDS-009 Download(I3 부가서비스해지) - Request → ACK → Result → A
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_VAS_CANCEL}
 
-TC-CDS-010 Download(Z1 직해) - Request → ACK → Result → ACK
-    [Documentation]    0015(Z1 직권해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+TC-CDS-010 Download(1Y HFC해지) - Request → ACK → Result → ACK
+    [Documentation]    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_1Y}
+
+TC-CDS-011 Download(Z1 해지) - Request → ACK → Result → ACK
+    [Documentation]    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_FORCED_TERMINATE}
-
 
 # ════════════════════════════════════════════════════════════════
 # 가입자 데이터 SubsData (0029~0032)
