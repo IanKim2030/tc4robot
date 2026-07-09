@@ -107,7 +107,7 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
 
  TC-UPM-301 Subs-Info - HFC 서비스 가입(code-type=01)
      [Documentation]
-     ...    CDS.1X
+     ...    CDS.1X (HFC 서비스 가입)
      ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
      ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
      [Tags]    upm    subs-info    smoke
@@ -123,13 +123,29 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
 
 
 # ════════════════════════════════════════════════════════════════
+# 0x0d/0x0e  Info-Change (PG.BSUBS → UPM)  상품/Device 변경 NOTI
+# ════════════════════════════════════════════════════════════════
+
+ TC-UPM-311 Info-Change - 상품/Device 변경(code-type=06) 수신 → 정상 응답
+     [Documentation]
+     ...    CDS.C1(기변) CDS.G1(정보변경)
+     ...    PG.BSUBS → UPM 0x0d (mdn, device-type, product-type) 수신
+     ...    → 0x0e result-code=SC0000 송신
+     [Tags]    upm    info-change    smoke
+     ${hdr}    ${body}=    Receive Info Change Request
+     UPM Code Type Should Be    ${body}    ${UPM_CT_INFO_CHANGE}
+     UPM MDN Should Be Valid    ${body}
+     Send Info Change Response    ${hdr}[txn_id]    ${body}
+
+
+# ════════════════════════════════════════════════════════════════
 # 0x05/0x06  Subs-Change (PG.BSUBS → UPM)  가입자 번호 변경 NOTI
 # ※ PG 측 실제 번호 변경 이벤트 발생 필요 → 주석 처리
 # ════════════════════════════════════════════════════════════════
 
- TC-UPM-311 Subs-Change - 번호 변경(code-type=04)
+ TC-UPM-321 Subs-Change - 번호 변경(code-type=04)
      [Documentation]
-     ...    CDS.D3
+     ...    CDS.D3 (번호변경)
      ...    0x05 PG.BSUBS → UPM 0x05 (mdn, new-mdn) 
      ...    → 0x06 result-code=SC0000 송신
      [Tags]    upm    subs-change    smoke
@@ -140,27 +156,13 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
      Send Subs Change Response    ${hdr}[txn_id]    ${body}
 
 
+
 # ════════════════════════════════════════════════════════════════
-# 0x0d/0x0e  Info-Change (PG.BSUBS → UPM)  상품/Device 변경 NOTI
-# ※ PG 측 실제 상품/Device 변경 이벤트 발생 필요 → 주석 처리
+# 0x0d/0x0e  Subs-Info (PG.BSUBS → UPM)  HFC 서비스 해지
 # ════════════════════════════════════════════════════════════════
-
- TC-UPM-321 Info-Change - 상품/Device 변경(code-type=06) 수신 → 정상 응답
-     [Documentation]
-     ...    CDS.C1 CDS.G1
-     ...    PG → UPM 0x0d (mdn, device-type, product-type) 수신
-     ...    → 0x0e result-code=SC0000 송신
-     [Tags]    upm    info-change    smoke
-     ${hdr}    ${body}=    Receive Info Change Request
-     UPM Code Type Should Be    ${body}    ${UPM_CT_INFO_CHANGE}
-     UPM MDN Should Be Valid    ${body}
-     Send Info Change Response    ${hdr}[txn_id]    ${body}
-
-
-
  TC-UPM-399 Subs-Info - HFC 서비스 해지(code-type=03)
      [Documentation]
-     ...    CDS.1Y
+     ...    CDS.1Y (HFC 서비스 해지)
      ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
      ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
      [Tags]    upm    subs-info    validation
