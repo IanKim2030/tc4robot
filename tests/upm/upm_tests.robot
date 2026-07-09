@@ -105,32 +105,32 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
 # 0x07/0x08  Subs-Info (PG.BSUBS → UPM)  HFC 가입자 Cell Info 요청
 # ════════════════════════════════════════════════════════════════
 
-# TC-UPM-301 Subs-Info - 가입(code-type=01)
-#     [Documentation]
-#     ...    CDS.1X
-#     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
-#     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
-#     [Tags]    upm    subs-info    smoke
-#     ${hdr}    ${body}=    Receive Subs Info Request
-#     UPM MDN Should Be Valid              ${body}
-#     UPM Branch Name Should Be Valid      ${body}
-#     UPM Event Timestamp Should Be Valid  ${body}
-#     Dictionary Should Contain Key    ${body}    tid
-#     Dictionary Should Contain Key    ${body}    service-id
-#     Send Subs Info Response    ${hdr}[txn_id]    ${body}    result_code=${UPM_RC_SUCCESS}
+ TC-UPM-301 Subs-Info - HFC 서비스 가입(code-type=01)
+     [Documentation]
+     ...    CDS.1X
+     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
+     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
+     [Tags]    upm    subs-info    smoke
+     ${hdr}    ${body}=    Receive Subs Info Request
+     UPM MDN Should Be Valid              ${body}
+     UPM Branch Name Should Be Valid      ${body}
+     UPM Event Timestamp Should Be Valid  ${body}
+     Dictionary Should Contain Key    ${body}    tid
+     Dictionary Should Contain Key    ${body}    service-id
+     Send Subs Info Response    ${hdr}[txn_id]    ${body}    result_code=${UPM_RC_SUCCESS}
 
-# TC-UPM-302 Subs-Info - 해지(code-type=03)
-#     [Documentation]
-#     ...    CDS.1Y
-#     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
-#     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
-#     [Tags]    upm    subs-info    validation
-#     ${hdr}    ${body}=    Receive Subs Info Request
-#     UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
-#     UPM MDN Should Be Valid    ${body}
-#     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
-#     ${cells}=   Create List    ${cell}
-#     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}
+ TC-UPM-302 Subs-Info - HFC 서비스 해지(code-type=03)
+     [Documentation]
+     ...    CDS.1Y
+     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
+     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
+     [Tags]    upm    subs-info    validation
+     ${hdr}    ${body}=    Receive Subs Info Request
+     UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
+     UPM MDN Should Be Valid    ${body}
+     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+     ${cells}=   Create List    ${cell}
+     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}
 
 
 # ════════════════════════════════════════════════════════════════
