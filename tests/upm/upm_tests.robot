@@ -117,7 +117,9 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
      UPM Event Timestamp Should Be Valid  ${body}
      Dictionary Should Contain Key    ${body}    tid
      Dictionary Should Contain Key    ${body}    service-id
-     Send Subs Info Response    ${hdr}[txn_id]    ${body}    result_code=${UPM_RC_SUCCESS}
+     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+     ${cells}=   Create List    ${cell}
+     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}    result_code=${UPM_RC_SUCCESS}
 
  TC-UPM-302 Subs-Info - HFC 서비스 해지(code-type=03)
      [Documentation]
