@@ -121,26 +121,13 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
      ${cells}=   Create List    ${cell}
      Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}    result_code=${UPM_RC_SUCCESS}
 
- TC-UPM-302 Subs-Info - HFC 서비스 해지(code-type=03)
-     [Documentation]
-     ...    CDS.1Y
-     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
-     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
-     [Tags]    upm    subs-info    validation
-     ${hdr}    ${body}=    Receive Subs Info Request
-     UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
-     UPM MDN Should Be Valid    ${body}
-     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
-     ${cells}=   Create List    ${cell}
-     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}
-
 
 # ════════════════════════════════════════════════════════════════
 # 0x05/0x06  Subs-Change (PG.BSUBS → UPM)  가입자 번호 변경 NOTI
 # ※ PG 측 실제 번호 변경 이벤트 발생 필요 → 주석 처리
 # ════════════════════════════════════════════════════════════════
 
- TC-UPM-401 Subs-Change - 번호 변경(code-type=04)
+ TC-UPM-311 Subs-Change - 번호 변경(code-type=04)
      [Documentation]
      ...    CDS.D3
      ...    0x05 PG.BSUBS → UPM 0x05 (mdn, new-mdn) 
@@ -158,13 +145,29 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
 # ※ PG 측 실제 상품/Device 변경 이벤트 발생 필요 → 주석 처리
 # ════════════════════════════════════════════════════════════════
 
-# TC-UPM-015 Info-Change - 상품/Device 변경(code-type=06) 수신 → 정상 응답
-#     [Documentation]
-#     ...    규격 6.7.1 / 6.7.2
-#     ...    PG → UPM 0x0d (mdn, device-type, product-type) 수신
-#     ...    → 0x0e result-code=SC0000 송신
-#     [Tags]    upm    info-change    smoke
-#     ${hdr}    ${body}=    Receive Info Change Request
-#     UPM Code Type Should Be    ${body}    ${UPM_CT_INFO_CHANGE}
-#     UPM MDN Should Be Valid    ${body}
-#     Send Info Change Response    ${hdr}[txn_id]    ${body}
+ TC-UPM-321 Info-Change - 상품/Device 변경(code-type=06) 수신 → 정상 응답
+     [Documentation]
+     ...    CDS.C1 CDS.G1
+     ...    PG → UPM 0x0d (mdn, device-type, product-type) 수신
+     ...    → 0x0e result-code=SC0000 송신
+     [Tags]    upm    info-change    smoke
+     ${hdr}    ${body}=    Receive Info Change Request
+     UPM Code Type Should Be    ${body}    ${UPM_CT_INFO_CHANGE}
+     UPM MDN Should Be Valid    ${body}
+     Send Info Change Response    ${hdr}[txn_id]    ${body}
+
+
+
+ TC-UPM-399 Subs-Info - HFC 서비스 해지(code-type=03)
+     [Documentation]
+     ...    CDS.1Y
+     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
+     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
+     [Tags]    upm    subs-info    validation
+     ${hdr}    ${body}=    Receive Subs Info Request
+     UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
+     UPM MDN Should Be Valid    ${body}
+     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+     ${cells}=   Create List    ${cell}
+     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}
+
