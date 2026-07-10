@@ -73,17 +73,17 @@ TC-CDS-003 Download(A1 신규) - Request → ACK → Result → ACK
     [Documentation]
     ...    0015(A1 신규) 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_NEW}
+    Command Download Flow    ${CDS_CODE_A1}
 
 TC-CDS-004 Download(C1 기기변경) - Request → ACK → Result → ACK
     [Documentation]    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_DEVICE_CHG}    new_mdn=${CDS_TEST_NEW_MDN}    new_min=${CDS_TEST_NEW_MIN}
+    Command Download Flow    ${CDS_CODE_C1}    new_mdn=${CDS_TEST_NEW_MDN}    new_min=${CDS_TEST_NEW_MIN}
 
 TC-CDS-005 Download(D3 번호변경) - Request → ACK → Result → ACK
     [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_CALLNO_APPLY}
+    Command Download Flow    ${CDS_CODE_D3}
 
 TC-CDS-006 Download(G1 정보변경) - Request → ACK → Result → ACK
     [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
@@ -98,12 +98,12 @@ TC-CDS-007 Download(1X HFC가입) - Request → ACK → Result → ACK
 TC-CDS-008 Download(I2 부가서비스신청) - Request → ACK → Result → ACK
     [Documentation]    0015(I2 부가서비스신청) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_VAS_APPLY}
+    Command Download Flow    ${CDS_CODE_I2}
 
 TC-CDS-009 Download(I3 부가서비스해지) - Request → ACK → Result → ACK
     [Documentation]    0015(I3 부가서비스해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_VAS_CANCEL}
+    Command Download Flow    ${CDS_CODE_I3}
 
 TC-CDS-010 Download(1Y HFC해지) - Request → ACK → Result → ACK
     [Documentation]    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
@@ -113,7 +113,7 @@ TC-CDS-010 Download(1Y HFC해지) - Request → ACK → Result → ACK
 TC-CDS-011 Download(Z1 해지) - Request → ACK → Result → ACK
     [Documentation]    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_FORCED_TERMINATE}
+    Command Download Flow    ${CDS_CODE_Z1}
 
 # ════════════════════════════════════════════════════════════════
 # 가입자 데이터 SubsData (0029~0032)

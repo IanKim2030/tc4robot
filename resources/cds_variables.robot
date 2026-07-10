@@ -84,47 +84,48 @@ ${CDS_ERR_SYSTEM_FAILURE}      ${57}     # SystemFailure
 #   채울 필드는 CdsHelper._CMD_LAYOUT(=레거시 clear() 순서)/_fill_command_fields(code) 참조.
 #   필드 값은 'Send Command Request' 에 키워드 인자로 전달(mdn/new_mdn/min 기본값, 그 외 &{extra}).
 # ════════════════════════════════════════════
-${CDS_CODE_NEW}                A1     # 신규
-${CDS_CODE_DEVICE_CHG}         C1     # 기기변경
-${CDS_CODE_SIGNAL_CHG}         C2     # 신호방식변경
-${CDS_CODE_CODE_CHG}           C3     # 코드방식변경
-${CDS_CODE_USAGE_CHG}          C4     # 이용종류변경
-${CDS_CODE_DEVICE_REPLACE}     C5     # 기기대체 (A/S)
-${CDS_CODE_CALLNO_CANCEL}      D2     # 호출번호해지
-${CDS_CODE_CALLNO_APPLY}       D3     # 호출번호신청
-${CDS_CODE_NUMINFO_REG}        D5     # 번호안내등록
-${CDS_CODE_NUMINFO_CANCEL}     D4     # 번호안내해지
-${CDS_CODE_OFFICE_OUT}         E1     # 수용국전출
-${CDS_CODE_OFFICE_IN}          E2     # 수용국전입
-${CDS_CODE_SUSPEND}            F1     # 일시정지
-${CDS_CODE_SUSPEND_RELEASE}    F2     # 일시정지해제
-${CDS_CODE_USE_STOP}           F3     # 사용정지
-${CDS_CODE_USE_STOP_RELEASE}   F4     # 사용정지해제
-${CDS_CODE_DORMANT}            F5     # 휴지
-${CDS_CODE_DORMANT_RELEASE}    F6     # 휴지해제
-${CDS_CODE_VAS_CHG}            I1     # 부가서비스변경
-${CDS_CODE_VAS_APPLY}          I2     # 부가서비스신청
-${CDS_CODE_VAS_CANCEL}         I3     # 부가서비스해지
-${CDS_CODE_NAME_CHG}           M1     # 명의변경
-${CDS_CODE_VOICE_PROMPT_CHG}   Y3     # Voice Prompt 변경
-${CDS_CODE_PASSWORD_RESET}     Y4     # Password Reset
-${CDS_CODE_SWITCH_INFO_SEARCH}  Y5    # 교환기등록정보 검색
-${CDS_CODE_G1}                 G1     # G1 (TODO: 규격 확인)
-${CDS_CODE_FORCED_TERMINATE}   Z1     # 직권해지
-${CDS_CODE_TERMINATE}          Z2     # 가입해지
-${CDS_CODE_1X}                 1X     # HFC 서비스 가입
-${CDS_CODE_1Y}                 1Y     # HFC 서비스 해지
+${CDS_CODE_A1}      A1     # 신규
+${CDS_CODE_C1}      C1     # 기기변경
+${CDS_CODE_C2}      C2     # 신호방식변경
+${CDS_CODE_C3}      C3     # 코드방식변경
+${CDS_CODE_C4}      C4     # 이용종류변경
+${CDS_CODE_C5}      C5     # 기기대체 (A/S)
+${CDS_CODE_D2}      D2     # 호출번호해지
+${CDS_CODE_D3}      D3     # 호출번호신청
+${CDS_CODE_D5}      D5     # 번호안내등록
+${CDS_CODE_D4}      D4     # 번호안내해지
+${CDS_CODE_E1}      E1     # 수용국전출
+${CDS_CODE_E2}      E2     # 수용국전입
+${CDS_CODE_F1}      F1     # 일시정지
+${CDS_CODE_F2}      F2     # 일시정지해제
+${CDS_CODE_F3}      F3     # 사용정지
+${CDS_CODE_F4}      F4     # 사용정지해제
+${CDS_CODE_F5}      F5     # 휴지
+${CDS_CODE_F6}      F6     # 휴지해제
+${CDS_CODE_I1}      I1     # 부가서비스변경
+${CDS_CODE_I2}      I2     # 부가서비스신청
+${CDS_CODE_I3}      I3     # 부가서비스해지
+${CDS_CODE_M1}      M1     # 명의변경
+${CDS_CODE_Y3}      Y3     # Voice Prompt 변경
+${CDS_CODE_Y4}      Y4     # Password Reset
+${CDS_CODE_Y5}      Y5    # 교환기등록정보 검색
+${CDS_CODE_G1}      G1     # G1 (TODO: 규격 확인)
+${CDS_CODE_Z1}      Z1     # 직권해지
+${CDS_CODE_Z2}      Z2     # 가입해지
+${CDS_CODE_1X}      1X     # HFC 서비스 가입
+${CDS_CODE_1Y}      1Y     # HFC 서비스 해지
 
 # ════════════════════════════════════════════
 # 테스트 데이터
 # TODO: 실환경 명령어/가입자 데이터 값으로 교체
 # ════════════════════════════════════════════
-# CommandRequest body — 공통 4개 필드 (스펙: mdn / product_id / limitSubsFlag / produGenType)
-${CDS_TEST_CMD_CODE}           ${CDS_CODE_NEW}          # 기본 업무 코드 (신규 A1)
+# CommandRequest body — 공통 5개 필드 (스펙: mdn / product_id / limitSubsFlag / produGenType / device_type)
+${CDS_TEST_CMD_CODE}           ${CDS_CODE_A1}          # 기본 업무 코드 (신규 A1)
 ${CDS_TEST_MDN}                01053543393              # mdn        (12자)
 ${CDS_TEST_PROD_ID}            NA00003479               # product_id (10자, prod_id)
 ${CDS_TEST_LIMIT}              0                        # limitSubsFlag (1자, TODO: 실환경 값)
 ${CDS_TEST_PROD_TYPE}          ${EMPTY}                 # produGenType  (2자, TODO: 실환경 값)
+${CDS_TEST_DEVICE_TYPE}        ${EMPTY}                 # device_type   (1자, TODO: 실환경 값)
 # 코드별 추가 필드 (Send Command Request &{extra} 로 전달)
 ${CDS_TEST_NEW_MDN}            01053543394              # new_mdn (C1 기기변경 시)
 ${CDS_TEST_MIN}                1053543393               # min     (A1/D3 등)

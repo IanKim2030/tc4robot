@@ -296,7 +296,7 @@ def _fill_command_fields(code, kw, f):
           'device_type', 'product_type')
     elif v == 'Z1':
         s('mdn', 'prod_id', 'network', 'tablet_yn', 'os_ver', 'device_model',
-          'ca', 'aprf', 'imsi', 'mvno', 'limit', 'ms_type')
+          'ca', 'aprf', 'imsi', 'mvno', 'limit', 'ms_type', 'device_type')
     elif v == 'IU' or v == 'IX':
         s('mdn', 'imsi', 'mvno', 'limit')
     elif v in ('Y5', 'Y6', 'Y7', 'Y8'):

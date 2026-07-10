@@ -223,7 +223,7 @@ Process State Should Be Normal
 Send Command Request
     [Documentation]
     ...    CommandRequest(0015) 송신(Schannel).
-    ...    공통 4개 필드(스펙): mdn(mdn) / prod_id(product_id) / limit(limitSubsFlag) / product_type(produGenType)
+    ...    공통 5개 필드(스펙): mdn(mdn) / prod_id(product_id) / limit(limitSubsFlag) / product_type(produGenType) / device_type
     ...    코드별 추가 필드는 &{extra} 로 전달: 예) min=... new_mdn=... imsi=... addr=...
     ...    code 에 무관한 필드는 무시되고, 누락 필드는 공백으로 채워진다.
     ...    반환: tid_date, tid_seq.
@@ -232,9 +232,11 @@ Send Command Request
     ...            ${prod_id}=${CDS_TEST_PROD_ID}
     ...            ${limit}=${CDS_TEST_LIMIT}
     ...            ${product_type}=${CDS_TEST_PROD_TYPE}
+    ...            ${device_type}=${CDS_TEST_DEVICE_TYPE}
     ...            &{extra}
     ${body}=    Cds.Pack Command Body    ${code}
-    ...    mdn=${mdn}    prod_id=${prod_id}    limit=${limit}    product_type=${product_type}    &{extra}
+    ...    mdn=${mdn}    prod_id=${prod_id}    limit=${limit}    product_type=${product_type}
+    ...    device_type=${device_type}    &{extra}
     ${date}    ${seq}=    Next CDS TID
     Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_CMD_REQ}
     ...    tid_date=${date}    tid_seq=${seq}    data=${body}
@@ -351,15 +353,17 @@ CDS Result Should Be SC
 Command Download Flow
     [Documentation]
     ...    CommandRequest(0015) → ACK(0016, SC) → Result(0017, SC) → ResultACK(0018) 전체 흐름.
-    ...    공통 4개 필드(mdn/prod_id/limit/product_type)를 명시하고, 코드별 추가 필드는 &{extra} 로 전달한다.
+    ...    공통 5개 필드(mdn/prod_id/limit/product_type/device_type)를 명시하고, 코드별 추가 필드는 &{extra} 로 전달한다.
     [Arguments]    ${code}
     ...            ${mdn}=${CDS_TEST_MDN}
     ...            ${prod_id}=${CDS_TEST_PROD_ID}
     ...            ${limit}=${CDS_TEST_LIMIT}
     ...            ${product_type}=${CDS_TEST_PROD_TYPE}
+    ...            ${device_type}=${CDS_TEST_DEVICE_TYPE}
     ...            &{extra}
     Send Command Request    code=${code}
-    ...    mdn=${mdn}    prod_id=${prod_id}    limit=${limit}    product_type=${product_type}    &{extra}
+    ...    mdn=${mdn}    prod_id=${prod_id}    limit=${limit}    product_type=${product_type}
+    ...    device_type=${device_type}    &{extra}
     Receive And Validate Command Ack
     ${hdr}    ${res}=    Receive Command Result
     CDS Result Should Be SC    ${res}
