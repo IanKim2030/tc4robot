@@ -94,7 +94,7 @@ TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
     ...    UPM → PG 0x0b 송신 → 0x0c 수신, fileinfo 포함 가능, result-code=SC0000
     [Tags]    upm    subs-sync    smoke
     ${txn}=    Next TXN ID
-    ${hdr}    ${body}=    Send Subs Sync Request    ${txn}
+    ${hdr}    ${body}=    Send Subs Sync Request    ${txn}    sys_id=upmc-SS
     Response Msg Type Should Be    ${hdr}    ${12}
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Sync Should Succeed    ${body}
