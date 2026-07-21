@@ -16,6 +16,10 @@ ${LRS_SERVER_HOST}        0.0.0.0    # 모든 인터페이스 Listen
 ${LRS_SERVER_PORT}        8890       # 규격서 고정값
 ${LRS_ACCEPT_TIMEOUT}     30         # LRS(PG) 접속 대기 최대 시간(초)
 ${LRS_MSG_TIMEOUT}        10         # 메시지 수신 최대 대기 시간(초)
+# 수락 허용 출발지 IP (콤마/공백 구분, 여러 개 가능). 그 외 IP 접속은 거부하고 계속 대기.
+# 빈 값(${EMPTY})이면 모든 IP 허용(기존 동작).
+# TODO: 실환경 LRS(PG)의 LRS-PCF 채널 실제 출발지 IP 로 교체
+${LRS_ALLOWED_PEER_IPS}   192.168.15.141
 
 # LRS(PG)가 Hello에 실어 보내는 식별값 (검증용)
 ${LRS_EXPECTED_SYS_ID}      PG11

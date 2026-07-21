@@ -40,14 +40,16 @@ Suite LRS Accept
     [Documentation]
     ...    LRS Suite Setup 전용
     ...    1) Port ${LRS_SERVER_PORT} Listen 시작
-    ...    2) LRS(PG) 접속 수락 → ${LRS_CONN} 저장
+    ...    2) 허용 IP(${allowed_ips}) 에서 온 접속만 수락 → ${LRS_CONN} 저장
+    ...       (그 외 IP 는 거부하고 남은 시간 동안 계속 대기)
     ...    Hello 처리는 TC-LRS-001 에서 수행 (최초 TC)
     [Arguments]    ${host}=${LRS_SERVER_HOST}    ${port}=${LRS_SERVER_PORT}
-    Log    [Suite] LRS 서버 시작 → ${host}:${port} Listen    console=True
+    ...            ${allowed_ips}=${LRS_ALLOWED_PEER_IPS}
+    Log    [Suite] LRS 서버 시작 → ${host}:${port} Listen (허용 IP: ${allowed_ips})    console=True
     ${srv}=    Tcp.Server Start    ${port}    ${host}
     Set Suite Variable    ${LRS_SRV_SOCK}    ${srv}
     Log    [Suite] LRS(PG) 접속 대기 중...    console=True
-    ${conn}    ${addr}=    Tcp.Server Accept    ${LRS_SRV_SOCK}    ${LRS_ACCEPT_TIMEOUT}
+    ${conn}    ${addr}=    Tcp.Server Accept    ${LRS_SRV_SOCK}    ${LRS_ACCEPT_TIMEOUT}    ${allowed_ips}
     Set Suite Variable    ${LRS_CONN}    ${conn}
     Log    [Suite] LRS(PG) 접속 수락: ${addr}    console=True
 

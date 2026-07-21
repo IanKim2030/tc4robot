@@ -24,6 +24,7 @@ TcpHelper.py  —  PG 연동 통합 헬퍼
 import socket
 import struct
 import json
+import time
 
 
 # ── 예외 ──────────────────────────────────────────────────────────
@@ -62,21 +63,56 @@ def server_start(port, host='0.0.0.0', backlog=5):
     return srv
 
 
-def server_accept(server_sock, timeout=30):
+def _parse_allowed_ips(allowed_ips):
+    """허용 IP 목록 정규화. None/빈 값 → 빈 set(= 전체 허용).
+    list/tuple/set 또는 콤마·공백 구분 문자열을 받는다."""
+    if allowed_ips is None:
+        return set()
+    if isinstance(allowed_ips, (list, tuple, set)):
+        items = allowed_ips
+    else:
+        items = str(allowed_ips).replace(',', ' ').split()
+    return {str(ip).strip() for ip in items if str(ip).strip()}
+
+
+def server_accept(server_sock, timeout=30, allowed_ips=None):
     """
     클라이언트 접속 대기 (LRS 서버 모드)
     timeout 초 초과 시 TimeoutError 발생
+    allowed_ips 지정 시 해당 출발지 IP 접속만 수락하고,
+      그 외 IP 는 즉시 닫은 뒤 남은 시간 동안 계속 대기한다.
+      (None/빈 값 = 모든 IP 허용, 기존 동작)
     반환: (client_socket, client_addr)
     """
-    server_sock.settimeout(float(timeout))
-    try:
-        conn, addr = server_sock.accept()
+    allowset = _parse_allowed_ips(allowed_ips)
+    deadline = time.monotonic() + float(timeout)
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(
+                f"LRS(PG) 접속 대기 타임아웃 ({timeout}초). "
+                f"허용 IP({', '.join(sorted(allowset)) or '전체'}) 접속이 없었습니다."
+            )
+        server_sock.settimeout(remaining)
+        try:
+            conn, addr = server_sock.accept()
+        except socket.timeout:
+            raise TimeoutError(
+                f"LRS(PG) 접속 대기 타임아웃 ({timeout}초). PG가 접속하지 않았습니다."
+            )
+        peer_ip = addr[0]
+        if allowset and peer_ip not in allowset:
+            print(
+                f"[TcpHelper] 허용되지 않은 IP 접속 거부: {addr} "
+                f"(허용: {', '.join(sorted(allowset))})"
+            )
+            try:
+                conn.close()
+            except Exception:
+                pass
+            continue
         conn.settimeout(float(timeout))
         return conn, addr
-    except socket.timeout:
-        raise TimeoutError(
-            f"LRS(PG) 접속 대기 타임아웃 ({timeout}초). PG가 접속하지 않았습니다."
-        )
 
 
 def server_stop(server_sock):
