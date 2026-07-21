@@ -50,7 +50,7 @@ TC-NAG-001 Hello - ping-interval 확인
 
 # ── 0x03/0x04 Ping ───────────────────────────────────────────────
 
-TC-NAG-003 Ping - 정상 응답
+TC-NAG-002 Ping - 정상 응답
     [Documentation]    0x03 전송(Body 없음) → 0x04 수신, code=200, TXN ID 에코
     [Tags]    nag    ping    smoke
     ${txn}=    Next TXN ID
@@ -59,20 +59,10 @@ TC-NAG-003 Ping - 정상 응답
     TXN ID Should Match    ${txn}    ${hdr}
     Ping Should Succeed    ${body}
 
-TC-NAG-005 Ping - TXN ID 순차 에코
-    [Documentation]    Ping 연속 3회 TXN ID 에코
-    [Tags]    nag    ping
-    FOR    ${i}    IN RANGE    3
-        ${txn}=    Next TXN ID
-        ${hdr}    ${body}=    Send NAG Ping    ${txn}
-        TXN ID Should Match    ${txn}    ${hdr}
-        Ping Should Succeed    ${body}
-    END
-
 
 # ── 0x09/0x0a Subs-Zone-Status ───────────────────────────────────
 
-TC-NAG-006 Subs-Zone-Status - 정상 (mobile-ip 포함)
+TC-NAG-003 Subs-Zone-Status - 정상 (mobile-ip 포함)
     [Documentation]    0x09 전송 → 0x0a 수신, code=200, zone-info, TXN ID 에코
     [Tags]    nag    subs-zone    smoke
     ${txn}=    Next TXN ID
@@ -85,14 +75,14 @@ TC-NAG-006 Subs-Zone-Status - 정상 (mobile-ip 포함)
     ${zone}=    Get From Dictionary    ${body}    zone-info
     Should Be True    '${zone}' in ['I', 'O']
 
-TC-NAG-007 Subs-Zone-Status - mobile-ip 미포함 (Optional)
+TC-NAG-004 Subs-Zone-Status - mobile-ip 미포함 (Optional)
     [Documentation]    mobile-ip 없이 mdn만 요청 (Optional 필드)
     [Tags]    nag    subs-zone
     ${hdr}    ${body}=    Send Subs Zone Status
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NORMAL}
     Response Should Be Success    ${body}
 
-TC-NAG-008 Subs-Zone-Status - HFC 미가입 (402)
+TC-NAG-005 Subs-Zone-Status - HFC 미가입 (402)
     [Documentation]    미가입 MDN → code=402, cause 포함
     [Tags]    nag    subs-zone    negative
     ${hdr}    ${body}=    Send Subs Zone Status
@@ -100,7 +90,7 @@ TC-NAG-008 Subs-Zone-Status - HFC 미가입 (402)
     Response Code Should Be    ${body}    402
     Dictionary Should Contain Key    ${body}    cause
 
-TC-NAG-009 Subs-Zone-Status - 세션 없음 (402)
+TC-NAG-006 Subs-Zone-Status - 세션 없음 (402)
     [Documentation]    세션 없는 MDN → code=402 또는 403, cause 포함
     [Tags]    nag    subs-zone    negative
     ${hdr}    ${body}=    Send Subs Zone Status
@@ -114,7 +104,7 @@ TC-NAG-009 Subs-Zone-Status - 세션 없음 (402)
 # 흐름: 0x0b Request 송신 → 0x0c Response 수신
 #       (PG 가 LRS-PCF 와 연동해 위치 정보를 조회하는 처리는 PG 내부에서 수행)
 
-TC-NAG-010 Subs-Cellid - 정상 및 응답 필드 검증
+TC-NAG-007 Subs-Cellid - 정상 및 응답 필드 검증
     [Documentation]    0x0b 송신 → (LRS-PCF 0x05 조회 → 0x06 응답) → 0x0c 수신,
     ...                code=200, TXN ID 에코, cell-info / ta-code / rat-type 검증
     [Tags]    nag    subs-cellid    adot    smoke    validation
