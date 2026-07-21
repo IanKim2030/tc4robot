@@ -3,20 +3,27 @@ Documentation
 ...    NAG 기능 검증 - msg_type 기준 (공유 소켓)
 ...
 ...    Suite Setup  : NAG → PG(${NAG_PG_PORT}) 소켓 연결 → ${NAG_SOCK} 공유
+...                   + LRS-PCF 서버 소켓(${LRS_SERVER_PORT}) Listen → LRS(PG) 접속 수락 (${LRS_CONN})
 ...                   (NAG Hello 는 TC-NAG-001 에서 직접 수행)
 ...    Test Setup   : NAG 소켓 상태 확인 (닫히면 Suite 중단)
 ...    각 TC        : ${NAG_SOCK} 공유 사용, TC별 연결/해제 없음
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/nag_variables.robot
+Resource    ../../resources/lrs_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/nag_keywords.robot
+Resource    ../../resources/lrs_keywords.robot
 
 Variables    ../../resources/DynamicVars.py   pg@192.168.15.141:/PG/CFG/BarodNoti.cfg   section=Barod.IF:Barod.IF.Port.NAG=NAG_PG_PORT   pass=${PG_ROBOT_SSH_PASS}
 
 
-Suite Setup      Suite Connect NAG
-Suite Teardown   Suite Disconnect NAG
+Suite Setup      Run Keywords
+...              Suite Connect NAG    AND
+...              Suite LRS Accept
+Suite Teardown   Run Keywords
+...              Suite LRS Disconnect    AND
+...              Suite Disconnect NAG
 Test Setup       Check NAG Socket
 
 *** Test Cases ***
