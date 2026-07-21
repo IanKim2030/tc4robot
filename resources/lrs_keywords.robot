@@ -105,6 +105,16 @@ Send LRS Hello Response
     ${body}=    Tcp.Pack Fields    ${fs}
     Send To LRS PG    ${2}    ${txn_id}    ${body}
 
+Handle LRS Hello
+    [Documentation]
+    ...    LRS-PCF 채널 Hello 핸드셰이크 (NAG Suite Setup 등에서 사용)
+    ...    Hello-Request(0x01) 수신·검증 → 같은 TXN ID 로 Hello-Response(0x02) 송신.
+    ...    반환: (header_dict, request_dict[SYS_ID/BRANCH_NAME])
+    ${hdr}    ${req}=    Receive And Validate LRS Hello
+    Send LRS Hello Response    ${hdr}[txn_id]
+    Log    [Suite] LRS Hello 처리 완료: SYS_ID=${req}[SYS_ID] BRANCH=${req}[BRANCH_NAME] txn=${hdr}[txn_id]    console=True
+    RETURN    ${hdr}    ${req}
+
 
 # ══════════════════════════════════════════════════════════════════
 # LRS Ping 처리 (0x03 수신 → 0x04 송신)
