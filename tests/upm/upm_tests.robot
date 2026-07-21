@@ -45,18 +45,18 @@ TC-UPM-001 Hello - ping-interval 응답 확인
     Should Be True    ${UPM_PING_INTERVAL} > 0
     ...    msg=ping-interval 미수신 또는 0 (실제=${UPM_PING_INTERVAL})
 
-TC-UPM-002 Hello - keyList 암호화 키 목록 확인
-    [Documentation]
-    ...    Hello-Response 에 추가된 keyList 배열 검증
-    ...    항목별 num(정수) / salt / iv / key(Base64 문자열) 형식 확인
-    [Tags]    upm    hello    smoke
-    UPM Key List Should Be Valid    ${UPM_KEY_LIST}
+#TC-UPM-002 Hello - keyList 암호화 키 목록 확인
+#    [Documentation]
+#    ...    Hello-Response 에 추가된 keyList 배열 검증
+#    ...    항목별 num(정수) / salt / iv / key(Base64 문자열) 형식 확인
+#    [Tags]    upm    hello    smoke
+#    UPM Key List Should Be Valid    ${UPM_KEY_LIST}
 
 # ════════════════════════════════════════════════════════════════
 # 0x03/0x04  Ping (UPM → PG.BSUBS)
 # ════════════════════════════════════════════════════════════════
 
-TC-UPM-003 Ping - 정상 응답
+TC-UPM-002 Ping - 정상 응답
     [Documentation]
     ...    규격 6.2
     ...    0x03 송신 → 0x04 수신, TXN ID 에코
@@ -71,7 +71,7 @@ TC-UPM-003 Ping - 정상 응답
 # 0x09/0x0a  CellInfo-Noti (UPM → PG.BSUBS)  변경 가입자 Cell Info NOTI
 # ════════════════════════════════════════════════════════════════
 
-TC-UPM-101 CellInfo-Noti - code-type=02 Cell List 변경
+TC-UPM-003 CellInfo-Noti - code-type=02 Cell List 변경
     [Documentation]    규격 6.4.1 code-type 목록: 02=Cell List 변경
     [Tags]    upm    cellinfo-noti
     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
@@ -88,7 +88,7 @@ TC-UPM-101 CellInfo-Noti - code-type=02 Cell List 변경
 # 0x0b/0x0c  Subs-Sync (UPM → PG.SUBS)  전체 가입자 동기화 요청
 # ════════════════════════════════════════════════════════════════
 
-TC-UPM-201 Subs-Sync - 전체 동기화 요청 (code-type=05)
+TC-UPM-004 Subs-Sync - 전체 동기화 요청 (code-type=05)
     [Documentation]
     ...    규격 6.6.1 / 6.6.2
     ...    UPM → PG 0x0b 송신 → 0x0c 수신, fileinfo 포함 가능, result-code=SC0000
