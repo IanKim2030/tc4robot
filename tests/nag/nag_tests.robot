@@ -28,6 +28,10 @@ Suite Teardown   Run Keywords
 ...              Suite Disconnect NAG
 Test Setup       Check NAG Socket
 
+*** Variables ***
+# NAG-Barod LRS-PCF 채널은 응답 헤더 Byte0=0x00 (표준 LRS 0x20 아님)
+${LRS_TX_BYTE0}    ${0}
+
 *** Test Cases ***
 
 # ── 0x01/0x02 Hello ──────────────────────────────────────────────
@@ -111,12 +115,15 @@ TC-NAG-009 Subs-Zone-Status - 세션 없음 (402)
 #       (PG 가 LRS-PCF 와 연동해 위치 정보를 조회하는 처리는 PG 내부에서 수행)
 
 TC-NAG-010 Subs-Cellid - 정상 및 응답 필드 검증
-    [Documentation]    0x0b 송신 → 0x0c 수신,
+    [Documentation]    0x0b 송신 → (LRS-PCF 0x05 조회 → 0x06 응답) → 0x0c 수신,
     ...                code=200, TXN ID 에코, cell-info / ta-code / rat-type 검증
     [Tags]    nag    subs-cellid    adot    smoke    validation
     ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
     ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}
+    # PG 가 LRS-PCF 채널로 Location-Info-Request(0x05) 를 보내오면 0x06 으로 응답해야
+    # PG 가 0x0c Subs-Cellid-Response 를 반환한다.
+    Handle LRS Location Info
     ${hdr}    ${body}=    Receive Subs Cellid Response
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Cellid Should Succeed    ${body}

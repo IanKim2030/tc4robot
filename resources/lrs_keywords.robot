@@ -79,10 +79,10 @@ Receive From LRS PG
     RETURN    ${hdr}    ${raw}
 
 Send To LRS PG
-    [Documentation]    LRS(PG)에게 메시지 송신
+    [Documentation]    LRS(PG)에게 메시지 송신 (헤더 Byte0 = ${LRS_TX_BYTE0})
     [Arguments]    ${msg_type}    ${txn_id}    ${body_bytes}
-    Tcp.Send Lrs Message    ${LRS_CONN}    ${msg_type}    ${txn_id}    ${body_bytes}
-    Log    [TX→LRS] type=${msg_type} txn=${txn_id}
+    Tcp.Send Lrs Message    ${LRS_CONN}    ${msg_type}    ${txn_id}    ${body_bytes}    ${LRS_TX_BYTE0}
+    Log    [TX→LRS] type=${msg_type} txn=${txn_id} byte0=${LRS_TX_BYTE0}
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -186,6 +186,19 @@ Send LRS Location Info Response
     ${body}=    Tcp.Pack Fields    ${fs}
     Send To LRS PG    ${6}    ${txn_id}    ${body}
     Log    [TX→LRS] Location-Info-Response: MDN=${mdn} CELL=${cell_info} NET_TP=${net_tp} CODE=${result_code}
+
+Handle LRS Location Info
+    [Documentation]
+    ...    LRS-PCF 채널 Location-Info 처리 (NAG Subs-Cellid 흐름 중 사용)
+    ...    Location-Info-Request(0x05) 수신 → 같은 TXN ID 로 Location-Info-Response(0x06) 송신.
+    ...    cell/ta_code/net_tp 미지정 시 LTE 목값 사용. 반환: (header_dict, request_dict)
+    [Arguments]    ${cell_info}=${LRS_MOCK_CELL_INFO_LTE}    ${ta_code}=${LRS_MOCK_TA_CODE_LTE}
+    ...            ${net_tp}=${LRS_MOCK_NET_TP_LTE}          ${result_code}=0
+    ${hdr}    ${req}=    Receive And Validate LRS Location Info
+    Send LRS Location Info Response    ${hdr}[txn_id]    ${req}
+    ...    ${cell_info}    ${ta_code}    ${net_tp}    ${result_code}
+    Log    [LRS-PCF] Location-Info 응답 완료: MDN=${req}[MDN] CELL=${cell_info} NET=${net_tp}    console=True
+    RETURN    ${hdr}    ${req}
 
 
 # ══════════════════════════════════════════════════════════════════

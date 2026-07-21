@@ -20,6 +20,9 @@ ${LRS_MSG_TIMEOUT}        10         # 메시지 수신 최대 대기 시간(초
 # 빈 값(${EMPTY})이면 모든 IP 허용(기존 동작).
 # TODO: 실환경 LRS(PG)의 LRS-PCF 채널 실제 출발지 IP 로 교체
 ${LRS_ALLOWED_PEER_IPS}   192.168.15.141
+# 도구가 LRS 채널로 보낼 응답 헤더 Byte0(ProtoVer). 표준 LRS 서버모드=0x20(${32}).
+# NAG-Barod LRS-PCF 채널은 0x00(${0}) — 그 슈트에서 오버라이드한다.
+${LRS_TX_BYTE0}           ${32}
 
 # LRS(PG)가 Hello에 실어 보내는 식별값 (검증용)
 ${LRS_EXPECTED_SYS_ID}      PG11

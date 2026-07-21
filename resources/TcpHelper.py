@@ -295,13 +295,14 @@ def unpack_fields(data: bytes, field_specs: list) -> dict:
 
 
 def send_lrs_message(sock, msg_type: int, txn_id: int,
-                     body_bytes: bytes = b'') -> None:
+                     body_bytes: bytes = b'', byte0: int = 0x20) -> None:
     """
-    LRS용: 헤더(Byte0=0x20) + 고정길이 ASCII Body 전송
+    LRS용: 헤더 + 고정길이 ASCII Body 전송
+    byte0: 표준 LRS 서버모드 = 0x20 (기본) / NAG-Barod LRS-PCF 채널 = 0x00
     """
     if not is_connected(sock):
         raise ConnectionClosed("소켓이 이미 닫혀 있습니다")
-    header = build_header(msg_type, len(body_bytes), txn_id, byte0=0x20)
+    header = build_header(msg_type, len(body_bytes), txn_id, byte0=int(byte0))
     try:
         sock.sendall(header + body_bytes)
     except (OSError, BrokenPipeError) as e:
