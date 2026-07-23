@@ -180,32 +180,66 @@ def recv_text(sock, nbytes, encoding='ascii'):
     return data.decode(encoding, errors='replace')
 
 
-def recv_until_close(sock, timeout=10, encoding='utf-8'):
+def recv_http_response(sock, timeout=10, encoding='utf-8'):
     """
-    상대가 소켓을 닫을 때까지(또는 idle timeout 초 동안 수신이 없을 때까지) 모두 수신해 문자열로 반환.
-    HTTP 응답(Connection: close)처럼 길이가 가변인 전문을 한 번에 읽을 때 쓴다.
-    프레이밍/프로토콜에 의존하지 않는 범용 수신 헬퍼다.
+    HTTP/1.1 응답 1건을 수신해 문자열로 반환.
+    헤더(\\r\\n\\r\\n)까지 읽어 Content-Length 를 파싱한 뒤 정확히 그만큼 body 를 더 읽고 즉시 반환한다.
+    → 서버가 Connection: close 를 무시하고 연결을 유지해도 idle timeout 을 기다리지 않는다.
+    Content-Length 가 없으면 소켓이 닫힐 때까지(또는 idle timeout) 읽는다.
     """
     prev = sock.gettimeout()
     sock.settimeout(float(timeout))
     buf = bytearray()
     try:
-        while True:
+        # 1) 헤더 끝(\r\n\r\n)까지 수신
+        while b'\r\n\r\n' not in buf:
             try:
                 chunk = sock.recv(4096)
-            except socket.timeout:
-                break
-            except (OSError, ConnectionResetError):
+            except (socket.timeout, OSError, ConnectionResetError):
                 break
             if not chunk:
                 break
             buf.extend(chunk)
+
+        head, sep, rest = bytes(buf).partition(b'\r\n\r\n')
+        clen = None
+        if sep:
+            for line in head.split(b'\r\n'):
+                if line.lower().startswith(b'content-length:'):
+                    try:
+                        clen = int(line.split(b':', 1)[1].strip())
+                    except ValueError:
+                        clen = None
+                    break
+
+        if clen is not None:
+            # 2) Content-Length 만큼 body 채우면 즉시 종료
+            body = bytearray(rest)
+            while len(body) < clen:
+                try:
+                    chunk = sock.recv(min(4096, clen - len(body)))
+                except (socket.timeout, OSError, ConnectionResetError):
+                    break
+                if not chunk:
+                    break
+                body.extend(chunk)
+            return (head + sep + bytes(body)).decode(encoding, errors='replace')
+
+        # Content-Length 없음 → 닫힐 때까지(폴백)
+        while True:
+            try:
+                chunk = sock.recv(4096)
+            except (socket.timeout, OSError, ConnectionResetError):
+                break
+            if not chunk:
+                break
+            buf.extend(chunk)
+        return bytes(buf).decode(encoding, errors='replace')
     finally:
         try:
             sock.settimeout(prev)
         except Exception:
             pass
-    return bytes(buf).decode(encoding, errors='replace')
 
 
 # ── 헤더 처리 공통 ────────────────────────────────────────────────

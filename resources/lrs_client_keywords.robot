@@ -180,7 +180,7 @@ Receive Session Info Response
     ...    반환 dict: status(int) / body(str) / fields(dict, AIMS_RES 파싱)
     ...    파싱은 Http.Parse Xml Fields(기존 함수) 재사용. 수신 후 소켓을 닫는다.
     [Arguments]    ${sock}    ${timeout}=${LRS_CLIENT_TIMEOUT}
-    ${raw}=    Tcp.Recv Until Close    ${sock}    ${timeout}
+    ${raw}=    Tcp.Recv Http Response    ${sock}    ${timeout}
     Tcp.Tcp Close    ${sock}
     ${crlf}=    Evaluate    chr(13)+chr(10)
     ${sep}=    Evaluate    $crlf+$crlf
