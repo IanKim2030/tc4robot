@@ -201,14 +201,15 @@ Session Info Status Should Be
 Session Info Should Succeed
     [Documentation]
     ...    200 OK + AIMS_RES 핵심 필드 검증
-    ...    (REQ_ID 에코 일치, CLIENT_ID-MDN / NETWORK_TOPOLOGY / LOCATION / TAC 존재)
+    ...    (REQ_ID 에코 일치, CLIENT_ID_MSISDN / NETWORK_TOPOLOGY / LOCATION / TAC 존재)
+    ...    실제 PG 응답의 AIMS_RES 태그명은 언더스코어(CLIENT_ID_MSISDN)를 사용한다.
     [Arguments]    ${res}    ${req_id}=${LRS_SI_REQ_ID}
     Session Info Status Should Be    ${res}    ${LRS_SI_CODE_OK}
     ${fields}=    Set Variable    ${res}[fields]
     Dictionary Should Contain Key    ${fields}    REQ_ID
     Should Be Equal As Strings    ${fields}[REQ_ID]    ${req_id}
     ...    msg=REQ_ID 에코 불일치: 요청=${req_id}, 응답=${fields}[REQ_ID]
-    Dictionary Should Contain Key    ${fields}    CLIENT_ID-MDN
+    Dictionary Should Contain Key    ${fields}    CLIENT_ID_MSISDN
     Dictionary Should Contain Key    ${fields}    NETWORK_TOPOLOGY
     Dictionary Should Contain Key    ${fields}    LOCATION
     Dictionary Should Contain Key    ${fields}    TAC
