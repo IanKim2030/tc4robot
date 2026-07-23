@@ -26,7 +26,7 @@ ${MSG_UPM_SUBS_CHANGE_RESP}   ${6}     # 0x06  UPM → PG
 ${MSG_UPM_SUBS_INFO_REQ}      ${7}     # 0x07  PG → UPM (가입자 Cell Info 요청)
 ${MSG_UPM_SUBS_INFO_RESP}     ${8}     # 0x08  UPM → PG
 ${MSG_UPM_CELLINFO_NOTI_REQ}  ${9}     # 0x09  UPM → PG (변경 Cell Info NOTI)
-${MSG_UPM_CELLINFO_NOTI_RESP}  ${10}    # 0x0a  PG → UPM
+${MSG_UPM_CELLINFO_NOTI_RESP}  ${10}   # 0x0a  PG → UPM
 ${MSG_UPM_SUBS_SYNC_REQ}      ${11}    # 0x0b  UPM → PG (전체 동기화 요청)
 ${MSG_UPM_SUBS_SYNC_RESP}     ${12}    # 0x0c  PG → UPM
 ${MSG_UPM_INFO_CHANGE_REQ}    ${13}    # 0x0d  PG → UPM (상품/Device 변경)
@@ -69,8 +69,8 @@ ${UPM_TEST_PRODUCT_TYPE}   03                 # 01=3G, 02=LTE, 03=5G
 ${UPM_TEST_CELL_INFO}      9999:99
 ${UPM_TEST_TA_CODE}        11111
 ${UPM_TEST_ADDR}           서울시 강남구 청담동 77 1
-${UPM_TEST_ADDR_SI}        서울시
-${UPM_TEST_ADDR_GU}        강남구
-${UPM_TEST_ADDR_DONG}      청담동
-${UPM_TEST_ADDR_BUNJI1}    77
-${UPM_TEST_ADDR_BUNJI2}    1
+#${UPM_TEST_ADDR_SI}        서울시
+#${UPM_TEST_ADDR_GU}        강남구
+#${UPM_TEST_ADDR_DONG}      청담동
+#${UPM_TEST_ADDR_BUNJI1}    77
+#${UPM_TEST_ADDR_BUNJI2}    1
