@@ -4,7 +4,7 @@
 # 인터페이스:
 #   NAG    클라이언트 모드 → PG 서버 (Port 8012)
 #   PCF    클라이언트 모드 → PG 서버 (Port 8011)
-#   LRS    서버 모드      ← LRS(PG) 접속 (Port 8890)
+#   LRS    클라이언트 모드 → PG.LRS 서버 (Port 10204, Health Check/Ping + SESSION-INFO)
 #   UPM    클라이언트 모드 → PG 서버 (Port 10506, HFC 가입자 Cell List 연동)
 #   NWDAF  클라이언트 모드 → PG 서버 (Port ${NWDAF_PORT}, TLV Notification 주력)
 #   CDS    클라이언트 듀얼소켓 → PG.CDS (Schannel 9200 / Rchannel 9201, 48B 고정전문)
@@ -12,7 +12,7 @@
 # 사용법:
 #   bash run_tests.sh nag              # NAG 전체
 #   bash run_tests.sh pcf              # PCF 전체
-#   bash run_tests.sh lrs              # LRS 전체 (서버 모드, LRS(PG) 접속 대기)
+#   bash run_tests.sh lrs              # LRS 전체 (클라이언트 모드, PG.LRS:10204 접속)
 #   bash run_tests.sh upm              # UPM 전체 (PG.BSUBS 연동)
 #   bash run_tests.sh nwdaf            # NWDAF 전체 (TLV Notification)
 #   bash run_tests.sh cds              # CDS 전체 (PG.CDS 듀얼소켓 접속)
@@ -64,7 +64,7 @@ fi
 
 if [ "${TARGET}" = "lrs" ] || [ "${TARGET}" = "all" ]; then
     echo ""
-    echo " ★ LRS 모드: LRS(PG)가 Port ${LRS_SERVER_PORT:-8890}으로 접속을 시도할 준비를 해주세요."
+    echo " ★ LRS 모드: 도구가 PG.LRS(Port ${PG_LRS_PG_V2_LISTEN_PORT:-10204})로 접속합니다. PG.LRS 가 Listen 중인지 확인하세요."
     echo ""
 fi
 

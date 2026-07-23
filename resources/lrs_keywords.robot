@@ -23,6 +23,7 @@ Library    DateTime
 Library    BuiltIn
 Library    ${CURDIR}/TcpHelper.py    WITH NAME    Tcp
 Resource   ${CURDIR}/common_keywords.robot
+Resource   ${CURDIR}/lrs_server_variables.robot
 
 *** Variables ***
 # LRS 서버 소켓 / 클라이언트 연결 소켓

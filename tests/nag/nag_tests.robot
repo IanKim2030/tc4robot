@@ -11,7 +11,6 @@ Documentation
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/nag_variables.robot
-Resource    ../../resources/lrs_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/nag_keywords.robot
 Resource    ../../resources/lrs_keywords.robot
