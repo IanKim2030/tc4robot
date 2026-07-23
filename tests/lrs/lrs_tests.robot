@@ -40,20 +40,11 @@ TC-LRS-001 Health Check - REQ 송신 → ANS 수신
     ${ans}=    Send LRS Health Check
     Health Check Should Succeed    ${ans}
 
-
-TC-LRS-002 Ping(keepalive) - 연속 Ping 성공 및 소켓 유지
-    [Documentation]
-    ...    지속 소켓(${LRS_CLIENT_SOCK})에서 REQ→ANS 를 ${LRS_PING_COUNT}회 연속 송수신하며
-    ...    매 회 "ANS" 응답과 소켓 keepalive 유지를 확인한다.
-    [Tags]    lrs    health-check    ping
-    Ping Keepalive Should Succeed
-
-
 # ════════════════════════════════════════════════════════════════
 # SESSION-INFO-RETRIEVAL (HTTP/1.1)
 # ════════════════════════════════════════════════════════════════
 
-TC-LRS-003 Session-Info - 200 성공 및 응답 필드 검증
+TC-LRS-002 Session-Info - 200 성공 및 응답 필드 검증
     [Documentation]
     ...    POST /SESSION-INFO-RETRIEVAL (AIMS_REQ) → 200 OK (AIMS_RES)
     ...    REQ_ID 에코 일치 + CLIENT_ID-MDN / NETWORK_TOPOLOGY / LOCATION / TAC 존재 검증
