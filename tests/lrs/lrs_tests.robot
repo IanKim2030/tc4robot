@@ -8,11 +8,18 @@ Documentation
 ...      1) Health Check (raw TCP "REQ"/"ANS", 주기 기본 30초)
 ...      2) SESSION-INFO-RETRIEVAL (HTTP/1.1, AIMS_REQ → AIMS_RES)
 ...
+...    [LRS-PCF 채널 — Session-Info 처리용 (TC-NAG-007 과 동일)]
+...    Session-Info(HTTP) 처리 중 PG 가 LRS-PCF 채널(도구 Listen, Port 8890)로
+...    Location-Info-Request(0x05)를 보내 위치를 조회하고, 도구가 0x06 으로 응답해야
+...    PG 가 LOCATION/TAC 를 채워 HTTP 200 을 준다.
+...    → Suite Setup 에서 8890 accept + Hello 를 미리 마치고(lrs_keywords.robot),
+...      TC-LRS-002 는 HTTP 송신/수신을 분리해 그 사이 Handle LRS Location Info 로 0x06 응답(단일 스레드).
+...
 ...    [Suite 소켓 정책]
-...    Suite Setup    : Suite Connect LRS Client → PG.LRS 접속 → ${LRS_CLIENT_SOCK} 공유
+...    Suite Setup    : Suite Connect LRS Client(→PG.LRS 10204) + Suite LRS Accept(8890) + Handle LRS Hello
 ...    Test Setup     : Check LRS Client Socket (닫히면 Suite 즉시 중단)
-...    Suite Teardown : Suite Disconnect LRS Client
-...    각 TC          : ${LRS_CLIENT_SOCK} 공유 사용 (HTTP 는 요청마다 독립 연결)
+...    Suite Teardown : Suite LRS Disconnect + Suite Disconnect LRS Client
+...    각 TC          : ${LRS_CLIENT_SOCK} 공유 (TC-LRS-002 는 ${LRS_CONN} 도 사용)
 ...
 ...    포트/주기는 PG_V2.cfg 에서 읽되, 미수신 시 기본값(10204 / 30초) 사용.
 
@@ -20,12 +27,18 @@ Resource    ../../resources/variables.robot
 Resource    ../../resources/lrs_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/lrs_client_keywords.robot
+Resource    ../../resources/lrs_keywords.robot
 
 #Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=LRS:LISTEN_PORT=PG_LRS_PG_V2_LISTEN_PORT    pass=${PG_ROBOT_SSH_PASS}
 #Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=LRS:TIMEOUT=PG_LRS_PG_V2_TIMEOUT    pass=${PG_ROBOT_SSH_PASS}
 
-Suite Setup      Suite Connect LRS Client
-Suite Teardown   Suite Disconnect LRS Client
+Suite Setup      Run Keywords
+...              Suite Connect LRS Client    AND
+...              Suite LRS Accept    AND
+...              Handle LRS Hello
+Suite Teardown   Run Keywords
+...              Suite LRS Disconnect    AND
+...              Suite Disconnect LRS Client
 Test Setup       Check LRS Client Socket
 
 *** Test Cases ***
@@ -44,12 +57,18 @@ TC-LRS-001 Health Check - REQ 송신 → ANS 수신
 # SESSION-INFO-RETRIEVAL (HTTP/1.1)
 # ════════════════════════════════════════════════════════════════
 
-TC-LRS-002 Session-Info - 200 성공 및 응답 필드 검증
+TC-LRS-002 Session-Info - 200 성공 및 응답 필드 검증 (LRS-PCF 연동)
     [Documentation]
     ...    POST /SESSION-INFO-RETRIEVAL (AIMS_REQ) → 200 OK (AIMS_RES)
     ...    REQ_ID 에코 일치 + CLIENT_ID-MDN / NETWORK_TOPOLOGY / LOCATION / TAC 존재 검증
+    ...
+    ...    TC-NAG-007 과 동일한 3단계(단일 스레드): 요청 송신 → LRS-PCF 응답 처리 → 응답 수신.
+    ...    PG 가 HTTP 처리 중 보내는 Location-Info-Request(0x05)에 0x06 으로 응답해야 200 이 온다.
     [Tags]    lrs    session-info    smoke    validation
-    ${res}=    Send Session Info Retrieval
+    ${sock}=    Send Session Info Request
+    # PG 가 LRS-PCF 채널로 보내는 0x05 를 받아 0x06(LTE 목값)으로 응답
+    Handle LRS Location Info
+    ${res}=    Receive Session Info Response    ${sock}
     Session Info Should Succeed    ${res}
 
 

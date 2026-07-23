@@ -140,6 +140,46 @@ Send Session Info Retrieval
     Log    [HTTP] SESSION-INFO status=${res}[status] ${res}[reason]
     RETURN    ${res}
 
+Send Session Info Request
+    [Documentation]
+    ...    Session-Info(HTTP POST) 를 raw 소켓으로 "송신만" 한다(비블로킹).
+    ...    PG 가 요청 처리 중 LRS-PCF 채널로 보내는 Location-Info-Request(0x05)를
+    ...    그 사이에 처리하기 위함 — TC-NAG-007 의 송신/수신 분리 방식과 동일.
+    ...    HttpHelper 는 수정하지 않고 Build Aims Req(기존 함수)만 재사용한다.
+    ...    반환된 소켓은 Receive Session Info Response 로 응답을 회수/종료한다.
+    [Arguments]
+    ...    ${req_id}=${LRS_SI_REQ_ID}
+    ...    ${pgw_group_id}=${LRS_SI_PGW_GROUP_ID}
+    ...    ${client_ip}=${LRS_SI_CLIENT_IP}
+    ...    ${min}=${LRS_SI_MIN}    ${mdn}=${LRS_SI_MDN}    ${imsi}=${LRS_SI_IMSI}
+    ...    ${from_ip}=${LRS_SI_FROM_IP}
+    ${port}=    Set Variable If    $LRS_CLIENT_PORT is not None    ${LRS_CLIENT_PORT}    ${LRS_CLIENT_DEFAULT_PORT}
+    ${xml}=    Http.Build Aims Req    ${req_id}    ${pgw_group_id}    ${client_ip}
+    ...        min_=${min}    mdn=${mdn}    imsi=${imsi}
+    ${req}=    Evaluate
+    ...    "POST " + $LRS_SI_PATH + " HTTP/1.1\r\nHost: " + $LRS_CLIENT_HOST + ":" + str($port) + "\r\nFrom: " + $from_ip + "\r\nAccept: text/xml\r\nContent-Type: text/xml\r\nContent-Length: " + str(len($xml.encode('utf-8'))) + "\r\nConnection: close\r\n\r\n" + $xml
+    ${sock}=    Tcp.Tcp Connect    ${LRS_CLIENT_HOST}    ${port}    ${LRS_CLIENT_TIMEOUT}
+    Tcp.Send Text    ${sock}    ${req}
+    Log    [HTTP TX] SESSION-INFO 요청 송신 → ${LRS_CLIENT_HOST}:${port} (LRS-PCF 응답 대기)
+    RETURN    ${sock}
+
+Receive Session Info Response
+    [Documentation]
+    ...    Send Session Info Request 가 반환한 소켓에서 HTTP 응답 전체를 수신·파싱한다.
+    ...    반환 dict: status(int) / body(str) / fields(dict, AIMS_RES 파싱)
+    ...    파싱은 Http.Parse Xml Fields(기존 함수) 재사용. 수신 후 소켓을 닫는다.
+    [Arguments]    ${sock}    ${timeout}=${LRS_CLIENT_TIMEOUT}
+    ${raw}=    Tcp.Recv Until Close    ${sock}    ${timeout}
+    Tcp.Tcp Close    ${sock}
+    ${first}=    Evaluate    $raw.split('\r\n', 1)[0]
+    ${status}=    Evaluate    int($first.split()[1]) if len($first.split()) > 1 else 0
+    ${parts}=    Evaluate    $raw.split('\r\n\r\n', 1)
+    ${body}=    Evaluate    $parts[1] if len($parts) > 1 else ''
+    ${fields}=    Http.Parse Xml Fields    ${body}
+    ${res}=    Create Dictionary    status=${status}    body=${body}    fields=${fields}
+    Log    [HTTP RX] SESSION-INFO status=${status}
+    RETURN    ${res}
+
 Session Info Status Should Be
     [Arguments]    ${res}    ${expected}
     Should Be Equal As Integers    ${res}[status]    ${expected}

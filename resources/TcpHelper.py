@@ -180,6 +180,34 @@ def recv_text(sock, nbytes, encoding='ascii'):
     return data.decode(encoding, errors='replace')
 
 
+def recv_until_close(sock, timeout=10, encoding='utf-8'):
+    """
+    상대가 소켓을 닫을 때까지(또는 idle timeout 초 동안 수신이 없을 때까지) 모두 수신해 문자열로 반환.
+    HTTP 응답(Connection: close)처럼 길이가 가변인 전문을 한 번에 읽을 때 쓴다.
+    프레이밍/프로토콜에 의존하지 않는 범용 수신 헬퍼다.
+    """
+    prev = sock.gettimeout()
+    sock.settimeout(float(timeout))
+    buf = bytearray()
+    try:
+        while True:
+            try:
+                chunk = sock.recv(4096)
+            except socket.timeout:
+                break
+            except (OSError, ConnectionResetError):
+                break
+            if not chunk:
+                break
+            buf.extend(chunk)
+    finally:
+        try:
+            sock.settimeout(prev)
+        except Exception:
+            pass
+    return bytes(buf).decode(encoding, errors='replace')
+
+
 # ── 헤더 처리 공통 ────────────────────────────────────────────────
 
 def build_header(msg_type: int, body_length: int, txn_id: int,
