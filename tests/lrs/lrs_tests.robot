@@ -41,6 +41,11 @@ Suite Teardown   Run Keywords
 ...              Suite Disconnect LRS Client
 Test Setup       Check LRS Client Socket
 
+*** Variables ***
+# LRS-PCF 채널은 NAG-Barod 계열 — PG 가 0x05 를 헤더 Byte0=0x00 으로 보낸다(로그 확인).
+# 따라서 도구의 0x06 응답도 Byte0=0x00 으로 맞춘다(표준 LRS 0x20 아님, NAG 슈트와 동일).
+${LRS_TX_BYTE0}    ${0}
+
 *** Test Cases ***
 
 # ════════════════════════════════════════════════════════════════
