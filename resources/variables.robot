@@ -22,10 +22,21 @@ ${MSG_PING_REQ}               ${3}     # 0x03
 ${MSG_PING_RESP}              ${4}     # 0x04
 
 # ════════════════════════════════════════════
+# 공용 PG 환경 (모든 인터페이스가 공유하는 단일 소스)
+#   ${PG_HOST}      : 서비스 접속 IP + DynamicVars SSH 대상 IP
+#   ${PG_SSH_USER}  : DynamicVars 원격 cfg 읽기용 SSH 계정
+# 각 *_variables.robot 의 접속 호스트와 Variables 임포트의 SSH 대상이 이 값을 참조한다.
+#   (이 Resource 가 그들보다 먼저 임포트돼야 치환됨 — 모든 슈트가 이 순서를 지킴)
+# CLI 오버라이드: python -m robot -v PG_HOST:10.0.0.9 ...  → 전체 환경 IP 일괄 전환.
+# ════════════════════════════════════════════
+${PG_HOST}                   192.168.15.141    # TODO: 실환경 PG IP
+${PG_SSH_USER}               pg                # DynamicVars SSH 계정
+
+# ════════════════════════════════════════════
 # DynamicVars 원격(SSH) cfg 읽기용 인증 정보
-# 사용: 각 슈트의 Variables 임포트에 `pass=${PG_ROBOT_SSH_PASS}` 로 전달
+# 사용: 각 슈트의 Variables 임포트에 `pass=${PG_SSH_PASS}` 로 전달
 #   (이 Resource 가 Variables 줄보다 먼저 임포트돼야 치환됨)
-# 비우면 OS 환경변수 PG_ROBOT_SSH_PASS 로 폴백한다.
+# 해당 설정값이 없으면 OS 환경변수 PG_SSH_PASS 로 fallback한다.
 # 주의: 값을 채우면 RF 로그에 남으므로, 운영 환경에선 환경변수 사용 권장.
 # ════════════════════════════════════════════
-${PG_ROBOT_SSH_PASS}         pg1234    # TODO: 실환경 SSH 비밀번호
+${PG_SSH_PASS}         pg1234    # TODO: 실환경 SSH 비밀번호

@@ -11,7 +11,7 @@ Documentation
 # UPM PG 접속 정보 (클라이언트 모드, Port 10506)
 # PG = Server, UPM = Client (HFC 가입자 Cell List 연동)
 # ════════════════════════════════════════════
-${UPM_PG_HOST}         192.168.15.141
+${UPM_PG_HOST}         ${PG_HOST}
 ${UPM_PG_PORT}         10506            # 규격서 10. 서비스 접속 정보
 ${UPM_TIMEOUT}         10
 ${UPM_SYS_ID}          UPMSIM           # 5자리 이내 Peer Name

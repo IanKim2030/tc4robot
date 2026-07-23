@@ -15,7 +15,7 @@ Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/nag_keywords.robot
 Resource    ../../resources/lrs_keywords.robot
 
-Variables    ../../resources/DynamicVars.py   pg@192.168.15.141:/PG/CFG/BarodNoti.cfg   section=Barod.IF:Barod.IF.Port.NAG=NAG_PG_PORT   pass=${PG_ROBOT_SSH_PASS}
+Variables    ../../resources/DynamicVars.py   ${PG_SSH_USER}@${PG_HOST}:/PG/CFG/BarodNoti.cfg   section=Barod.IF:Barod.IF.Port.NAG=NAG_PG_PORT   pass=${PG_SSH_PASS}
 
 
 Suite Setup      Run Keywords

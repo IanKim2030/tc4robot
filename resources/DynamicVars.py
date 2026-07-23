@@ -51,14 +51,14 @@ Robot Framework ${변수} 로 주입한다.
     PG_ROBOT_SSH_USER   사용자 (경로의 user@ 가 우선, 없으면 이 값, 없으면 OS 계정)
     PG_ROBOT_SSH_PORT   포트 (기본 22)
     PG_ROBOT_SSH_KEY    개인키 파일 경로 (미지정 시 ~/.ssh 기본 키 / ssh-agent 사용)
-    PG_ROBOT_SSH_PASS   비밀번호 (sshpass 불필요 — pty 로 프롬프트에 응답)
-  예) export PG_ROBOT_SSH_PASS='pg1234'
+    PG_SSH_PASS   비밀번호 (sshpass 불필요 — pty 로 프롬프트에 응답)
+  예) export PG_SSH_PASS='pg1234'
       robot tests/
   접속/읽기 실패 시 그 파일만 건너뛰고 경고를 남긴다(전체 테스트는 계속).
   로컬·원격 파일을 같은 줄에 섞어 써도 된다.
 
   전제: 실행 머신에 ssh 클라이언트가 있어야 한다(리눅스엔 기본 설치).
-        비밀번호 인증은 PG_ROBOT_SSH_PASS, 키 인증은 PG_ROBOT_SSH_KEY 로.
+        비밀번호 인증은 PG_SSH_PASS, 키 인증은 PG_ROBOT_SSH_KEY 로.
         둘 다 없으면 ~/.ssh 기본 키/ssh-agent 로 키 인증을 시도한다.
 
 PG 설정 파일 포맷 (INI 유사)
@@ -116,8 +116,8 @@ class PgConfigLoader:
         # RF 버전에 따라 prefix=/section=/encoding= 가 named 가 아닌
         # 위치 문자열("prefix=PG")로 넘어올 수 있어, 경로에서 분리해 흡수한다.
         # SSH 옵션(user/port/key/pass)도 같은 방식으로 위치 인자에서 흡수한다.
-        #   pass=/password= → 비밀번호. variables.robot 의 ${PG_ROBOT_SSH_PASS} 를
-        #   `Variables ... pass=${PG_ROBOT_SSH_PASS}` 로 넘기면 OS 환경변수 없이도 동작.
+        #   pass=/password= → 비밀번호. variables.robot 의 ${PG_SSH_PASS} 를
+        #   `Variables ... pass=${PG_SSH_PASS}` 로 넘기면 OS 환경변수 없이도 동작.
         #   (주의: Variables 인자는 RF 로그에 남으므로 운영 환경에서는 환경변수 권장)
         paths = []
         opts = {"prefix": prefix, "section": section, "encoding": encoding,
@@ -213,7 +213,7 @@ class PgConfigLoader:
         Python 3.6.8 환경에서도 추가 설치 없이 동작한다.
 
         인증 방식:
-          - PG_ROBOT_SSH_PASS 가 있으면 → pty 로 ssh 의 password 프롬프트에 응답
+          - PG_SSH_PASS 가 있으면 → pty 로 ssh 의 password 프롬프트에 응답
                                           (sshpass 불필요)
           - 없으면                     → 키 인증(BatchMode) subprocess
 
@@ -236,7 +236,7 @@ class PgConfigLoader:
                 or os.getenv("PG_ROBOT_SSH_USER") or os.getenv("USER") or "root")
         port = self.ssh_port or os.getenv("PG_ROBOT_SSH_PORT", "22")
         key_path = self.ssh_key or os.getenv("PG_ROBOT_SSH_KEY")
-        password = self.ssh_password or os.getenv("PG_ROBOT_SSH_PASS")
+        password = self.ssh_password or os.getenv("PG_SSH_PASS")
 
         ssh_cmd = [
             "ssh",

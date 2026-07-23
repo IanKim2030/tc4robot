@@ -7,7 +7,7 @@ Documentation
 # ════════════════════════════════════════════
 # NAG PG 접속 정보 (클라이언트 모드, Port 8012)
 # ════════════════════════════════════════════
-${NAG_PG_HOST}         192.168.15.141
+${NAG_PG_HOST}         ${PG_HOST}
 ${NAG_PG_PORT}         8012
 ${NAG_TIMEOUT}         10
 ${NAG_SYS_ID}          NAG01

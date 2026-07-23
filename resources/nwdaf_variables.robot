@@ -12,7 +12,7 @@ Documentation
 # NWDAF PG 접속 정보 (클라이언트 모드)
 # TODO: 실환경 NWDAF 서비스 IP/Port 확인 후 교체
 # ════════════════════════════════════════════
-${NWDAF_HOST}             192.168.15.141
+${NWDAF_HOST}             ${PG_HOST}
 ${NWDAF_PORT}             10305
 ${NWDAF_TIMEOUT}          10
 

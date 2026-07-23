@@ -13,7 +13,7 @@ Documentation
 #   Schannel : 9200 (Client→Server 전송용)
 #   Rchannel : 9201 (Server→Client 전송용)
 # ════════════════════════════════════════════
-${CDS_PG_HOST}            192.168.15.141   # TODO: 실환경 PG.CDS IP
+${CDS_PG_HOST}            ${PG_HOST}   # TODO: 실환경 PG.CDS IP (다르면 개별 지정)
 ${CDS_SCH_PORT}           9200             # Schannel 포트
 ${CDS_RCH_PORT}           9201             # Rchannel 포트
 ${CDS_TIMEOUT}            10               # 송수신 타임아웃(초)

@@ -19,7 +19,7 @@ Documentation
 #   ${PG_LRS_PG_V2_LISTEN_PORT} → 없으면 ${LRS_CLIENT_DEFAULT_PORT}
 #   ${PG_LRS_PG_V2_TIMEOUT}     → 없으면 ${LRS_HC_DEFAULT_INTERVAL}
 # ════════════════════════════════════════════
-${LRS_CLIENT_HOST}          192.168.15.141   # TODO: 실환경 PG.LRS 서비스 IP
+${LRS_CLIENT_HOST}          ${PG_HOST}   # TODO: 실환경 PG.LRS 서비스 IP (다르면 개별 지정)
 ${LRS_CLIENT_DEFAULT_PORT}  10204            # 규격 디폴트 (config 미수신 시)
 ${LRS_HC_DEFAULT_INTERVAL}  30               # Health Check 주기(초) 디폴트
 ${LRS_CLIENT_TIMEOUT}       10               # 송수신 타임아웃(초)

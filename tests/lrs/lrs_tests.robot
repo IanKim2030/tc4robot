@@ -29,8 +29,8 @@ Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/lrs_client_keywords.robot
 Resource    ../../resources/lrs_keywords.robot
 
-#Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=LRS:LISTEN_PORT=PG_LRS_PG_V2_LISTEN_PORT    pass=${PG_ROBOT_SSH_PASS}
-#Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=LRS:TIMEOUT=PG_LRS_PG_V2_TIMEOUT    pass=${PG_ROBOT_SSH_PASS}
+#Variables    ../../resources/DynamicVars.py    ${PG_SSH_USER}@${PG_HOST}:/PG/CFG/PG_V2.cfg    section=LRS:LISTEN_PORT=PG_LRS_PG_V2_LISTEN_PORT    pass=${PG_SSH_PASS}
+#Variables    ../../resources/DynamicVars.py    ${PG_SSH_USER}@${PG_HOST}:/PG/CFG/PG_V2.cfg    section=LRS:TIMEOUT=PG_LRS_PG_V2_TIMEOUT    pass=${PG_SSH_PASS}
 
 Suite Setup      Run Keywords
 ...              Suite Connect LRS Client    AND

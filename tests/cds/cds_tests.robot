@@ -19,9 +19,9 @@ Resource    ../../resources/cds_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/cds_keywords.robot
 
-Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=CDS:SYSTEM_ID=PG_CDS_PG_V2_SYSTEM_ID    pass=${PG_ROBOT_SSH_PASS}
-Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=CDS:R_PORT=CDS_RCH_PORT    pass=${PG_ROBOT_SSH_PASS}
-Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=CDS:S_PORT=CDS_SCH_PORT    pass=${PG_ROBOT_SSH_PASS}
+Variables    ../../resources/DynamicVars.py    ${PG_SSH_USER}@${PG_HOST}:/PG/CFG/PG_V2.cfg    section=CDS:SYSTEM_ID=PG_CDS_PG_V2_SYSTEM_ID    pass=${PG_SSH_PASS}
+Variables    ../../resources/DynamicVars.py    ${PG_SSH_USER}@${PG_HOST}:/PG/CFG/PG_V2.cfg    section=CDS:R_PORT=CDS_RCH_PORT    pass=${PG_SSH_PASS}
+Variables    ../../resources/DynamicVars.py    ${PG_SSH_USER}@${PG_HOST}:/PG/CFG/PG_V2.cfg    section=CDS:S_PORT=CDS_SCH_PORT    pass=${PG_SSH_PASS}
 
 
 Suite Setup      Suite CDS Connect
@@ -75,25 +75,15 @@ TC-CDS-003 Download(A1 신규) - Request → ACK → Result → ACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_A1}
 
-TC-CDS-004 Download(C1 기기변경) - Request → ACK → Result → ACK
-    [Documentation]    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_C1}    new_mdn=${CDS_TEST_NEW_MDN}    new_min=${CDS_TEST_NEW_MIN}
-
-TC-CDS-005 Download(D3 번호변경) - Request → ACK → Result → ACK
-    [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_TEST_NEW_MDN}    min=${CDS_TEST_MIN}    new_min=${CDS_TEST_NEW_MIN}
-
-TC-CDS-006 Download(G1 정보변경) - Request → ACK → Result → ACK
-    [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_G1}
-
 TC-CDS-007 Download(1X HFC가입) - Request → ACK → Result → ACK
     [Documentation]    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_TEST_ADDR}
+
+TC-CDS-010 Download(1Y HFC해지) - Request → ACK → Result → ACK
+    [Documentation]    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_1Y}
 
 TC-CDS-008 Download(I2 부가서비스신청) - Request → ACK → Result → ACK
     [Documentation]    0015(I2 부가서비스신청) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
@@ -105,10 +95,20 @@ TC-CDS-009 Download(I3 부가서비스해지) - Request → ACK → Result → A
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_I3}
 
-TC-CDS-010 Download(1Y HFC해지) - Request → ACK → Result → ACK
-    [Documentation]    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+TC-CDS-004 Download(C1 기기변경) - Request → ACK → Result → ACK
+    [Documentation]    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_1Y}
+    Command Download Flow    ${CDS_CODE_C1}    new_mdn=${CDS_TEST_NEW_MDN}    new_min=${CDS_TEST_NEW_MIN}
+
+TC-CDS-006 Download(G1 정보변경) - Request → ACK → Result → ACK
+    [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_G1}
+
+TC-CDS-005 Download(D3 번호변경) - Request → ACK → Result → ACK
+    [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Tags]    cds    command    validation
+    Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_TEST_NEW_MDN}    min=${CDS_TEST_MIN}    new_min=${CDS_TEST_NEW_MIN}
 
 TC-CDS-011 Download(Z1 해지) - Request → ACK → Result → ACK
     [Documentation]    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK

@@ -12,7 +12,7 @@ Resource   ${CURDIR}/nag_variables.robot
 # ════════════════════════════════════════════
 # PCF PG 접속 정보 (클라이언트 모드, Port 8011)
 # ════════════════════════════════════════════
-${PCF_PG_HOST}         192.168.15.141
+${PCF_PG_HOST}         ${PG_HOST}
 ${PCF_PG_PORT}         8011
 ${PCF_TIMEOUT}         10
 ${PCF_SYS_ID}          LTE-PCRF01
