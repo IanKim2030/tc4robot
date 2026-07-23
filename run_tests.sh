@@ -62,11 +62,11 @@ if [ -n "${EXTRA_ARGS[0]}" ] && [[ "${EXTRA_ARGS[0]}" =~ ^[0-9] ]]; then
     EXTRA_ARGS=("${EXTRA_ARGS[@]:1}")
 fi
 
-if [ "${TARGET}" = "lrs" ] || [ "${TARGET}" = "all" ]; then
-    echo ""
-    echo " ★ LRS 모드: 도구가 PG.LRS(Port ${PG_LRS_PG_V2_LISTEN_PORT:-10204})로 접속합니다. PG.LRS 가 Listen 중인지 확인하세요."
-    echo ""
-fi
+#if [ "${TARGET}" = "lrs" ] || [ "${TARGET}" = "all" ]; then
+#    echo ""
+#    echo " ★ LRS 모드: 도구가 PG.LRS(Port ${PG_LRS_PG_V2_LISTEN_PORT:-10204})로 접속합니다. PG.LRS 가 Listen 중인지 확인하세요."
+#    echo ""
+#fi
 
 BASE_CMD=(python3 -m robot
     --outputdir "${OUT}"
