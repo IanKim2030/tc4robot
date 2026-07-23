@@ -156,8 +156,19 @@ Send Session Info Request
     ${port}=    Set Variable If    $LRS_CLIENT_PORT is not None    ${LRS_CLIENT_PORT}    ${LRS_CLIENT_DEFAULT_PORT}
     ${xml}=    Http.Build Aims Req    ${req_id}    ${pgw_group_id}    ${client_ip}
     ...        min_=${min}    mdn=${mdn}    imsi=${imsi}
-    ${req}=    Evaluate
-    ...    "POST " + $LRS_SI_PATH + " HTTP/1.1\r\nHost: " + $LRS_CLIENT_HOST + ":" + str($port) + "\r\nFrom: " + $from_ip + "\r\nAccept: text/xml\r\nContent-Type: text/xml\r\nContent-Length: " + str(len($xml.encode('utf-8'))) + "\r\nConnection: close\r\n\r\n" + $xml
+    ${clen}=    Evaluate    len($xml.encode('utf-8'))
+    # CRLF 를 식에 리터럴로 넣으면 Robot 이 실제 개행으로 바꿔 문자열이 깨지므로 chr() 로 만든다.
+    ${crlf}=    Evaluate    chr(13)+chr(10)
+    ${req}=    Catenate    SEPARATOR=${crlf}
+    ...    POST ${LRS_SI_PATH} HTTP/1.1
+    ...    Host: ${LRS_CLIENT_HOST}:${port}
+    ...    From: ${from_ip}
+    ...    Accept: text/xml
+    ...    Content-Type: text/xml
+    ...    Content-Length: ${clen}
+    ...    Connection: close
+    ...    ${EMPTY}
+    ...    ${xml}
     ${sock}=    Tcp.Tcp Connect    ${LRS_CLIENT_HOST}    ${port}    ${LRS_CLIENT_TIMEOUT}
     Tcp.Send Text    ${sock}    ${req}
     Log    [HTTP TX] SESSION-INFO 요청 송신 → ${LRS_CLIENT_HOST}:${port} (LRS-PCF 응답 대기)
@@ -171,9 +182,11 @@ Receive Session Info Response
     [Arguments]    ${sock}    ${timeout}=${LRS_CLIENT_TIMEOUT}
     ${raw}=    Tcp.Recv Until Close    ${sock}    ${timeout}
     Tcp.Tcp Close    ${sock}
-    ${first}=    Evaluate    $raw.split('\r\n', 1)[0]
+    ${crlf}=    Evaluate    chr(13)+chr(10)
+    ${sep}=    Evaluate    $crlf+$crlf
+    ${first}=    Evaluate    $raw.split($crlf, 1)[0]
     ${status}=    Evaluate    int($first.split()[1]) if len($first.split()) > 1 else 0
-    ${parts}=    Evaluate    $raw.split('\r\n\r\n', 1)
+    ${parts}=    Evaluate    $raw.split($sep, 1)
     ${body}=    Evaluate    $parts[1] if len($parts) > 1 else ''
     ${fields}=    Http.Parse Xml Fields    ${body}
     ${res}=    Create Dictionary    status=${status}    body=${body}    fields=${fields}
