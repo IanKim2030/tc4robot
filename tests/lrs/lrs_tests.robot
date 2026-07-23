@@ -21,8 +21,8 @@ Resource    ../../resources/lrs_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/lrs_client_keywords.robot
 
-Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=LRS:LISTEN_PORT=PG_LRS_PG_V2_LISTEN_PORT    pass=${PG_ROBOT_SSH_PASS}
-Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=LRS:TIMEOUT=PG_LRS_PG_V2_TIMEOUT    pass=${PG_ROBOT_SSH_PASS}
+#Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=LRS:LISTEN_PORT=PG_LRS_PG_V2_LISTEN_PORT    pass=${PG_ROBOT_SSH_PASS}
+#Variables    ../../resources/DynamicVars.py    pg@192.168.15.141:/PG/CFG/PG_V2.cfg    section=LRS:TIMEOUT=PG_LRS_PG_V2_TIMEOUT    pass=${PG_ROBOT_SSH_PASS}
 
 Suite Setup      Suite Connect LRS Client
 Suite Teardown   Suite Disconnect LRS Client
@@ -34,18 +34,26 @@ Test Setup       Check LRS Client Socket
 # Health Check (raw TCP "REQ" → "ANS")
 # ════════════════════════════════════════════════════════════════
 
-TC-LRS-HC-001 Health Check - REQ 송신 → ANS 수신
+TC-LRS-001 Health Check - REQ 송신 → ANS 수신
     [Documentation]    PG.LRS 로 "REQ" 송신 → "ANS" 수신 확인 (주기 ${LRS_HC_INTERVAL}s)
     [Tags]    lrs    health-check    smoke
     ${ans}=    Send LRS Health Check
     Health Check Should Succeed    ${ans}
 
 
+TC-LRS-002 Ping(keepalive) - 연속 Ping 성공 및 소켓 유지
+    [Documentation]
+    ...    지속 소켓(${LRS_CLIENT_SOCK})에서 REQ→ANS 를 ${LRS_PING_COUNT}회 연속 송수신하며
+    ...    매 회 "ANS" 응답과 소켓 keepalive 유지를 확인한다.
+    [Tags]    lrs    health-check    ping
+    Ping Keepalive Should Succeed
+
+
 # ════════════════════════════════════════════════════════════════
 # SESSION-INFO-RETRIEVAL (HTTP/1.1)
 # ════════════════════════════════════════════════════════════════
 
-TC-LRS-SI-001 Session-Info - 200 성공 및 응답 필드 검증
+TC-LRS-003 Session-Info - 200 성공 및 응답 필드 검증
     [Documentation]
     ...    POST /SESSION-INFO-RETRIEVAL (AIMS_REQ) → 200 OK (AIMS_RES)
     ...    REQ_ID 에코 일치 + CLIENT_ID-MDN / NETWORK_TOPOLOGY / LOCATION / TAC 존재 검증

@@ -95,6 +95,29 @@ Health Check Should Succeed
 
 
 # ══════════════════════════════════════════════════════════════════
+# Ping (주기적 keepalive — 지속 소켓에서 REQ/ANS 반복)
+# ══════════════════════════════════════════════════════════════════
+
+Send LRS Ping
+    [Documentation]    Ping 1회 = Health Check REQ→ANS 1회 (지속 소켓 keepalive). ANS 반환.
+    ${ans}=    Send LRS Health Check
+    RETURN    ${ans}
+
+Ping Keepalive Should Succeed
+    [Documentation]
+    ...    ${count}회 연속 Ping(REQ→ANS)을 ${gap}초 간격으로 송수신.
+    ...    매 회 소켓이 살아 있는지 확인하고 응답이 "ANS" 인지 검증한다.
+    [Arguments]    ${count}=${LRS_PING_COUNT}    ${gap}=${LRS_PING_GAP}
+    FOR    ${i}    IN RANGE    1    ${count} + 1
+        Check LRS Client Socket
+        ${ans}=    Send LRS Ping
+        Health Check Should Succeed    ${ans}
+        Log    [Ping ${i}/${count}] ANS 정상, 소켓 유지    console=True
+        Run Keyword If    ${i} < ${count}    Sleep    ${gap}
+    END
+
+
+# ══════════════════════════════════════════════════════════════════
 # SESSION-INFO-RETRIEVAL (HTTP/1.1, 요청마다 독립 연결)
 # ══════════════════════════════════════════════════════════════════
 

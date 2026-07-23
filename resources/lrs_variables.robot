@@ -103,6 +103,10 @@ ${LRS_CLIENT_TIMEOUT}       10               # 송수신 타임아웃(초)
 ${LRS_HC_REQ}               REQ
 ${LRS_HC_ANS}               ANS
 
+# Ping(keepalive) — 지속 소켓에서 REQ/ANS 를 반복 송수신하며 연결 유지 검증
+${LRS_PING_COUNT}           ${3}    # 연속 Ping 횟수
+${LRS_PING_GAP}             1       # Ping 간 간격(초). 실주기 검증 시 ${LRS_HC_INTERVAL} 로 오버라이드
+
 # ── SESSION-INFO-RETRIEVAL 요청 데이터 (규격 예시값) ──
 # TODO: 실환경 PG 에 등록된 From IP / PGW Group / 조회 대상으로 교체
 ${LRS_SI_PATH}              /SESSION-INFO-RETRIEVAL
