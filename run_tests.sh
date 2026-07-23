@@ -68,7 +68,7 @@ if [ "${TARGET}" = "lrs" ] || [ "${TARGET}" = "all" ]; then
     echo ""
 fi
 
-BASE_CMD=(python -m robot
+BASE_CMD=(python3 -m robot
     --outputdir "${OUT}"
     --loglevel DEBUG
     "${VAR_OVERRIDE[@]}"
