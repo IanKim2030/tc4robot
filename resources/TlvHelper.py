@@ -507,6 +507,32 @@ def hex_dump(data: bytes) -> str:
     return ' '.join(f'{b:02X}' for b in bytes(data))
 
 
+def format_tlvs(tlvs) -> str:
+    """
+    TLV 리스트(또는 단일 bytes/스트림)를 사람이 읽기 쉬운 문자열로 변환한다.
+    각 TLV 를 '0x0d(len=1)=0x01' 형태로 표시 — 태그를 16진수로 보여줘
+    Robot 자동 로그의 raw 바이트 repr(예: b'\\r\\x01\\x01') 로 인한 혼동을 줄인다.
+      - Value 가 인쇄 가능한 ASCII 면 그대로, 아니면 '0x..' 16진수로 표시.
+    인자: build_common1 등이 반환한 [bytes, ...] 리스트, 또는 raw bytes 스트림.
+    """
+    if isinstance(tlvs, (bytes, bytearray)):
+        items = unpack_tlv_stream(bytes(tlvs))
+    else:
+        items = []
+        for t in tlvs:
+            tag, length, value, _ = unpack_tlv(bytes(t), 0)
+            items.append((tag, length, value))
+    parts = []
+    for tag, length, value in items:
+        try:
+            s = value.decode('ascii')
+            vshow = s if s.isprintable() else '0x' + value.hex()
+        except Exception:
+            vshow = '0x' + value.hex()
+        parts.append('0x%02x(len=%d)=%s' % (tag, length, vshow))
+    return '[' + ', '.join(parts) + ']'
+
+
 def tlv_find(tlvs_or_buf, tag: int):
     """
     첫 매칭 TLV value(bytes) 반환. 없으면 None.

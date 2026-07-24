@@ -96,6 +96,15 @@ Get Create Time
 # Section 빌더 — COMMON1 / pcefQoSCtrl / enodebQoSCtl / COMMON2
 # ══════════════════════════════════════════════════════════════════
 
+Log TLV Section
+    [Documentation]
+    ...    TLV bytes 리스트를 '0x0d(len=1)=0x01' 형태로 로그에 남긴다.
+    ...    (Robot 자동 로그의 raw 바이트 repr 예: b'\\r\\x01\\x01' 혼동 방지)
+    [Arguments]    ${label}    ${tlvs}
+    ${dump}=    Tlv.Format Tlvs    ${tlvs}
+    Log    ${label} = ${dump}
+    RETURN    ${dump}
+
 Build COMMON1
     [Documentation]
     ...    COMMON1 (1절, 필수) TLV bytes 리스트 반환.
@@ -117,6 +126,7 @@ Build COMMON1
     ${tlvs}=    Tlv.Build Common1    ${pcef_type}    ${qos_control_type}
     ...    ${date}    ${time}    ${pgw_ip}    ${min}    ${mdn}
     ...    ${rct_3m_usage}    ${rct_1m_usage}
+    Log TLV Section    COMMON1    ${tlvs}
     RETURN    ${tlvs}
 
 Build pcefQoSCtrl
@@ -128,6 +138,7 @@ Build pcefQoSCtrl
     ...    ${timer}=${NWDAF_TEST_TIMER}
     ...    ${quick_support}=${NWDAF_QUICK_NOW}
     ${tlvs}=    Tlv.Build Pcef Qos Ctrl    ${qos_policy}    ${status}    ${timer}    ${quick_support}
+    Log TLV Section    pcefQoSCtrl    ${tlvs}
     RETURN    ${tlvs}
 
 Build enodebQoSCtl
@@ -144,6 +155,7 @@ Build enodebQoSCtl
     ${tlvs}=    Tlv.Build Enb Qos Ctrl    ${support_type}    ${arp_qci_flag}
     ...    ${enb_arp}    ${arp_capability}    ${arp_vulnerability}
     ...    ${qci}    ${timer}
+    Log TLV Section    enodebQoSCtl    ${tlvs}
     RETURN    ${tlvs}
 
 Build COMMON2
@@ -162,6 +174,7 @@ Build COMMON2
     ${tlvs}=    Tlv.Build Common2    ${network}    ${control_unit}    ${cell_id}
     ...    ${dn_usage}    ${using_user}    ${cell_avg_usage}
     ...    ${heavy_user}    ${user_usage}    ${user_ratio}
+    Log TLV Section    COMMON2    ${tlvs}
     RETURN    ${tlvs}
 
 

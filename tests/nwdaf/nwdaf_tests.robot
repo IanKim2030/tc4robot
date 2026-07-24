@@ -55,6 +55,9 @@ TC-NWDAF-001 PGW 최소 Notification (Smoke)
     ${mid}=    Send Subscriber QoS Notification PGW
     Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
 
+
+    
+
 TC-NWDAF-002 eNB 최소 Notification (Smoke)
     [Documentation]
     ...    PCEF_TYPE=0x10 (eNB). COMMON1 + enodebQoSCtl + COMMON2 송신 → 성공 검증.
