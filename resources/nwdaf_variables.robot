@@ -102,8 +102,8 @@ ${NWDAF_DISABLE}          ${1}
 # NWDAF 테스트 데이터
 # TODO: 실환경 PG/PDB 와 매칭되는 값으로 교체
 # ════════════════════════════════════════════
-${NWDAF_TEST_MIN}              1088881004
-${NWDAF_TEST_MDN}              01088881004
+${NWDAF_TEST_MIN}              1020300553
+${NWDAF_TEST_MDN}              01020300553
 ${NWDAF_TEST_PGW_IP}           60.50.10.2
 ${NWDAF_TEST_CELL_ID}          123456:0
 ${NWDAF_TEST_QOS_POLICY}       QoS200K
