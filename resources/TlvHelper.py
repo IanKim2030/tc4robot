@@ -74,11 +74,37 @@ def nwdaf_close(sock):
 
 
 def nwdaf_is_connected(sock) -> bool:
-    """소켓 연결 여부 확인"""
+    """소켓 연결 여부 확인 (로컬 fd 기준)"""
     try:
         return sock.fileno() != -1
     except Exception:
         return False
+
+
+def nwdaf_peer_closed(sock) -> bool:
+    """
+    상대(PG)가 이미 연결을 끊었는지 non-blocking MSG_PEEK 로 확인.
+
+    nwdaf_is_connected() 는 로컬 fd 만 보므로 PG 가 보낸 FIN/RST 를 감지하지 못한다.
+    PG 가 직전 전문을 거부하고 끊어도 이후 TC 가 그대로 '송신 성공' 으로 통과하는
+    것을 막기 위한 보조 검사.
+
+    반환: True = 상대가 끊음(또는 소켓 무효), False = 연결 유지 중
+    """
+    if not nwdaf_is_connected(sock):
+        return True
+    try:
+        prev = sock.gettimeout()
+        sock.setblocking(False)
+        try:
+            data = sock.recv(1, socket.MSG_PEEK)
+        finally:
+            sock.settimeout(prev)
+    except (BlockingIOError, InterruptedError):
+        return False        # 읽을 데이터가 없을 뿐, 연결은 살아있음
+    except OSError:
+        return True         # RST 등
+    return data == b''      # FIN 수신 → 상대가 close
 
 
 def _recv_exact(sock, n: int) -> bytes:

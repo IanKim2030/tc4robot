@@ -60,10 +60,17 @@ Suite NWDAF Disconnect
     Log    [Suite] NWDAF 연결 종료    console=True
 
 Check NWDAF Socket
-    [Documentation]    NWDAF Test Setup 전용. 소켓 닫히면 Fatal Error.
+    [Documentation]
+    ...    NWDAF Test Setup 전용. 소켓 닫히면 Fatal Error.
+    ...    로컬 fd 뿐 아니라 PG 측 FIN/RST 여부(Nwdaf Peer Closed)도 확인한다 —
+    ...    PG 가 직전 전문을 거부하고 끊었는데 이후 TC 가 '송신 성공' 으로
+    ...    통과해버리는 것을 막기 위함.
     ${ok}=    Tlv.Nwdaf Is Connected    ${NWDAF_SOCK}
     Run Keyword If    not ${ok}
     ...    Fatal Error    NWDAF 소켓이 닫혀 있습니다. 이후 TC를 실행할 수 없습니다.
+    ${closed}=    Tlv.Nwdaf Peer Closed    ${NWDAF_SOCK}
+    Run Keyword If    ${closed}
+    ...    Fatal Error    PG 가 NWDAF 연결을 끊었습니다 (FIN/RST). 직전 송신 전문을 PG 가 거부했을 수 있습니다.
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -186,11 +193,16 @@ Send NWDAF Notification
     [Documentation]
     ...    이미 인코딩된 inner TLV bytes 리스트를 Notification Body 로 송신.
     ...    Body 는 자동으로 MULTI_MESSAGE(0xFF) TLV 로 감싸진다.
+    ...    송신 직전 8B 헤더와 전체 패킷을 hexdump 로 남겨 PG 수신 로그와 대조할 수 있게 한다.
     [Arguments]    ${tlv_bytes_list}    ${service_id}=${NWDAF_SID_SUBSCRIBER}    ${message_id}=${NONE}
     ${mid}=    Run Keyword If    $message_id is None    Next NWDAF Msg Id
     ...        ELSE    Set Variable    ${message_id}
-    ${sent}=    Tlv.Send Nwdaf Notification    ${NWDAF_SOCK}    ${service_id}    ${mid}    ${tlv_bytes_list}
-    Log    [TX→NWDAF] sid=${service_id} mid=${mid} bytes=${sent}
+    ${packet}=    Tlv.Build Nwdaf Notification    ${service_id}    ${mid}    ${tlv_bytes_list}
+    ${hdr_hex}=    Tlv.Hex Dump    ${{ $packet[:8] }}
+    ${pkt_hex}=    Tlv.Hex Dump    ${packet}
+    Log    [TX→PG] sid=${service_id} mid=${mid} bytes=${{ len($packet) }} hdr=[${hdr_hex}]
+    Log    [TX→PG] packet = ${pkt_hex}
+    Tlv.Send Nwdaf Packet    ${NWDAF_SOCK}    ${packet}
     RETURN    ${mid}
 
 
