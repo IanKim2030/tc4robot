@@ -32,6 +32,7 @@ Documentation
 ...      TC-NWDAF-021 ~ 028 : COMMON2 (NETWORK / CONTROL_UNIT / DN_USAGE / USER_RATIO)
 ...      TC-NWDAF-029       : Message Id wrap
 ...      TC-NWDAF-030 ~ 034 : Build 단위 검증 (송신 없음)
+...      TC-NWDAF-035 ~ 036 : 5G 가입자 Notification (PGW/eNB, NETWORK=5G)
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/nwdaf_variables.robot
@@ -64,16 +65,36 @@ TC-NWDAF-002 eNB 최소 Notification (Smoke)
     Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
 
 
+TC-NWDAF-003 5G 가입자 PGW Notification
+    [Documentation]
+    ...    5G 가입자(MIN=${NWDAF_TEST_MIN_5G}, MDN=${NWDAF_TEST_MDN_5G}) 대상
+    ...    PCEF_TYPE=0x01 (P-GW/SMF) + NETWORK=5G Notification 송신 → 성공 검증.
+    [Tags]    nwdaf    nwdaf_smoke    nwdaf_pgw    nwdaf_5g
+    ${mid}=    Send Subscriber QoS Notification PGW
+    ...    mdn=${NWDAF_TEST_MDN_5G}    min=${NWDAF_TEST_MIN_5G}    network=${NWDAF_NET_5G}
+    Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
+
+TC-NWDAF-004 5G 가입자 eNB Notification
+    [Documentation]
+    ...    5G 가입자(MIN=${NWDAF_TEST_MIN_5G}, MDN=${NWDAF_TEST_MDN_5G}) 대상
+    ...    PCEF_TYPE=0x10 (eNB) + NETWORK=5G Notification 송신 → 성공 검증.
+    [Tags]    nwdaf    nwdaf_smoke    nwdaf_enb    nwdaf_5g
+    ${mid}=    Send Subscriber QoS Notification ENB
+    ...    mdn=${NWDAF_TEST_MDN_5G}    min=${NWDAF_TEST_MIN_5G}    network=${NWDAF_NET_5G}
+    Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
+
+
+
 # ════════════════════════════════════════════════════════════════
 # pcefQoSCtrl — STATUS 부하 등급 (규격 2.3, '0'~'3')
 # ════════════════════════════════════════════════════════════════
 
-TC-NWDAF-003 PGW STATUS Normal (0)
+TC-NWDAF-105 PGW STATUS Normal (0)
     [Documentation]    STATUS='0' (Normal)
     [Tags]    nwdaf    nwdaf_pgw    nwdaf_status
     Send Subscriber QoS Notification PGW    status=${NWDAF_STATUS_NORMAL}
 
-TC-NWDAF-004 PGW STATUS Minor (1)
+TC-NWDAF-105 PGW STATUS Minor (1)
     [Documentation]    STATUS='1' (Minor)
     [Tags]    nwdaf    nwdaf_pgw    nwdaf_status
     Send Subscriber QoS Notification PGW    status=${NWDAF_STATUS_MINOR}
@@ -358,3 +379,27 @@ TC-NWDAF-034 Body inner 순서 = COMMON1 + pcefQoSCtrl + COMMON2
     Should Be Equal As Integers    ${inner}[0][0]    ${NWDAF_TAG_PCEF_TYPE}
     Should Be Equal As Integers    ${inner}[9][0]    ${NWDAF_TAG_QOS_HDR}
     Should Be Equal As Integers    ${inner}[14][0]   ${NWDAF_TAG_NETWORK}
+
+
+# ════════════════════════════════════════════════════════════════
+# 5G 가입자 Notification (MIN/MDN = 5G 가입자, NETWORK=5G)
+# 대응 LTE: TC-NWDAF-001/002 (기본 LTE 가입자)
+# ════════════════════════════════════════════════════════════════
+
+TC-NWDAF-035 5G 가입자 PGW Notification
+    [Documentation]
+    ...    5G 가입자(MIN=${NWDAF_TEST_MIN_5G}, MDN=${NWDAF_TEST_MDN_5G}) 대상
+    ...    PCEF_TYPE=0x01 (P-GW/SMF) + NETWORK=5G Notification 송신 → 성공 검증.
+    [Tags]    nwdaf    nwdaf_smoke    nwdaf_pgw    nwdaf_5g
+    ${mid}=    Send Subscriber QoS Notification PGW
+    ...    mdn=${NWDAF_TEST_MDN_5G}    min=${NWDAF_TEST_MIN_5G}    network=${NWDAF_NET_5G}
+    Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
+
+TC-NWDAF-036 5G 가입자 eNB Notification
+    [Documentation]
+    ...    5G 가입자(MIN=${NWDAF_TEST_MIN_5G}, MDN=${NWDAF_TEST_MDN_5G}) 대상
+    ...    PCEF_TYPE=0x10 (eNB) + NETWORK=5G Notification 송신 → 성공 검증.
+    [Tags]    nwdaf    nwdaf_smoke    nwdaf_enb    nwdaf_5g
+    ${mid}=    Send Subscriber QoS Notification ENB
+    ...    mdn=${NWDAF_TEST_MDN_5G}    min=${NWDAF_TEST_MIN_5G}    network=${NWDAF_NET_5G}
+    Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}

@@ -203,13 +203,15 @@ Send Subscriber QoS Notification PGW
     ...    PCEF_TYPE=0x01 (P-GW/SMF). COMMON1 + pcefQoSCtrl + COMMON2 송신.
     [Arguments]
     ...    ${mdn}=${NWDAF_TEST_MDN}
+    ...    ${min}=${NWDAF_TEST_MIN}
     ...    ${qos_policy}=${NWDAF_TEST_QOS_POLICY}
     ...    ${status}=${NWDAF_STATUS_NORMAL}
     ...    ${quick_support}=${NWDAF_QUICK_NOW}
     ...    ${cell_id}=${NWDAF_TEST_CELL_ID}
-    ${c1}=    Build COMMON1     ${NWDAF_PCEF_PGW}    mdn=${mdn}
+    ...    ${network}=${NWDAF_NET_LTE}
+    ${c1}=    Build COMMON1     ${NWDAF_PCEF_PGW}    mdn=${mdn}    min=${min}
     ${qc}=    Build pcefQoSCtrl    qos_policy=${qos_policy}    status=${status}    quick_support=${quick_support}
-    ${c2}=    Build COMMON2     cell_id=${cell_id}
+    ${c2}=    Build COMMON2     cell_id=${cell_id}    network=${network}
     ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
     ${mid}=    Send NWDAF Notification    ${body}
     RETURN    ${mid}
@@ -219,15 +221,17 @@ Send Subscriber QoS Notification ENB
     ...    PCEF_TYPE=0x10 (eNB). COMMON1 + enodebQoSCtl + COMMON2 송신.
     [Arguments]
     ...    ${mdn}=${NWDAF_TEST_MDN}
+    ...    ${min}=${NWDAF_TEST_MIN}
     ...    ${support_type}=${NWDAF_SUPPORT_APPLY}
     ...    ${arp_qci_flag}=${NWDAF_ARPQCI_QCI}
     ...    ${enb_arp}=${NWDAF_ENB_ARP_BAND_35}
     ...    ${qci}=${NWDAF_TEST_QCI}
     ...    ${cell_id}=${NWDAF_TEST_CELL_ID}
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}    mdn=${mdn}
+    ...    ${network}=${NWDAF_NET_LTE}
+    ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}    mdn=${mdn}    min=${min}
     ${qc}=    Build enodebQoSCtl    support_type=${support_type}    arp_qci_flag=${arp_qci_flag}
     ...    enb_arp=${enb_arp}    qci=${qci}
-    ${c2}=    Build COMMON2    cell_id=${cell_id}
+    ${c2}=    Build COMMON2    cell_id=${cell_id}    network=${network}
     ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
     ${mid}=    Send NWDAF Notification    ${body}
     RETURN    ${mid}
