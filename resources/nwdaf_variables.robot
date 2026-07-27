@@ -104,8 +104,8 @@ ${NWDAF_DISABLE}          ${1}
 # ════════════════════════════════════════════
 ${NWDAF_TEST_MIN}              1020300553      # LTE 가입자 MIN
 ${NWDAF_TEST_MDN}              01020300553     # LTE 가입자 MDN
-${NWDAF_TEST_MIN_5G}           1099991000      # 5G 가입자 MIN
-${NWDAF_TEST_MDN_5G}           01099991000     # 5G 가입자 MDN
+${NWDAF_TEST_MIN_5G}           1093742433      # 5G 가입자 MIN
+${NWDAF_TEST_MDN_5G}           01093742433     # 5G 가입자 MDN
 ${NWDAF_TEST_PGW_IP}           60.50.10.2
 ${NWDAF_TEST_CELL_ID}          123456:0
 ${NWDAF_TEST_QOS_POLICY}       QoS200K
