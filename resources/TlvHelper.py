@@ -523,18 +523,35 @@ def build_enb_qos_ctrl(support_type: int, arp_qci_flag: int, enb_arp: int,
     enb_arp          : 12=Band 3->5/1, 13=Band 1/5->3
     arp_capability   : 0=Enable, 1=Disable
     arp_vulnerability: 0=Enable, 1=Disable
-    qci              : QCI 값
-    timer            : sec (규격 3.8 은 string 명시 → ASCII 십진수로 인코딩)
+    qci              : QCI 값 (문자열로 송신 — 수신부가 char 배열로 memcpy)
+    timer            : sec
+
+    ※ 필드 폭은 PG 수신부 구현(CNWQosGateway.cpp ENB_QOS_CONTROL 분기)이 기준이다.
+      수신부는 **TAG 를 검사하지 않고 고정 순서로** `p++; length=*p; p++;` 하며 읽으므로
+      아래 순서와 폭이 하나라도 어긋나면 그 뒤 필드가 전부 밀린다.
+
+        cQosHdr        = *p                          → 1B  binary
+        cSupportType   = *p                          → 1B  binary  (1=제어, 2=해지)
+        nArpQCIFlag    = ntohl(memcpy(...,int))      → 4B  BE int
+        nEnbArp        = ntohl(memcpy(...,int))      → 4B  BE int
+        cCapability    = *p                          → 1B  binary
+        cVnlnerability = *p                          → 1B  binary
+        cQCI           = memcpy(char[], p, length)   → 문자열
+        nValidTimer    = ntohl(memcpy(...,int))      → 4B  BE int
+
+      규격 표는 TIMER(0x20) 를 eNB 에서 string 이라 적었지만 수신부는 ntohl 로 읽는다.
+      실제 구현을 따른다.
+      COMMON2 의 CONTROL_UNIT(0x40) ASCII 예외(CONTROL_UNIT_AS_ASCII)를 여기 적용하지 말 것.
     """
     return [
         pack_uint8 (TAG_QOS_HDR,           PCEF_ENB),    # 0x10 flag
         pack_uint8 (TAG_SUPPORT_TYPE,      support_type),
-        pack_uint8 (TAG_ARP_QCI_FLAG,      arp_qci_flag),
-        pack_uint8 (TAG_ENB_ARP,           enb_arp),
+        pack_uint32(TAG_ARP_QCI_FLAG,      arp_qci_flag),
+        pack_uint32(TAG_ENB_ARP,           enb_arp),
         pack_uint8 (TAG_ARP_CAPABILITY,    arp_capability),
         pack_uint8 (TAG_ARP_VULNERABILITY, arp_vulnerability),
-        pack_uint8 (TAG_QCI,               qci),
-        pack_string(TAG_TIMER,             str(int(timer))),
+        pack_string(TAG_QCI,               str(int(qci))),
+        pack_uint32(TAG_TIMER,             timer),
     ]
 
 
