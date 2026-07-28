@@ -131,7 +131,7 @@ ${NWDAF_TEST_QCI}              ${9}
 ${NWDAF_TEST_QCI_ALT}          ${6}        # QCI 값 변형 검증용
 ${NWDAF_TEST_TIMER}            ${300}      # 초 단위 (5분)
 ${NWDAF_TIMER_UNUSED}          ${0}        # 규격 2.4 '0=미사용'
-${NWDAF_TEST_CATEGORY}         0           # dpiQoSCtrl CATEGORY (참조 구현은 '0'=0x30)
+${NWDAF_TEST_CATEGORY}         A           # dpiQoSCtrl CATEGORY (참조 구현은 'A'~'F' 6쌍)
 ${NWDAF_DPI_TEST_TIMER}        ${250}      # PG 참조 구현 예시값
 ${NWDAF_TEST_RCT_3M_USAGE}     ${500}      # KB
 ${NWDAF_TEST_RCT_1M_USAGE}     ${150}      # KB

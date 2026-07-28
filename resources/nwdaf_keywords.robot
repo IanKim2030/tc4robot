@@ -156,7 +156,8 @@ Build dpiQoSCtrl
     [Documentation]
     ...    dpiQoSCtrl (PCEF_TYPE 비트 0x02) TLV bytes 리스트 반환.
     ...    PG 참조 구현의 `if (pcef_type & 0x02)` 블록 재현:
-    ...      QOS_HDR(0x02) + (CATEGORY+QOS_POLICY)×5 + STATUS + TIMER(uint32) + QUICK_SUPPORT
+    ...      QOS_HDR(0x02) + (CATEGORY+QOS_POLICY)×6 + STATUS + TIMER(uint32) + QUICK_SUPPORT
+    ...      CATEGORY 는 ASCII 'A'~'F'. 0x0C 는 CATEGORY 6 + STATUS 1 = 7개 나타난다.
     ...    CATEGORY 는 STATUS 와 같은 TAG(0x0C) 를 쓰므로 검증 시 Tlv.Tlv Find All 을 쓸 것.
     [Arguments]
     ...    ${category_policy}=${NONE}

@@ -480,15 +480,18 @@ def build_pcef_qos_ctrl(qos_policy: str, status: str,
     ]
 
 
-# dpiQoSCtrl 기본 (CATEGORY, QOS_POLICY) 쌍 — PG 참조 구현과 동일하게 5쌍,
-# 정책은 QoS400K_NoGBR / NoQoS_NoGBR 교대.
-# TODO: CATEGORY 값 체계 확인 필요. 참조 구현은 5쌍 모두 0x30(='0') 이다.
+# dpiQoSCtrl 기본 (CATEGORY, QOS_POLICY) 쌍.
+# PG 참조 시뮬레이터와 동일하게 **6쌍**이며 CATEGORY 는 ASCII 문자 'A'~'F' 다
+# (`temp = 'A'; TLVGeneration(0x0C, 1, &temp, ...)`).
+# 정책은 시뮬레이터가 6쌍 모두 QoS400K_NoGBR 를 쓴다 — 'D' 블록만 num 홀짝에 따라
+# NoQoS_NoGBR 가 될 수 있으나 그건 시뮬레이터 테스트 데이터이지 규격이 아니다.
 DPI_DEFAULT_CATEGORY_POLICY = [
-    ('0', 'QoS400K_NoGBR'),
-    ('0', 'NoQoS_NoGBR'),
-    ('0', 'QoS400K_NoGBR'),
-    ('0', 'NoQoS_NoGBR'),
-    ('0', 'QoS400K_NoGBR'),
+    ('A', 'QoS400K_NoGBR'),
+    ('B', 'QoS400K_NoGBR'),
+    ('C', 'QoS400K_NoGBR'),
+    ('D', 'QoS400K_NoGBR'),
+    ('E', 'QoS400K_NoGBR'),
+    ('F', 'QoS400K_NoGBR'),
 ]
 
 
@@ -499,14 +502,17 @@ def build_dpi_qos_ctrl(category_policy=None, status: str = '0',
     dpiQoSCtrl (PCEF_TYPE 비트 0x02) TLV bytes 리스트.
     PG 참조 구현의 `if (pcef_type & 0x02) { ... }` 블록을 그대로 재현한다.
 
-    송신 순서:
-        QOS_HDR(0x3A) = 0x02
-        (CATEGORY(0x0C) + QOS_POLICY(0x10)) × N     ← 기본 5쌍, 순서 유지
-        STATUS(0x0C)
-        TIMER(0x20)   = uint32 BE
-        QUICK_SUPPORT(0x3B)
+    송신 순서 (PG 참조 시뮬레이터 `if (pcef_type & 0x02)` 블록):
+        QOS_HDR(0x3A) = 0x02                        1B binary
+        (CATEGORY(0x0C) + QOS_POLICY(0x10)) × 6     CATEGORY 는 1B ASCII 'A'~'F',
+                                                    QOS_POLICY 는 고정길이 NUL 패딩
+        STATUS(0x0C)                                1B ASCII (temp = 0x30)
+        TIMER(0x20)   = uint32 BE                   4B  (htonl)
+        QUICK_SUPPORT(0x3B) = "1"                   1B ASCII
 
-    category_policy : [(category, qos_policy), ...]. 미지정 시 참조 구현 기본 5쌍.
+    → 0x0C 는 이 섹션에서 총 7개 나타난다 (CATEGORY 6 + STATUS 1).
+
+    category_policy : [(category, qos_policy), ...]. 미지정 시 참조 구현 기본 6쌍(A~F).
     status          : 마지막 STATUS 값 (CATEGORY 와 같은 TAG 0x0C 를 쓴다)
     timer           : sec, uint32 BE (참조 구현 예시 250)
     quick_support   : '0'|'1' (참조 구현 예시 '1')

@@ -22,7 +22,7 @@ Documentation
 ...        - COMMON1 (1절, 필수)  : MIN/MDN/CREATE_DATE/TIME/PGW_IP/PCEF_TYPE/QCT/RCT 사용량
 ...        - QoSCtrl              : PCEF_TYPE **비트마스크** 로 분기 (배타적 enum 아님)
 ...                                  0x01 → pcefQoSCtrl  (QOS_POLICY/STATUS/TIMER/QUICK_SUPPORT)
-...                                  0x02 → dpiQoSCtrl   ((CATEGORY+QOS_POLICY)×5/STATUS/TIMER/QUICK_SUPPORT)
+...                                  0x02 → dpiQoSCtrl   ((CATEGORY+QOS_POLICY)×6/STATUS/TIMER/QUICK_SUPPORT)
 ...                                  0x10 → enodebQoSCtl (SUPPORT_TYPE/ARP_QCI_FLAG/ENB_ARP/QCI/...)
 ...                                  조합 가능 — LTE DPI 는 0x01|0x02 = 0x03
 ...        - COMMON2 (4절, 필수)  : NETWORK/CONTROL_UNIT/CELL_ID/DN_USAGE/USING_USER/...
@@ -40,12 +40,7 @@ Documentation
 ...      TC-NWDAF-021 ~ 022 : COMMON1 (RCT_3M/1M_USAGE 경계)
 ...      TC-NWDAF-023 ~ 030 : COMMON2 (NETWORK / CONTROL_UNIT / DN_USAGE / USER_RATIO)
 ...      TC-NWDAF-031       : Message Id wrap
-...      TC-NWDAF-032 ~ 036 : Build 단위 검증 (송신 없음)
-...      TC-NWDAF-037 ~ 041 : dpiQoSCtrl (LTE DPI QoS, 인코딩 검증)
-...      TC-NWDAF-042 ~ 051 : 규격 미커버 값 보강 (NETWORK 2G / CONTROL_UNIT 3~6 / ARP / TIMER 0 / QCI)
-...                           ※ 현재 주석 처리 (비활성)
-...      TC-NWDAF-052 ~ 053 : Multi Message (다가입자 동시 통보)
-...                           ※ 현재 주석 처리 (비활성)
+...      TC-NWDAF-032 ~ 036 : dpiQoSCtrl (LTE DPI QoS, 인코딩 검증 — 034~036 은 송신 없음)
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/nwdaf_variables.robot
@@ -339,7 +334,8 @@ TC-NWDAF-031 Message Id Wrap (0xFFF → 0x000)
 # ════════════════════════════════════════════════════════════════
 # dpiQoSCtrl — LTE DPI QoS (PCEF_TYPE 비트 0x02)
 # PCEF_TYPE 은 비트마스크이므로 P-GW(0x01) 와 DPI(0x02) 가 함께 실릴 수 있다.
-# 구조: QOS_HDR(0x02) + (CATEGORY+QOS_POLICY)×5 + STATUS + TIMER(uint32) + QUICK_SUPPORT
+# 구조: QOS_HDR(0x02) + (CATEGORY+QOS_POLICY)×6 + STATUS + TIMER(uint32) + QUICK_SUPPORT
+#       CATEGORY 는 ASCII 'A'~'F' (PG 참조 시뮬레이터 기준)
 # ════════════════════════════════════════════════════════════════
 
 TC-NWDAF-032 LTE DPI QoS 추가 (PCEF_TYPE=0x01|0x02)
@@ -356,18 +352,20 @@ TC-NWDAF-033 DPI 단독 Notification (PCEF_TYPE=0x02)
     ${mid}=    Send DPI Only QoS Notification
     Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
 
-TC-NWDAF-034 DPI CATEGORY/QOS_POLICY 5쌍 구조 검증
+TC-NWDAF-034 DPI CATEGORY/QOS_POLICY 6쌍 구조 검증
     [Documentation]
     ...    송신 없이 build 단위 검증.
-    ...    0x0C 는 CATEGORY 5회 + STATUS 1회 = 6개, 0x10(QOS_POLICY) 은 5개여야 한다.
+    ...    0x0C 는 CATEGORY 6회 + STATUS 1회 = 7개, 0x10(QOS_POLICY) 은 6개여야 한다.
+    ...    CATEGORY 값은 ASCII 'A'~'F' 순서를 유지해야 한다.
     ...    tlv_find 는 첫 매칭만 주므로 Tlv Find All 을 쓴다.
     [Tags]    nwdaf    nwdaf_dpi    validation
     ${dpi}=    Build dpiQoSCtrl
     ${stream}=    Evaluate    b''.join($dpi)
     ${cat}=    Tlv.Tlv Find All    ${stream}    ${NWDAF_TAG_CATEGORY}
-    Length Should Be    ${cat}    ${6}    msg=CATEGORY 5 + STATUS 1 = 6 기대
+    Length Should Be    ${cat}    ${7}    msg=CATEGORY 6 + STATUS 1 = 7 기대
+    Should Be Equal    ${{ b''.join($cat[:6]).decode('ascii') }}    ABCDEF    msg=CATEGORY 'A'~'F' 순서 기대
     ${pol}=    Tlv.Tlv Find All    ${stream}    ${NWDAF_TAG_QOS_POLICY}
-    Length Should Be    ${pol}    ${5}    msg=QOS_POLICY 5개 기대
+    Length Should Be    ${pol}    ${6}    msg=QOS_POLICY 6개 기대
     ${tlvs}=    Tlv.Unpack Tlv Stream    ${stream}
     Should Be Equal As Integers    ${tlvs}[0][0]    ${NWDAF_TAG_QOS_HDR}
     ${hdr_val}=    Evaluate    $tlvs[0][2][0]
