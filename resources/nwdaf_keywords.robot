@@ -71,6 +71,7 @@ Check NWDAF Socket
     ${closed}=    Tlv.Nwdaf Peer Closed    ${NWDAF_SOCK}
     Run Keyword If    ${closed}
     ...    Fatal Error    PG 가 NWDAF 연결을 끊었습니다 (FIN/RST). 직전 송신 전문을 PG 가 거부했을 수 있습니다.
+    Drain NWDAF Pending Messages
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -138,14 +139,34 @@ Build COMMON1
 
 Build pcefQoSCtrl
     [Documentation]
-    ...    pcefQoSCtrl (2절, PCEF_TYPE=0x01) TLV bytes 리스트 반환.
+    ...    pcefQoSCtrl (2절, PCEF_TYPE 비트 0x01) TLV bytes 리스트 반환.
+    ...    QOS_POLICY 는 고정길이 NUL 패딩, TIMER 는 uint32 BE 로 송신된다 (PG 참조 구현 기준).
     [Arguments]
     ...    ${qos_policy}=${NWDAF_TEST_QOS_POLICY}
     ...    ${status}=${NWDAF_STATUS_NORMAL}
     ...    ${timer}=${NWDAF_TEST_TIMER}
     ...    ${quick_support}=${NWDAF_QUICK_NOW}
+    ...    ${policy_len}=${NWDAF_LEN_QOS_POLICY}
     ${tlvs}=    Tlv.Build Pcef Qos Ctrl    ${qos_policy}    ${status}    ${timer}    ${quick_support}
+    ...    policy_len=${policy_len}
     Log TLV Section    pcefQoSCtrl    ${tlvs}
+    RETURN    ${tlvs}
+
+Build dpiQoSCtrl
+    [Documentation]
+    ...    dpiQoSCtrl (PCEF_TYPE 비트 0x02) TLV bytes 리스트 반환.
+    ...    PG 참조 구현의 `if (pcef_type & 0x02)` 블록 재현:
+    ...      QOS_HDR(0x02) + (CATEGORY+QOS_POLICY)×5 + STATUS + TIMER(uint32) + QUICK_SUPPORT
+    ...    CATEGORY 는 STATUS 와 같은 TAG(0x0C) 를 쓰므로 검증 시 Tlv.Tlv Find All 을 쓸 것.
+    [Arguments]
+    ...    ${category_policy}=${NONE}
+    ...    ${status}=${NWDAF_STATUS_NORMAL}
+    ...    ${timer}=${NWDAF_DPI_TEST_TIMER}
+    ...    ${quick_support}=${NWDAF_QUICK_AFTER}
+    ...    ${policy_len}=${NWDAF_LEN_QOS_POLICY}
+    ${tlvs}=    Tlv.Build Dpi Qos Ctrl    ${category_policy}    ${status}    ${timer}
+    ...    ${quick_support}    policy_len=${policy_len}
+    Log TLV Section    dpiQoSCtrl    ${tlvs}
     RETURN    ${tlvs}
 
 Build enodebQoSCtl
@@ -228,6 +249,43 @@ Send Subscriber QoS Notification PGW
     ${mid}=    Send NWDAF Notification    ${body}
     RETURN    ${mid}
 
+Send Subscriber QoS Notification LTE DPI
+    [Documentation]
+    ...    LTE 가입자 DPI QoS 추가 케이스.
+    ...    PCEF_TYPE = 0x01|0x02 (P-GW + DPI) → COMMON1 + pcefQoSCtrl + dpiQoSCtrl + COMMON2 송신.
+    ...    PCEF_TYPE 이 비트마스크이므로 두 QoS 섹션이 한 전문에 함께 실린다.
+    [Arguments]
+    ...    ${mdn}=${NWDAF_TEST_MDN}
+    ...    ${min}=${NWDAF_TEST_MIN}
+    ...    ${qos_policy}=${NWDAF_TEST_QOS_POLICY}
+    ...    ${status}=${NWDAF_STATUS_NORMAL}
+    ...    ${category_policy}=${NONE}
+    ...    ${cell_id}=${NWDAF_TEST_CELL_ID}
+    ...    ${network}=${NWDAF_NET_LTE}
+    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW_DPI}    mdn=${mdn}    min=${min}
+    ${qc}=    Build pcefQoSCtrl    qos_policy=${qos_policy}    status=${status}
+    ${dpi}=   Build dpiQoSCtrl    category_policy=${category_policy}    status=${status}
+    ${c2}=    Build COMMON2    cell_id=${cell_id}    network=${network}
+    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}    dpi_qos_ctrl=${dpi}
+    ${mid}=    Send NWDAF Notification    ${body}
+    RETURN    ${mid}
+
+Send DPI Only QoS Notification
+    [Documentation]
+    ...    PCEF_TYPE = 0x02 (DPI 단독). COMMON1 + dpiQoSCtrl + COMMON2 송신.
+    [Arguments]
+    ...    ${mdn}=${NWDAF_TEST_MDN}
+    ...    ${min}=${NWDAF_TEST_MIN}
+    ...    ${category_policy}=${NONE}
+    ...    ${cell_id}=${NWDAF_TEST_CELL_ID}
+    ...    ${network}=${NWDAF_NET_LTE}
+    ${c1}=    Build COMMON1    ${NWDAF_PCEF_DPI}    mdn=${mdn}    min=${min}
+    ${dpi}=   Build dpiQoSCtrl    category_policy=${category_policy}
+    ${c2}=    Build COMMON2    cell_id=${cell_id}    network=${network}
+    ${body}=    Tlv.Build Notification Body    ${c1}    ${dpi}    ${c2}
+    ${mid}=    Send NWDAF Notification    ${body}
+    RETURN    ${mid}
+
 Send Subscriber QoS Notification ENB
     [Documentation]
     ...    PCEF_TYPE=0x10 (eNB). COMMON1 + enodebQoSCtl + COMMON2 송신.
@@ -247,6 +305,64 @@ Send Subscriber QoS Notification ENB
     ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
     ${mid}=    Send NWDAF Notification    ${body}
     RETURN    ${mid}
+
+
+# ══════════════════════════════════════════════════════════════════
+# 수신 (PG → NWDAF) — Health Check
+# 규격: "Health Check Timeout 은 30초로 정의하며, 30초 이내에 PG는
+#        Health Check Request 메시지를 보내야 한다."
+# ══════════════════════════════════════════════════════════════════
+
+Receive NWDAF Message
+    [Documentation]
+    ...    PG → NWDAF 메시지 1건 수신. (header dict, body bytes, inner TLV 리스트) 반환.
+    ...    소켓 타임아웃(${NWDAF_TIMEOUT}) 내에 안 오면 예외로 실패한다.
+    ${hdr}    ${body}    ${tlvs}=    Tlv.Receive Nwdaf Message    ${NWDAF_SOCK}
+    Log    [RX←PG] msg_type=${hdr}[msg_type] sid=${hdr}[service_id] mid=${hdr}[message_id] bodylen=${hdr}[body_length]
+    RETURN    ${hdr}    ${body}    ${tlvs}
+
+Send NWDAF Health Check Response
+    [Documentation]
+    ...    수신한 Health Check Request 헤더를 그대로 echo 하고 Message Type 만
+    ...    Response(0b100) 로 바꿔 회신한다.
+    ...    TODO: 규격 "2. Message Format" 의 Health Check Body 정의 확인 후 교체.
+    ...          현재는 Body 없이(길이 0) 회신한다.
+    [Arguments]    ${req_hdr}    ${body}=${EMPTY}
+    ${sent}=    Tlv.Send Nwdaf Raw    ${NWDAF_SOCK}    ${NWDAF_MT_RESP}
+    ...    ${req_hdr}[service_id]    ${req_hdr}[message_id]    ${body}
+    Log    [TX→PG] Health Check Response sid=${req_hdr}[service_id] mid=${req_hdr}[message_id] bytes=${sent}
+    RETURN    ${sent}
+
+Handle NWDAF Health Check
+    [Documentation]
+    ...    PG 의 Health Check Request(0b001) 를 최대 ${timeout} 초 대기해 수신하고 Response 회신.
+    ...    소켓 타임아웃은 접속 시 1회만 설정되므로 이 구간에서만 늘렸다 되돌린다.
+    [Arguments]    ${timeout}=${NWDAF_HEALTHCHECK_TIMEOUT}
+    ${prev}=    Tlv.Nwdaf Set Timeout    ${NWDAF_SOCK}    ${timeout}
+    TRY
+        ${hdr}    ${body}    ${tlvs}=    Receive NWDAF Message
+        Should Be Equal As Integers    ${hdr}[msg_type]    ${NWDAF_MT_REQ}
+        ...    msg=Health Check Request(0b001) 기대, 실제 msg_type=${hdr}[msg_type]
+        Send NWDAF Health Check Response    ${hdr}
+    FINALLY
+        Tlv.Nwdaf Set Timeout    ${NWDAF_SOCK}    ${prev}
+    END
+    RETURN    ${hdr}
+
+Drain NWDAF Pending Messages
+    [Documentation]
+    ...    소켓에 쌓여 있는 PG 발 메시지를 논블로킹으로 확인해 비운다.
+    ...    Health Check Request 면 Response 를 회신한다.
+    ...    도구가 소켓을 전혀 읽지 않으면 PG 의 주기적 Health Check 가 계속 쌓이므로 필요.
+    [Arguments]    ${limit}=${5}
+    FOR    ${i}    IN RANGE    ${limit}
+        ${pending}=    Tlv.Nwdaf Has Pending    ${NWDAF_SOCK}
+        IF    not ${pending}    BREAK
+        ${hdr}    ${body}    ${tlvs}=    Receive NWDAF Message
+        IF    ${hdr}[msg_type] == ${NWDAF_MT_REQ}
+            Send NWDAF Health Check Response    ${hdr}
+        END
+    END
 
 
 # ══════════════════════════════════════════════════════════════════

@@ -15,6 +15,8 @@ Documentation
 ${NWDAF_HOST}             ${PG_HOST}
 ${NWDAF_PORT}             10305
 ${NWDAF_TIMEOUT}          10
+# 규격: Health Check Timeout 30초 (PG가 30초 이내에 Request 송신). 여유 5초 포함.
+${NWDAF_HEALTHCHECK_TIMEOUT}    35
 
 # ════════════════════════════════════════════
 # NWDAF Header — Message Type (Byte0 하위 3bit)
@@ -32,9 +34,16 @@ ${NWDAF_SID_SUBSCRIBER}   ${773}      # 0x0305 가입자 단위 QoS 제어
 # ════════════════════════════════════════════
 # PCEF_TYPE (TAG 0x0D) — 규격 1.1
 # QoSHDR 묶음 분기에 사용. QOS_HDR(0x3A) flag 값과 동일.
+#
+# ※ 배타적 enum 이 아니라 **비트마스크**다 (PG 참조 구현이 `pcef_type & 0x02` 로 검사).
+#   조합값이 유효하다 — LTE DPI 케이스는 PGW|DPI = 0x03.
 # ════════════════════════════════════════════
 ${NWDAF_PCEF_PGW}         ${1}        # 0x01 P-GW / SMF → pcefQoSCtrl
+${NWDAF_PCEF_DPI}         ${2}        # 0x02 DPI        → dpiQoSCtrl
+${NWDAF_PCEF_DPI2}        ${4}        # 0x04 DPI (규격 QOS_HDR 목록 두 번째 DPI)
+${NWDAF_PCEF_APRS}        ${8}        # 0x08 APRS
 ${NWDAF_PCEF_ENB}         ${16}       # 0x10 eNB        → enodebQoSCtl
+${NWDAF_PCEF_PGW_DPI}     ${3}        # 0x01|0x02 P-GW + DPI (LTE DPI QoS 추가)
 
 # ════════════════════════════════════════════
 # QOS_CONTROL_TYPE (TAG 0x0E) — 규격 1.2
@@ -51,8 +60,11 @@ ${NWDAF_NET_5G}           ${3}        # 0x03
 
 # ════════════════════════════════════════════
 # CONTROL_UNIT (TAG 0x40, numeric) — 규격 4.2
+#
+# 값은 규격 그대로 1~6 의미값만 둔다. 실제 wire 인코딩(ASCII '1' vs 바이너리 0x01)은
+# TlvHelper.CONTROL_UNIT_AS_ASCII 스위치가 결정한다 — 값과 인코딩을 분리.
 # ════════════════════════════════════════════
-${NWDAF_CU_CELL}          ${49}       # 0x31 (ASCII '1')
+${NWDAF_CU_CELL}          ${1}
 ${NWDAF_CU_ENODEB}        ${2}
 ${NWDAF_CU_SECTOR}        ${3}
 ${NWDAF_CU_NODEB}         ${4}
@@ -109,8 +121,14 @@ ${NWDAF_TEST_MDN_5G}           01093742433     # 5G 가입자 MDN
 ${NWDAF_TEST_PGW_IP}           60.50.10.2
 ${NWDAF_TEST_CELL_ID}          123456:0
 ${NWDAF_TEST_QOS_POLICY}       QoS200K
+${NWDAF_TEST_QOS_POLICY_400K}  QoS400K_NoGBR
+${NWDAF_TEST_QOS_POLICY_NOQOS} NoQoS_NoGBR
 ${NWDAF_TEST_QCI}              ${9}
+${NWDAF_TEST_QCI_ALT}          ${6}        # QCI 값 변형 검증용
 ${NWDAF_TEST_TIMER}            ${300}      # 초 단위 (5분)
+${NWDAF_TIMER_UNUSED}          ${0}        # 규격 2.4 '0=미사용'
+${NWDAF_TEST_CATEGORY}         0           # dpiQoSCtrl CATEGORY (참조 구현은 '0'=0x30)
+${NWDAF_DPI_TEST_TIMER}        ${250}      # PG 참조 구현 예시값
 ${NWDAF_TEST_RCT_3M_USAGE}     ${500}      # KB
 ${NWDAF_TEST_RCT_1M_USAGE}     ${150}      # KB
 ${NWDAF_TEST_DN_USAGE}         ${1000}     # KB
@@ -133,12 +151,14 @@ ${NWDAF_TAG_PGW_IP_ADDRESS}     ${15}     # 0x0F string
 ${NWDAF_TAG_RCT_3M_USAGE}       ${56}     # 0x38 uint32 KB
 ${NWDAF_TAG_RCT_1M_USAGE}       ${57}     # 0x39 uint32 KB
 
-# pcefQoSCtrl (2절, PCEF_TYPE=0x01)
-${NWDAF_TAG_QOS_HDR}            ${58}     # 0x3A uint8 flag (0x01=PGW, 0x10=eNB)
-${NWDAF_TAG_QOS_POLICY}         ${16}     # 0x10 string
+# pcefQoSCtrl / dpiQoSCtrl (PCEF_TYPE 비트 0x01 / 0x02)
+${NWDAF_TAG_QOS_HDR}            ${58}     # 0x3A uint8 flag (0x01=PGW, 0x02/0x04=DPI, 0x08=APRS, 0x10=eNB)
+${NWDAF_TAG_QOS_POLICY}         ${16}     # 0x10 string (고정길이 NUL 패딩)
 ${NWDAF_TAG_STATUS}             ${12}     # 0x0C string '0'~'3'
-${NWDAF_TAG_TIMER}              ${32}     # 0x20 pcef=uint16 sec, enb=string sec
+${NWDAF_TAG_CATEGORY}           ${12}     # 0x0C ※ STATUS 와 동일 TAG. dpiQoSCtrl 안에서 반복 등장
+${NWDAF_TAG_TIMER}              ${32}     # 0x20 pcef/dpi=uint32 sec(BE), enb=string sec
 ${NWDAF_TAG_QUICK_SUPPORT}      ${59}     # 0x3B string '0'|'1'
+${NWDAF_LEN_QOS_POLICY}         ${16}     # TODO: PG 의 LEN_QOS_POLICY 실값 확인 (최소 13)
 
 # enodebQoSCtl (3절, PCEF_TYPE=0x10)
 ${NWDAF_TAG_QCI}                ${17}     # 0x11 uint8

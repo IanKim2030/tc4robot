@@ -107,6 +107,39 @@ def nwdaf_peer_closed(sock) -> bool:
     return data == b''      # FIN 수신 → 상대가 close
 
 
+def nwdaf_set_timeout(sock, timeout):
+    """
+    소켓 타임아웃을 바꾸고 **이전 값을 반환**한다.
+
+    리포 전체에 per-recv 타임아웃 인자가 없고 타임아웃은 접속 시 한 번만 설정되므로,
+    규격의 'Health Check 30초' 를 기다리려면 그 구간에서만 일시적으로 늘렸다 되돌려야 한다.
+    """
+    prev = sock.gettimeout()
+    sock.settimeout(float(timeout))
+    return prev
+
+
+def nwdaf_has_pending(sock) -> bool:
+    """
+    수신 대기 중인 데이터가 있는지 논블로킹으로 확인 (읽어서 소비하지는 않는다).
+    PG 의 주기적 Health Check Request 가 소켓에 쌓였는지 판단하는 용도.
+    """
+    if not nwdaf_is_connected(sock):
+        return False
+    try:
+        prev = sock.gettimeout()
+        sock.setblocking(False)
+        try:
+            data = sock.recv(1, socket.MSG_PEEK)
+        finally:
+            sock.settimeout(prev)
+    except (BlockingIOError, InterruptedError):
+        return False
+    except OSError:
+        return False
+    return len(data) > 0
+
+
 def _recv_exact(sock, n: int) -> bytes:
     """정확히 n 바이트 수신. 연결 끊기면 NwdafConnectionClosed."""
     buf = bytearray()
@@ -133,7 +166,7 @@ def build_nwdaf_header(msg_type: int, service_id: int, message_id: int,
     8 Octet NWDAF 헤더 생성 (Big Endian)
 
     msg_type    : 0b001/0b100/0b010 (Request/Response/Notification)
-    service_id  : 0x0305 / 0x0306 / 0x0307
+    service_id  : 0x0305 (규격이 정의한 유일한 Service Id — 가입자 단위 QoS 제어)
     message_id  : 0x000~0xFFF (호출자가 순환 관리)
     body_length : Body(TLV stream) 총 바이트
     """
@@ -258,15 +291,21 @@ def pack_string(tag: int, val: str) -> bytes:
     return pack_tlv(tag, s.encode('ascii', errors='replace'))
 
 
-def pack_string_fixed(tag: int, val: str, length: int) -> bytes:
-    """고정 길이 문자열 (부족하면 공백 패딩, 초과하면 자름)"""
+def pack_string_fixed(tag: int, val: str, length: int, pad: bytes = b' ') -> bytes:
+    """
+    고정 길이 문자열 (부족하면 pad 로 패딩, 초과하면 자름)
+
+    pad : 기본 공백. PG 참조 구현의 QOS_POLICY 는
+          `char strQosPolicy[LEN_QOS_POLICY+1] = { 0x00, };` 처럼
+          NUL 패딩이므로 그 경우 b'\\x00' 을 넘긴다.
+    """
     s = '' if val is None else str(val)
     encoded = s.encode('ascii', errors='replace')
     length = int(length)
     if len(encoded) >= length:
         encoded = encoded[:length]
     else:
-        encoded = encoded + b' ' * (length - len(encoded))
+        encoded = encoded + bytes(pad) * (length - len(encoded))
     return pack_tlv(tag, encoded)
 
 
@@ -306,12 +345,21 @@ TAG_PGW_IP_ADDRESS     = 0x0F    # string, PGW IP
 TAG_RCT_3M_USAGE       = 0x38    # uint32, 0~9,999,999 KB
 TAG_RCT_1M_USAGE       = 0x39    # uint32, 0~9,999,999 KB
 
-# pcefQoSCtrl (PCEF_TYPE=0x01) sub-fields
-TAG_QOS_HDR            = 0x3A    # uint8 flag: 0x01=PGW, 0x10=eNB (값으로 분기)
-TAG_QOS_POLICY         = 0x10    # string, NWDAF→PCRF rule
+# pcefQoSCtrl / dpiQoSCtrl (PCEF_TYPE 비트 0x01 / 0x02) sub-fields
+TAG_QOS_HDR            = 0x3A    # uint8 flag: 0x01=PGW, 0x02/0x04=DPI, 0x08=APRS, 0x10=eNB
+TAG_QOS_POLICY         = 0x10    # string(고정길이 LEN_QOS_POLICY, NUL 패딩), NWDAF→PCRF rule
 TAG_STATUS             = 0x0C    # string '0'=Normal '1'=Minor '2'=Major '3'=Critical
-TAG_TIMER              = 0x20    # pcef=uint16 sec, enb=string sec (규격 그대로)
+TAG_CATEGORY           = 0x0C    # ※ STATUS 와 같은 TAG. dpiQoSCtrl 안에서는 CATEGORY 의미로
+                                 #   (CATEGORY + QOS_POLICY) 쌍이 반복 등장한다 (PG 참조 구현 확인).
+                                 #   따라서 0x0C 를 tlv_find 로 찾으면 첫 CATEGORY 가 잡힌다 —
+                                 #   DPI 블록 검증에는 tlv_find_all 을 쓸 것.
+TAG_TIMER              = 0x20    # pcef/dpi=uint32 sec(BE), enb=string sec (규격 그대로)
 TAG_QUICK_SUPPORT      = 0x3B    # string '0'=즉시제어 '1'=update 후
+
+# QOS_POLICY 고정 길이.
+# TODO: PG 참조 구현의 LEN_QOS_POLICY 매크로 실값 확인 필요.
+#       'QoS400K_NoGBR'(13자) 가 들어가므로 최소 13. 확인되면 이 상수만 고치면 된다.
+LEN_QOS_POLICY         = 16
 
 # enodebQoSCtl (PCEF_TYPE=0x10) sub-fields (QOS_HDR/TIMER 는 위와 공유)
 TAG_QCI                = 0x11    # uint8
@@ -336,8 +384,24 @@ TAG_CONTROL_UNIT       = 0x40    # uint8 1=Cell..6=WMSC
 TAG_MULTI_MESSAGE      = 0xFF
 
 # PCEF_TYPE / QOS_HDR 값 (규격 1.1, 2.1, 3.1)
+#
+# ※ PCEF_TYPE 은 배타적 enum 이 아니라 **비트마스크**다.
+#    PG 참조 구현이 `if (pcef_type & 0x02) { ... }` 형태로 비트 검사를 한다.
+#    따라서 조합값이 유효하다 — 예) LTE = PCEF_PGW | PCEF_DPI = 0x03.
 PCEF_PGW   = 0x01    # P-GW / SMF (pcefQoSCtrl 사용)
+PCEF_DPI   = 0x02    # DPI        (dpiQoSCtrl 사용)
+PCEF_DPI2  = 0x04    # DPI (규격 QOS_HDR 목록의 두 번째 DPI 항목)
+PCEF_APRS  = 0x08    # APRS
 PCEF_ENB   = 0x10    # eNB        (enodebQoSCtl 사용)
+
+# CONTROL_UNIT(0x40) 인코딩 스위치.
+#   True  = ASCII 숫자 1바이트로 송신 ('1'=0x31 …)
+#   False = 바이너리 uint8 로 송신 (0x01 …)
+# 규격 표기는 numeric 이지만, 실 PG 로그에서 바이트 0x31 을 보냈을 때
+# `CONTROL_UNIT = [1]` 로 출력됐다(바이너리로 읽었다면 49 가 찍혀야 함).
+# PG 참조 구현도 CATEGORY/STATUS 를 0x30(='0') 처럼 ASCII 로 채운다.
+# TODO: PG 확인 후 확정. 확정되면 이 한 줄만 바꾸면 된다.
+CONTROL_UNIT_AS_ASCII = True
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -379,22 +443,70 @@ def build_common1(pcef_type: int, qos_control_type: int,
 
 
 def build_pcef_qos_ctrl(qos_policy: str, status: str,
-                        timer: int, quick_support: str) -> list:
+                        timer: int, quick_support: str,
+                        policy_len: int = None) -> list:
     """
-    pcefQoSCtrl (2절, PCEF_TYPE=0x01) TLV bytes 리스트.
+    pcefQoSCtrl (2절, PCEF_TYPE 비트 0x01) TLV bytes 리스트.
 
-    qos_policy    : NWDAF→PCRF rule 문자열
+    qos_policy    : NWDAF→PCRF rule 문자열 (고정길이 NUL 패딩으로 송신)
     status        : '0'=Normal '1'=Minor '2'=Major '3'=Critical
-    timer         : 0=미사용, >0 이면 sec
+    timer         : 0=미사용, >0 이면 sec — uint32 BE (PG 참조 구현 htonl/len=4)
     quick_support : '0'=즉시제어, '1'=update 수신 후 제어
+    policy_len    : QOS_POLICY 고정 길이. 미지정 시 LEN_QOS_POLICY.
     """
+    plen = LEN_QOS_POLICY if policy_len is None else int(policy_len)
     return [
-        pack_uint8 (TAG_QOS_HDR,       PCEF_PGW),     # 0x01 flag
-        pack_string(TAG_QOS_POLICY,    qos_policy),
-        pack_string(TAG_STATUS,        status),
-        pack_uint16(TAG_TIMER,         timer),
-        pack_string(TAG_QUICK_SUPPORT, quick_support),
+        pack_uint8       (TAG_QOS_HDR,       PCEF_PGW),     # 0x01 flag
+        pack_string_fixed(TAG_QOS_POLICY,    qos_policy, plen, pad=b'\x00'),
+        pack_string      (TAG_STATUS,        status),
+        pack_uint32      (TAG_TIMER,         timer),
+        pack_string      (TAG_QUICK_SUPPORT, quick_support),
     ]
+
+
+# dpiQoSCtrl 기본 (CATEGORY, QOS_POLICY) 쌍 — PG 참조 구현과 동일하게 5쌍,
+# 정책은 QoS400K_NoGBR / NoQoS_NoGBR 교대.
+# TODO: CATEGORY 값 체계 확인 필요. 참조 구현은 5쌍 모두 0x30(='0') 이다.
+DPI_DEFAULT_CATEGORY_POLICY = [
+    ('0', 'QoS400K_NoGBR'),
+    ('0', 'NoQoS_NoGBR'),
+    ('0', 'QoS400K_NoGBR'),
+    ('0', 'NoQoS_NoGBR'),
+    ('0', 'QoS400K_NoGBR'),
+]
+
+
+def build_dpi_qos_ctrl(category_policy=None, status: str = '0',
+                       timer: int = 250, quick_support: str = '1',
+                       policy_len: int = None) -> list:
+    """
+    dpiQoSCtrl (PCEF_TYPE 비트 0x02) TLV bytes 리스트.
+    PG 참조 구현의 `if (pcef_type & 0x02) { ... }` 블록을 그대로 재현한다.
+
+    송신 순서:
+        QOS_HDR(0x3A) = 0x02
+        (CATEGORY(0x0C) + QOS_POLICY(0x10)) × N     ← 기본 5쌍, 순서 유지
+        STATUS(0x0C)
+        TIMER(0x20)   = uint32 BE
+        QUICK_SUPPORT(0x3B)
+
+    category_policy : [(category, qos_policy), ...]. 미지정 시 참조 구현 기본 5쌍.
+    status          : 마지막 STATUS 값 (CATEGORY 와 같은 TAG 0x0C 를 쓴다)
+    timer           : sec, uint32 BE (참조 구현 예시 250)
+    quick_support   : '0'|'1' (참조 구현 예시 '1')
+    policy_len      : QOS_POLICY 고정 길이. 미지정 시 LEN_QOS_POLICY.
+    """
+    pairs = DPI_DEFAULT_CATEGORY_POLICY if category_policy is None else category_policy
+    plen = LEN_QOS_POLICY if policy_len is None else int(policy_len)
+
+    out = [pack_uint8(TAG_QOS_HDR, PCEF_DPI)]           # 0x02 flag
+    for category, qos_policy in pairs:
+        out.append(pack_string      (TAG_CATEGORY,   category))
+        out.append(pack_string_fixed(TAG_QOS_POLICY, qos_policy, plen, pad=b'\x00'))
+    out.append(pack_string(TAG_STATUS,        status))
+    out.append(pack_uint32(TAG_TIMER,         timer))
+    out.append(pack_string(TAG_QUICK_SUPPORT, quick_support))
+    return out
 
 
 def build_enb_qos_ctrl(support_type: int, arp_qci_flag: int, enb_arp: int,
@@ -439,9 +551,13 @@ def build_common2(network: int, control_unit: int, cell_id: str,
     user_usage     : Heavy/Medium/Light 가입자 사용량 합 (KB)
     user_ratio     : 0=Enable, 1=Disable (규격 4.9 원문)
     """
+    if CONTROL_UNIT_AS_ASCII:
+        cu_tlv = pack_string(TAG_CONTROL_UNIT, str(int(control_unit)))
+    else:
+        cu_tlv = pack_uint8 (TAG_CONTROL_UNIT, control_unit)
     return [
         pack_uint32(TAG_NETWORK,        network),
-        pack_uint8 (TAG_CONTROL_UNIT,   control_unit),
+        cu_tlv,
         pack_string(TAG_CELL_ID,        cell_id),
         pack_uint32(TAG_DN_USAGE,       dn_usage),
         pack_uint32(TAG_USING_USER,     using_user),
@@ -452,13 +568,34 @@ def build_common2(network: int, control_unit: int, cell_id: str,
     ]
 
 
-def build_notification_body(common1: list, qos_ctrl: list, common2: list) -> list:
+def build_notification_body(common1: list, qos_ctrl: list, common2: list,
+                            dpi_qos_ctrl: list = None) -> list:
     """
     Notification Body 의 inner TLV 리스트 조립.
-    COMMON1 + (pcefQoSCtrl | enodebQoSCtl) + COMMON2 순서.
+    COMMON1 + (pcefQoSCtrl | enodebQoSCtl) [+ dpiQoSCtrl] + COMMON2 순서.
+
+    PCEF_TYPE 이 비트마스크이므로 P-GW(0x01) 와 DPI(0x02) 가 동시에 실릴 수 있다
+    (LTE DPI QoS 추가 케이스). 그 경우 dpi_qos_ctrl 을 함께 넘긴다.
     반환된 리스트를 send_nwdaf_notification 의 tlvs 인자로 그대로 넘기면 됨.
     """
-    return list(common1) + list(qos_ctrl) + list(common2)
+    out = list(common1) + list(qos_ctrl)
+    if dpi_qos_ctrl:
+        out += list(dpi_qos_ctrl)
+    return out + list(common2)
+
+
+def build_multi_subscriber_body(*bodies) -> list:
+    """
+    가입자 여러 명의 inner TLV 리스트를 하나의 MULTI_MESSAGE(0xFF) 안에 이어붙인다.
+    규격상 Service Id 0x0305 는 "Multi Message 처리 가능" 이므로
+    한 패킷에 여러 가입자 통보를 담을 수 있다.
+
+    각 인자는 build_notification_body() 가 반환한 리스트.
+    """
+    out = []
+    for b in bodies:
+        out += list(b)
+    return out
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -501,6 +638,19 @@ def send_nwdaf_notification(sock, service_id: int, message_id: int,
     Notification 송신 단축 헬퍼. 실제 송신한 패킷 길이를 반환.
     """
     packet = build_nwdaf_notification(service_id, message_id, tlvs)
+    send_nwdaf_packet(sock, packet)
+    return len(packet)
+
+
+def send_nwdaf_raw(sock, msg_type: int, service_id: int, message_id: int,
+                   body: bytes = b'') -> int:
+    """
+    Body 를 MULTI_MESSAGE(0xFF) 로 감싸지 **않고** 그대로 실어 보낸다.
+    Health Check Response 처럼 Notification 이 아닌 메시지용.
+    """
+    body = b'' if body is None else bytes(body)
+    header = build_nwdaf_header(msg_type, service_id, message_id, len(body))
+    packet = header + body
     send_nwdaf_packet(sock, packet)
     return len(packet)
 
@@ -574,3 +724,18 @@ def tlv_find(tlvs_or_buf, tag: int):
         if t == tag:
             return v
     return None
+
+
+def tlv_find_all(tlvs_or_buf, tag: int) -> list:
+    """
+    매칭되는 모든 TLV value(bytes) 를 순서대로 반환. 없으면 [].
+
+    같은 TAG 가 반복 등장하는 구간 검증용 — 특히 dpiQoSCtrl 은
+    0x0C 를 CATEGORY 로 N 회 + STATUS 로 1 회 쓰므로 tlv_find(첫 매칭)로는 검증할 수 없다.
+    """
+    if isinstance(tlvs_or_buf, (bytes, bytearray)):
+        tlvs = unpack_tlv_stream(bytes(tlvs_or_buf))
+    else:
+        tlvs = tlvs_or_buf
+    tag = int(tag) & 0xFF
+    return [v for t, _l, v in tlvs if t == tag]

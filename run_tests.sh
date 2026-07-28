@@ -25,7 +25,7 @@
 #   robot --test "TC-NAG-010*"   tests/nag/
 #   robot --test "TC-LRS-006*"   tests/lrs/
 #   robot --test "TC-UPM-005*"   tests/upm/
-#   robot --test "TC-NWDAF-0305*" tests/nwdaf/
+#   robot --test "TC-NWDAF-001*" tests/nwdaf/
 
 TARGET=${1:-smoke}
 EXTRA_ARGS=()
