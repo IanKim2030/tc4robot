@@ -359,6 +359,10 @@ TAG_CATEGORY           = 0x0C    # ※ STATUS 와 같은 TAG. dpiQoSCtrl 안에�
 TAG_TIMER              = 0x20    # pcef/dpi=uint32 sec(BE), enb=string sec (규격 그대로)
 TAG_QUICK_SUPPORT      = 0x3B    # string '0'=즉시제어 '1'=update 후
 
+# QCI(0x11) 고정 길이. 송신부가 TLVGeneration(0x11, 2, "9", ...) 로 길이 2 를 쓰고
+# 수신부가 memcpy(cQCI, p, length) 로 그대로 받는다. 문자열 + NUL 패딩.
+LEN_QCI                = 2
+
 # QOS_POLICY 고정 길이.
 # TODO: PG 참조 구현의 LEN_QOS_POLICY 매크로 실값 확인 필요.
 #       'QoS400K_NoGBR'(13자) 가 들어가므로 최소 13. 확인되면 이 상수만 고치면 된다.
@@ -523,35 +527,39 @@ def build_enb_qos_ctrl(support_type: int, arp_qci_flag: int, enb_arp: int,
     enb_arp          : 12=Band 3->5/1, 13=Band 1/5->3
     arp_capability   : 0=Enable, 1=Disable
     arp_vulnerability: 0=Enable, 1=Disable
-    qci              : QCI 값 (문자열로 송신 — 수신부가 char 배열로 memcpy)
+    qci              : QCI 값
     timer            : sec
 
-    ※ 필드 폭은 PG 수신부 구현(CNWQosGateway.cpp ENB_QOS_CONTROL 분기)이 기준이다.
+    ※ 인코딩은 PG 참조 시뮬레이터(송신부) + CNWQosGateway.cpp(수신부) 가 기준이다.
+      규격 표의 "numeric" 표기와 실제 wire 형식이 필드마다 다르므로 아래 표를 따른다.
+      값이 숫자여도 **ASCII 숫자 1바이트**로 나가는 필드가 있다 —
+      송신부가 `TLVGeneration(0x41, 1, (void*)"2", ...)` 처럼 문자열 리터럴을 넘기고,
+      수신부가 `cSupportType = *p` 로 char 를 읽는다.
+      바이너리로 보낼 때는 `temp = 0x02; TLVGeneration(..., &temp, ...)` 형태다.
+
+        TAG   필드                송신부                       수신부              → wire
+        0x3A  QOS_HDR            temp=0x10, &temp             cQosHdr = *p        1B binary
+        0x41  SUPPORT_TYPE       "1"/"2"                      cSupportType = *p   1B ASCII
+        0x3F  ARP_QCI_FLAG       htonl(v), len 4              ntohl(...)          4B BE int
+        0x3C  ENB_ARP            htonl(v), len 4              ntohl(...)          4B BE int
+        0x42  ARP_CAPABILITY     "1"/"2"                      cCapability = *p    1B ASCII
+        0x43  ARP_VULNERABILITY  "1"/"2"                      cVnlnerability = *p 1B ASCII
+        0x11  QCI                len 2, "9" (NUL 패딩)        memcpy(cQCI,p,len)  2B ASCII
+        0x20  TIMER              htonl(300), len 4            ntohl(...)          4B BE int
+
+      규격 표는 eNB TIMER 를 string 이라 적었지만 양쪽 구현 모두 htonl/ntohl 이다.
       수신부는 **TAG 를 검사하지 않고 고정 순서로** `p++; length=*p; p++;` 하며 읽으므로
-      아래 순서와 폭이 하나라도 어긋나면 그 뒤 필드가 전부 밀린다.
-
-        cQosHdr        = *p                          → 1B  binary
-        cSupportType   = *p                          → 1B  binary  (1=제어, 2=해지)
-        nArpQCIFlag    = ntohl(memcpy(...,int))      → 4B  BE int
-        nEnbArp        = ntohl(memcpy(...,int))      → 4B  BE int
-        cCapability    = *p                          → 1B  binary
-        cVnlnerability = *p                          → 1B  binary
-        cQCI           = memcpy(char[], p, length)   → 문자열
-        nValidTimer    = ntohl(memcpy(...,int))      → 4B  BE int
-
-      규격 표는 TIMER(0x20) 를 eNB 에서 string 이라 적었지만 수신부는 ntohl 로 읽는다.
-      실제 구현을 따른다.
-      COMMON2 의 CONTROL_UNIT(0x40) ASCII 예외(CONTROL_UNIT_AS_ASCII)를 여기 적용하지 말 것.
+      순서나 폭이 하나라도 어긋나면 그 뒤 필드가 전부 밀린다.
     """
     return [
-        pack_uint8 (TAG_QOS_HDR,           PCEF_ENB),    # 0x10 flag
-        pack_uint8 (TAG_SUPPORT_TYPE,      support_type),
-        pack_uint32(TAG_ARP_QCI_FLAG,      arp_qci_flag),
-        pack_uint32(TAG_ENB_ARP,           enb_arp),
-        pack_uint8 (TAG_ARP_CAPABILITY,    arp_capability),
-        pack_uint8 (TAG_ARP_VULNERABILITY, arp_vulnerability),
-        pack_string(TAG_QCI,               str(int(qci))),
-        pack_uint32(TAG_TIMER,             timer),
+        pack_uint8       (TAG_QOS_HDR,           PCEF_ENB),    # 0x10 flag (바이너리)
+        pack_string      (TAG_SUPPORT_TYPE,      str(int(support_type))),
+        pack_uint32      (TAG_ARP_QCI_FLAG,      arp_qci_flag),
+        pack_uint32      (TAG_ENB_ARP,           enb_arp),
+        pack_string      (TAG_ARP_CAPABILITY,    str(int(arp_capability))),
+        pack_string      (TAG_ARP_VULNERABILITY, str(int(arp_vulnerability))),
+        pack_string_fixed(TAG_QCI, str(int(qci)), LEN_QCI, pad=b'\x00'),
+        pack_uint32      (TAG_TIMER,             timer),
     ]
 
 
