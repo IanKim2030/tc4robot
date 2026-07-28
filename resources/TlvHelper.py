@@ -372,9 +372,18 @@ LEN_QCI                = 2
 # TODO: LEN_LOCATION_ID 확인되면 그 값으로 교체.
 LEN_LOCATION_ID        = None
 
-# QOS_POLICY 고정 길이.
-# TODO: PG 참조 구현의 LEN_QOS_POLICY 매크로 실값 확인 필요.
-#       'QoS400K_NoGBR'(13자) 가 들어가므로 최소 13. 확인되면 이 상수만 고치면 된다.
+# QOS_POLICY(0x10) 고정 길이.
+#   양수 = 그 길이로 NUL 패딩 (시뮬레이터 동작과 동일)
+#   None = 문자열 실제 길이로 가변 송신 (안전 폴백)
+#
+# ★ 주의 — 이 값은 **아직 확인되지 않은 추정치(16)** 다.
+#   PG 수신부는 QOS_POLICY 를 길이 상한 없이 복사한다:
+#       p++; length = *p; p++;
+#       if (length > 0) memcpy(stQosInfo.stDPIQosInfo.cQosPolicy[i], p, length);
+#   CELL_ID 처럼 `if (length > LEN_CELL_ID) memcpy(..., LEN_CELL_ID)` 로 자르는 방어가 없다.
+#   따라서 실제 LEN_QOS_POLICY 보다 **큰 길이를 보내면 PG 측 버퍼 오버플로**가 난다.
+#   'QoS400K_NoGBR'(13자) 가 들어가므로 실값은 최소 13 이다.
+#   운영 PG 대상 시험 전에 반드시 실값을 확인할 것. 확인 전 안전하게 가려면 None 으로 둔다.
 LEN_QOS_POLICY         = 16
 
 # enodebQoSCtl (PCEF_TYPE=0x10) sub-fields (QOS_HDR/TIMER 는 위와 공유)
@@ -458,6 +467,17 @@ def build_common1(pcef_type: int, qos_control_type: int,
     ]
 
 
+def _pack_qos_policy(qos_policy: str, plen) -> bytes:
+    """
+    QOS_POLICY(0x10) TLV 생성.
+    plen 이 양수면 그 길이로 NUL 패딩(시뮬레이터 동작), None/0 이면 가변 길이로 송신한다.
+    가변 길이는 PG 버퍼(최소 13B)를 넘지 않음이 보장되는 안전 폴백이다.
+    """
+    if plen:
+        return pack_string_fixed(TAG_QOS_POLICY, qos_policy, int(plen), pad=b'\x00')
+    return pack_string(TAG_QOS_POLICY, qos_policy)
+
+
 def build_pcef_qos_ctrl(qos_policy: str, status: str,
                         timer: int, quick_support: str,
                         policy_len=None) -> list:
@@ -470,10 +490,10 @@ def build_pcef_qos_ctrl(qos_policy: str, status: str,
     quick_support : '0'=즉시제어, '1'=update 수신 후 제어
     policy_len    : QOS_POLICY 고정 길이. 미지정 시 LEN_QOS_POLICY.
     """
-    plen = LEN_QOS_POLICY if policy_len is None else int(policy_len)
+    plen = LEN_QOS_POLICY if policy_len is None else policy_len
     return [
         pack_uint8       (TAG_QOS_HDR,       PCEF_PGW),     # 0x01 flag
-        pack_string_fixed(TAG_QOS_POLICY,    qos_policy, plen, pad=b'\x00'),
+        _pack_qos_policy (qos_policy, plen),
         pack_string      (TAG_STATUS,        status),
         pack_uint32      (TAG_TIMER,         timer),
         pack_string      (TAG_QUICK_SUPPORT, quick_support),
@@ -519,12 +539,12 @@ def build_dpi_qos_ctrl(category_policy=None, status: str = '0',
     policy_len      : QOS_POLICY 고정 길이. 미지정 시 LEN_QOS_POLICY.
     """
     pairs = DPI_DEFAULT_CATEGORY_POLICY if category_policy is None else category_policy
-    plen = LEN_QOS_POLICY if policy_len is None else int(policy_len)
+    plen = LEN_QOS_POLICY if policy_len is None else policy_len
 
     out = [pack_uint8(TAG_QOS_HDR, PCEF_DPI)]           # 0x02 flag
     for category, qos_policy in pairs:
-        out.append(pack_string      (TAG_CATEGORY,   category))
-        out.append(pack_string_fixed(TAG_QOS_POLICY, qos_policy, plen, pad=b'\x00'))
+        out.append(pack_string    (TAG_CATEGORY, category))
+        out.append(_pack_qos_policy(qos_policy, plen))
     out.append(pack_string(TAG_STATUS,        status))
     out.append(pack_uint32(TAG_TIMER,         timer))
     out.append(pack_string(TAG_QUICK_SUPPORT, quick_support))
