@@ -113,9 +113,12 @@ def nwdaf_set_timeout(sock, timeout):
 
     리포 전체에 per-recv 타임아웃 인자가 없고 타임아웃은 접속 시 한 번만 설정되므로,
     규격의 'Health Check 30초' 를 기다리려면 그 구간에서만 일시적으로 늘렸다 되돌려야 한다.
+
+    timeout=None 은 blocking 모드를 뜻한다. 원래 값을 되돌릴 때 그대로 넘어올 수 있으므로
+    None 을 허용해야 한다 (float(None) 은 TypeError).
     """
     prev = sock.gettimeout()
-    sock.settimeout(float(timeout))
+    sock.settimeout(None if timeout is None else float(timeout))
     return prev
 
 
@@ -444,7 +447,7 @@ def build_common1(pcef_type: int, qos_control_type: int,
 
 def build_pcef_qos_ctrl(qos_policy: str, status: str,
                         timer: int, quick_support: str,
-                        policy_len: int = None) -> list:
+                        policy_len=None) -> list:
     """
     pcefQoSCtrl (2절, PCEF_TYPE 비트 0x01) TLV bytes 리스트.
 
@@ -478,7 +481,7 @@ DPI_DEFAULT_CATEGORY_POLICY = [
 
 def build_dpi_qos_ctrl(category_policy=None, status: str = '0',
                        timer: int = 250, quick_support: str = '1',
-                       policy_len: int = None) -> list:
+                       policy_len=None) -> list:
     """
     dpiQoSCtrl (PCEF_TYPE 비트 0x02) TLV bytes 리스트.
     PG 참조 구현의 `if (pcef_type & 0x02) { ... }` 블록을 그대로 재현한다.
@@ -643,7 +646,9 @@ def send_nwdaf_notification(sock, service_id: int, message_id: int,
 
 
 def send_nwdaf_raw(sock, msg_type: int, service_id: int, message_id: int,
-                   body: bytes = b'') -> int:
+                   body=None) -> int:
+    # body 에 타입 힌트를 붙이지 않는 이유: Robot 이 힌트를 보고 인자를 강제 변환하는데
+    # `bytes` 힌트가 있으면 ${NONE}/${EMPTY} 전달 시 ValueError 로 죽는다.
     """
     Body 를 MULTI_MESSAGE(0xFF) 로 감싸지 **않고** 그대로 실어 보낸다.
     Health Check Response 처럼 Notification 이 아닌 메시지용.
