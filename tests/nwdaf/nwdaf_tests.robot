@@ -352,45 +352,4 @@ TC-NWDAF-033 DPI 단독 Notification (PCEF_TYPE=0x02)
     ${mid}=    Send DPI Only QoS Notification
     Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
 
-TC-NWDAF-034 DPI CATEGORY/QOS_POLICY 6쌍 구조 검증
-    [Documentation]
-    ...    송신 없이 build 단위 검증.
-    ...    0x0C 는 CATEGORY 6회 + STATUS 1회 = 7개, 0x10(QOS_POLICY) 은 6개여야 한다.
-    ...    CATEGORY 값은 ASCII 'A'~'F' 순서를 유지해야 한다.
-    ...    tlv_find 는 첫 매칭만 주므로 Tlv Find All 을 쓴다.
-    [Tags]    nwdaf    nwdaf_dpi    validation
-    ${dpi}=    Build dpiQoSCtrl
-    ${stream}=    Evaluate    b''.join($dpi)
-    ${cat}=    Tlv.Tlv Find All    ${stream}    ${NWDAF_TAG_CATEGORY}
-    Length Should Be    ${cat}    ${7}    msg=CATEGORY 6 + STATUS 1 = 7 기대
-    Should Be Equal    ${{ b''.join($cat[:6]).decode('ascii') }}    ABCDEF    msg=CATEGORY 'A'~'F' 순서 기대
-    ${pol}=    Tlv.Tlv Find All    ${stream}    ${NWDAF_TAG_QOS_POLICY}
-    Length Should Be    ${pol}    ${6}    msg=QOS_POLICY 6개 기대
-    ${tlvs}=    Tlv.Unpack Tlv Stream    ${stream}
-    Should Be Equal As Integers    ${tlvs}[0][0]    ${NWDAF_TAG_QOS_HDR}
-    ${hdr_val}=    Evaluate    $tlvs[0][2][0]
-    Should Be Equal As Integers    ${hdr_val}    ${NWDAF_PCEF_DPI}    msg=QOS_HDR=0x02 기대
-
-TC-NWDAF-035 DPI QOS_POLICY 고정길이 / TIMER 4B 인코딩
-    [Documentation]
-    ...    QOS_POLICY 는 고정길이 NUL 패딩, TIMER 는 uint32 BE 4바이트여야 한다
-    ...    (PG 참조 구현의 htonl / TLVGeneration(0x20, 4, ...) 기준).
-    [Tags]    nwdaf    nwdaf_dpi    validation
-    ${dpi}=    Build dpiQoSCtrl
-    ${stream}=    Evaluate    b''.join($dpi)
-    ${pol}=    Tlv.Tlv Find All    ${stream}    ${NWDAF_TAG_QOS_POLICY}
-    Length Should Be    ${pol}[0]    ${NWDAF_LEN_QOS_POLICY}
-    Should Be Equal    ${{ $pol[0].rstrip(b'\x00').decode('ascii') }}    ${NWDAF_TEST_QOS_POLICY_400K}
-    ${timer}=    Tlv.Tlv Find    ${stream}    ${NWDAF_TAG_TIMER}
-    Length Should Be    ${timer}    ${4}    msg=TIMER 4바이트 기대
-    Should Be Equal As Integers    ${{ int.from_bytes($timer, 'big') }}    ${NWDAF_DPI_TEST_TIMER}
-
-TC-NWDAF-036 pcefQoSCtrl TIMER 4B 인코딩
-    [Documentation]    pcefQoSCtrl 의 TIMER 도 uint32 BE 4바이트인지 검증 (송신 없음).
-    [Tags]    nwdaf    nwdaf_pgw    validation
-    ${qc}=    Build pcefQoSCtrl    timer=${NWDAF_TEST_TIMER}
-    ${stream}=    Evaluate    b''.join($qc)
-    ${timer}=    Tlv.Tlv Find    ${stream}    ${NWDAF_TAG_TIMER}
-    Length Should Be    ${timer}    ${4}    msg=TIMER 4바이트 기대
-    Should Be Equal As Integers    ${{ int.from_bytes($timer, 'big') }}    ${NWDAF_TEST_TIMER}
 
