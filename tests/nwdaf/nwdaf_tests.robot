@@ -481,6 +481,9 @@ TC-NWDAF-041 pcefQoSCtrl TIMER 4B 인코딩
 
 #TC-NWDAF-042 COMMON2 NETWORK 2G (0)
 #    [Documentation]    NETWORK=0 (2G). 규격 4.1 에서 유일하게 빠져 있던 값.
+#    ...    ※ 활성화 금지 — PG 수신부는 0x01/0x02/0x03 만 받고 그 외에는
+#    ...       "Unknown NetType" 로그 후 return nfwError 로 전문을 버린다.
+#    ...       규격 표에는 2G(0x00) 가 있으나 실제 구현이 거부한다.
 #    [Tags]    nwdaf    nwdaf_common2    nwdaf_network
 #    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
 #    ${qc}=    Build pcefQoSCtrl

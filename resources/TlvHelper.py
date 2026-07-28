@@ -363,6 +363,15 @@ TAG_QUICK_SUPPORT      = 0x3B    # string '0'=즉시제어 '1'=update 후
 # 수신부가 memcpy(cQCI, p, length) 로 그대로 받는다. 문자열 + NUL 패딩.
 LEN_QCI                = 2
 
+# CELL_ID(0x0B) 고정 길이. 송신부는 TLVGeneration(0x0B, LEN_LOCATION_ID, "12345:11", ...) 로
+# 고정 길이를 쓰지만 매크로 실값을 모른다.
+#   None(또는 0) = 가변 길이 송신, 양수 = 그 길이로 NUL 패딩
+# 기본을 가변으로 두는 이유: 실 PG 로그에서 가변 8바이트('123456:0')를 보냈을 때
+# `CellID = [123456:0]` 으로 정상 출력된 근거가 있다. 반면 LEN_LOCATION_ID 는 미확인이라
+# 잘못 추측하면 오히려 동작하던 것을 깨뜨린다.
+# TODO: LEN_LOCATION_ID 확인되면 그 값으로 교체.
+LEN_LOCATION_ID        = None
+
 # QOS_POLICY 고정 길이.
 # TODO: PG 참조 구현의 LEN_QOS_POLICY 매크로 실값 확인 필요.
 #       'QoS400K_NoGBR'(13자) 가 들어가므로 최소 13. 확인되면 이 상수만 고치면 된다.
@@ -578,21 +587,39 @@ def build_common2(network: int, control_unit: int, cell_id: str,
     heavy_user     : Heavy 가입자 수
     user_usage     : Heavy/Medium/Light 가입자 사용량 합 (KB)
     user_ratio     : 0=Enable, 1=Disable (규격 4.9 원문)
+
+    ※ 인코딩은 PG 참조 시뮬레이터(COMMON2 블록) 기준.
+      CONTROL_UNIT 만 ASCII 1바이트이고 나머지 numeric 은 전부 4B BE int 다.
+
+        TAG   필드              송신부                          → wire
+        0x1F  NETWORK          htonl(v), len 4                 4B BE int
+        0x40  CONTROL_UNIT     (char*)"5", len 1               1B ASCII
+        0x0B  CELL_ID          LEN_LOCATION_ID, "12345:11"     문자열(고정길이)
+        0x31  DN_USAGE         htonl(v), len 4                 4B BE int
+        0x1A  USING_USER       htonl(v), len 4                 4B BE int
+        0x35  CELL_AVG_USAGE   htonl(v), len 4                 4B BE int
+        0x32  HEAVY_USER       htonl(v), len 4                 4B BE int
+        0x36  USER_USAGE       htonl(v), len 4                 4B BE int
+        0x37  USER_RATIO       htonl(v), len 4                 4B BE int
     """
     if CONTROL_UNIT_AS_ASCII:
         cu_tlv = pack_string(TAG_CONTROL_UNIT, str(int(control_unit)))
     else:
         cu_tlv = pack_uint8 (TAG_CONTROL_UNIT, control_unit)
+    if LEN_LOCATION_ID:
+        cell_tlv = pack_string_fixed(TAG_CELL_ID, cell_id, LEN_LOCATION_ID, pad=b'\x00')
+    else:
+        cell_tlv = pack_string(TAG_CELL_ID, cell_id)
     return [
         pack_uint32(TAG_NETWORK,        network),
         cu_tlv,
-        pack_string(TAG_CELL_ID,        cell_id),
+        cell_tlv,
         pack_uint32(TAG_DN_USAGE,       dn_usage),
         pack_uint32(TAG_USING_USER,     using_user),
         pack_uint32(TAG_CELL_AVG_USAGE, cell_avg_usage),
         pack_uint32(TAG_HEAVY_USER,     heavy_user),
         pack_uint32(TAG_USER_USAGE,     user_usage),
-        pack_uint8 (TAG_USER_RATIO,     user_ratio),
+        pack_uint32(TAG_USER_RATIO,     user_ratio),
     ]
 
 

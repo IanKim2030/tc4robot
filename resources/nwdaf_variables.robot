@@ -52,8 +52,12 @@ ${NWDAF_QCT_SUBSCRIBER}   ${1}        # 0x01 가입자 단위 (현재 규격 정
 
 # ════════════════════════════════════════════
 # NETWORK (TAG 0x1F) — 규격 4.1
+#
+# ※ PG 수신부는 0x01/0x02/0x03 만 받는다. 그 외 값이면
+#   "Unknown NetType" 을 남기고 return nfwError 로 전문을 버린다.
+#   규격 표에 있는 2G(0x00) 도 거부 대상이다 — 아래 ${NWDAF_NET_2G} 사용 시 주의.
 # ════════════════════════════════════════════
-${NWDAF_NET_2G}           ${0}        # 0x00
+${NWDAF_NET_2G}           ${0}        # 0x00 ※ PG 수신부가 거부(nfwError). TC 활성화 금지
 ${NWDAF_NET_WCDMA}        ${1}        # 0x01
 ${NWDAF_NET_LTE}          ${2}        # 0x02
 ${NWDAF_NET_5G}           ${3}        # 0x03
