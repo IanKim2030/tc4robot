@@ -13,7 +13,9 @@ Documentation
 ...
 ...    [메시지 흐름]
 ...      능동 송신 (NWDAF→PG): Notification(0b010) 주력
-...      수동 수신          : 규격상 Response 거의 없음. 디버그용으로만 receive.
+...                           Health Check Request(0x01, Body 없음) — Timeout 30초,
+...                           PG 가 Response(0x04) 회신
+...      수동 수신          : Notification 에 대한 응답은 규격상 없음.
 ...
 ...    [Body 구조 — 규격 4개 섹션]
 ...      Body = MULTI_MESSAGE(0xFF){ COMMON1 + QoSCtrl 섹션들 + COMMON2 }
@@ -40,8 +42,10 @@ Documentation
 ...      TC-NWDAF-031 ~ 035 : Build 단위 검증 (송신 없음)
 ...      TC-NWDAF-036 ~ 040 : dpiQoSCtrl (LTE DPI QoS, 인코딩 검증)
 ...      TC-NWDAF-041 ~ 050 : 규격 미커버 값 보강 (NETWORK 2G / CONTROL_UNIT 3~6 / ARP / TIMER 0 / QCI)
+...                           ※ 현재 주석 처리 (비활성)
 ...      TC-NWDAF-051 ~ 052 : Multi Message (다가입자 동시 통보)
-...      TC-NWDAF-053       : Health Check 수신/응답 (--include nwdaf_healthcheck)
+...                           ※ 현재 주석 처리 (비활성)
+...      TC-NWDAF-053       : Health Check Request 송신 / Response 수신 (NWDAF → PG)
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/nwdaf_variables.robot
@@ -457,144 +461,143 @@ TC-NWDAF-040 pcefQoSCtrl TIMER 4B 인코딩
 
 
 # ════════════════════════════════════════════════════════════════
-# 규격 미커버 값 보강
+# 규격 미커버 값 보강  — TC-041 ~ 050 (현재 비활성)
 # ════════════════════════════════════════════════════════════════
 
-TC-NWDAF-041 COMMON2 NETWORK 2G (0)
-    [Documentation]    NETWORK=0 (2G). 규격 4.1 에서 유일하게 빠져 있던 값.
-    [Tags]    nwdaf    nwdaf_common2    nwdaf_network
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qc}=    Build pcefQoSCtrl
-    ${c2}=    Build COMMON2    network=${NWDAF_NET_2G}
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
+#TC-NWDAF-041 COMMON2 NETWORK 2G (0)
+#    [Documentation]    NETWORK=0 (2G). 규격 4.1 에서 유일하게 빠져 있던 값.
+#    [Tags]    nwdaf    nwdaf_common2    nwdaf_network
+#    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
+#    ${qc}=    Build pcefQoSCtrl
+#    ${c2}=    Build COMMON2    network=${NWDAF_NET_2G}
+#    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+#    Send NWDAF Notification    ${body}
 
-TC-NWDAF-042 COMMON2 CONTROL_UNIT Sector (3)
-    [Tags]    nwdaf    nwdaf_common2    nwdaf_cu
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qc}=    Build pcefQoSCtrl
-    ${c2}=    Build COMMON2    control_unit=${NWDAF_CU_SECTOR}
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
+#TC-NWDAF-042 COMMON2 CONTROL_UNIT Sector (3)
+#    [Tags]    nwdaf    nwdaf_common2    nwdaf_cu
+#    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
+#    ${qc}=    Build pcefQoSCtrl
+#    ${c2}=    Build COMMON2    control_unit=${NWDAF_CU_SECTOR}
+#    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+#    Send NWDAF Notification    ${body}
 
-TC-NWDAF-043 COMMON2 CONTROL_UNIT NodeB (4)
-    [Tags]    nwdaf    nwdaf_common2    nwdaf_cu
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qc}=    Build pcefQoSCtrl
-    ${c2}=    Build COMMON2    control_unit=${NWDAF_CU_NODEB}
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
+#TC-NWDAF-043 COMMON2 CONTROL_UNIT NodeB (4)
+#    [Tags]    nwdaf    nwdaf_common2    nwdaf_cu
+#    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
+#    ${qc}=    Build pcefQoSCtrl
+#    ${c2}=    Build COMMON2    control_unit=${NWDAF_CU_NODEB}
+#    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+#    Send NWDAF Notification    ${body}
 
-TC-NWDAF-044 COMMON2 CONTROL_UNIT RNC (5)
-    [Tags]    nwdaf    nwdaf_common2    nwdaf_cu
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qc}=    Build pcefQoSCtrl
-    ${c2}=    Build COMMON2    control_unit=${NWDAF_CU_RNC}
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
+#TC-NWDAF-044 COMMON2 CONTROL_UNIT RNC (5)
+#    [Tags]    nwdaf    nwdaf_common2    nwdaf_cu
+#    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
+#    ${qc}=    Build pcefQoSCtrl
+#    ${c2}=    Build COMMON2    control_unit=${NWDAF_CU_RNC}
+#    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+#    Send NWDAF Notification    ${body}
 
-TC-NWDAF-045 COMMON2 CONTROL_UNIT WMSC (6)
-    [Tags]    nwdaf    nwdaf_common2    nwdaf_cu
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qc}=    Build pcefQoSCtrl
-    ${c2}=    Build COMMON2    control_unit=${NWDAF_CU_WMSC}
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
+#TC-NWDAF-045 COMMON2 CONTROL_UNIT WMSC (6)
+#    [Tags]    nwdaf    nwdaf_common2    nwdaf_cu
+#    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
+#    ${qc}=    Build pcefQoSCtrl
+#    ${c2}=    Build COMMON2    control_unit=${NWDAF_CU_WMSC}
+#    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+#    Send NWDAF Notification    ${body}
 
-TC-NWDAF-046 eNB ARP_CAPABILITY Disable (1)
-    [Documentation]    ARP_CAPABILITY=1 (Disable). 규격 3.5.
-    [Tags]    nwdaf    nwdaf_enb    nwdaf_arp
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}
-    ${qc}=    Build enodebQoSCtl    arp_capability=${NWDAF_DISABLE}
-    ${c2}=    Build COMMON2
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
+#TC-NWDAF-046 eNB ARP_CAPABILITY Disable (1)
+#    [Documentation]    ARP_CAPABILITY=1 (Disable). 규격 3.5.
+#    [Tags]    nwdaf    nwdaf_enb    nwdaf_arp
+#    ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}
+#    ${qc}=    Build enodebQoSCtl    arp_capability=${NWDAF_DISABLE}
+#    ${c2}=    Build COMMON2
+#    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+#    Send NWDAF Notification    ${body}
 
-TC-NWDAF-047 eNB ARP_VULNERABILITY Disable (1)
-    [Documentation]    ARP_VULNERABILITY=1 (Disable). 규격 3.6.
-    [Tags]    nwdaf    nwdaf_enb    nwdaf_arp
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}
-    ${qc}=    Build enodebQoSCtl    arp_vulnerability=${NWDAF_DISABLE}
-    ${c2}=    Build COMMON2
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
+#TC-NWDAF-047 eNB ARP_VULNERABILITY Disable (1)
+#    [Documentation]    ARP_VULNERABILITY=1 (Disable). 규격 3.6.
+#    [Tags]    nwdaf    nwdaf_enb    nwdaf_arp
+#    ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}
+#    ${qc}=    Build enodebQoSCtl    arp_vulnerability=${NWDAF_DISABLE}
+#    ${c2}=    Build COMMON2
+#    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+#    Send NWDAF Notification    ${body}
 
-TC-NWDAF-048 eNB QCI 값 변형
-    [Documentation]    QCI 기본 9 외 다른 값 송신.
-    [Tags]    nwdaf    nwdaf_enb    nwdaf_qci
-    Send Subscriber QoS Notification ENB    qci=${NWDAF_TEST_QCI_ALT}
+#TC-NWDAF-048 eNB QCI 값 변형
+#    [Documentation]    QCI 기본 9 외 다른 값 송신.
+#    [Tags]    nwdaf    nwdaf_enb    nwdaf_qci
+#    Send Subscriber QoS Notification ENB    qci=${NWDAF_TEST_QCI_ALT}
 
-TC-NWDAF-049 pcefQoSCtrl TIMER 미사용 (0)
-    [Documentation]    TIMER=0 (미사용). 규격 2.4.
-    [Tags]    nwdaf    nwdaf_pgw    nwdaf_timer
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qc}=    Build pcefQoSCtrl    timer=${NWDAF_TIMER_UNUSED}
-    ${c2}=    Build COMMON2
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
+#TC-NWDAF-049 pcefQoSCtrl TIMER 미사용 (0)
+#    [Documentation]    TIMER=0 (미사용). 규격 2.4.
+#    [Tags]    nwdaf    nwdaf_pgw    nwdaf_timer
+#    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
+#    ${qc}=    Build pcefQoSCtrl    timer=${NWDAF_TIMER_UNUSED}
+#    ${c2}=    Build COMMON2
+#    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+#    Send NWDAF Notification    ${body}
 
-TC-NWDAF-050 enodebQoSCtl TIMER 미사용 (0)
-    [Documentation]    eNB 의 TIMER 는 규격상 string 이다. 0 도 '0' 문자열로 나가야 한다.
-    [Tags]    nwdaf    nwdaf_enb    nwdaf_timer
-    ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}
-    ${qc}=    Build enodebQoSCtl    timer=${NWDAF_TIMER_UNUSED}
-    ${c2}=    Build COMMON2
-    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
-    Send NWDAF Notification    ${body}
+#TC-NWDAF-050 enodebQoSCtl TIMER 미사용 (0)
+#    [Documentation]    eNB 의 TIMER 는 규격상 string 이다. 0 도 '0' 문자열로 나가야 한다.
+#    [Tags]    nwdaf    nwdaf_enb    nwdaf_timer
+#    ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}
+#    ${qc}=    Build enodebQoSCtl    timer=${NWDAF_TIMER_UNUSED}
+#    ${c2}=    Build COMMON2
+#    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+#    Send NWDAF Notification    ${body}
 
 
 # ════════════════════════════════════════════════════════════════
-# Multi Message — Service Id 0x0305 는 "Multi Message 처리 가능"
+# Multi Message — Service Id 0x0305 는 "Multi Message 처리 가능"  — TC-051 ~ 052 (현재 비활성)
 # ════════════════════════════════════════════════════════════════
 
-TC-NWDAF-051 Multi Message 2 가입자 동시 통보
+#TC-NWDAF-051 Multi Message 2 가입자 동시 통보
+#    [Documentation]
+#    ...    한 MULTI_MESSAGE(0xFF) 안에 가입자 2명의 전문을 담아 송신.
+#    [Tags]    nwdaf    nwdaf_multi
+#    ${c1a}=    Build COMMON1    ${NWDAF_PCEF_PGW}    mdn=${NWDAF_TEST_MDN}    min=${NWDAF_TEST_MIN}
+#    ${qca}=    Build pcefQoSCtrl
+#    ${c2a}=    Build COMMON2    network=${NWDAF_NET_LTE}
+#    ${body_a}=    Tlv.Build Notification Body    ${c1a}    ${qca}    ${c2a}
+#    ${c1b}=    Build COMMON1    ${NWDAF_PCEF_PGW}    mdn=${NWDAF_TEST_MDN_5G}    min=${NWDAF_TEST_MIN_5G}
+#    ${qcb}=    Build pcefQoSCtrl
+#    ${c2b}=    Build COMMON2    network=${NWDAF_NET_5G}
+#    ${body_b}=    Tlv.Build Notification Body    ${c1b}    ${qcb}    ${c2b}
+#    ${body}=    Tlv.Build Multi Subscriber Body    ${body_a}    ${body_b}
+#    Send NWDAF Notification    ${body}
+
+#TC-NWDAF-052 Multi Message Body 구조 검증
+#    [Documentation]
+#    ...    송신 없이 build 단위. 2 가입자 Body 가 단일 0xFF TLV 안에 들어가고
+#    ...    PCEF_TYPE(0x0D) 이 2개 나타나는지 확인.
+#    [Tags]    nwdaf    nwdaf_multi    validation
+#    ${c1a}=    Build COMMON1    ${NWDAF_PCEF_PGW}
+#    ${qca}=    Build pcefQoSCtrl
+#    ${c2a}=    Build COMMON2
+#    ${body_a}=    Tlv.Build Notification Body    ${c1a}    ${qca}    ${c2a}
+#    ${body}=    Tlv.Build Multi Subscriber Body    ${body_a}    ${body_a}
+#    ${packet}=    Tlv.Build Nwdaf Notification    ${NWDAF_SID_SUBSCRIBER}    ${1}    ${body}
+#    ${pkt_body}=    Evaluate    $packet[8:]
+#    ${top}=    Tlv.Unpack Tlv Stream    ${pkt_body}
+#    Length Should Be    ${top}    ${1}    msg=Body 는 단일 MULTI_MESSAGE TLV 여야 함
+#    ${inner}=    Tlv.Unpack Multi Message    ${top}[0][2]
+#    ${pcef}=    Tlv.Tlv Find All    ${inner}    ${NWDAF_TAG_PCEF_TYPE}
+#    Length Should Be    ${pcef}    ${2}    msg=가입자 2명분 PCEF_TYPE 기대
+
+
+# ════════════════════════════════════════════════════════════════
+# Health Check — NWDAF(도구) 가 PG 로 Request 를 보낸다. Timeout 30초.
+# ════════════════════════════════════════════════════════════════
+
+TC-NWDAF-053 Health Check Request 송신 및 응답 수신
     [Documentation]
-    ...    한 MULTI_MESSAGE(0xFF) 안에 가입자 2명의 전문을 담아 송신.
-    [Tags]    nwdaf    nwdaf_multi
-    ${c1a}=    Build COMMON1    ${NWDAF_PCEF_PGW}    mdn=${NWDAF_TEST_MDN}    min=${NWDAF_TEST_MIN}
-    ${qca}=    Build pcefQoSCtrl
-    ${c2a}=    Build COMMON2    network=${NWDAF_NET_LTE}
-    ${body_a}=    Tlv.Build Notification Body    ${c1a}    ${qca}    ${c2a}
-    ${c1b}=    Build COMMON1    ${NWDAF_PCEF_PGW}    mdn=${NWDAF_TEST_MDN_5G}    min=${NWDAF_TEST_MIN_5G}
-    ${qcb}=    Build pcefQoSCtrl
-    ${c2b}=    Build COMMON2    network=${NWDAF_NET_5G}
-    ${body_b}=    Tlv.Build Notification Body    ${c1b}    ${qcb}    ${c2b}
-    ${body}=    Tlv.Build Multi Subscriber Body    ${body_a}    ${body_b}
-    Send NWDAF Notification    ${body}
-
-TC-NWDAF-052 Multi Message Body 구조 검증
-    [Documentation]
-    ...    송신 없이 build 단위. 2 가입자 Body 가 단일 0xFF TLV 안에 들어가고
-    ...    PCEF_TYPE(0x0D) 이 2개 나타나는지 확인.
-    [Tags]    nwdaf    nwdaf_multi    validation
-    ${c1a}=    Build COMMON1    ${NWDAF_PCEF_PGW}
-    ${qca}=    Build pcefQoSCtrl
-    ${c2a}=    Build COMMON2
-    ${body_a}=    Tlv.Build Notification Body    ${c1a}    ${qca}    ${c2a}
-    ${body}=    Tlv.Build Multi Subscriber Body    ${body_a}    ${body_a}
-    ${packet}=    Tlv.Build Nwdaf Notification    ${NWDAF_SID_SUBSCRIBER}    ${1}    ${body}
-    ${pkt_body}=    Evaluate    $packet[8:]
-    ${top}=    Tlv.Unpack Tlv Stream    ${pkt_body}
-    Length Should Be    ${top}    ${1}    msg=Body 는 단일 MULTI_MESSAGE TLV 여야 함
-    ${inner}=    Tlv.Unpack Multi Message    ${top}[0][2]
-    ${pcef}=    Tlv.Tlv Find All    ${inner}    ${NWDAF_TAG_PCEF_TYPE}
-    Length Should Be    ${pcef}    ${2}    msg=가입자 2명분 PCEF_TYPE 기대
-
-
-# ════════════════════════════════════════════════════════════════
-# Health Check (규격: PG 가 30초 이내에 Health Check Request 송신)
-# PG 가 실제로 Request 를 보내야 동작하므로 기본 실행에서 분리한다.
-#   python -m robot --include nwdaf_healthcheck tests/nwdaf/
-# ════════════════════════════════════════════════════════════════
-
-TC-NWDAF-053 Health Check Request 수신 및 응답
-    [Documentation]
-    ...    PG 가 보내는 Health Check Request(Message Type 0b001) 를 최대
-    ...    ${NWDAF_HEALTHCHECK_TIMEOUT} 초 대기해 수신하고 Response(0b100) 를 회신한다.
-    ...    TODO: 규격 "2. Message Format" 의 Health Check Body 정의 확인 후 검증 보강.
-    [Tags]    nwdaf    nwdaf_healthcheck
-    ${hdr}=    Handle NWDAF Health Check
-    Should Be Equal As Integers    ${hdr}[msg_type]    ${NWDAF_MT_REQ}
+    ...    NWDAF → PG 로 Health Check Request(Message Type 0x01, Body 없음) 를 송신하고
+    ...    PG 의 Response(0x04) 를 수신해 검증한다.
+    ...    Message Id 가 요청과 동일하게 echo 되는지, Body 가 없는지까지 확인한다.
+    [Tags]    nwdaf    nwdaf_healthcheck    nwdaf_smoke
+    ${hdr}=    Send NWDAF Health Check
+    Should Be Equal As Integers    ${hdr}[msg_type]      ${NWDAF_MT_RESP}
+    Should Be Equal As Integers    ${hdr}[body_length]   ${0}
 
 
 

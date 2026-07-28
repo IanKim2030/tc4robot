@@ -647,8 +647,16 @@ def send_nwdaf_raw(sock, msg_type: int, service_id: int, message_id: int,
     """
     Body 를 MULTI_MESSAGE(0xFF) 로 감싸지 **않고** 그대로 실어 보낸다.
     Health Check Response 처럼 Notification 이 아닌 메시지용.
+
+    Health Check 는 Body 가 없다(길이 0). Robot 의 ${EMPTY}/${NONE} 이 그대로 넘어와도
+    되도록 None / str / bytes 를 모두 받는다 — bytes('') 는 TypeError 이므로 분기 필요.
     """
-    body = b'' if body is None else bytes(body)
+    if body is None:
+        body = b''
+    elif isinstance(body, str):
+        body = body.encode('ascii', errors='replace')
+    else:
+        body = bytes(body)
     header = build_nwdaf_header(msg_type, service_id, message_id, len(body))
     packet = header + body
     send_nwdaf_packet(sock, packet)

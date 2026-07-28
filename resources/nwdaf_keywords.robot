@@ -308,10 +308,43 @@ Send Subscriber QoS Notification ENB
 
 
 # ══════════════════════════════════════════════════════════════════
-# 수신 (PG → NWDAF) — Health Check
-# 규격: "Health Check Timeout 은 30초로 정의하며, 30초 이내에 PG는
-#        Health Check Request 메시지를 보내야 한다."
+# Health Check
+#   주 방향 : NWDAF(도구) → PG 로 Request(0x01) 송신 → PG 가 Response(0x04) 회신
+#   Timeout : 30초. Body 는 Request/Response 모두 없음(길이 0).
+#
+# 역방향(PG 가 먼저 Request 를 보내는 경우)도 Handle NWDAF Health Check /
+# Drain NWDAF Pending Messages 로 방어적으로 처리한다.
 # ══════════════════════════════════════════════════════════════════
+
+Send NWDAF Health Check
+    [Documentation]
+    ...    NWDAF → PG Health Check Request(Message Type 0x01, Body 없음) 송신 후
+    ...    PG 의 Response(0x04) 를 수신해 검증한다. 수신한 헤더를 반환.
+    ...
+    ...    TODO: Health Check 전용 Service Id 확인 필요.
+    ...          규격 TAG 표는 0x0305(가입자 단위 QoS 제어) 만 정의하므로 그 값을 기본으로 쓴다.
+    [Arguments]
+    ...    ${service_id}=${NWDAF_SID_SUBSCRIBER}
+    ...    ${message_id}=${NONE}
+    ...    ${timeout}=${NWDAF_HEALTHCHECK_TIMEOUT}
+    ${mid}=    Run Keyword If    $message_id is None    Next NWDAF Msg Id
+    ...        ELSE    Set Variable    ${message_id}
+    ${sent}=    Tlv.Send Nwdaf Raw    ${NWDAF_SOCK}    ${NWDAF_MT_REQ}
+    ...    ${service_id}    ${mid}    ${NONE}
+    Log    [TX→PG] Health Check Request sid=${service_id} mid=${mid} bytes=${sent}
+    ${prev}=    Tlv.Nwdaf Set Timeout    ${NWDAF_SOCK}    ${timeout}
+    TRY
+        ${hdr}    ${body}    ${tlvs}=    Receive NWDAF Message
+    FINALLY
+        Tlv.Nwdaf Set Timeout    ${NWDAF_SOCK}    ${prev}
+    END
+    Should Be Equal As Integers    ${hdr}[msg_type]    ${NWDAF_MT_RESP}
+    ...    msg=Health Check Response(0x04) 기대, 실제 msg_type=${hdr}[msg_type]
+    Should Be Equal As Integers    ${hdr}[message_id]    ${mid}
+    ...    msg=Response 의 Message Id 가 Request 와 다름 (요청=${mid}, 응답=${hdr}[message_id])
+    Should Be Equal As Integers    ${hdr}[body_length]    ${0}
+    ...    msg=Health Check 는 Body 가 없어야 함. 실제 body_length=${hdr}[body_length]
+    RETURN    ${hdr}
 
 Receive NWDAF Message
     [Documentation]
@@ -325,9 +358,8 @@ Send NWDAF Health Check Response
     [Documentation]
     ...    수신한 Health Check Request 헤더를 그대로 echo 하고 Message Type 만
     ...    Response(0b100) 로 바꿔 회신한다.
-    ...    TODO: 규격 "2. Message Format" 의 Health Check Body 정의 확인 후 교체.
-    ...          현재는 Body 없이(길이 0) 회신한다.
-    [Arguments]    ${req_hdr}    ${body}=${EMPTY}
+    ...    Health Check 는 **Body 가 없다** — Body Length 0 으로 헤더만 회신한다.
+    [Arguments]    ${req_hdr}    ${body}=${NONE}
     ${sent}=    Tlv.Send Nwdaf Raw    ${NWDAF_SOCK}    ${NWDAF_MT_RESP}
     ...    ${req_hdr}[service_id]    ${req_hdr}[message_id]    ${body}
     Log    [TX→PG] Health Check Response sid=${req_hdr}[service_id] mid=${req_hdr}[message_id] bytes=${sent}
@@ -335,14 +367,21 @@ Send NWDAF Health Check Response
 
 Handle NWDAF Health Check
     [Documentation]
-    ...    PG 의 Health Check Request(0b001) 를 최대 ${timeout} 초 대기해 수신하고 Response 회신.
+    ...    ※ 역방향 전용 — 주 방향은 Send NWDAF Health Check (NWDAF → PG) 다.
+    ...    PG 가 먼저 Health Check Request 를 보내오는 경우를 방어적으로 처리한다.
+    ...    최대 ${timeout} 초 대기해 수신하고 Response 회신.
+    ...
+    ...    Health Check Request: Message Type = 0x01, **Body 없음(길이 0)**.
+    ...    따라서 Body/TLV 검증은 없고 헤더의 Message Type 과 Body Length 만 확인한다.
     ...    소켓 타임아웃은 접속 시 1회만 설정되므로 이 구간에서만 늘렸다 되돌린다.
     [Arguments]    ${timeout}=${NWDAF_HEALTHCHECK_TIMEOUT}
     ${prev}=    Tlv.Nwdaf Set Timeout    ${NWDAF_SOCK}    ${timeout}
     TRY
         ${hdr}    ${body}    ${tlvs}=    Receive NWDAF Message
         Should Be Equal As Integers    ${hdr}[msg_type]    ${NWDAF_MT_REQ}
-        ...    msg=Health Check Request(0b001) 기대, 실제 msg_type=${hdr}[msg_type]
+        ...    msg=Health Check Request(0x01) 기대, 실제 msg_type=${hdr}[msg_type]
+        Should Be Equal As Integers    ${hdr}[body_length]    ${0}
+        ...    msg=Health Check 는 Body 가 없어야 함. 실제 body_length=${hdr}[body_length]
         Send NWDAF Health Check Response    ${hdr}
     FINALLY
         Tlv.Nwdaf Set Timeout    ${NWDAF_SOCK}    ${prev}
