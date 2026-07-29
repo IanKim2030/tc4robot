@@ -118,12 +118,12 @@ ${NWDAF_DISABLE}          ${1}
 # NWDAF 테스트 데이터
 # TODO: 실환경 PG/PDB 와 매칭되는 값으로 교체
 # ════════════════════════════════════════════
-${NWDAF_TEST_MIN}              1020300553      # LTE 가입자 MIN
-${NWDAF_TEST_MDN}              01020300553     # LTE 가입자 MDN
-${NWDAF_TEST_MIN_5G}           1093742433      # 5G 가입자 MIN
-${NWDAF_TEST_MDN_5G}           01093742433     # 5G 가입자 MDN
-${NWDAF_TEST_PGW_IP}           60.50.10.2
-${NWDAF_TEST_CELL_ID}          123456:0
+${NWDAF_TEST_MIN}              ${SUBS_MIN_LTE}
+${NWDAF_TEST_MDN}              ${SUBS_MDN_LTE}
+${NWDAF_TEST_MIN_5G}           ${SUBS_MIN_5G}
+${NWDAF_TEST_MDN_5G}           ${SUBS_MDN_5G}
+${NWDAF_TEST_PGW_IP}           ${NET_PGW_IP}
+${NWDAF_TEST_CELL_ID}          ${NET_CELL_ID}
 ${NWDAF_TEST_QOS_POLICY}       QoS200K
 ${NWDAF_TEST_QOS_POLICY_400K}  QoS400K_NoGBR
 ${NWDAF_TEST_QOS_POLICY_NOQOS}    NoQoS_NoGBR

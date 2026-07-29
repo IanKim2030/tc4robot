@@ -15,12 +15,10 @@ Documentation
 # LRS 클라이언트 모드 (도구 → PG.LRS 접속, Port 10204)
 #   1) Health Check (raw TCP "REQ"/"ANS")
 #   2) SESSION-INFO-RETRIEVAL (HTTP/1.1)
-# 포트/주기는 PG_V2.cfg 에서 DynamicVars 로 읽되, 미수신 시 아래 기본값 사용:
-#   ${PG_LRS_PG_V2_LISTEN_PORT} → 없으면 ${LRS_CLIENT_DEFAULT_PORT}
-#   ${PG_LRS_PG_V2_TIMEOUT}     → 없으면 ${LRS_HC_DEFAULT_INTERVAL}
+# 포트/주기가 환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.
 # ════════════════════════════════════════════
-${LRS_CLIENT_HOST}          ${PG_HOST}   # TODO: 실환경 PG.LRS 서비스 IP (다르면 개별 지정)
-${LRS_CLIENT_DEFAULT_PORT}  10204            # 규격 디폴트 (config 미수신 시)
+${LRS_CLIENT_HOST}          ${PG_HOST}       # 다르면 환경 파일에서 개별 지정
+${LRS_CLIENT_DEFAULT_PORT}  10204            # 규격 디폴트
 ${LRS_HC_DEFAULT_INTERVAL}  30               # Health Check 주기(초) 디폴트
 ${LRS_CLIENT_TIMEOUT}       10               # 송수신 타임아웃(초)
 
@@ -35,12 +33,12 @@ ${LRS_PING_GAP}             1       # Ping 간 간격(초). 실주기 검증 시
 # ── SESSION-INFO-RETRIEVAL 요청 데이터 (규격 예시값) ──
 # TODO: 실환경 PG 에 등록된 From IP / PGW Group / 조회 대상으로 교체
 ${LRS_SI_PATH}              /SESSION-INFO-RETRIEVAL
-${LRS_SI_FROM_IP}          112.172.129.68   # From 필드: PG 에 등록된 IP 여야 함(아니면 403)
+${LRS_SI_FROM_IP}          ${NET_SI_FROM_IP}   # From 필드: PG 에 등록된 IP 여야 함(아니면 403)
 ${LRS_SI_REQ_ID}           wapgw03-01-6-00039
 ${LRS_SI_PGW_GROUP_ID}     ${EMPTY}
-${LRS_SI_CLIENT_IP}        2001:0d88:131f:0000::/64    # 조회 대상 단말 IP
+${LRS_SI_CLIENT_IP}        ${SUBS_MOBILE_IP}    # 조회 대상 단말 IP
 ${LRS_SI_MIN}              ${EMPTY}
-${LRS_SI_MDN}              01020300553
+${LRS_SI_MDN}              ${SUBS_MDN_LTE}
 ${LRS_SI_IMSI}             ${EMPTY}
 
 # SESSION-INFO 응답 상태코드 (규격)

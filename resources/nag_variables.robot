@@ -42,10 +42,10 @@ ${CODE_HAVE_TO_FAILOVER}      ${9999}
 # ════════════════════════════════════════════
 # NAG/PCF 테스트 데이터
 # ════════════════════════════════════════════
-${TEST_MDN_NORMAL}        01020300553
-${TEST_MDN_NO_SS}         00000000000    # HFC 미가입 → code=402
-${TEST_MDN_NO_SESSION}    99999999999    # 세션 없음 → code=403
-${TEST_MOBILE_IP}         2001:0d88:131f:0000::/64
+${TEST_MDN_NORMAL}        ${SUBS_MDN_LTE}
+${TEST_MDN_NO_SS}         ${SUBS_MDN_NO_HFC}       # HFC 미가입 → code=402
+${TEST_MDN_NO_SESSION}    ${SUBS_MDN_NO_SESSION}   # 세션 없음 → code=403
+${TEST_MOBILE_IP}         ${SUBS_MOBILE_IP}
 ${TEST_CELL_INFO}         9999:99
-${TEST_APN}               lte.sktelecom.com
+${TEST_APN}               ${SUBS_APN_LTE}
 ${TEST_CLIENT_HOST}       ltepgw01.sktelecom.com

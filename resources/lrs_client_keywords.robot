@@ -4,7 +4,7 @@ Documentation
 ...
 ...    [인터페이스]
 ...      방향   : 테스트 도구(LRS 역할 / Client) → PG.LRS (Server, Port 기본 10204)
-...      포트   : ${PG_LRS_PG_V2_LISTEN_PORT}(config) → 없으면 ${LRS_CLIENT_DEFAULT_PORT}
+...      포트   : ${LRS_CLIENT_DEFAULT_PORT} (환경 파일에서 오버라이드 가능)
 ...
 ...    [두 프로토콜 — 같은 포트 공유]
 ...      1) Health Check (raw TCP)        : "REQ" 송신 → "ANS" 수신 (주기 기본 30초)
@@ -37,17 +37,15 @@ ${LRS_HC_INTERVAL}    ${NONE}
 
 Resolve LRS Client Port
     [Documentation]
-    ...    접속 포트 결정: config(${PG_LRS_PG_V2_LISTEN_PORT}) 가 주입돼 있으면 그 값,
-    ...    아니면 기본값 ${LRS_CLIENT_DEFAULT_PORT}(10204).
-    ${port}=    Get Variable Value    ${PG_LRS_PG_V2_LISTEN_PORT}    ${LRS_CLIENT_DEFAULT_PORT}
-    RETURN    ${port}
+    ...    접속 포트 반환. 기본 ${LRS_CLIENT_DEFAULT_PORT}(10204).
+    ...    환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.
+    RETURN    ${LRS_CLIENT_DEFAULT_PORT}
 
 Resolve LRS HC Interval
     [Documentation]
-    ...    Health Check 주기 결정: config(${PG_LRS_PG_V2_TIMEOUT}) 가 있으면 그 값,
-    ...    아니면 기본값 ${LRS_HC_DEFAULT_INTERVAL}(30초).
-    ${interval}=    Get Variable Value    ${PG_LRS_PG_V2_TIMEOUT}    ${LRS_HC_DEFAULT_INTERVAL}
-    RETURN    ${interval}
+    ...    Health Check 주기 반환. 기본 ${LRS_HC_DEFAULT_INTERVAL}(30초).
+    ...    환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.
+    RETURN    ${LRS_HC_DEFAULT_INTERVAL}
 
 Suite Connect LRS Client
     [Documentation]

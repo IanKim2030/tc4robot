@@ -44,10 +44,10 @@ ${CDS_TID_SEQ}         ${0}
 
 Resolve CDS System Id
     [Documentation]
-    ...    PG.CDS SYSTEM_ID 결정: config(${PG_CDS_PG_V2_SYSTEM_ID}) 가 주입돼 있으면 그 값,
-    ...    아니면 기본값 ${CDS_SYSTEM_ID_DEFAULT}(PG01). 헤더 Destination System ID 로 사용.
-    ${sid}=    Get Variable Value    ${PG_CDS_PG_V2_SYSTEM_ID}    ${CDS_SYSTEM_ID_DEFAULT}
-    RETURN    ${sid}
+    ...    PG.CDS SYSTEM_ID 반환. 헤더 Destination System ID 로 사용한다.
+    ...    값은 ${CDS_DST_SYS_ID}(cds_variables.robot 기본 PG01)이며
+    ...    환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.
+    RETURN    ${CDS_DST_SYS_ID}
 
 Suite CDS Connect
     [Documentation]

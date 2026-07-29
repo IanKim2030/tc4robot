@@ -12,16 +12,13 @@ Documentation
 ...    Suite Teardown : Release 후 소켓 종료
 ...    각 TC        : ${CDS_SCH_SOCK}/${CDS_RCH_SOCK} 공유 사용 (TC별 연결/해제 없음)
 ...
-...    포트/SYSTEM_ID 는 PG_V2.cfg [CDS] 에서 읽되, 미수신 시 기본값(9200/9201, PG01).
+...    포트/SYSTEM_ID 는 cds_variables.robot 기본값(9200/9201, PG01).
+...    환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/cds_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/cds_keywords.robot
-
-Variables    ../../resources/DynamicVars.py    ${PG_SSH_USER}@${PG_HOST}:/PG/CFG/PG_V2.cfg    section=CDS:SYSTEM_ID=PG_CDS_PG_V2_SYSTEM_ID    pass=${PG_SSH_PASS}
-Variables    ../../resources/DynamicVars.py    ${PG_SSH_USER}@${PG_HOST}:/PG/CFG/PG_V2.cfg    section=CDS:R_PORT=CDS_RCH_PORT    pass=${PG_SSH_PASS}
-Variables    ../../resources/DynamicVars.py    ${PG_SSH_USER}@${PG_HOST}:/PG/CFG/PG_V2.cfg    section=CDS:S_PORT=CDS_SCH_PORT    pass=${PG_SSH_PASS}
 
 
 Suite Setup      Suite CDS Connect

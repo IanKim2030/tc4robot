@@ -205,3 +205,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# PG 테스트 — 개인 환경 오버라이드 (커밋 금지)
+config/env/local.py

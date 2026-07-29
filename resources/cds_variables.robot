@@ -4,7 +4,7 @@ Documentation
 ...
 ...    CDS 표준 인터페이스 규격(SKT Ver6.0), TCP 고정길이 48B 헤더.
 ...    로봇(CDS) 이 PG.CDS 로 능동 접속(Schannel/Rchannel 듀얼 소켓).
-...    포트/SYSTEM_ID 는 PG_V2.cfg [CDS] 섹션에서 읽되, 미수신 시 아래 기본값 사용.
+...    포트/SYSTEM_ID 기본값은 아래 값이며, 환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.
 
 *** Variables ***
 
@@ -13,7 +13,7 @@ Documentation
 #   Schannel : 9200 (Client→Server 전송용)
 #   Rchannel : 9201 (Server→Client 전송용)
 # ════════════════════════════════════════════
-${CDS_PG_HOST}            ${PG_HOST}   # TODO: 실환경 PG.CDS IP (다르면 개별 지정)
+${CDS_PG_HOST}            ${PG_HOST}       # 다르면 환경 파일에서 개별 지정
 ${CDS_SCH_PORT}           9200             # Schannel 포트
 ${CDS_RCH_PORT}           9201             # Rchannel 포트
 ${CDS_TIMEOUT}            10               # 송수신 타임아웃(초)
@@ -25,11 +25,10 @@ ${CDS_UP_RCH_PORT}        6101
 
 # ════════════════════════════════════════════
 # 시스템 / Application 식별자 (헤더 char(6) 필드)
-# SYSTEM_ID 는 PG_V2.cfg [CDS] SYSTEM_ID 에서 읽음(미수신 시 PG01).
-#   → ${PG_CDS_PG_V2_SYSTEM_ID} (DynamicVars 주입) / 없으면 ${CDS_SYSTEM_ID_DEFAULT}
-#   PG.CDS 식별자로, 헤더 Destination System ID 로 사용.
+# ${CDS_DST_SYS_ID} 는 PG.CDS 의 SYSTEM_ID 로, 헤더 Destination System ID 에 쓴다.
+# 환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.
 # ════════════════════════════════════════════
-${CDS_SYSTEM_ID_DEFAULT}  PG01             # config 미수신 시 기본 SYSTEM_ID
+${CDS_DST_SYS_ID}         PG01             # PG.CDS SYSTEM_ID
 ${CDS_SRC_SYS_ID}         SCSL00           # 로봇(CDS) 자신의 System ID (6자)
 ${CDS_SRC_APP_ID}         TEMP             # Source Application ID (6자 패딩 → 'TEMP  ')
 ${CDS_DST_APP_ID}         TEMP             # Destination Application ID (6자 패딩 → 'TEMP  ')
@@ -121,15 +120,15 @@ ${CDS_CODE_1Y}      1Y     # HFC 서비스 해지
 # ════════════════════════════════════════════
 # CommandRequest body — 공통 5개 필드 (스펙: mdn / product_id / limitSubsFlag / produGenType / device_type)
 ${CDS_TEST_CMD_CODE}           ${CDS_CODE_A1}          # 기본 업무 코드 (신규 A1)
-${CDS_TEST_MDN}                01053543393              # mdn        (12자)
+${CDS_TEST_MDN}                ${SUBS_MDN_CDS}          # mdn        (12자)
 ${CDS_TEST_PROD_ID}            NA00003479               # product_id (10자, prod_id)
 ${CDS_TEST_LIMIT}              0                        # limitSubsFlag (1자, TODO: 실환경 값)
 ${CDS_TEST_PROD_TYPE}          ${EMPTY}                 # produGenType  (2자, TODO: 실환경 값)
 ${CDS_TEST_DEVICE_TYPE}        ${EMPTY}                 # device_type   (1자, TODO: 실환경 값)
 # 코드별 추가 필드 (Send Command Request &{extra} 로 전달)
-${CDS_TEST_NEW_MDN}            01053543394              # new_mdn (D3 번호변경 신규 번호)
-${CDS_TEST_MIN}                1053543393               # min     (A1/D3 등)
-${CDS_TEST_NEW_MIN}            1053543394               # new_min (C1 기기변경 시)
+${CDS_TEST_NEW_MDN}            ${SUBS_MDN_CDS_NEW}      # new_mdn (D3 번호변경 신규 번호)
+${CDS_TEST_MIN}                ${SUBS_MIN_CDS}          # min     (A1/D3 등)
+${CDS_TEST_NEW_MIN}            ${SUBS_MIN_CDS_NEW}      # new_min (C1 기기변경 시)
 ${CDS_TEST_SUBS_MIN}           01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
 #${CDS_TEST_ADDR}               서울특별시 강남구 테헤란로 123      # addr (1X HFC 가입 시, 170byte, cp949 인코딩, TODO: 실환경 값)
 ${CDS_TEST_ADDR}               가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마

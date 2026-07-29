@@ -20,13 +20,12 @@ resources/TcpHelper.py                ← 원시 소켓 + 8옥텟 헤더
 resources/CdsHelper.py                ← 48옥텟 CDS 전문
 resources/TlvHelper.py                ← NWDAF TLV 바이너리
 resources/HttpHelper.py               ← LRS Session-Info (HTTP/XML)
-resources/DynamicVars.py              ← PG_V2.cfg SSH 조회 → 변수 주입
 ```
 
 임포트 순서가 중요하다. `variables.robot` 이 `${PG_HOST}` 를 정의하고 노드별 변수 파일이
 이를 참조하므로 **`variables.robot` 을 항상 먼저 임포트**한다. 모든 슈트가 이 순서를 지킨다.
 
-## Python 헬퍼 5종
+## Python 헬퍼 4종
 
 | 모듈 | Robot 별칭 | 담당 | 주요 함수 |
 |---|---|---|---|
@@ -34,7 +33,6 @@ resources/DynamicVars.py              ← PG_V2.cfg SSH 조회 → 변수 주입
 | `CdsHelper.py` | `Cds` | 48옥텟 CDS 고정전문. 소켓은 `TcpHelper` 재사용 | `pack_cds_header` `parse_cds_header` `send_cds` `receive_cds` `pack_ack` `unpack_ack` `pack_command_body` `unpack_command_body` |
 | `TlvHelper.py` | `Tlv` | NWDAF TLV. 소켓까지 자체 구현 | `build_nwdaf_header` `parse_nwdaf_header` `pack_tlv` `unpack_tlv_stream` `tlv_find` `tlv_find_all` `build_common1` `build_pcef_qos_ctrl` `build_dpi_qos_ctrl` `build_enb_qos_ctrl` `build_common2` `send_nwdaf_notification` `send_nwdaf_raw` `receive_nwdaf_message` `hex_dump` |
 | `HttpHelper.py` | — | LRS Session-Info 전용 | `build_aims_req` `parse_xml_fields` `post_session_info` |
-| `DynamicVars.py` | Variables 임포트 | PG 의 `PG_V2.cfg` 를 SSH 로 읽어 포트 등 주입 | `get_variables` / `PgConfigLoader` |
 
 **Body 인코딩이 3계열로 갈리는 게 이 리포의 핵심 복잡도다.** JSON(NAG/PCF/UPM) /
 고정길이 ASCII(LRS 8890 채널) / TLV 바이너리(NWDAF) / 48B 고정전문(CDS).
@@ -59,9 +57,9 @@ resources/DynamicVars.py              ← PG_V2.cfg SSH 조회 → 변수 주입
 
 공용 단일 소스. **값 변경은 TC 가 아니라 이 파일에서 한다.**
 
-- `${PG_HOST}` — 서비스 접속 IP 겸 DynamicVars SSH 대상. `-v PG_HOST:10.0.0.9` 로 일괄 전환
-- `${PG_SSH_USER}` / `${PG_SSH_PASS}` — cfg 원격 조회용. **값을 채우면 RF 로그에 남으므로
-  운영 환경에서는 환경변수 `PG_SSH_PASS` 를 쓸 것**
+- **환경 축 변수** — `${PG_HOST}`, 가입자(`${SUBS_MDN_LTE}` 등), 망 데이터(`${NET_CELL_ID}` 등).
+  노드별 변수 파일이 이를 **참조만** 하므로 여기 하나를 바꾸면 관련 노드 전부에 전파된다.
+  환경별 오버라이드는 [docs/ENVIRONMENTS.md](../docs/ENVIRONMENTS.md) 참조
 - `${MSG_HELLO_REQ}`(0x01) / `${MSG_HELLO_RESP}`(0x02) / `${MSG_PING_REQ}`(0x03) /
   `${MSG_PING_RESP}`(0x04) — 여기 있는 4개만 노드 공용이다
 

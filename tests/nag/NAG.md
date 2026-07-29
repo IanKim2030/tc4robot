@@ -14,8 +14,8 @@
 | Body | JSON |
 | 타임아웃 | `${NAG_TIMEOUT}` = 10초 |
 
-포트는 `BarodNoti.cfg` `[Barod.IF] Barod.IF.Port.NAG` 에서 `DynamicVars` 로 읽고,
-미수신 시 8012 로 폴백한다.
+포트 기본값은 `nag_variables.robot` 의 8012 이며, 환경별로 다르면
+`config/env/<env>.py` 에서 오버라이드한다.
 
 ## 듀얼 소켓 — LRS-PCF 채널이 필수다
 

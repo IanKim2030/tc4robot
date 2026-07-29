@@ -16,10 +16,6 @@ Suite Setup      Suite Connect With NAG
 Suite Teardown   Suite Disconnect With NAG
 Test Setup       Check PCF And NAG Socket
 
-*** Variables ***
-${PCF_TEST_MDN}       01020300553
-${PCF_SERVICE_ID}     ZN100001
-
 *** Test Cases ***
 
 # ── 0x01/0x02 Hello ──────────────────────────────────────────────

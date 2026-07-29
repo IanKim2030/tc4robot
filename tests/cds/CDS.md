@@ -25,9 +25,9 @@
 Teardown 은 역순이 아니라 Schannel→Rchannel 순으로 Release 를 보낸 뒤 닫는다.
 Release 는 `Run Keyword And Ignore Error` 로 감싸 **PG 가 ACK 없이 끊어도 실패로 보지 않는다.**
 
-포트와 `SYSTEM_ID` 는 `PG_V2.cfg [CDS]` 에서 `DynamicVars` 로 읽고, 미수신 시
-9200 / 9201 / `PG01` 로 폴백한다. 업로드 전용 포트 `${CDS_UP_SCH_PORT}`(6100) /
-`${CDS_UP_RCH_PORT}`(6101) 도 정의돼 있다.
+포트와 `${CDS_DST_SYS_ID}`(PG.CDS SYSTEM_ID, 기본 `PG01`)는 `cds_variables.robot` 기본값이며
+환경별로 다르면 `config/env/<env>.py` 에서 오버라이드한다.
+업로드 전용 포트 `${CDS_UP_SCH_PORT}`(6100) / `${CDS_UP_RCH_PORT}`(6101) 도 정의돼 있다.
 
 ## 48-옥텟 헤더
 
@@ -68,4 +68,3 @@ Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅�
   → `Send Upload Result` 순. 해당 TC 는 PG 이벤트가 필요해 주석 처리돼 있다.
 - Release 시 PG 가 ACK 없이 끊는 경우가 정상 동작으로 취급된다
   (`Send Release And Validate` 가 `Run Keyword And Return Status` 로 처리).
-- Windows 에서는 `DynamicVars` 의 SSH 조회가 `termios` 부재로 실패하며 경고 후 폴백한다 — 정상이다.

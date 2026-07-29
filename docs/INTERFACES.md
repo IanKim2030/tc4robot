@@ -69,17 +69,17 @@ ConnectionRequest 를 보내고 ACK 를 받는 핸드셰이크를 한다.
 
 `0x01`~`0x04`(Hello/Ping)만 `resources/variables.robot` 에서 공용이다.
 
-## config 에서 포트를 읽는 노드
+## 환경별 접속 정보
 
-`resources/DynamicVars.py` 가 SSH 로 PG 의 `PG_V2.cfg` 를 읽어 포트를 주입한다.
-**미수신 시 기본값으로 폴백**하므로 config 를 못 읽어도 슈트는 돈다.
+포트·호스트는 각 `<iface>_variables.robot` 의 기본값을 쓰고, 환경별로 다르면
+`config/env/<env>.py` 에서 노드별로 오버라이드한다 — [ENVIRONMENTS.md](ENVIRONMENTS.md).
 
-| 노드 | config 키 | 폴백 |
-|---|---|---|
-| CDS | `[CDS]` S_PORT / R_PORT / SYSTEM_ID | 9200 / 9201 / `PG01` |
-| LRS(client) | `PG_LRS_PG_V2_LISTEN_PORT` | 10204 |
+```bash
+bash run_tests.sh cds stg
+```
 
-Windows 에서는 `termios` 부재로 SSH 조회가 실패하며 경고 후 폴백한다 — 정상 동작이다.
+과거 SSH 로 PG 의 `PG_V2.cfg` 를 읽던 `DynamicVars` 는 제거됐다.
+실측 cfg 값이 하드코딩 기본값과 전부 같아 동작 차이가 없었기 때문이다.
 
 ## 연결 실패 시 동작
 

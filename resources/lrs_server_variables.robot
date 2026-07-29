@@ -60,18 +60,18 @@ ${LRS_SYS_ID}              PG01            # TODO: 실환경 SYS_ID
 ${LRS_BRANCH_NAME}         SS              # TODO: 실환경 BRANCH_NAME
 
 # LTE 정상 세션 (PDB T_SESSION_INFO_XX 에 존재하는 MDN)
-${LRS_MDN_LTE}             01012345678     # TODO: 실환경 LTE 정상 MDN
+${LRS_MDN_LTE}             ${SUBS_MDN_LTE}
 ${LRS_DST_HOST_LTE}        ltepcrf01       # TODO: T_SESSION_INFO_XX.DESTINATION_HOST
-${LRS_APN_LTE}             lte.sktelecom.com
+${LRS_APN_LTE}             ${SUBS_APN_LTE}
 ${LRS_SVC_ID_LTE}          000001
 
 # 5G 정상 세션 (PDB T_PCF_BINDNG_INFO 에 존재하는 MDN, SBI → SERVICE_ID 미전송)
-${LRS_MDN_5G}              01012345678     # TODO: 실환경 5G 정상 MDN
+${LRS_MDN_5G}              ${SUBS_MDN_5G}
 ${LRS_DST_HOST_5G}         pcrf01-mp01-app06  # TODO: T_SMF_SESSION_INFO.NODE_ID
-${LRS_APN_5G}              5g.sktelecom.com
+${LRS_APN_5G}              ${SUBS_APN_5G}
 
 # 세션 없는 MDN → RESULT_CODE=200 기대
-${LRS_MDN_NO_SESSION}      00000000000     # TODO: PDB에 세션이 없는 MDN
+${LRS_MDN_NO_SESSION}      ${SUBS_MDN_NO_HFC}   # PDB 에 세션이 없는 MDN
 
 # ════════════════════════════════════════════
 # LRS Location-Info-Response 기대 필드값 검증용

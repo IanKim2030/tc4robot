@@ -22,21 +22,35 @@ ${MSG_PING_REQ}               ${3}     # 0x03
 ${MSG_PING_RESP}              ${4}     # 0x04
 
 # ════════════════════════════════════════════
-# 공용 PG 환경 (모든 인터페이스가 공유하는 단일 소스)
-#   ${PG_HOST}      : 서비스 접속 IP + DynamicVars SSH 대상 IP
-#   ${PG_SSH_USER}  : DynamicVars 원격 cfg 읽기용 SSH 계정
-# 각 *_variables.robot 의 접속 호스트와 Variables 임포트의 SSH 대상이 이 값을 참조한다.
-#   (이 Resource 가 그들보다 먼저 임포트돼야 치환됨 — 모든 슈트가 이 순서를 지킴)
-# CLI 오버라이드: python -m robot -v PG_HOST:10.0.0.9 ...  → 전체 환경 IP 일괄 전환.
+# 환경 축 — 여기 있는 값이 dev 기준 기본값의 단일 출처다.
+#
+# stg / prd 는 config/env/<env>.py 가 --variablefile 로 덮어쓴다.
+#   bash run_tests.sh nag stg
+# 우선순위: --variable > --variablefile > 슈트 *** Variables *** > 임포트 Resource
+# 따라서 환경 파일이 여기 값과 노드별 변수 파일을 모두 이긴다.
+#
+# 노드별 변수(*_variables.robot)는 아래 값을 **참조만** 한다 — 값을 중복 정의하지 말 것.
 # ════════════════════════════════════════════
-${PG_HOST}                   192.168.15.141    # TODO: 실환경 PG IP
-${PG_SSH_USER}               pg                # DynamicVars SSH 계정
 
-# ════════════════════════════════════════════
-# DynamicVars 원격(SSH) cfg 읽기용 인증 정보
-# 사용: 각 슈트의 Variables 임포트에 `pass=${PG_SSH_PASS}` 로 전달
-#   (이 Resource 가 Variables 줄보다 먼저 임포트돼야 치환됨)
-# 해당 설정값이 없으면 OS 환경변수 PG_SSH_PASS 로 fallback한다.
-# 주의: 값을 채우면 RF 로그에 남으므로, 운영 환경에선 환경변수 사용 권장.
-# ════════════════════════════════════════════
-${PG_SSH_PASS}         pg1234    # TODO: 실환경 SSH 비밀번호
+# ── 접속 ─────────────────────────────────────
+${PG_HOST}                   192.168.15.141
+
+# ── 가입자 데이터 ────────────────────────────
+${SUBS_MDN_LTE}              01020300553
+${SUBS_MIN_LTE}              1020300553
+${SUBS_MDN_5G}               01093742433
+${SUBS_MIN_5G}               1093742433
+${SUBS_MDN_NO_HFC}           00000000000       # HFC 미가입 → code 402
+${SUBS_MDN_NO_SESSION}       99999999999       # 세션 없음 → code 403
+${SUBS_MDN_CDS}              01053543393       # CDS 는 가입자가 다르다
+${SUBS_MIN_CDS}              1053543393
+${SUBS_MDN_CDS_NEW}          01053543394       # D3 번호변경 신규 번호
+${SUBS_MIN_CDS_NEW}          1053543394        # C1 기기변경 시
+
+# ── 망 데이터 ────────────────────────────────
+${SUBS_APN_LTE}              lte.sktelecom.com
+${SUBS_APN_5G}               5g.sktelecom.com
+${SUBS_MOBILE_IP}            2001:0d88:131f:0000::/64
+${NET_CELL_ID}               123456:0
+${NET_PGW_IP}                60.50.10.2
+${NET_SI_FROM_IP}            112.172.129.68    # PG 에 등록된 IP 여야 함 (아니면 403)

@@ -19,7 +19,12 @@
 #   bash run_tests.sh all              # NAG + PCF + LRS + UPM + NWDAF + CDS 전체
 #   bash run_tests.sh smoke            # smoke 태그만
 #   bash run_tests.sh nag --log-msg    # REQ/RESP 시각 출력 ON
-#   bash run_tests.sh all 192.168.1.1  # NAG/PCF/UPM/NWDAF HOST 오버라이드
+#
+# 환경 지정 (2번째 인자):
+#   bash run_tests.sh nag              # dev (기본)
+#   bash run_tests.sh nag stg          # config/env/stg.py 적용
+#   bash run_tests.sh all prd          # PG_ALLOW_PRD=1 필요
+#   bash run_tests.sh all 192.168.1.1  # IP 직접 지정 (PG_HOST 오버라이드)
 #
 # 단일 TC 실행:
 #   robot --test "TC-NAG-010*"   tests/nag/
@@ -42,31 +47,36 @@ TS=$(date +%Y%m%d_%H%M%S)
 OUT="results/${TS}"
 mkdir -p "${OUT}"
 
+# 2번째 인자: 환경명(dev|stg|prd|local) 또는 IP
+VAR_OVERRIDE=()
+ENV_NAME="dev"
+if [ -n "${EXTRA_ARGS[0]}" ]; then
+    case "${EXTRA_ARGS[0]}" in
+        dev|stg|prd|local)
+            ENV_NAME="${EXTRA_ARGS[0]}"
+            ENV_FILE="config/env/${ENV_NAME}.py"
+            if [ ! -f "${ENV_FILE}" ]; then
+                echo "★ 환경 파일이 없습니다: ${ENV_FILE}" >&2
+                exit 2
+            fi
+            VAR_OVERRIDE=("--variablefile" "${ENV_FILE}")
+            EXTRA_ARGS=("${EXTRA_ARGS[@]:1}")
+            ;;
+        [0-9]*)
+            # 각 노드 HOST 는 ${PG_HOST} 를 상속하므로 하나만 넘기면 된다
+            ENV_NAME="host=${EXTRA_ARGS[0]}"
+            VAR_OVERRIDE=("--variable" "PG_HOST:${EXTRA_ARGS[0]}")
+            EXTRA_ARGS=("${EXTRA_ARGS[@]:1}")
+            ;;
+    esac
+fi
+
 echo "══════════════════════════════════════"
 echo " TARGET : ${TARGET}"
+echo " ENV    : ${ENV_NAME}"
 echo " OUTPUT : ${OUT}"
 echo " LOG_MSG: ${PG_LOG_MSG:-0}"
 echo "══════════════════════════════════════"
-
-VAR_OVERRIDE=()
-if [ -n "${EXTRA_ARGS[0]}" ] && [[ "${EXTRA_ARGS[0]}" =~ ^[0-9] ]]; then
-    HOST="${EXTRA_ARGS[0]}"
-    VAR_OVERRIDE=(
-        "--variable" "NAG_PG_HOST:${HOST}"
-        "--variable" "PCF_PG_HOST:${HOST}"
-        "--variable" "UPM_PG_HOST:${HOST}"
-        "--variable" "NWDAF_HOST:${HOST}"
-        "--variable" "CDS_PG_HOST:${HOST}"
-    )
-    echo " HOST 오버라이드: ${HOST}"
-    EXTRA_ARGS=("${EXTRA_ARGS[@]:1}")
-fi
-
-#if [ "${TARGET}" = "lrs" ] || [ "${TARGET}" = "all" ]; then
-#    echo ""
-#    echo " ★ LRS 모드: 도구가 PG.LRS(Port ${PG_LRS_PG_V2_LISTEN_PORT:-10204})로 접속합니다. PG.LRS 가 Listen 중인지 확인하세요."
-#    echo ""
-#fi
 
 BASE_CMD=(python3 -m robot
     --outputdir "${OUT}"
