@@ -350,6 +350,19 @@ CDS Result Should Be SC
     Should Be Equal As Strings    ${ack}[result]    ${CDS_RESULT_SC}
     ...    msg=Result 기대=SC, 실제=${ack}[result]
 
+Verify A1 Golden Body
+    [Documentation]
+    ...    A1 CommandRequest Body 를 조립해 실 전문 골든 샘플(327B)과 바이트 단위로 대조한다.
+    ...    송신하지 않으므로 PG 응답과 무관하게 인코딩 회귀만 판정한다.
+    ...    골든 값은 CdsHelper.GOLDEN_A1_SAMPLE / GOLDEN_A1_FIELDS (환경 변수와 독립).
+    ${diffs}=    Cds.Diff Golden A1
+    ${count}=    Get Length    ${diffs}
+    IF    ${count} > 0
+        ${detail}=    Catenate    SEPARATOR=\n    @{diffs}
+        Fail    A1 Body 가 실 전문 골든 샘플과 다릅니다 (${count}개 필드):\n${detail}
+    END
+    Log    A1 Body 골든 샘플 327B 일치
+
 Command Download Flow
     [Documentation]
     ...    CommandRequest(0015) → ACK(0016, SC) → Result(0017, SC) → ResultACK(0018) 전체 흐름.

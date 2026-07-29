@@ -216,48 +216,113 @@ def unpack_result_data(data):
 # CommandRequest(0015) Body 전체 레이아웃 (svc_code 별 가변 채움, ASCII 공백 패딩)
 # ──────────────────────────────────────────────────────────────────
 #   (field_name, length) 의 순서가 곧 wire 직렬화 순서다.
-#   ※ 이 순서는 레거시 CDS 도구의 clear() 필드 선언 순서를 그대로 옮긴 것이다.
-#     (레거시 serialize 메서드 원본은 공유되지 않아 clear() 선언 순서 = 전문 순서로 간주)
-#     실 규격(CDS Ver6.0) 필드 배치와 다르면 이 리스트의 순서/길이만 교체하면 된다.
+#   이 순서는 레거시 CDS 도구의 clear() 필드 선언 순서를 옮긴 것인데,
+#   **실 A1 전문 샘플 327B + 규격표 35필드로 이중 검증 완료**됐다.
+#   (샘플의 모든 유효 바이트가 A1 대상 필드에만 정렬되고, 규격표의 순서·크기가 전부 일치)
+#   → 추정이 아니다. 순서/길이를 바꾸지 말 것. GOLDEN_A1_SAMPLE 이 회귀를 잡는다.
+#
+#   주석 3열: <TCP 규격 파라미터명> / <JSON 파라미터명> — <설명>
+#   내부 필드명은 레거시 이름을 유지한다(대조 기준 보존). 규격명과 1:1 대응은 아래 주석 참조.
 _CMD_LAYOUT = [
-    ('svc_code',                       2),
-    ('mdn',                           12),
-    ('new_mdn',                       12),
-    ('min',                           10),
-    ('new_min',                       10),
-    ('prod_id',                       10),
-    ('data_prod_id',                  10),
-    ('network',                        8),
-    ('block_data_roaming_id',          1),
-    ('block_data_roaming_provider_id', 1),
-    ('allow_mvoip_yn',                 1),
-    ('tablet_yn',                      1),
-    ('os_ver',                         2),
-    ('device_model',                   4),
-    ('block_harmful_yn',               1),
-    ('block_roaming_data_yn',          1),
-    ('block_roaming_mvoip_yn',         1),
-    ('zone_code',                      4),
-    ('ca',                             1),
-    ('aprf',                           1),
-    ('imsi',                          15),
-    ('mvno',                           1),
-    ('limit',                          1),
-    ('qos_param',                      1),
-    ('start_time',                    12),
-    ('coupon_type',                    2),
-    ('coupon_pin',                    11),
-    ('ms_type',                        1),
-    ('category_lte',                   2),
-    ('category_5g',                    2),
-    ('device_type',                    1),
-    ('coupon_category',                1),
-    ('real_start_time',               12),
-    ('addr',                         170),
-    ('product_type',                   2),
+    ('svc_code',                       2),   # JOB_CODE / opCode — 업무 코드
+    ('mdn',                           12),   # MDN / mdn
+    ('new_mdn',                       12),   # NEW_MDN
+    ('min',                           10),   # MIN / min
+    ('new_min',                       10),   # NEW_MIN
+    ('prod_id',                       10),   # PRODUCT_ID / produId — 상품 ID
+    ('data_prod_id',                  10),   # ADD_SVC / addSvc — 안심데이터상품ID (A1 옵션)
+    ('network',                        8),   # NETWORK_ID / netId — WCDMA CDMA WiBro LTE 5G 플래그
+    ('block_data_roaming_id',          1),   # ROADMING_STOP — 데이터로밍차단ID
+    ('block_data_roaming_provider_id', 1),   # ROADMING_STOP_PROVIDER — 데이터로밍차단사업자ID
+    ('allow_mvoip_yn',                 1),   # MVOIP_APPLY_FG — mVoIP 허용
+    ('tablet_yn',                      1),   # TABLET_PC_YN / tabPcYn — 0=아니오 1=예
+    ('os_ver',                         2),   # OS_VERSION / osVer
+    ('device_model',                   4),   # TERMINAL_MODEL_CODE / termModelCode
+    ('block_harmful_yn',               1),   # YOUNG_HARM_INFO_BLOCK — 청소년 유해정보 차단
+    ('block_roaming_data_yn',          1),   # ROAMING_DATA — 0=허용 1=차단 2=허용(VOMS제휴망)
+    ('block_roaming_mvoip_yn',         1),   # ROAMING_MVOIP — 0=허용 1=차단
+    ('zone_code',                      4),   # ZONE_CODE — 0000~9999
+    ('ca',                             1),   # CA — CA 단말 속성. 3=L3 4=L4 (실 전문은 7=L7 도 온다)
+    ('aprf',                           1),   # APRF / aprfTermAttri — 0=N/A 1=Support
+    ('imsi',                          15),   # IMSI — 450(MCC)+05(MNC)+국번호(5)+Serial(5)
+    ('mvno',                           1),   # MVNO_COMPANY / mvnoCompa
+    ('limit',                          1),   # LIMIT_SUBS_FG / limitSubsFlag — 한도형 가입자
+    ('qos_param',                      1),   # ROAMING_QOS_PARAM
+    ('start_time',                    12),   # START_TIME — 쿠폰 종료 시간 / 시간프리 Start
+    ('coupon_type',                    2),   # COUPON_TYPE — 쿠폰 권종 / 시간프리 End
+    ('coupon_pin',                    11),   # COUPON_PIN
+    ('ms_type',                        1),   # MS_TYPE / catMsType — Cat.M1 단말 타입
+    ('category_lte',                   2),   # CATEGORY_LTE / lteCatgy — Default 10
+    ('category_5g',                    2),   # CATEGORY_5G / 5gCatgy — Default 10
+    ('device_type',                    1),   # DEVICE_TYPE / devceType — W=3G L=LTE N=NSA S=SA (Null=LTE)
+    ('coupon_category',                1),   # COUPON_CATEGORY — T=Time P=Period
+    ('real_start_time',               12),   # REAL_START_TIME — 쿠폰 시작 시간
+    ('addr',                         170),   # ADDR — 주소 (cp949)
+    ('product_type',                   2),   # PRODUCT_GEN_TYPE / produGenType — 01=3G 02=LTE 03=5G
 ]
 
 COMMAND_BODY_SIZE = sum(size for _, size in _CMD_LAYOUT)   # = 327
+
+# 실 A1(신규) 전문 Data 캡처 — 327B 골든 샘플.
+# ★ _CMD_LAYOUT 으로 재생성하지 말 것. 레이아웃과 **독립적인** 대조 기준이며,
+#   pack_command_body() 결과가 여기서 벗어나면 레이아웃이 깨진 것이다.
+#   새 캡처로 교체할 때만 손댄다. (TC-CDS-012 가 이걸로 회귀를 잡는다)
+# 5G SA 가입자 1건 — devceType=S / produGenType=03 / IMSI 450-05 가 서로 일관된다.
+GOLDEN_A1_SAMPLE = (
+    'A1'                                # svc_code(2)
+    '01020304053 '                      # mdn(12)
+    '            '                      # new_mdn(12)
+    '1020304053'                        # min(10)
+    '          '                        # new_min(10)
+    'NA00003054'                        # prod_id(10)
+    '          '                        # data_prod_id(10)  — A1 옵션, 미사용
+    '10011   '                          # network(8)        — 5자리 + 공백 3
+    ' '                                 # block_data_roaming_id(1)
+    ' '                                 # block_data_roaming_provider_id(1)
+    ' '                                 # allow_mvoip_yn(1)
+    '0'                                 # tablet_yn(1)
+    '01'                                # os_ver(2)
+    'SSTE'                              # device_model(4)
+    ' '                                 # block_harmful_yn(1)
+    ' '                                 # block_roaming_data_yn(1)
+    ' '                                 # block_roaming_mvoip_yn(1)
+    '    '                              # zone_code(4)
+    '7'                                 # ca(1)             — 규격표 미등재 값
+    '0'                                 # aprf(1)
+    '450057110046420'                   # imsi(15)          — 규격 A1 목록 미등재
+    ' '                                 # mvno(1)           — 규격상 필수이나 실전문 공백
+    '0'                                 # limit(1)
+    ' '                                 # qos_param(1)
+    '            '                      # start_time(12)
+    '  '                                # coupon_type(2)
+    '           '                       # coupon_pin(11)
+    ' '                                 # ms_type(1)        — 규격상 필수이나 실전문 공백
+    '  '                                # category_lte(2)   — 규격상 필수이나 실전문 공백
+    '  '                                # category_5g(2)    — 규격상 필수이나 실전문 공백
+    'S'                                 # device_type(1)
+    ' '                                 # coupon_category(1)
+    '            '                      # real_start_time(12)
+    + ' ' * 170 +                       # addr(170)
+    '03'                                # product_type(2)
+)
+
+# 골든 샘플을 재현하는 인자 — TC-CDS-012 가 그대로 쓴다.
+# 환경 파일이 ${SUBS_MDN_CDS} 등을 덮어도 이 값은 바뀌면 안 된다(대조 기준이므로).
+GOLDEN_A1_FIELDS = {
+    'mdn':          '01020304053',
+    'min':          '1020304053',
+    'prod_id':      'NA00003054',
+    'network':      '10011',
+    'tablet_yn':    '0',
+    'os_ver':       '01',
+    'device_model': 'SSTE',
+    'ca':           '7',
+    'aprf':         '0',
+    'imsi':         '450057110046420',
+    'limit':        '0',
+    'device_type':  'S',
+    'product_type': '03',
+}
 
 # addr(주소)만 한글 포함 가능 → DB(골디락스 UHC / 알티베이스 MS949)와 맞춰 cp949 로 인코딩.
 # 그 외 필드는 전부 코드/번호류라 ASCII 그대로 둔다.
@@ -415,3 +480,28 @@ def unpack_command_body(data):
         result[name] = _unpack_char(chunk, encoding=_FIELD_ENCODING.get(name, 'ascii'))
         offset += size
     return result
+
+
+# ── 골든 샘플 대조 (TC-CDS-012) ───────────────────────────────────
+
+def diff_golden_a1():
+    """
+    GOLDEN_A1_FIELDS 로 조립한 A1 Body 를 GOLDEN_A1_SAMPLE 과 대조한다.
+
+    일치하면 빈 리스트, 어긋나면 필드 단위 차이 문자열 리스트를 반환한다.
+    _CMD_LAYOUT 의 순서·길이가 바뀌면 여기서 걸린다.
+    (unpack 이 아니라 원본 문자열끼리 비교하므로 레이아웃 변경에 상쇄되지 않는다)
+    """
+    actual = pack_command_body('A1', **GOLDEN_A1_FIELDS).decode('ascii')
+    expected = GOLDEN_A1_SAMPLE
+    diffs = []
+    if len(actual) != len(expected):
+        diffs.append(f"길이 불일치: 조립={len(actual)}B, 골든={len(expected)}B")
+    offset = 0
+    for name, size in _CMD_LAYOUT:
+        exp = expected[offset:offset + size]
+        act = actual[offset:offset + size]
+        if exp != act:
+            diffs.append(f"off {offset:3d} {name}({size}): 골든=[{exp}] 조립=[{act}]")
+        offset += size
+    return diffs
