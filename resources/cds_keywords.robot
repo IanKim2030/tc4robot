@@ -223,20 +223,33 @@ Process State Should Be Normal
 Send Command Request
     [Documentation]
     ...    CommandRequest(0015) 송신(Schannel).
-    ...    공통 5개 필드(스펙): mdn(mdn) / prod_id(product_id) / limit(limitSubsFlag) / product_type(produGenType) / device_type
-    ...    코드별 추가 필드는 &{extra} 로 전달: 예) min=... new_mdn=... imsi=... addr=...
-    ...    code 에 무관한 필드는 무시되고, 누락 필드는 공백으로 채워진다.
+    ...    가입자·단말·망 공용 필드를 cds_variables.robot 기본값으로 전달한다
+    ...    (A1/Z1/C1/G1/D3 이 거의 같은 집합을 쓴다).
+    ...    코드 전용 필드는 &{extra} 로: 예) new_mdn=... new_min=... addr=... data_prod_id=...
+    ...    ※ code 의 분기가 선언하지 않은 필드는 값을 넘겨도 버려진다(CdsHelper 참조).
     ...    반환: tid_date, tid_seq.
     [Arguments]    ${code}=${CDS_CMD_CODE}
-    ...            ${mdn}=${CDS_MDN}
-    ...            ${prod_id}=${CDS_PROD_ID}
-    ...            ${limit}=${CDS_LIMIT}
-    ...            ${product_type}=${CDS_PROD_TYPE}
-    ...            ${device_type}=${CDS_DEVICE_TYPE}
+    ...            ${mdn}=${CDS_MDN}                      ${min}=${CDS_MIN}
+    ...            ${prod_id}=${CDS_PROD_ID}              ${limit}=${CDS_LIMIT}
+    ...            ${network}=${CDS_NETWORK}              ${tablet_yn}=${CDS_TABLET_YN}
+    ...            ${os_ver}=${CDS_OS_VER}                ${device_model}=${CDS_DEVICE_MODEL}
+    ...            ${ca}=${CDS_CA}                        ${aprf}=${CDS_APRF}
+    ...            ${imsi}=${CDS_IMSI}                    ${mvno}=${CDS_MVNO}
+    ...            ${ms_type}=${CDS_MS_TYPE}
+    ...            ${category_lte}=${CDS_CATEGORY_LTE}    ${category_5g}=${CDS_CATEGORY_5G}
+    ...            ${device_type}=${CDS_DEVICE_TYPE}      ${product_type}=${CDS_PROD_TYPE}
     ...            &{extra}
     ${body}=    Cds.Pack Command Body    ${code}
-    ...    mdn=${mdn}    prod_id=${prod_id}    limit=${limit}    product_type=${product_type}
-    ...    device_type=${device_type}    &{extra}
+    ...    mdn=${mdn}                      min=${min}
+    ...    prod_id=${prod_id}              limit=${limit}
+    ...    network=${network}              tablet_yn=${tablet_yn}
+    ...    os_ver=${os_ver}                device_model=${device_model}
+    ...    ca=${ca}                        aprf=${aprf}
+    ...    imsi=${imsi}                    mvno=${mvno}
+    ...    ms_type=${ms_type}
+    ...    category_lte=${category_lte}    category_5g=${category_5g}
+    ...    device_type=${device_type}      product_type=${product_type}
+    ...    &{extra}
     ${date}    ${seq}=    Next CDS TID
     Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_CMD_REQ}
     ...    tid_date=${date}    tid_seq=${seq}    data=${body}
@@ -353,17 +366,12 @@ CDS Result Should Be SC
 Command Download Flow
     [Documentation]
     ...    CommandRequest(0015) → ACK(0016, SC) → Result(0017, SC) → ResultACK(0018) 전체 흐름.
-    ...    공통 5개 필드(mdn/prod_id/limit/product_type/device_type)를 명시하고, 코드별 추가 필드는 &{extra} 로 전달한다.
-    [Arguments]    ${code}
-    ...            ${mdn}=${CDS_MDN}
-    ...            ${prod_id}=${CDS_PROD_ID}
-    ...            ${limit}=${CDS_LIMIT}
-    ...            ${product_type}=${CDS_PROD_TYPE}
-    ...            ${device_type}=${CDS_DEVICE_TYPE}
-    ...            &{extra}
-    Send Command Request    code=${code}
-    ...    mdn=${mdn}    prod_id=${prod_id}    limit=${limit}    product_type=${product_type}
-    ...    device_type=${device_type}    &{extra}
+    ...    Body 필드 기본값은 `Send Command Request` 가 cds_variables.robot 에서 채운다
+    ...    (가입자·단말·망 공용 필드). 여기서 재선언하지 않는다 — 기본값이 두 곳에 생기면 어긋난다.
+    ...    필드를 덮거나 코드 전용 필드를 줄 때만 &{extra} 로 전달한다:
+    ...      Command Download Flow    ${CDS_CODE_D3}    new_mdn=...    new_min=...
+    [Arguments]    ${code}    &{extra}
+    Send Command Request    code=${code}    &{extra}
     Receive And Validate Command Ack
     ${hdr}    ${res}=    Receive Command Result
     CDS Result Should Be SC    ${res}

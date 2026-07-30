@@ -282,6 +282,12 @@ def _fill_command_fields(code, kw, f):
     레거시 CDS 도구의 gen(section, value) if/elif 체인을 그대로 옮긴 것이며,
     분기 평가 순서가 동작을 좌우하므로(앞 분기가 먼저 매칭) 순서를 보존한다.
     값은 kw(키워드 인자 dict) 에서 동일 이름으로 읽는다. 누락 필드는 공백 유지.
+
+    ★ 분기가 선언하지 않은 필드는 kw 에 값이 있어도 **조용히 버려진다.**
+      s() 가 호출된 이름만 f 에 들어가고 나머지는 초기 공백을 유지하기 때문이다.
+      실제로 Z1 분기에 product_type 이 없어, 호출부가 값을 넘겨도 Z1 만 반영되지
+      않던 전례가 있다(규격 대조로 발견). 코드별 필드 집합을 고칠 때는 규격
+      목록과 이 분기를 함께 대조할 것 — 테스트로는 잡히지 않는다.
     """
     v = code
 
@@ -303,8 +309,12 @@ def _fill_command_fields(code, kw, f):
           'imsi', 'mvno', 'limit', 'category_lte', 'category_5g',
           'device_type', 'product_type')
     elif v == 'Z1':
+        # category_lte/category_5g/product_type 은 규격 Z1 목록에 있는데 레거시 코드에
+        # 빠져 있었다(2026-07 규격 대조로 발견). ca/imsi 는 규격 목록엔 없으나
+        # A1 실 전문이 채워 보내는 것이 확인돼 유지한다.
         s('mdn', 'prod_id', 'network', 'tablet_yn', 'os_ver', 'device_model',
-          'ca', 'aprf', 'imsi', 'mvno', 'limit', 'ms_type', 'device_type')
+          'ca', 'aprf', 'imsi', 'mvno', 'limit', 'ms_type',
+          'category_lte', 'category_5g', 'device_type', 'product_type')
     elif v == 'IU' or v == 'IX':
         s('mdn', 'imsi', 'mvno', 'limit')
     elif v in ('Y5', 'Y6', 'Y7', 'Y8'):

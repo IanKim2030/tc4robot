@@ -77,18 +77,12 @@ TC-CDS-002 상태확인 - ProcessStateReuqest(0013) S/R채널 각각 → ACK(001
 TC-CDS-003 Download(A1 신규) - Request → ACK → Result → ACK
     [Documentation]
     ...    0015(A1 신규) 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
-    ...    규격상 A1 이 요구하는 필드를 ${CDS_A1_*} 로 전달한다(Body 는 항상 327B).
-    ...    ca / imsi 는 규격 A1 필드 목록에 없으나 실 전문이 채워 보내므로 함께 전달한다.
-    ...    ※ ${CDS_A1_*} 가 비어 있으면 해당 필드는 공백으로 나가고 PG 는 그래도 SC 를 준다.
-    ...       실환경 값을 cds_variables.robot 에 채워야 실제 검증이 된다.
+    ...    규격 A1 이 요구하는 17개 필드는 cds_variables.robot 기본값으로 전달된다
+    ...    (Body 는 코드와 무관하게 항상 327B).
+    ...    ※ 단말·망 필드(${CDS_NETWORK} 등)가 비어 있으면 공백으로 나가고 PG 는 그래도
+    ...       SC 를 준다. 실환경 값을 채워야 실제 검증이 된다.
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_A1}
-    ...    min=${CDS_MIN}
-    ...    network=${CDS_A1_NETWORK}            tablet_yn=${CDS_A1_TABLET_YN}
-    ...    os_ver=${CDS_A1_OS_VER}              device_model=${CDS_A1_DEVICE_MODEL}
-    ...    ca=${CDS_A1_CA}                      aprf=${CDS_A1_APRF}
-    ...    imsi=${CDS_A1_IMSI}
-    ...    device_type=${CDS_A1_DEVICE_TYPE}    product_type=${CDS_A1_PROD_TYPE}
 
 TC-CDS-004 Download(1X HFC가입) - Request → ACK → Result → ACK
     [Documentation]    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
@@ -111,9 +105,12 @@ TC-CDS-007 Download(I3 부가서비스해지) - Request → ACK → Result → A
     Command Download Flow    ${CDS_CODE_I3}
 
 TC-CDS-008 Download(C1 기기변경) - Request → ACK → Result → ACK
-    [Documentation]    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Documentation]
+    ...    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...    C1 은 MDN 이 바뀌지 않고 단말(MIN)만 바뀌므로 new_min 만 넘긴다.
+    ...    C1 분기는 min ← mdn 을 강제하고 new_mdn 을 선언하지 않는다(CdsHelper).
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_C1}    new_mdn=${CDS_NEW_MDN}    new_min=${CDS_NEW_MIN}
+    Command Download Flow    ${CDS_CODE_C1}    new_min=${CDS_NEW_MIN}
 
 TC-CDS-009 Download(G1 정보변경) - Request → ACK → Result → ACK
     [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
@@ -123,10 +120,12 @@ TC-CDS-009 Download(G1 정보변경) - Request → ACK → Result → ACK
 TC-CDS-010 Download(D3 번호변경) - Request → ACK → Result → ACK
     [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_NEW_MDN}    min=${CDS_MIN}    new_min=${CDS_NEW_MIN}
+    Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_NEW_MDN}    new_min=${CDS_NEW_MIN}
 
 TC-CDS-011 Download(Z1 해지) - Request → ACK → Result → ACK
-    [Documentation]    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Documentation]
+    ...    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...    규격 Z1 필드 15개(A1 에서 min·addSvc 를 뺀 집합)를 기본값으로 전달한다.
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_Z1}
 

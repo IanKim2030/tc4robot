@@ -120,7 +120,7 @@ ${CDS_CODE_1Y}      1Y     # HFC 서비스 해지
 # ════════════════════════════════════════════
 # CommandRequest body — 공통 5개 필드 (스펙: mdn / product_id / limitSubsFlag / produGenType / device_type)
 # ${CDS_PROD_TYPE}/${CDS_DEVICE_TYPE} 는 전 코드 공용 기본값이라 비워 둔다.
-# A1 은 아래 ${CDS_A1_*} 를 호출부에서 명시적으로 넘긴다.
+# 단말·망 필드는 아래 별도 블록에 있고, 둘 다 Send Command Request 기본 인자로 쓰인다.
 #
 # 가입자(MDN/MIN)는 CDS 슈트만 쓰므로 여기 직접 둔다 — 공용 variables.robot 의
 # ${SUBS_*} 축은 두 노드 이상이 공유하는 값만 담는다.
@@ -139,22 +139,27 @@ ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (0
 ${CDS_ADDR}                    가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마
 
 # ════════════════════════════════════════════
-# A1(신규) 전용 필드 — TODO: 실환경 값으로 교체
+# 단말·망 필드 (코드 공용) — TODO: 실환경 값으로 교체
 #
-# 규격상 A1 이 요구하는 필드다(mdn/min/prod_id/limit 은 위 공통 변수 사용).
+# A1(신규) / Z1(해지) / C1(기기변경) / G1(정보변경) / D3(번호변경) 이 같은 집합을 쓴다.
+# A1 만 min·addSvc 를 추가로 쓴다. Command Download Flow 의 기본 인자로 올라가 있어
+# 여기 값을 채우면 해당 필드를 선언한 모든 업무 코드에 반영된다.
+#
 # ※ 비어 있으면 해당 필드는 공백으로 전송되고, PG 는 그래도 SC 를 돌려준다
 #    → 값을 채우지 않으면 이 필드들은 실질적으로 검증되지 않는다.
-#
-# mvno / ms_type / category_lte / category_5g 는 규격상 A1 필수(+Default 10)지만
-# 실 전문에서 공백으로 관측돼 변수를 두지 않았다. 상세는 tests/cds/CDS.md [함정] 절.
+# ※ ${CDS_DEVICE_TYPE} / ${CDS_PROD_TYPE} 는 위 공통 블록에 있다(중복 정의 금지).
 # ════════════════════════════════════════════
-${CDS_A1_NETWORK}              ${EMPTY}    # netId(8)        WCDMA CDMA WiBro LTE 5G 순 플래그
-${CDS_A1_TABLET_YN}            ${EMPTY}    # tabPcYn(1)      0=아니오 1=예
-${CDS_A1_OS_VER}               ${EMPTY}    # osVer(2)
-${CDS_A1_DEVICE_MODEL}         ${EMPTY}    # termModelCode(4)
-${CDS_A1_CA}                   ${EMPTY}    # CA(1)           3=L3 4=L4 (실 전문은 그 밖의 값도 온다)
-${CDS_A1_APRF}                 ${EMPTY}    # aprfTermAttri(1) 0=APRF N/A 1=Support
-${CDS_A1_IMSI}                 ${EMPTY}    # IMSI(15)        450(MCC)+05(MNC)+국번호(5)+Serial(5)
-${CDS_A1_DEVICE_TYPE}          ${EMPTY}    # devceType(1)    W=3G L=LTE N=NSA S=SA (Null=LTE)
-${CDS_A1_PROD_TYPE}            ${EMPTY}    # produGenType(2) 01=3G 02=LTE 03=5G
+${CDS_NETWORK}                 ${EMPTY}    # netId(8)         WCDMA CDMA WiBro LTE 5G 순 플래그
+${CDS_TABLET_YN}               ${EMPTY}    # tabPcYn(1)       0=아니오 1=예
+${CDS_OS_VER}                  ${EMPTY}    # osVer(2)
+${CDS_DEVICE_MODEL}            ${EMPTY}    # termModelCode(4)
+${CDS_CA}                      ${EMPTY}    # CA(1)            3=L3 4=L4 (실 전문은 그 밖의 값도 온다)
+${CDS_APRF}                    ${EMPTY}    # aprfTermAttri(1) 0=APRF N/A 1=Support
+${CDS_IMSI}                    ${EMPTY}    # IMSI(15)         450(MCC)+05(MNC)+국번호(5)+Serial(5)
+# 아래 4개는 규격상 A1·Z1 필수(lteCatgy/5gCatgy 는 Default 10)지만
+# 실 A1 전문에서 공백으로 관측됐다 → 임의로 채우면 실 전문과 어긋난다. 손잡이만 둔다.
+${CDS_MVNO}                    ${EMPTY}    # mvnoCompa(1)
+${CDS_MS_TYPE}                 ${EMPTY}    # catMsType(1)     0=해당없음 1=Cat.M1 2=Cat.M1+HDV
+${CDS_CATEGORY_LTE}            ${EMPTY}    # lteCatgy(2)      규격 Default 10
+${CDS_CATEGORY_5G}             ${EMPTY}    # 5gCatgy(2)       규격 Default 10
 

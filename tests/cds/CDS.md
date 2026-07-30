@@ -109,13 +109,28 @@ Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅�
 
 `addr` 만 한글이 들어가 cp949 로 인코딩한다(`_FIELD_ENCODING`). 나머지는 ASCII.
 
-### A1(신규)이 쓰는 필드
+### 업무 코드별 필드 집합
 
-규격 기준 17개 — `opCode` `mdn` `min` `produId` `addSvc`(**옵션**) `netId` `tabPcYn`
-`osVer` `termModelCode` `aprfTermAttri` `mvnoCompa` `limitSubsFlag` `catMsType`
-`lteCatgy` `5gCatgy` `devceType` `produGenType`. `addSvc` 외에는 전부 필수.
+코드가 쓰지 않는 필드는 공백으로 나간다. 대상 필드는
+`CdsHelper._fill_command_fields(code)` 의 분기가 정한다.
 
-실 전문은 여기에 `CA` 와 `IMSI` 를 **더** 채워 보낸다(아래 함정 참조).
+| 코드 | 규격 필드 수 | 구성 |
+|---|---|---|
+| `A1` 신규 | 17 | `opCode` `mdn` `min` `produId` `addSvc`(**옵션**) `netId` `tabPcYn` `osVer` `termModelCode` `aprfTermAttri` `mvnoCompa` `limitSubsFlag` `catMsType` `lteCatgy` `5gCatgy` `devceType` `produGenType` |
+| `Z1` 해지 | 15 | A1 에서 **`min` · `addSvc` 를 뺀 집합** |
+
+`addSvc` 외에는 전부 필수다. **실 전문은 여기에 `CA` 와 `IMSI` 를 더 채워 보낸다**
+(아래 함정 참조) — 코드 분기도 두 필드를 유지한다.
+
+`C1`(기기변경) 은 `min ← mdn` 을 강제하고 `new_mdn` 을 선언하지 않는다 — MDN 이 바뀌지
+않는 업무라서다. `new_min` 만 넘긴다.
+
+이 단말·망 필드들은 `${CDS_NETWORK}` `${CDS_CA}` `${CDS_IMSI}` 등 **코드 공용 변수**로
+`Send Command Request` 의 기본 인자에 올라가 있다. 하나를 채우면 그 필드를 선언한
+모든 코드에 반영된다.
+
+**미확인** — `D3`(번호변경) 분기는 `ms_type` 을 선언하지 않는다. D3 규격 필드 목록을
+확보하지 못해 누락인지 의도인지 판단하지 못했다.
 
 ### 업무 코드
 
@@ -132,8 +147,9 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 현재 **활성 12건 / 주석 2건**. 태그: `cds` `connect` `process-state` `command` `release` `smoke` `validation`
 (+ 주석 TC 에 `subs-data` `upload`)
 
-`${CDS_A1_*}`(A1 전용 필드)는 현재 전부 비어 있다 — 실환경 값이 없어서다. `TC-CDS-003` 이
-인자로 넘기는 배선은 되어 있으므로 `cds_variables.robot` 에 값만 채우면 즉시 반영된다.
+단말·망 공용 필드(`${CDS_NETWORK}` `${CDS_CA}` `${CDS_IMSI}` 등)는 현재 전부 비어 있다
+— 실환경 값이 없어서다. `Send Command Request` 의 기본 인자로 올라가 있으므로
+`cds_variables.robot` 에 값만 채우면 해당 필드를 선언한 모든 코드에 즉시 반영된다.
 채우지 않으면 그 필드들은 공백으로 나가고 **PG 는 그래도 `SC` 를 준다.**
 
 ## 함정
@@ -142,6 +158,25 @@ PG 응답(`SC`/`FA`)으로 판단한다.
   → `Send Upload Result` 순. 해당 TC 는 PG 이벤트가 필요해 주석 처리돼 있다.
 - Release 시 PG 가 ACK 없이 끊는 경우가 정상 동작으로 취급된다
   (`Send Release And Validate` 가 `Run Keyword And Return Status` 로 처리).
+
+### 코드 분기가 선언하지 않은 필드는 값을 넘겨도 버려진다
+
+`pack_command_body` 는 327B 를 전부 공백으로 초기화한 뒤 **분기가 선언한 이름만** 채운다.
+
+```python
+f = {name: '' for name, _ in _CMD_LAYOUT}   # 전부 공백
+_fill_command_fields(code, fields, f)        # s() 로 호출된 이름만 f 에 들어간다
+```
+
+따라서 호출부가 `product_type=03` 을 넘겨도 그 코드의 분기에 `product_type` 이 없으면
+**조용히 사라진다.** 예외도 로그도 없다.
+
+실제로 **`Z1` 분기에 `category_lte` · `category_5g` · `product_type` 3개가 빠져 있었다**
+(2026-07 규격 대조로 발견). `${CDS_PROD_TYPE}` 가 비어 있어 증상이 없었을 뿐, 값을
+채우면 A1·D3·C1·G1·1X·1Y 는 반영되고 Z1 만 무시됐을 것이다.
+
+**코드별 필드 집합을 고칠 때는 규격 목록과 분기를 나란히 대조할 것** — TC 로는 잡히지
+않는다(PG 가 어차피 `SC` 를 준다).
 
 ### Body 인코딩 회귀를 자동으로 잡을 수 없다
 
@@ -175,6 +210,6 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 `produGenType`=`03`(5G) 와도 "5G SA 가입자"로 일관된다 — 정렬이 틀렸다면 세 필드가
 동시에 말이 될 수 없다.
 
-**샘플 값 자체는 포맷 확인용이므로 소스에 넣지 않았다.** `${CDS_A1_*}` 는 비어 있고,
+**샘플 값 자체는 포맷 확인용이므로 소스에 넣지 않았다.** 단말·망 공용 변수는 비어 있고,
 실환경 값으로 채우는 것은 별건이다. 규격표 대신 실 전문을 따라야 하는 필드가
 어디인지만 위 표로 남긴다.
