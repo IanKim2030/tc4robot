@@ -19,10 +19,9 @@ Documentation
 ...      TC-CDS-001       : 접속 (Schannel/Rchannel 세션 생존)
 ...      TC-CDS-002       : ProcessState 상태확인 (0013/0014)
 ...      TC-CDS-003 ~ 011 : Download Command (0015~0018) — 업무 코드별
-...      TC-CDS-012       : Command Body 인코딩 검증 (A1 골든 샘플 327B, 송신 없음)
-...      TC-CDS-013       : SubsData (0029~0032) ※ 현재 주석 처리 (PG 조회 필요)
-...      TC-CDS-014       : UpLoad (0025~0028) ※ 현재 주석 처리 (PG 가 먼저 송신)
-...      TC-CDS-015       : 접속 해제 (0005~0008)
+...      TC-CDS-012       : SubsData (0029~0032) ※ 현재 주석 처리 (PG 조회 필요)
+...      TC-CDS-013       : UpLoad (0025~0028) ※ 현재 주석 처리 (PG 가 먼저 송신)
+...      TC-CDS-014       : 접속 해제 (0005~0008)
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/cds_variables.robot
@@ -78,11 +77,13 @@ TC-CDS-002 상태확인 - ProcessStateReuqest(0013) S/R채널 각각 → ACK(001
 TC-CDS-003 Download(A1 신규) - Request → ACK → Result → ACK
     [Documentation]
     ...    0015(A1 신규) 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
-    ...    Body 는 실 A1 전문 샘플(327B, 5G SA 가입자)과 동일한 13개 필드를 채운다.
-    ...    ca / imsi 는 규격 A1 필드 목록에 없으나 실 전문이 채워 보내므로 함께 보낸다.
+    ...    규격상 A1 이 요구하는 필드를 ${CDS_A1_*} 로 전달한다(Body 는 항상 327B).
+    ...    ca / imsi 는 규격 A1 필드 목록에 없으나 실 전문이 채워 보내므로 함께 전달한다.
+    ...    ※ ${CDS_A1_*} 가 비어 있으면 해당 필드는 공백으로 나가고 PG 는 그래도 SC 를 준다.
+    ...       실환경 값을 cds_variables.robot 에 채워야 실제 검증이 된다.
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_A1}
-    ...    min=${CDS_TEST_MIN}
+    ...    min=${CDS_MIN}
     ...    network=${CDS_A1_NETWORK}            tablet_yn=${CDS_A1_TABLET_YN}
     ...    os_ver=${CDS_A1_OS_VER}              device_model=${CDS_A1_DEVICE_MODEL}
     ...    ca=${CDS_A1_CA}                      aprf=${CDS_A1_APRF}
@@ -92,7 +93,7 @@ TC-CDS-003 Download(A1 신규) - Request → ACK → Result → ACK
 TC-CDS-004 Download(1X HFC가입) - Request → ACK → Result → ACK
     [Documentation]    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_TEST_ADDR}
+    Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
 
 TC-CDS-005 Download(1Y HFC해지) - Request → ACK → Result → ACK
     [Documentation]    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
@@ -112,7 +113,7 @@ TC-CDS-007 Download(I3 부가서비스해지) - Request → ACK → Result → A
 TC-CDS-008 Download(C1 기기변경) - Request → ACK → Result → ACK
     [Documentation]    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_C1}    new_mdn=${CDS_TEST_NEW_MDN}    new_min=${CDS_TEST_NEW_MIN}
+    Command Download Flow    ${CDS_CODE_C1}    new_mdn=${CDS_NEW_MDN}    new_min=${CDS_NEW_MIN}
 
 TC-CDS-009 Download(G1 정보변경) - Request → ACK → Result → ACK
     [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
@@ -122,28 +123,18 @@ TC-CDS-009 Download(G1 정보변경) - Request → ACK → Result → ACK
 TC-CDS-010 Download(D3 번호변경) - Request → ACK → Result → ACK
     [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_TEST_NEW_MDN}    min=${CDS_TEST_MIN}    new_min=${CDS_TEST_NEW_MIN}
+    Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_NEW_MDN}    min=${CDS_MIN}    new_min=${CDS_NEW_MIN}
 
 TC-CDS-011 Download(Z1 해지) - Request → ACK → Result → ACK
     [Documentation]    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_Z1}
 
-TC-CDS-012 CommandRequest Body 인코딩 - A1 골든 샘플 327B 대조
-    [Documentation]
-    ...    조립한 A1 Body 를 실 전문 골든 샘플(327B)과 바이트 단위로 대조한다. 송신하지 않는다.
-    ...    CdsHelper._CMD_LAYOUT 의 필드 순서·길이가 바뀌면 여기서 걸린다.
-    ...    ※ CDS 는 PG 가 Body 내용과 무관하게 SC 를 돌려주므로, 인코딩 회귀를 잡는
-    ...       자동 판정 수단은 이 TC 가 유일하다.
-    [Tags]    cds    command    validation
-    Verify A1 Golden Body
-
-
 # ════════════════════════════════════════════════════════════════
 # 가입자 데이터 SubsData (0029~0032)
 # ════════════════════════════════════════════════════════════════
 
-#TC-CDS-013 SubsData - SubsDataRequest → ACK → SubsDataResult → ACK
+#TC-CDS-012 SubsData - SubsDataRequest → ACK → SubsDataResult → ACK
 #    [Documentation]
 #    ...    0029 송신(MIN) → 0030 ACK(SC) → 0031 Result 수신 → 0032 ResultACK 송신
 #    ...    ※ 실 PG.CDS 가 가입자 데이터를 조회·보고해야 동작 (MIN 은 TODO)
@@ -158,7 +149,7 @@ TC-CDS-012 CommandRequest Body 인코딩 - A1 골든 샘플 327B 대조
 # UpLoad (0025~0028) — PG(Server)가 먼저 송신해야 동작 → 주석 처리
 # ════════════════════════════════════════════════════════════════
 
-# TC-CDS-014 UpLoad - 요구 수신 → ACK → 결과 보고 → 결과 응답
+# TC-CDS-013 UpLoad - 요구 수신 → ACK → 결과 보고 → 결과 응답
 #     [Documentation]
 #     ...    PG 발신 UploadRequest(0025) 수신 → 0026 ACK 송신 →
 #     ...    0027 UploadResult 송신 → 0028 ResultACK 수신
@@ -169,7 +160,7 @@ TC-CDS-012 CommandRequest Body 인코딩 - A1 골든 샘플 327B 대조
 #     Send Upload Result    ${hdr}[tid_date]    ${hdr}[tid_seq]    payload=0
 #     Receive And Validate Upload Result Ack
 
-TC-CDS-015 접속 해제 - Schannel 해제 후 Rchannel 해제
+TC-CDS-014 접속 해제 - Schannel 해제 후 Rchannel 해제
     [Documentation]
     ...    Schannel 접속 해제 요구(0005) → 응답(0006, SC) 처리 후,
     ...    Rchannel 접속 해제 요구(0007) → 응답(0008, SC) 처리

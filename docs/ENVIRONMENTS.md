@@ -44,6 +44,13 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 `resources/variables.robot` 에 모여 있다. 노드별 변수는 이를 참조만 하므로
 **환경 파일에서 아래 하나만 바꾸면 관련 노드 전부에 전파된다.**
 
+**여기 두는 기준은 "두 노드 이상이 공유하는 값"이다.** 한 노드만 쓰는 환경 값은
+해당 `<iface>_variables.robot` 에 **값을 직접** 둔다 — 예로 CDS 가입자는
+`${CDS_MDN}` / `${CDS_MIN}`(`cds_variables.robot`) 에 있다.
+공유되지 않는 값을 축에 두면 이득 없는 간접 계층만 생긴다.
+(환경 파일 오버라이드는 우선순위상 어느 파일에 있든 이기므로, 배치가 좌우하는 것은
+**중복 위험뿐**이다.)
+
 | 변수 | 전파 대상 |
 |---|---|
 | `${PG_HOST}` | `${NAG_PG_HOST}` `${PCF_PG_HOST}` `${UPM_PG_HOST}` `${NWDAF_HOST}` `${CDS_PG_HOST}` `${LRS_CLIENT_HOST}` |
@@ -52,7 +59,6 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 | `${SUBS_MDN_5G}` / `${SUBS_MIN_5G}` | `${LRS_MDN_5G}` `${NWDAF_TEST_MDN_5G}` `${NWDAF_TEST_MIN_5G}` |
 | `${SUBS_MDN_NO_HFC}` | `${TEST_MDN_NO_SS}` `${LRS_MDN_NO_SESSION}` |
 | `${SUBS_MDN_NO_SESSION}` | `${TEST_MDN_NO_SESSION}` |
-| `${SUBS_MDN_CDS}` 계열 | `${CDS_TEST_MDN}` `${CDS_TEST_MIN}` `${CDS_TEST_NEW_MDN}` `${CDS_TEST_NEW_MIN}` |
 | `${SUBS_APN_LTE}` / `${SUBS_APN_5G}` | `${TEST_APN}` `${LRS_APN_LTE}` `${LRS_APN_5G}` |
 | `${SUBS_MOBILE_IP}` | `${TEST_MOBILE_IP}` `${LRS_SI_CLIENT_IP}` |
 | `${NET_CELL_ID}` / `${NET_PGW_IP}` | `${NWDAF_TEST_CELL_ID}` `${NWDAF_TEST_PGW_IP}` |

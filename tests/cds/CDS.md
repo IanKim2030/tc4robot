@@ -61,45 +61,51 @@ Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅�
 않는 필드는 공백으로 채운다. 채울 필드는 `CdsHelper._fill_command_fields(code)` 가 정한다.
 
 **레이아웃은 실 A1 전문 샘플 327B + 규격표 35필드로 이중 검증됐다** — 추정이 아니다.
-`_CMD_LAYOUT` 의 순서·길이를 바꾸면 `TC-CDS-012` 가 잡는다.
+샘플의 모든 유효 바이트가 A1 대상 필드에만 정렬되고, 규격표의 순서·크기가 전부 일치했다.
 
-| off | 내부 필드명 | 규격명 (TCP / JSON) | Size | 값 | A1 샘플 |
+아래 `A1` 열은 실 A1 전문에서 **값이 채워져 있던 필드**를 표시한다(값 자체는 실 가입자
+데이터라 옮기지 않는다). 다만 규격표와 어긋나 근거가 필요한 두 건은 값을 남겼다.
+
+| off | 내부 필드명 | 규격명 (TCP / JSON) | Size | 값 | A1 |
 |---|---|---|---|---|---|
 | 0 | `svc_code` | JOB_CODE / opCode | 2 | 업무 코드 | `A1` |
-| 2 | `mdn` | MDN / mdn | 12 | | `01020304053` |
+| 2 | `mdn` | MDN / mdn | 12 | | ● |
 | 14 | `new_mdn` | NEW_MDN | 12 | | |
-| 26 | `min` | MIN / min | 10 | | `1020304053` |
+| 26 | `min` | MIN / min | 10 | | ● |
 | 36 | `new_min` | NEW_MIN | 10 | | |
-| 46 | `prod_id` | PRODUCT_ID / produId | 10 | 상품 ID | `NA00003054` |
-| 56 | `data_prod_id` | ADD_SVC / addSvc | 10 | 안심데이터상품ID | |
-| 66 | `network` | NETWORK_ID / netId | 8 | WCDMA CDMA WiBro LTE 5G 플래그 | `10011` |
+| 46 | `prod_id` | PRODUCT_ID / produId | 10 | 상품 ID | ● |
+| 56 | `data_prod_id` | ADD_SVC / addSvc | 10 | 안심데이터상품ID | (옵션) |
+| 66 | `network` | NETWORK_ID / netId | 8 | WCDMA CDMA WiBro LTE 5G 플래그 | `10011` ★ |
 | 74 | `block_data_roaming_id` | ROADMING_STOP | 1 | 0=해당없음 1=가입/해지 | |
 | 75 | `block_data_roaming_provider_id` | ROADMING_STOP_PROVIDER | 1 | 0/1 | |
 | 76 | `allow_mvoip_yn` | MVOIP_APPLY_FG | 1 | 0/1 | |
-| 77 | `tablet_yn` | TABLET_PC_YN / tabPcYn | 1 | 0=아니오 1=예 | `0` |
-| 78 | `os_ver` | OS_VERSION / osVer | 2 | | `01` |
-| 80 | `device_model` | TERMINAL_MODEL_CODE / termModelCode | 4 | | `SSTE` |
+| 77 | `tablet_yn` | TABLET_PC_YN / tabPcYn | 1 | 0=아니오 1=예 | ● |
+| 78 | `os_ver` | OS_VERSION / osVer | 2 | | ● |
+| 80 | `device_model` | TERMINAL_MODEL_CODE / termModelCode | 4 | | ● |
 | 84 | `block_harmful_yn` | YOUNG_HARM_INFO_BLOCK | 1 | 청소년 유해정보 차단 | |
 | 85 | `block_roaming_data_yn` | ROAMING_DATA | 1 | 0=허용 1=차단 2=VOMS제휴망 | |
 | 86 | `block_roaming_mvoip_yn` | ROAMING_MVOIP | 1 | 0=허용 1=차단 | |
 | 87 | `zone_code` | ZONE_CODE | 4 | 0000~9999 | |
-| 91 | `ca` | CA | 1 | CA 단말 속성 3=L3 4=L4 | `7` |
-| 92 | `aprf` | APRF / aprfTermAttri | 1 | 0=N/A 1=Support | `0` |
-| 93 | `imsi` | IMSI | 15 | 450+05+국번호(5)+Serial(5) | `450057110046420` |
-| 108 | `mvno` | MVNO_COMPANY / mvnoCompa | 1 | | |
-| 109 | `limit` | LIMIT_SUBS_FG / limitSubsFlag | 1 | 한도형 가입자 | `0` |
+| 91 | `ca` | CA | 1 | CA 단말 속성 3=L3 4=L4 | `7` ★ |
+| 92 | `aprf` | APRF / aprfTermAttri | 1 | 0=N/A 1=Support | ● |
+| 93 | `imsi` | IMSI | 15 | 450+05+국번호(5)+Serial(5) | ● |
+| 108 | `mvno` | MVNO_COMPANY / mvnoCompa | 1 | | 공백 |
+| 109 | `limit` | LIMIT_SUBS_FG / limitSubsFlag | 1 | 한도형 가입자 | ● |
 | 110 | `qos_param` | ROAMING_QOS_PARAM | 1 | | |
 | 111 | `start_time` | START_TIME | 12 | 쿠폰 종료 시간 / 시간프리 Start | |
 | 123 | `coupon_type` | COUPON_TYPE | 2 | 쿠폰 권종 / 시간프리 End | |
 | 125 | `coupon_pin` | COUPON_PIN | 11 | | |
-| 136 | `ms_type` | MS_TYPE / catMsType | 1 | Cat.M1 단말 타입 | |
-| 137 | `category_lte` | CATEGORY_LTE / lteCatgy | 2 | Default 10 | |
-| 139 | `category_5g` | CATEGORY_5G / 5gCatgy | 2 | Default 10 | |
-| 141 | `device_type` | DEVICE_TYPE / devceType | 1 | W=3G L=LTE N=NSA S=SA (Null=LTE) | `S` |
+| 136 | `ms_type` | MS_TYPE / catMsType | 1 | Cat.M1 단말 타입 | 공백 |
+| 137 | `category_lte` | CATEGORY_LTE / lteCatgy | 2 | Default 10 | 공백 |
+| 139 | `category_5g` | CATEGORY_5G / 5gCatgy | 2 | Default 10 | 공백 |
+| 141 | `device_type` | DEVICE_TYPE / devceType | 1 | W=3G L=LTE N=NSA S=SA (Null=LTE) | ● |
 | 142 | `coupon_category` | COUPON_CATEGORY | 1 | T=Time P=Period | |
 | 143 | `real_start_time` | REAL_START_TIME | 12 | 쿠폰 시작 시간 | |
 | 155 | `addr` | ADDR | 170 | 주소 (**cp949**) | |
-| 325 | `product_type` | PRODUCT_GEN_TYPE / produGenType | 2 | 01=3G 02=LTE 03=5G | `03` |
+| 325 | `product_type` | PRODUCT_GEN_TYPE / produGenType | 2 | 01=3G 02=LTE 03=5G | ● |
+
+`●` = 실 전문에 값이 있던 필드 / `공백` = 규격상 A1 필수인데 실 전문은 비어 있던 필드 /
+`★` = 규격표와 어긋나 값을 근거로 남긴 필드(아래 함정 절).
 
 `addr` 만 한글이 들어가 cp949 로 인코딩한다(`_FIELD_ENCODING`). 나머지는 ASCII.
 
@@ -123,11 +129,12 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 
 ## TC
 
-현재 **활성 13건 / 주석 2건**. 태그: `cds` `connect` `process-state` `command` `release` `smoke` `validation`
+현재 **활성 12건 / 주석 2건**. 태그: `cds` `connect` `process-state` `command` `release` `smoke` `validation`
 (+ 주석 TC 에 `subs-data` `upload`)
 
-`TC-CDS-012` 만 송신하지 않는 build 단위 TC 다. CDS 는 PG 가 Body 내용과 무관하게 `SC` 를
-돌려주므로 **인코딩 회귀를 자동 판정하는 수단은 이 TC 가 유일하다.**
+`${CDS_A1_*}`(A1 전용 필드)는 현재 전부 비어 있다 — 실환경 값이 없어서다. `TC-CDS-003` 이
+인자로 넘기는 배선은 되어 있으므로 `cds_variables.robot` 에 값만 채우면 즉시 반영된다.
+채우지 않으면 그 필드들은 공백으로 나가고 **PG 는 그래도 `SC` 를 준다.**
 
 ## 함정
 
@@ -135,6 +142,18 @@ PG 응답(`SC`/`FA`)으로 판단한다.
   → `Send Upload Result` 순. 해당 TC 는 PG 이벤트가 필요해 주석 처리돼 있다.
 - Release 시 PG 가 ACK 없이 끊는 경우가 정상 동작으로 취급된다
   (`Send Release And Validate` 가 `Run Keyword And Return Status` 로 처리).
+
+### Body 인코딩 회귀를 자동으로 잡을 수 없다
+
+**PG.CDS 는 Body 내용과 무관하게 `CommandResult` 를 `SC` 로 돌려준다.** 따라서
+`_CMD_LAYOUT` 의 필드 순서·길이가 깨져도, A1 필수 필드가 전부 공백으로 나가도
+**전 TC 가 통과한다.**
+
+실제로 A1 이 10개 필드를 비운 채 송신하면서 모든 TC 가 PASS 했던 전례가 있다.
+
+레이아웃을 손댔다면 실 전문 캡처와 **수동으로** 대조할 것 —
+`PG_LOG_MSG=1`(`run_tests.sh cds --log-msg`)로 송신 덤프를 `log.html` 에 남기고
+위 오프셋 표와 맞춘다. 절차는 `pg-wire-encoding` 스킬.
 
 ### 규격표와 실 전문이 어긋난다 — 실 전문이 기준이다
 
@@ -152,9 +171,10 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 
 `CA`·`IMSI` 는 오프셋 오독이 아니다. 필드 위치는 코드와 무관한 절대 오프셋이고,
 `zone_code`(87~91) 가 공백으로 끝난 직후 바이트가 `7`, 그 뒤 15B 가 정확히 SKT IMSI
-형식(`450`+`05`+`71100`+`46420`)이다. 같은 샘플의 `devceType`=`S`(SA) /
-`produGenType`=`03`(5G) 와도 "5G SA 가입자"로 일관된다.
+형식(`450`+`05`+국번호+Serial)이다. 같은 샘플의 `devceType`=`S`(SA) /
+`produGenType`=`03`(5G) 와도 "5G SA 가입자"로 일관된다 — 정렬이 틀렸다면 세 필드가
+동시에 말이 될 수 없다.
 
-바뀐 값은 `${CDS_A1_*}`(`cds_variables.robot`)에 있고, 골든 기준은
-`CdsHelper.GOLDEN_A1_SAMPLE` / `GOLDEN_A1_FIELDS` 다. **골든은 환경 변수와 독립이며
-`_CMD_LAYOUT` 으로 재생성하면 안 된다** — 그러면 대조 기준이 사라진다.
+**샘플 값 자체는 포맷 확인용이므로 소스에 넣지 않았다.** `${CDS_A1_*}` 는 비어 있고,
+실환경 값으로 채우는 것은 별건이다. 규격표 대신 실 전문을 따라야 하는 필드가
+어디인지만 위 표로 남긴다.

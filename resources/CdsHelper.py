@@ -219,7 +219,11 @@ def unpack_result_data(data):
 #   이 순서는 레거시 CDS 도구의 clear() 필드 선언 순서를 옮긴 것인데,
 #   **실 A1 전문 샘플 327B + 규격표 35필드로 이중 검증 완료**됐다.
 #   (샘플의 모든 유효 바이트가 A1 대상 필드에만 정렬되고, 규격표의 순서·크기가 전부 일치)
-#   → 추정이 아니다. 순서/길이를 바꾸지 말 것. GOLDEN_A1_SAMPLE 이 회귀를 잡는다.
+#   → 추정이 아니다. 순서/길이를 바꾸지 말 것.
+#
+#   ★ 이 레이아웃을 깨뜨려도 자동으로 잡히지 않는다. PG.CDS 는 Body 내용과 무관하게
+#     CommandResult 를 SC 로 돌려주므로 전 TC 가 그대로 통과한다.
+#     손댔다면 실 전문 캡처와 수동 대조할 것 (pg-wire-encoding 스킬).
 #
 #   주석 3열: <TCP 규격 파라미터명> / <JSON 파라미터명> — <설명>
 #   내부 필드명은 레거시 이름을 유지한다(대조 기준 보존). 규격명과 1:1 대응은 아래 주석 참조.
@@ -262,67 +266,6 @@ _CMD_LAYOUT = [
 ]
 
 COMMAND_BODY_SIZE = sum(size for _, size in _CMD_LAYOUT)   # = 327
-
-# 실 A1(신규) 전문 Data 캡처 — 327B 골든 샘플.
-# ★ _CMD_LAYOUT 으로 재생성하지 말 것. 레이아웃과 **독립적인** 대조 기준이며,
-#   pack_command_body() 결과가 여기서 벗어나면 레이아웃이 깨진 것이다.
-#   새 캡처로 교체할 때만 손댄다. (TC-CDS-012 가 이걸로 회귀를 잡는다)
-# 5G SA 가입자 1건 — devceType=S / produGenType=03 / IMSI 450-05 가 서로 일관된다.
-GOLDEN_A1_SAMPLE = (
-    'A1'                                # svc_code(2)
-    '01020304053 '                      # mdn(12)
-    '            '                      # new_mdn(12)
-    '1020304053'                        # min(10)
-    '          '                        # new_min(10)
-    'NA00003054'                        # prod_id(10)
-    '          '                        # data_prod_id(10)  — A1 옵션, 미사용
-    '10011   '                          # network(8)        — 5자리 + 공백 3
-    ' '                                 # block_data_roaming_id(1)
-    ' '                                 # block_data_roaming_provider_id(1)
-    ' '                                 # allow_mvoip_yn(1)
-    '0'                                 # tablet_yn(1)
-    '01'                                # os_ver(2)
-    'SSTE'                              # device_model(4)
-    ' '                                 # block_harmful_yn(1)
-    ' '                                 # block_roaming_data_yn(1)
-    ' '                                 # block_roaming_mvoip_yn(1)
-    '    '                              # zone_code(4)
-    '7'                                 # ca(1)             — 규격표 미등재 값
-    '0'                                 # aprf(1)
-    '450057110046420'                   # imsi(15)          — 규격 A1 목록 미등재
-    ' '                                 # mvno(1)           — 규격상 필수이나 실전문 공백
-    '0'                                 # limit(1)
-    ' '                                 # qos_param(1)
-    '            '                      # start_time(12)
-    '  '                                # coupon_type(2)
-    '           '                       # coupon_pin(11)
-    ' '                                 # ms_type(1)        — 규격상 필수이나 실전문 공백
-    '  '                                # category_lte(2)   — 규격상 필수이나 실전문 공백
-    '  '                                # category_5g(2)    — 규격상 필수이나 실전문 공백
-    'S'                                 # device_type(1)
-    ' '                                 # coupon_category(1)
-    '            '                      # real_start_time(12)
-    + ' ' * 170 +                       # addr(170)
-    '03'                                # product_type(2)
-)
-
-# 골든 샘플을 재현하는 인자 — TC-CDS-012 가 그대로 쓴다.
-# 환경 파일이 ${SUBS_MDN_CDS} 등을 덮어도 이 값은 바뀌면 안 된다(대조 기준이므로).
-GOLDEN_A1_FIELDS = {
-    'mdn':          '01020304053',
-    'min':          '1020304053',
-    'prod_id':      'NA00003054',
-    'network':      '10011',
-    'tablet_yn':    '0',
-    'os_ver':       '01',
-    'device_model': 'SSTE',
-    'ca':           '7',
-    'aprf':         '0',
-    'imsi':         '450057110046420',
-    'limit':        '0',
-    'device_type':  'S',
-    'product_type': '03',
-}
 
 # addr(주소)만 한글 포함 가능 → DB(골디락스 UHC / 알티베이스 MS949)와 맞춰 cp949 로 인코딩.
 # 그 외 필드는 전부 코드/번호류라 ASCII 그대로 둔다.
@@ -480,28 +423,3 @@ def unpack_command_body(data):
         result[name] = _unpack_char(chunk, encoding=_FIELD_ENCODING.get(name, 'ascii'))
         offset += size
     return result
-
-
-# ── 골든 샘플 대조 (TC-CDS-012) ───────────────────────────────────
-
-def diff_golden_a1():
-    """
-    GOLDEN_A1_FIELDS 로 조립한 A1 Body 를 GOLDEN_A1_SAMPLE 과 대조한다.
-
-    일치하면 빈 리스트, 어긋나면 필드 단위 차이 문자열 리스트를 반환한다.
-    _CMD_LAYOUT 의 순서·길이가 바뀌면 여기서 걸린다.
-    (unpack 이 아니라 원본 문자열끼리 비교하므로 레이아웃 변경에 상쇄되지 않는다)
-    """
-    actual = pack_command_body('A1', **GOLDEN_A1_FIELDS).decode('ascii')
-    expected = GOLDEN_A1_SAMPLE
-    diffs = []
-    if len(actual) != len(expected):
-        diffs.append(f"길이 불일치: 조립={len(actual)}B, 골든={len(expected)}B")
-    offset = 0
-    for name, size in _CMD_LAYOUT:
-        exp = expected[offset:offset + size]
-        act = actual[offset:offset + size]
-        if exp != act:
-            diffs.append(f"off {offset:3d} {name}({size}): 골든=[{exp}] 조립=[{act}]")
-        offset += size
-    return diffs

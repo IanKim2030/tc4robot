@@ -119,45 +119,42 @@ ${CDS_CODE_1Y}      1Y     # HFC 서비스 해지
 # TODO: 실환경 명령어/가입자 데이터 값으로 교체
 # ════════════════════════════════════════════
 # CommandRequest body — 공통 5개 필드 (스펙: mdn / product_id / limitSubsFlag / produGenType / device_type)
-# ${CDS_TEST_PROD_TYPE}/${CDS_TEST_DEVICE_TYPE} 는 전 코드 공용 기본값이라 비워 둔다.
+# ${CDS_PROD_TYPE}/${CDS_DEVICE_TYPE} 는 전 코드 공용 기본값이라 비워 둔다.
 # A1 은 아래 ${CDS_A1_*} 를 호출부에서 명시적으로 넘긴다.
-${CDS_TEST_CMD_CODE}           ${CDS_CODE_A1}          # 기본 업무 코드 (신규 A1)
-${CDS_TEST_MDN}                ${SUBS_MDN_CDS}          # mdn        (12자)
-${CDS_TEST_PROD_ID}            NA00003054               # product_id (10자, prod_id) — 실 A1 샘플 기준
-${CDS_TEST_LIMIT}              0                        # limitSubsFlag (1자) — 실 A1 샘플과 동일
-${CDS_TEST_PROD_TYPE}          ${EMPTY}                 # produGenType  (2자, 코드별로 다름)
-${CDS_TEST_DEVICE_TYPE}        ${EMPTY}                 # device_type   (1자, 코드별로 다름)
+#
+# 가입자(MDN/MIN)는 CDS 슈트만 쓰므로 여기 직접 둔다 — 공용 variables.robot 의
+# ${SUBS_*} 축은 두 노드 이상이 공유하는 값만 담는다.
+${CDS_CMD_CODE}                ${CDS_CODE_A1}           # 기본 업무 코드 (신규 A1)
+${CDS_MDN}                     01090010001              # mdn        (12자) — CDS 는 가입자가 다르다
+${CDS_PROD_ID}                 NA00003479               # product_id (10자, prod_id)
+${CDS_LIMIT}                   0                        # limitSubsFlag (1자, TODO: 실환경 값)
+${CDS_PROD_TYPE}               ${EMPTY}                 # produGenType  (2자, 코드별로 다름)
+${CDS_DEVICE_TYPE}             ${EMPTY}                 # device_type   (1자, 코드별로 다름)
 # 코드별 추가 필드 (Send Command Request &{extra} 로 전달)
-${CDS_TEST_NEW_MDN}            ${SUBS_MDN_CDS_NEW}      # new_mdn (D3 번호변경 신규 번호)
-${CDS_TEST_MIN}                ${SUBS_MIN_CDS}          # min     (A1/D3 등)
-${CDS_TEST_NEW_MIN}            ${SUBS_MIN_CDS_NEW}      # new_min (C1 기기변경 시)
-${CDS_TEST_SUBS_MIN}           01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
-#${CDS_TEST_ADDR}               서울특별시 강남구 테헤란로 123      # addr (1X HFC 가입 시, 170byte, cp949 인코딩, TODO: 실환경 값)
-${CDS_TEST_ADDR}               가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마
+${CDS_NEW_MDN}                 01090010002              # new_mdn (D3 번호변경 신규 번호, TODO: 실환경 예비 번호)
+${CDS_MIN}                     1090010001               # min     (10자, A1/D3 등)
+${CDS_NEW_MIN}                 1090010002               # new_min (C1 기기변경 시)
+${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
+#${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      # addr (1X HFC 가입 시, 170byte, cp949 인코딩, TODO: 실환경 값)
+${CDS_ADDR}                    가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마
 
 # ════════════════════════════════════════════
-# A1(신규) 전용 필드 — 실 A1 전문 샘플(327B)에서 확인한 값
+# A1(신규) 전용 필드 — TODO: 실환경 값으로 교체
 #
-# 값의 근거는 규격표가 아니라 실 전문이다. 규격표와 어긋나는 곳이 있으며
-# (netId 자릿수 / CA 허용값 / A1 필드 목록의 CA·IMSI 누락) 그때는 실 전문을 따랐다.
-# 상세는 tests/cds/CDS.md 의 [함정] 절.
+# 규격상 A1 이 요구하는 필드다(mdn/min/prod_id/limit 은 위 공통 변수 사용).
+# ※ 비어 있으면 해당 필드는 공백으로 전송되고, PG 는 그래도 SC 를 돌려준다
+#    → 값을 채우지 않으면 이 필드들은 실질적으로 검증되지 않는다.
 #
 # mvno / ms_type / category_lte / category_5g 는 규격상 A1 필수(+Default 10)지만
-# 실 전문이 공백이므로 변수를 두지 않고 공백으로 내보낸다.
+# 실 전문에서 공백으로 관측돼 변수를 두지 않았다. 상세는 tests/cds/CDS.md [함정] 절.
 # ════════════════════════════════════════════
-# netId(8자): WCDMA CDMA WiBro LTE 5G 순 플래그.
-#   ※ 규격표는 4자리 + space(4) 로 적혀 있으나 실 전문은 5자리다(5번째 = 5G/NR).
-${CDS_A1_NETWORK}              10011
-${CDS_A1_TABLET_YN}            0                        # tabPcYn       0=아니오 1=예
-${CDS_A1_OS_VER}               01                       # osVer
-${CDS_A1_DEVICE_MODEL}         SSTE                     # termModelCode
-# CA(1자): 3=L3 단말, 4=L4 단말 …
-#   ※ 규격표는 0~4 만 열거하고 A1 필드 목록에도 CA 가 없으나, 실 전문은 7(L7)을 채워 보낸다.
-${CDS_A1_CA}                   7
-${CDS_A1_APRF}                 0                        # aprfTermAttri 0=APRF N/A 1=Support
-# IMSI(15자): 450(MCC) + 05(MNC) + 국번호(5) + Serial(5)
-#   ※ IMSI 도 A1 필드 목록에는 없으나 실 전문에 값이 있다.
-${CDS_A1_IMSI}                 450057110046420
-${CDS_A1_DEVICE_TYPE}          S                        # devceType     W=3G L=LTE N=NSA S=SA (Null=LTE)
-${CDS_A1_PROD_TYPE}            03                       # produGenType  01=3G 02=LTE 03=5G
+${CDS_A1_NETWORK}              ${EMPTY}    # netId(8)        WCDMA CDMA WiBro LTE 5G 순 플래그
+${CDS_A1_TABLET_YN}            ${EMPTY}    # tabPcYn(1)      0=아니오 1=예
+${CDS_A1_OS_VER}               ${EMPTY}    # osVer(2)
+${CDS_A1_DEVICE_MODEL}         ${EMPTY}    # termModelCode(4)
+${CDS_A1_CA}                   ${EMPTY}    # CA(1)           3=L3 4=L4 (실 전문은 그 밖의 값도 온다)
+${CDS_A1_APRF}                 ${EMPTY}    # aprfTermAttri(1) 0=APRF N/A 1=Support
+${CDS_A1_IMSI}                 ${EMPTY}    # IMSI(15)        450(MCC)+05(MNC)+국번호(5)+Serial(5)
+${CDS_A1_DEVICE_TYPE}          ${EMPTY}    # devceType(1)    W=3G L=LTE N=NSA S=SA (Null=LTE)
+${CDS_A1_PROD_TYPE}            ${EMPTY}    # produGenType(2) 01=3G 02=LTE 03=5G
 

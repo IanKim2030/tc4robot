@@ -227,12 +227,12 @@ Send Command Request
     ...    코드별 추가 필드는 &{extra} 로 전달: 예) min=... new_mdn=... imsi=... addr=...
     ...    code 에 무관한 필드는 무시되고, 누락 필드는 공백으로 채워진다.
     ...    반환: tid_date, tid_seq.
-    [Arguments]    ${code}=${CDS_TEST_CMD_CODE}
-    ...            ${mdn}=${CDS_TEST_MDN}
-    ...            ${prod_id}=${CDS_TEST_PROD_ID}
-    ...            ${limit}=${CDS_TEST_LIMIT}
-    ...            ${product_type}=${CDS_TEST_PROD_TYPE}
-    ...            ${device_type}=${CDS_TEST_DEVICE_TYPE}
+    [Arguments]    ${code}=${CDS_CMD_CODE}
+    ...            ${mdn}=${CDS_MDN}
+    ...            ${prod_id}=${CDS_PROD_ID}
+    ...            ${limit}=${CDS_LIMIT}
+    ...            ${product_type}=${CDS_PROD_TYPE}
+    ...            ${device_type}=${CDS_DEVICE_TYPE}
     ...            &{extra}
     ${body}=    Cds.Pack Command Body    ${code}
     ...    mdn=${mdn}    prod_id=${prod_id}    limit=${limit}    product_type=${product_type}
@@ -273,7 +273,7 @@ Send Command Result Ack
 
 Send Subs Data Request
     [Documentation]    SubsDataRequest(0029) 송신(Schannel, Data=MIN). 반환: tid_date, tid_seq.
-    [Arguments]    ${min}=${CDS_TEST_SUBS_MIN}
+    [Arguments]    ${min}=${CDS_SUBS_MIN}
     ${date}    ${seq}=    Next CDS TID
     Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_SUBS_DATA_REQ}
     ...    tid_date=${date}    tid_seq=${seq}    data=${min}
@@ -350,29 +350,16 @@ CDS Result Should Be SC
     Should Be Equal As Strings    ${ack}[result]    ${CDS_RESULT_SC}
     ...    msg=Result 기대=SC, 실제=${ack}[result]
 
-Verify A1 Golden Body
-    [Documentation]
-    ...    A1 CommandRequest Body 를 조립해 실 전문 골든 샘플(327B)과 바이트 단위로 대조한다.
-    ...    송신하지 않으므로 PG 응답과 무관하게 인코딩 회귀만 판정한다.
-    ...    골든 값은 CdsHelper.GOLDEN_A1_SAMPLE / GOLDEN_A1_FIELDS (환경 변수와 독립).
-    ${diffs}=    Cds.Diff Golden A1
-    ${count}=    Get Length    ${diffs}
-    IF    ${count} > 0
-        ${detail}=    Catenate    SEPARATOR=\n    @{diffs}
-        Fail    A1 Body 가 실 전문 골든 샘플과 다릅니다 (${count}개 필드):\n${detail}
-    END
-    Log    A1 Body 골든 샘플 327B 일치
-
 Command Download Flow
     [Documentation]
     ...    CommandRequest(0015) → ACK(0016, SC) → Result(0017, SC) → ResultACK(0018) 전체 흐름.
     ...    공통 5개 필드(mdn/prod_id/limit/product_type/device_type)를 명시하고, 코드별 추가 필드는 &{extra} 로 전달한다.
     [Arguments]    ${code}
-    ...            ${mdn}=${CDS_TEST_MDN}
-    ...            ${prod_id}=${CDS_TEST_PROD_ID}
-    ...            ${limit}=${CDS_TEST_LIMIT}
-    ...            ${product_type}=${CDS_TEST_PROD_TYPE}
-    ...            ${device_type}=${CDS_TEST_DEVICE_TYPE}
+    ...            ${mdn}=${CDS_MDN}
+    ...            ${prod_id}=${CDS_PROD_ID}
+    ...            ${limit}=${CDS_LIMIT}
+    ...            ${product_type}=${CDS_PROD_TYPE}
+    ...            ${device_type}=${CDS_DEVICE_TYPE}
     ...            &{extra}
     Send Command Request    code=${code}
     ...    mdn=${mdn}    prod_id=${prod_id}    limit=${limit}    product_type=${product_type}

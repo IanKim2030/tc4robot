@@ -42,10 +42,7 @@ ${SUBS_MDN_5G}               01093742433
 ${SUBS_MIN_5G}               1093742433
 ${SUBS_MDN_NO_HFC}           00000000000       # HFC 미가입 → code 402
 ${SUBS_MDN_NO_SESSION}       99999999999       # 세션 없음 → code 403
-${SUBS_MDN_CDS}              01090010001       # CDS 는 가입자가 다르다 (실 A1 전문 샘플 = 5G SA 가입자)
-${SUBS_MIN_CDS}              1090010001
-${SUBS_MDN_CDS_NEW}          01020304054       # D3 번호변경 신규 번호 (TODO: 실환경 예비 번호 확인)
-${SUBS_MIN_CDS_NEW}          1020304054        # C1 기기변경 시
+# CDS 가입자는 CDS 슈트만 쓰므로 cds_variables.robot 의 ${CDS_MDN} 계열에 직접 있다.
 
 # ── 망 데이터 ────────────────────────────────
 ${SUBS_APN_LTE}              lte.sktelecom.com

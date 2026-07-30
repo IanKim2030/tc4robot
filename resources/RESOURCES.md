@@ -59,6 +59,8 @@ resources/HttpHelper.py               ← LRS Session-Info (HTTP/XML)
 
 - **환경 축 변수** — `${PG_HOST}`, 가입자(`${SUBS_MDN_LTE}` 등), 망 데이터(`${NET_CELL_ID}` 등).
   노드별 변수 파일이 이를 **참조만** 하므로 여기 하나를 바꾸면 관련 노드 전부에 전파된다.
+  **여기 두는 기준은 "두 노드 이상이 공유하는 값"** 이다. 한 노드 전용 환경 값은 해당
+  `<iface>_variables.robot` 에 값을 직접 둔다(예: CDS 가입자 `${CDS_MDN}`).
   환경별 오버라이드는 [docs/ENVIRONMENTS.md](../docs/ENVIRONMENTS.md) 참조
 - `${MSG_HELLO_REQ}`(0x01) / `${MSG_HELLO_RESP}`(0x02) / `${MSG_PING_REQ}`(0x03) /
   `${MSG_PING_RESP}`(0x04) — 여기 있는 4개만 노드 공용이다
