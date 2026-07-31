@@ -149,6 +149,10 @@ Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅�
 |---|---|---|
 | `A1` 신규 | 17 | `opCode` `mdn` `min` `produId` `addSvc`(**옵션**) `netId` `tabPcYn` `osVer` `termModelCode` `aprfTermAttri` `mvnoCompa` `limitSubsFlag` `catMsType` `lteCatgy` `5gCatgy` `devceType` `produGenType` |
 | `Z1` 해지 | 15 | A1 에서 **`min` · `addSvc` 를 뺀 집합** |
+| `1X` HFC가입 | 6 | `opCode` `mdn` `produId` `limitSubsFlag` `addr` `produGenType` |
+
+`1X` 는 **`addr` 를 쓰는 유일한 코드**다(170B, cp949). 단말·망 필드는 하나도 안 쓴다.
+2026-07-31 확인했고 `_fill_command_fields` 분기와 일치한다(327B 패킹으로 대조).
 
 `addSvc` 외에는 전부 필수다. **실 전문은 여기에 `CA` 와 `IMSI` 를 더 채워 보낸다**
 (아래 함정 참조) — 코드 분기도 두 필드를 유지한다.
@@ -171,7 +175,12 @@ Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅�
 `F1~F6` `I1~I3` `M1` `Y3~Y5` `Z2` `1X` `1Y`)를 더 정의하고 `_fill_command_fields` 도
 이들을 처리한다. 그중 **`1X` `1Y` `I2` `I3` 는 위 규격 목록에 없지만** TC 로 유지 중이다
 — 규격표가 이미 여러 곳 낡은 것이 확인돼 목록도 불완전할 수 있어서다. 실제 가부는
-PG 응답(`SC`/`FA`)으로 판단한다.
+PG 응답(`SC`/`FA`)으로 판단한다. **`1X` 는 2026-07-31 필드 목록을 확보해 위 표에 넣었다.**
+
+**⚠ `1Y`(HFC해지) 필드 집합 미확인** — 현재 분기는 `mdn` `produId` `produGenType` 3개뿐이라
+쌍이 되는 `1X` 에 있는 **`limitSubsFlag` 가 빠져 있다.** 거의 모든 코드가 `limitSubsFlag` 를
+채우므로 누락이 의심되지만 `1Y` 규격을 확보하지 못해 그대로 두었다. Z1 에서 같은 유형의
+누락이 실제로 있었으므로(위 함정 절) **1Y 목록을 구하면 반드시 대조할 것.**
 
 ## TC
 
