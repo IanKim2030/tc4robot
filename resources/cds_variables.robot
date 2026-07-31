@@ -34,6 +34,28 @@ ${CDS_SRC_APP_ID}         TEMP             # Source Application ID (6자 패딩 
 ${CDS_DST_APP_ID}         TEMP             # Destination Application ID (6자 패딩 → 'TEMP  ')
 
 # ════════════════════════════════════════════
+# Transaction ID — 와이어는 12B(char(8) + uint32 BE)지만
+# PG 는 이를 **16자 문자열**로 렌더링해 DB PK 로 쓴다.
+#
+#   CDS/CDownMessage.cpp:70
+#     sprintf(strTid, "%8.8s%08d", GetTid()->tidDate, GetTid()->seqNo);
+#   CDS/sql.txt:6,14
+#     TRANSACTION_ID char(16) NOT NULL, PRIMARY KEY(TRANSACTION_ID)
+#
+# 그래서 seq 를 `HHMMSS * 100 + 일련번호` 로 만들면 PG 가 찍는 16자가
+# 정확히 **YYYYMMDD HHMMSS NN** 이 된다.
+#
+#   date=20260731, 09:30:00 의 1번째 → seq = 93000*100 + 1 = 9300001
+#   PG 렌더링       "20260731" + "09300001" = 2026073109300001
+#                    └날짜8┘     └HHMMSS┘└NN┘
+#
+# ★ ${CDS_TID_SEQ_MOD} 는 자유롭게 못 바꾼다.
+#   PG 의 `%08d` 가 8자리이고 HHMMSS 가 6자리를 쓰므로 일련번호 몫은 2자리뿐이다.
+#   1000 으로 올리면 9자리가 되어 날짜 자리를 침범한다.
+# ════════════════════════════════════════════
+${CDS_TID_SEQ_MOD}        ${100}           # 초당 일련번호 폭 (00~99). PG %08d 제약상 고정
+
+# ════════════════════════════════════════════
 # Message ID (규격 11. 메시지 식별자 요약)
 # ════════════════════════════════════════════
 ${CDS_MSG_SCH_CONN_REQ}        ${1}      # 0001 SchannelConnectionRequest

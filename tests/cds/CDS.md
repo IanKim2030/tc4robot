@@ -38,6 +38,37 @@ Message ID / Transaction ID(date + seq) / System ID / Application ID
 
 정수 필드는 `htonl`/`htons` 로 **빅엔디안 송신**한다. `pack_cds_header` / `parse_cds_header` 참조.
 
+### Transaction ID — 와이어 12B, PG 인식은 16자
+
+와이어는 규격대로 `tidDate` char(8) + `seqNo` uint32 BE(4) = **12B** 다.
+그런데 PG 는 이걸 받아서 **16자 문자열로 만들어** DB 기본키로 쓴다.
+
+```c
+// CDS/CDownMessage.cpp:70
+sprintf(strTid, "%8.8s%08d", _pR->GetTid()->tidDate, _pR->GetTid()->seqNo);
+```
+```sql
+-- CDS/sql.txt:6,14
+TRANSACTION_ID char(16) NOT NULL,  CONSTRAINT PK_CDS_ORDER_HIST PRIMARY KEY(TRANSACTION_ID)
+```
+
+`%08d` 가 8자리이므로 **seq 에 `HHMMSS * 100 + 일련번호`** 를 넣으면
+PG 가 찍는 16자가 정확히 `YYYYMMDD HHMMSS NN` 이 된다.
+
+| | 값 |
+|---|---|
+| 와이어 | `tidDate="20260731"`, `seqNo=9300001` |
+| PG 렌더링 | `2026073109300001` = `20260731`+`093000`+`01` |
+
+`Next CDS TID` 가 이 계산을 하며, **초가 바뀌면 일련번호를 0 으로 리셋**한다.
+같은 초에 100개를 넘기면 순환하면서 WARN 을 남긴다(테스트 슈트에서는 도달하지 않는다).
+
+`${CDS_TID_SEQ_MOD}`(=100)는 **자유롭게 못 바꾼다** — `%08d` 8자리에서 HHMMSS 가 6자리를
+쓰므로 일련번호 몫이 2자리뿐이다. 1000 으로 올리면 날짜 자리를 침범한다.
+
+날짜만 쓰던 이전 방식은 **하루에 두 번 돌리면 TID 가 겹쳤다**(seq 가 매 실행 1부터).
+PG 기본키와 충돌하므로 시각을 넣어 회피한다.
+
 8-옥텟 공통 헤더를 쓰지 않는 유일한 노드다(NWDAF 는 8옥텟이되 필드 구성이 다름).
 소켓 자체는 `TcpHelper` 의 클라이언트 함수를 재사용한다.
 

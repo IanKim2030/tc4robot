@@ -33,7 +33,8 @@ Resource   ${CURDIR}/common_keywords.robot
 ${CDS_SCH_SOCK}        ${NONE}
 ${CDS_RCH_SOCK}        ${NONE}
 ${CDS_SYSTEM_ID}       ${NONE}
-${CDS_TID_SEQ}         ${0}
+${CDS_TID_SEQ}         ${0}        # 같은 초 안의 일련번호 (Next CDS TID 가 관리)
+${CDS_TID_LAST_HMS}    ${EMPTY}    # 직전 TID 의 HHMMSS. 초가 바뀌면 위 일련번호를 리셋
 
 
 *** Keywords ***
@@ -60,6 +61,7 @@ Suite CDS Connect
     ${sid}=    Resolve CDS System Id
     Set Suite Variable    ${CDS_SYSTEM_ID}    ${sid}
     Set Suite Variable    ${CDS_TID_SEQ}    ${0}
+    Set Suite Variable    ${CDS_TID_LAST_HMS}    ${EMPTY}
     # 1) Rchannel 먼저: TCP 연결 → RchannelConnectionRequest(0003) → ACK(0004)
     Log    [Suite] CDS Rchannel 연결 → ${host}:${rch_port} (DST_SYS=${sid})    console=True
     ${rch}=    Cds.Tcp Connect    ${host}    ${rch_port}    ${timeout}
@@ -99,10 +101,31 @@ Check CDS Sockets
 # ══════════════════════════════════════════════════════════════════
 
 Next CDS TID
-    [Documentation]    Transaction ID 생성: date(YYYYMMDD) + 증가 seq. (반환: date, seq)
-    ${date}=    Get Current Date    result_format=%Y%m%d
-    ${seq}=    Evaluate    ${CDS_TID_SEQ} + 1
-    Set Suite Variable    ${CDS_TID_SEQ}    ${seq}
+    [Documentation]
+    ...    Transaction ID 생성. (반환: date, seq)
+    ...
+    ...    와이어 형식은 규격 그대로 date char(8) + seq uint32 BE 다 — 바꾸지 않았다.
+    ...    다만 seq 를 `HHMMSS * ${CDS_TID_SEQ_MOD} + 일련번호` 로 채워서,
+    ...    PG 가 `sprintf("%8.8s%08d")` 로 만드는 16자 TRANSACTION_ID 가
+    ...    **YYYYMMDDHHMMSS + 2자리 일련번호** 가 되게 한다.
+    ...    (근거: CDS/CDownMessage.cpp:70, CDS/sql.txt:6 — cds_variables.robot 주석 참조)
+    ...
+    ...    일련번호는 **초가 바뀌면 0 으로 리셋**된다. 같은 초 안에서만 증가하므로
+    ...    PG DB 의 PRIMARY KEY(TRANSACTION_ID) 와 충돌하지 않는다.
+    ${now}=    Get Current Date    result_format=%Y%m%d%H%M%S
+    ${date}=    Get Substring    ${now}    0    8
+    ${hms}=     Get Substring    ${now}    8    14
+    IF    '${hms}' != '${CDS_TID_LAST_HMS}'
+        Set Suite Variable    ${CDS_TID_LAST_HMS}    ${hms}
+        Set Suite Variable    ${CDS_TID_SEQ}    ${0}
+    END
+    ${no}=    Evaluate    ${CDS_TID_SEQ} + 1
+    IF    ${no} >= ${CDS_TID_SEQ_MOD}
+        Log    같은 초(HHMMSS=${hms})에 TID 를 ${CDS_TID_SEQ_MOD} 개 넘게 만들었습니다. 일련번호가 순환하므로 TID 가 중복될 수 있습니다.    level=WARN
+        ${no}=    Evaluate    ${no} % ${CDS_TID_SEQ_MOD}
+    END
+    Set Suite Variable    ${CDS_TID_SEQ}    ${no}
+    ${seq}=    Evaluate    int('${hms}') * ${CDS_TID_SEQ_MOD} + ${no}
     RETURN    ${date}    ${seq}
 
 Send CDS Message
@@ -120,7 +143,9 @@ Send CDS Message
     ...    ${CDS_SRC_SYS_ID}    ${CDS_SYSTEM_ID}
     ...    src_app=${CDS_SRC_APP_ID}    dst_app=${CDS_DST_APP_ID}
     ...    data=${data}    cont_flag=${cont_flag}    serial_no=${serial_no}
-    Log    [TX→PG.CDS] msg_id=${msg_id} tid=${tid_date}/${tid_seq} cont=${cont_flag} ser=${serial_no}
+    # PG 로그·DB 와 대조하기 쉽도록 PG 가 만드는 16자 형태(%8.8s%08d)를 같이 남긴다
+    ${tid16}=    Evaluate    '${tid_date}'[:8] + '%08d' % ${tid_seq}
+    Log    [TX→PG.CDS] msg_id=${msg_id} tid=${tid16} (${tid_date}/${tid_seq}) cont=${cont_flag} ser=${serial_no}
 
 Receive CDS Message
     [Documentation]    CDS 메시지 수신 → (header_dict, data_bytes)

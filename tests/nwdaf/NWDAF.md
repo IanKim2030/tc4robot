@@ -189,15 +189,67 @@ PG 의 `BodyInfo` printf 는 **COMMON1 + COMMON2 만 출력한다.** pcefQoSCtrl
 TLV 태그 카탈로그가 `TlvHelper.py`(`TAG_*`)와 `nwdaf_variables.robot`(`${NWDAF_TAG_*}`)
 **양쪽에 있다.** 태그를 추가하면 둘 다 고쳐야 한다.
 
+## PG 소스 위치 (2026-07-31 확인)
+
+```
+G:\내 드라이브\정리\work3\01_PG_GIT\SRC-remote-r133-ads-vertica\SRC-remote-r133-ads-vertica\
+```
+
+**NWDAF 수신부는 `DEV/Online/SC_Package/SCMQos/` 다.**
+
+| 파일 | 내용 |
+|---|---|
+| `SCMQos/CSCMQosGateway.cpp` | 수신부 본체 |
+| `SCMQos/SCMQosDefine.hpp` | 길이 매크로 · 구조체 · TAG 정의 |
+
+이 문서가 여태 적어온 `CNWQosGateway.cpp` 라는 파일명은 **없다.** `SCMQos.vGL/` 에
+같은 파일의 다른 판이 있으니 대조 시 어느 쪽인지 확인할 것.
+
+**같은 이름의 매크로가 노드마다 값이 다르다.** `SC/CommonDef.hpp` 와
+`LRS/LRS_SIM/CommonDef.hpp` 에도 `LEN_QOS_POLICY` · `LEN_QCI` 가 있지만 **값이 다르다.**
+NWDAF 는 반드시 `SCMQosDefine.hpp` 를 봐야 한다.
+
+## ★ 코드와 소스가 어긋난 상태 (미반영)
+
+아래는 소스로 확인했으나 **코드에 아직 반영하지 않았다.** 고칠 때 이 절을 지울 것.
+
+| 상수 | PG 소스 (`SCMQosDefine.hpp`) | 현재 `TlvHelper.py` |
+|---|---|---|
+| `LEN_QOS_POLICY` | **50** (`:22`, `TAG_LEN_QOS_POLICY = 0x32`) | `16` |
+| `LEN_QCI` | **3** (`:23`, `cQCI[LEN_QCI+1]`) | `2` |
+| `LEN_CELL_ID` | **14** (`:15`) | `LEN_LOCATION_ID = None` (가변) |
+
+`16`/`2` 는 **다른 노드 헤더의 값**이다(`SC/CommonDef.hpp:41-42`,
+`LRS/LRS_SIM/CommonDef.hpp:41-42` 가 정확히 16/2). 거기서 넘어온 것으로 보인다.
+
+소스로 확정된 것:
+
+- **DPI 6쌍 확정** — `ST_DPI_QOS_INFO` 가 `cCategory[6][30]` · `cQosPolicy[6][51]`
+  (`SCMQosDefine.hpp:67-75`). 5쌍짜리 `ST_DPI_QOS_INFO_OLD` 가 따로 있다.
+- **eNB 필드 폭 확정** — `ST_ENB_QOS_INFO`(`:97-107`) 가
+  `cSupportType`/`cCapability`/`cVnlnerability` 는 `char`(1B),
+  `nArpQCIFlag`/`nEnbArp`/`nValidTimer` 는 `int`(4B). 위 인코딩 표와 일치한다.
+
 ## ⚠ 확인 필요
 
-1. **`LEN_QOS_POLICY` = 16 은 추정치다.** PG 수신부가 QOS_POLICY 를 길이 상한 없이
-   `memcpy(cQosPolicy[i], p, length)` 로 복사한다 — CELL_ID 처럼 잘라내는 방어가 없다.
-   **실값보다 큰 길이를 보내면 PG 측 버퍼 오버플로**가 난다. `'QoS400K_NoGBR'`(13자)가
-   들어가므로 최소 13. **운영 PG 시험 전 반드시 확인할 것.**
-   안전 폴백: `TlvHelper.LEN_QOS_POLICY = None` → 문자열 실제 길이로 가변 송신(항상 안전).
-2. **`LEN_LOCATION_ID` 미상** — 현재 `None`(가변)으로 회피. 가변 8B 가 PG 로그에서
-   정상 출력된 근거가 있어 이대로 두는 게 안전하다.
-3. **pcefQoSCtrl 수신부 소스 미확인** — 유일하게 양쪽 소스를 못 본 섹션이다.
-4. **Health Check 전용 Service Id 미상** — 현재 `0x0305` 를 그대로 쓴다.
-5. **CATEGORY 값 체계** — 시뮬레이터가 `'A'`~`'F'` 를 쓰나 의미 정의는 미확인.
+1. **eNB / DPI 파싱 블록 미확인** — `CSCMQosGateway.cpp` 에서 아직 안 읽었다.
+   "TAG 미검사 고정 순서", "6쌍 하드코딩 루프", "QOS_POLICY 상한 검사 없음" 주장이
+   전부 이 블록에 걸려 있다. **여기를 읽기 전에는 위 세 주장을 확정으로 쓰지 말 것.**
+2. **`ntohl` 이 항상 4B 를 읽는다는 설명은 최소한 COMMON1 에선 틀렸다.**
+   `CSCMQosGateway.cpp:859-900` 의 `RCT_3M/1M_USAGE` 는 길이로 분기한다:
+   ```c
+   if (length > (int)sizeof(int))  memcpy(&n, p, sizeof(int));
+   else if (length > 0)            memcpy(&n, p, length);   // length 만큼만
+   ```
+   COMMON switch 의 모든 분기가 이런 식으로 **길이 제한돼 있다.**
+   eNB/DPI 블록도 그런지는 1번을 읽어야 안다. `pg-wire-encoding` 스킬의
+   "ntohl 은 length 와 무관하게 항상 4바이트" 서술도 같이 손봐야 한다.
+3. **버퍼 오버플로 경고의 근거가 흔들린다.** COMMON switch 의 `TAG_QOS_POLICY`
+   (`:839-857`)는 상한 검사가 있을 뿐 아니라 **`memcpy` 두 줄이 주석 처리**돼 있어
+   값을 버린다. 이 문서가 인용한 `memcpy(cQosPolicy[i], p, length)` 는 첨자가 있으니
+   DPI 블록 쪽이다 — 1번에서 확인할 것. **아직 "문서가 틀렸다"고 단정하지 말 것.**
+4. **송신 시뮬레이터 미확인** — wire 길이는 송신부가 정한다. QCI·QOS_POLICY 를
+   실제로 몇 바이트로 내보내는지 확인해야 위 표의 50/3 을 그대로 쓸지 정할 수 있다.
+5. **pcefQoSCtrl 수신부 미확인** — 여전히 양쪽 소스를 못 본 섹션이다.
+6. **Health Check 전용 Service Id 미상** — 현재 `0x0305` 를 그대로 쓴다.
+7. **CATEGORY 값 체계** — 시뮬레이터가 `'A'`~`'F'` 를 쓰나 의미 정의는 미확인.

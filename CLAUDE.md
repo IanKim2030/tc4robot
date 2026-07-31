@@ -65,6 +65,17 @@ UPM Subs-Change). 숫자를 직접 쓰지 말고 `${MSG_<IFACE>_*}` 를 쓴다.
 **규격서 표를 그대로 믿지 말 것** — "numeric" 이 1B 바이너리 / 1B ASCII / 4B BE int 로 제각각이다.
 wire 형식은 PG 소스로만 확정된다. 상세는 `pg-wire-encoding` 스킬.
 
+**PG 소스 위치** (2026-07-31 확인) — 노드별 수신부·매크로는 여기서 확정한다.
+
+```
+G:\내 드라이브\정리\work3\01_PG_GIT\SRC-remote-r133-ads-vertica\SRC-remote-r133-ads-vertica\DEV\Online\
+```
+
+노드별 디렉토리는 `SC_Package/<노드>/` 아래다 (NWDAF = `SC_Package/SCMQos/`).
+**같은 이름의 길이 매크로가 노드마다 값이 다르다** — `LEN_QOS_POLICY` 가 SCMQos 는 50,
+SC/LRS_SIM 은 16 이다. 반드시 해당 노드 헤더를 볼 것. 실제로 값이 섞여 들어온 전례가 있다
+(`tests/nwdaf/NWDAF.md` 의 "코드와 소스가 어긋난 상태" 절).
+
 **`--dryrun` 은 Python 을 실행하지 않는다** — 인자 타입 변환 오류나 헬퍼 버그를 잡지 못한다.
 송수신이 걸린 변경은 가짜 PG 를 띄워 실제로 돌려볼 것.
 

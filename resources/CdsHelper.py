@@ -15,6 +15,12 @@ CDS(Customer data Distributed Server) 연동 전용.
 [DownLoad 48B 헤더 구조 — 규격 3.1.1 / 3.2.1]
   Message ID            (4,  uint32 BE)
   Transaction ID        (12 = YYYYMMDD char(8) + Sequence Number uint32 BE(4))
+                        ※ 와이어는 12B 지만 PG 는 16자 문자열로 렌더링해 DB PK 로 쓴다.
+                          CDS/CDownMessage.cpp:70
+                            sprintf(strTid, "%8.8s%08d", tidDate, seqNo);
+                          CDS/sql.txt:6  TRANSACTION_ID char(16) PRIMARY KEY
+                          → seq 에 HHMMSS*100+일련번호 를 넣으면 16자가
+                            YYYYMMDDHHMMSS+NN 이 된다. `Next CDS TID` 참조.
   Source System ID      (6,  char, 공백 패딩)
   Destination System ID (6,  char)
   Source Application ID (6,  char)
