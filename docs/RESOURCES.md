@@ -1,6 +1,6 @@
-# RESOURCES.md — 공통 키워드 / 변수 / 헬퍼 카탈로그
+# RESOURCES — 공통 키워드 / 변수 / 헬퍼 카탈로그
 
-`resources/` 아래 공용 계층. 노드별 키워드·변수는 각 노드 스펙(`tests/<iface>/<IFACE>.md`) 참조.
+`resources/` 아래 공용 계층. 노드별 키워드·변수는 각 노드 스펙(`docs/nodes/<IFACE>.md`) 참조.
 
 ## 레이어 구조
 
@@ -36,7 +36,7 @@ resources/HttpHelper.py               ← LRS Session-Info (HTTP/XML)
 
 **Body 인코딩이 3계열로 갈리는 게 이 리포의 핵심 복잡도다.** JSON(NAG/PCF/UPM) /
 고정길이 ASCII(LRS 8890 채널) / TLV 바이너리(NWDAF) / 48B 고정전문(CDS).
-자세한 비교는 [docs/INTERFACES.md](../docs/INTERFACES.md).
+자세한 비교는 [INTERFACES.md](INTERFACES.md).
 
 ## `common_keywords.robot`
 
@@ -61,12 +61,12 @@ resources/HttpHelper.py               ← LRS Session-Info (HTTP/XML)
   노드별 변수 파일이 이를 **참조만** 하므로 여기 하나를 바꾸면 관련 노드 전부에 전파된다.
   **여기 두는 기준은 "두 노드 이상이 공유하는 값"** 이다. 한 노드 전용 환경 값은 해당
   `<iface>_variables.robot` 에 값을 직접 둔다(예: CDS 가입자 `${CDS_MDN}`).
-  환경별 오버라이드는 [docs/ENVIRONMENTS.md](../docs/ENVIRONMENTS.md) 참조
+  환경별 오버라이드는 [ENVIRONMENTS.md](ENVIRONMENTS.md) 참조
 - `${MSG_HELLO_REQ}`(0x01) / `${MSG_HELLO_RESP}`(0x02) / `${MSG_PING_REQ}`(0x03) /
   `${MSG_PING_RESP}`(0x04) — 여기 있는 4개만 노드 공용이다
 
 `0x05` 이상은 노드마다 의미가 달라 각 `<iface>_variables.robot` 에 따로 있다.
-충돌표는 [docs/INTERFACES.md](../docs/INTERFACES.md#opcode-충돌--노드별-상수명을-그대로-써라).
+충돌표는 [INTERFACES.md](INTERFACES.md#opcode-충돌--노드별-상수명을-그대로-써라).
 
 ## 소켓 공유 규칙 (절대)
 

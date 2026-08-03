@@ -1,18 +1,18 @@
-# INTERFACES.md — 노드 간 연동 매트릭스
+# INTERFACES — 노드 간 연동 매트릭스
 
 PG 연동 6개 노드의 방향·포트·전문 형식을 한 장에 모은 표. **어느 노드를 건드리든 여기부터 본다.**
-상세는 각 노드 스펙(`tests/<iface>/<IFACE>.md`) 참조.
+상세는 각 노드 스펙(`docs/nodes/<IFACE>.md`) 참조.
 
 ## 한눈에
 
 | 노드 | 도구 역할 | 접속 방향 | 포트 | 헤더 | Body | 소켓 |
 |---|---|---|---|---|---|---|
-| [NAG](../tests/nag/NAG.md) | NAG | Client → PG | 8012 | 8B `0x00` | JSON | 듀얼 (+8890 Listen) |
-| [PCF](../tests/pcf/PCF.md) | PCF | Client → PG | 8011 | 8B `0x00` | JSON | 듀얼 (+NAG 8012) |
-| [LRS](../tests/lrs/LRS.md) | LRS | Client → PG.LRS | 10204 | 없음 / HTTP | raw `REQ`/`ANS`, HTTP AIMS | 듀얼 (+8890 Listen) |
-| [UPM](../tests/upm/UPM.md) | UPM | Client → PG | 10506 | 8B `0x00` | JSON | 단일 |
-| [CDS](../tests/cds/CDS.md) | CDS | Client 듀얼 → PG.CDS | Rch 9201 → Sch 9200 | **48B** | 고정전문 | 듀얼 |
-| [NWDAF](../tests/nwdaf/NWDAF.md) | NWDAF | Client → PG | 10305 | 8B 비트필드 | **TLV 바이너리** | 단일 |
+| [NAG](nodes/NAG.md) | NAG | Client → PG | 8012 | 8B `0x00` | JSON | 듀얼 (+8890 Listen) |
+| [PCF](nodes/PCF.md) | PCF | Client → PG | 8011 | 8B `0x00` | JSON | 듀얼 (+NAG 8012) |
+| [LRS](nodes/LRS.md) | LRS | Client → PG.LRS | 10204 | 없음 / HTTP | raw `REQ`/`ANS`, HTTP AIMS | 듀얼 (+8890 Listen) |
+| [UPM](nodes/UPM.md) | UPM | Client → PG | 10506 | 8B `0x00` | JSON | 단일 |
+| [CDS](nodes/CDS.md) | CDS | Client 듀얼 → PG.CDS | Rch 9201 → Sch 9200 | **48B** | 고정전문 | 듀얼 |
+| [NWDAF](nodes/NWDAF.md) | NWDAF | Client → PG | 10305 | 8B 비트필드 | **TLV 바이너리** | 단일 |
 
 **도구는 6개 노드 모두에서 능동 접속(Client) 한다.** 서버로 대기하는 건 NAG·LRS 가 함께 여는
 LRS-PCF 보조 채널(8890) 하나뿐이다.
@@ -85,7 +85,7 @@ bash run_tests.sh cds stg
 
 전 노드 공통. `Test Setup` 의 `Check ... Socket` 계열 키워드가 소켓이 닫혀 있으면
 **`Fatal Error` 로 슈트 전체를 즉시 중단**한다. 연결이 없으면 이후 TC 가 의미 없기 때문이다.
-TC 별 connect/disconnect 를 추가하지 말 것 — 자세한 규칙은 [RESOURCES.md](../resources/RESOURCES.md).
+TC 별 connect/disconnect 를 추가하지 말 것 — 자세한 규칙은 [RESOURCES.md](RESOURCES.md).
 
 NWDAF 만 `Nwdaf Peer Closed`(논블로킹 `MSG_PEEK`)로 **PG 측 FIN/RST 까지 감지**한다.
 다른 노드의 `Is Connected` 는 로컬 fd 만 보므로 상대가 끊은 것을 알지 못한다.

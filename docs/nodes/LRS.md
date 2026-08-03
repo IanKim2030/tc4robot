@@ -1,7 +1,7 @@
-# LRS 노드 스펙
+# LRS — 노드 스펙
 
 규격: `PG_LRS_정보조회_연동규격_2021021_V1.7` · `PCRF&PCF-PG 간 RAR 경량화 연동 규격서_v0.8_20231115`
-파일: [`lrs_tests.robot`](lrs_tests.robot) · [`lrs_client_keywords.robot`](../../resources/lrs_client_keywords.robot) · [`lrs_keywords.robot`](../../resources/lrs_keywords.robot)
+파일: [`lrs_tests.robot`](../../tests/lrs/lrs_tests.robot) · [`lrs_client_keywords.robot`](../../resources/lrs_client_keywords.robot) · [`lrs_keywords.robot`](../../resources/lrs_keywords.robot)
 
 ## 접속 — 채널이 둘이고 성격이 완전히 다르다
 
@@ -36,7 +36,7 @@ ${res}=     Receive Session Info Response    ${sock}
 
 이 채널은 NAG 슈트가 쓰는 것과 **같은 8890 채널**이다.
 
-## Suite 흐름
+### Suite 흐름
 
 ```
 Suite Connect LRS Client   → ${LRS_CLIENT_SOCK} (10204)
@@ -74,7 +74,7 @@ WHILE    True    limit=10
 END
 ```
 
-## HTTP 응답 코드
+### HTTP 응답 코드
 
 `${LRS_SI_CODE_*}`: 404 NOT_FOUND / 403 FORBIDDEN(From IP 미등록) / 500 INTERNAL /
 601 RAA_ERROR / 602 RAA_TIMEOUT

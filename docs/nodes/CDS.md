@@ -1,7 +1,7 @@
-# CDS 노드 스펙
+# CDS — 노드 스펙
 
 규격: `CDS 표준 인터페이스 규격 Ver6.0`
-파일: [`cds_tests.robot`](cds_tests.robot) · [`cds_keywords.robot`](../../resources/cds_keywords.robot) · [`cds_variables.robot`](../../resources/cds_variables.robot) · [`CdsHelper.py`](../../resources/CdsHelper.py)
+파일: [`cds_tests.robot`](../../tests/cds/cds_tests.robot) · [`cds_keywords.robot`](../../resources/cds_keywords.robot) · [`cds_variables.robot`](../../resources/cds_variables.robot) · [`CdsHelper.py`](../../resources/CdsHelper.py)
 
 ## 접속 — 듀얼 소켓, Rchannel 이 먼저
 
@@ -29,7 +29,23 @@ Release 는 `Run Keyword And Ignore Error` 로 감싸 **PG 가 ACK 없이 끊어
 환경별로 다르면 `config/env/<env>.py` 에서 오버라이드한다.
 업로드 전용 포트 `${CDS_UP_SCH_PORT}`(6100) / `${CDS_UP_RCH_PORT}`(6101) 도 정의돼 있다.
 
-## 48-옥텟 헤더
+## 메시지 타입
+
+| ID | 이름 | ID | 이름 |
+|---|---|---|---|
+| `0001`/`0002` | SchannelConnectionRequest / ACK | `0017`/`0018` | CommandResult / ACK |
+| `0003`/`0004` | RchannelConnectionRequest / ACK | `0025`/`0026` | UploadRequest / ACK |
+| `0005`/`0006` | SchannelReleaseRequest / ACK | `0027`/`0028` | UploadResult / ACK |
+| `0007`/`0008` | RchannelReleaseRequest / ACK | `0029`/`0030` | SubsDataRequest / ACK |
+| `0013`/`0014` | ProcessStateRequest / ACK | `0031`/`0032` | SubsDataResult / ACK |
+| `0015`/`0016` | CommandRequest / ACK | | |
+
+Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅엔디안
+(`pack_process_state` / `unpack_process_state`).
+
+## wire 인코딩
+
+### 48-옥텟 헤더
 
 ```
 Message ID / Transaction ID(date + seq) / System ID / Application ID
@@ -72,21 +88,7 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 8-옥텟 공통 헤더를 쓰지 않는 유일한 노드다(NWDAF 는 8옥텟이되 필드 구성이 다름).
 소켓 자체는 `TcpHelper` 의 클라이언트 함수를 재사용한다.
 
-## 메시지 ID
-
-| ID | 이름 | ID | 이름 |
-|---|---|---|---|
-| `0001`/`0002` | SchannelConnectionRequest / ACK | `0017`/`0018` | CommandResult / ACK |
-| `0003`/`0004` | RchannelConnectionRequest / ACK | `0025`/`0026` | UploadRequest / ACK |
-| `0005`/`0006` | SchannelReleaseRequest / ACK | `0027`/`0028` | UploadResult / ACK |
-| `0007`/`0008` | RchannelReleaseRequest / ACK | `0029`/`0030` | SubsDataRequest / ACK |
-| `0013`/`0014` | ProcessStateRequest / ACK | `0031`/`0032` | SubsDataResult / ACK |
-| `0015`/`0016` | CommandRequest / ACK | | |
-
-Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅엔디안
-(`pack_process_state` / `unpack_process_state`).
-
-## CommandRequest(0015) Body — 327 옥텟 고정 레코드
+### CommandRequest(0015) Body — 327 옥텟 고정 레코드
 
 업무 코드(`svc_code`) 와 무관하게 **항상 35필드 327B 전체를 보낸다.** 해당 코드가 쓰지
 않는 필드는 공백으로 채운다. 채울 필드는 `CdsHelper._fill_command_fields(code)` 가 정한다.
@@ -140,7 +142,7 @@ Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅�
 
 `addr` 만 한글이 들어가 cp949 로 인코딩한다(`_FIELD_ENCODING`). 나머지는 ASCII.
 
-### 업무 코드별 필드 집합
+#### 업무 코드별 필드 집합
 
 코드가 쓰지 않는 필드는 공백으로 나간다. 대상 필드는
 `CdsHelper._fill_command_fields(code)` 의 분기가 정한다.
@@ -167,7 +169,7 @@ Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅�
 **미확인** — `D3`(번호변경) 분기는 `ms_type` 을 선언하지 않는다. D3 규격 필드 목록을
 확보하지 못해 누락인지 의도인지 판단하지 못했다.
 
-### 업무 코드
+#### 업무 코드
 
 규격 `JOB_CODE` 허용 목록: `A1` `D3` `Z1` `G1` `C1` `Q1~Q9` `H1~H6`.
 

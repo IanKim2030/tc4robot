@@ -1,7 +1,7 @@
-# UPM 노드 스펙
+# UPM — 노드 스펙
 
 규격: `UPM ↔ PG.BSUBS HFC 서비스 연동 규격 v1.1 (2025-12-02)`
-파일: [`upm_tests.robot`](upm_tests.robot) · [`upm_keywords.robot`](../../resources/upm_keywords.robot) · [`upm_variables.robot`](../../resources/upm_variables.robot)
+파일: [`upm_tests.robot`](../../tests/upm/upm_tests.robot) · [`upm_keywords.robot`](../../resources/upm_keywords.robot) · [`upm_variables.robot`](../../resources/upm_variables.robot)
 
 ## 접속
 
@@ -15,7 +15,7 @@
 | 타임아웃 | `${UPM_TIMEOUT}` = 10초 |
 | 소켓 | **단일** |
 
-## Suite Setup 이 Hello 까지 한다
+### Suite Setup 이 Hello 까지 한다
 
 **규격 3.1: 연결 후 5초 이내에 Hello 를 보내지 않으면 PG 가 연결을 끊는다.**
 그래서 `Suite UPM Connect` 가 연결 직후 Hello 를 처리한다.
@@ -28,7 +28,7 @@
 
 Hello 가 실패하면 `Fatal Error` 로 슈트를 시작조차 하지 않는다.
 
-## 메시지 흐름 — 양방향
+## 메시지 타입 — 양방향
 
 | 방향 | opcode | 상수 | 의미 |
 |---|---|---|---|
@@ -41,12 +41,12 @@ Hello 가 실패하면 `Fatal Error` 로 슈트를 시작조차 하지 않는다
 | | `0x0d` / `0x0e` | `${MSG_UPM_INFO_CHANGE_REQ}` / `_RESP` | 상품/Device 변경 |
 
 `0x05`·`0x07`·`0x09`·`0x0b` 는 다른 노드에서 전혀 다른 의미다 —
-[opcode 충돌표](../../docs/INTERFACES.md#opcode-충돌--노드별-상수명을-그대로-써라).
+[opcode 충돌표](../INTERFACES.md#opcode-충돌--노드별-상수명을-그대로-써라).
 
 수동 수신 3종은 모두 같은 모양이다: 요청 Body 의 `code-type`/`branch-name`/`tid`/`mdn` 을 echo 하고
 `result-code=${UPM_RC_SUCCESS}` 를 붙여 `${hdr}[txn_id]` 로 회신한다.
 
-## tid — txn_id 와 별개다
+### tid — txn_id 와 별개다
 
 JSON Body 안의 `tid`(24자리)는 **헤더의 `txn_id`(4바이트 바이너리)와 완전히 별개**다.
 `Next UPM TID` 키워드가 생성한다:
@@ -55,7 +55,7 @@ JSON Body 안의 `tid`(24자리)는 **헤더의 `txn_id`(4바이트 바이너리
 장비No(5) + "-" + yyyyMMdd(8) + seq(10)
 ```
 
-## code-type
+### code-type
 
 `${UPM_CT_*}` — `01` 가입 / … / `06` 상품·Device 변경. 문자열이다.
 `UPM Code Type Should Be` 로 검증한다.

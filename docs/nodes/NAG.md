@@ -1,7 +1,7 @@
-# NAG 노드 스펙
+# NAG — 노드 스펙
 
 규격: `PG_NAG HFC_ADOT 서비스 연동 규격서_20230718`
-파일: [`nag_tests.robot`](nag_tests.robot) · [`nag_keywords.robot`](../../resources/nag_keywords.robot) · [`nag_variables.robot`](../../resources/nag_variables.robot)
+파일: [`nag_tests.robot`](../../tests/nag/nag_tests.robot) · [`nag_keywords.robot`](../../resources/nag_keywords.robot) · [`nag_variables.robot`](../../resources/nag_variables.robot)
 
 ## 접속
 
@@ -17,7 +17,7 @@
 포트 기본값은 `nag_variables.robot` 의 8012 이며, 환경별로 다르면
 `config/env/<env>.py` 에서 오버라이드한다.
 
-## 듀얼 소켓 — LRS-PCF 채널이 필수다
+### 듀얼 소켓 — LRS-PCF 채널이 필수다
 
 NAG 슈트는 소켓 두 개를 쓴다.
 
@@ -55,9 +55,9 @@ NAG Hello 는 Suite Setup 이 아니라 **TC-NAG-001 에서 직접** 수행한�
 
 LRS-PCF 채널에서는 `0x01/0x02`(Hello) 와 `0x05/0x06`(Location-Info) 를 쓴다.
 
-`0x07`·`0x09`·`0x0b` 는 다른 노드에서 다른 의미다 — [opcode 충돌표](../../docs/INTERFACES.md#opcode-충돌--노드별-상수명을-그대로-써라).
+`0x07`·`0x09`·`0x0b` 는 다른 노드에서 다른 의미다 — [opcode 충돌표](../INTERFACES.md#opcode-충돌--노드별-상수명을-그대로-써라).
 
-## 응답 코드
+### 응답 코드
 
 `${CODE_*}` (`nag_variables.robot`): 400 UNSUPPORT_MSG / 401 UNEXPECTED_DATA /
 402 (HFC 미가입·세션 없음) / 429 RETRY_AFTER / 502 PEER_NODE_DOWN /

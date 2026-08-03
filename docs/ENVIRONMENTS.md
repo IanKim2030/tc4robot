@@ -1,4 +1,4 @@
-# ENVIRONMENTS.md — 환경 설정 (dev / stg / prd)
+# ENVIRONMENTS — 환경 설정 (dev / stg / prd)
 
 ## 실행
 

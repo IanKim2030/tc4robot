@@ -9,16 +9,18 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 
 | 문서 | 내용 |
 |---|---|
+| [docs/README.md](docs/README.md) | **문서 인덱스** — 아래 표와 같은 내용, docs 안에서의 진입점 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ★ | **시스템 아키텍처** — 4계층 레이어, 모듈 배치 |
 | [docs/INTERFACES.md](docs/INTERFACES.md) ★ | **노드 간 연동 매트릭스** — 방향·포트·헤더·Body·opcode 충돌 |
 | [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) | dev/stg/prd 환경 설정, 변수 우선순위, 환경 축 변수 |
 | [docs/TC_CONVENTION.md](docs/TC_CONVENTION.md) | TC 명명·태그·템플릿·비활성화·판정 한계 |
-| [resources/RESOURCES.md](resources/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 5종 카탈로그 |
-| [tests/nag/NAG.md](tests/nag/NAG.md) | NAG 노드 스펙 |
-| [tests/pcf/PCF.md](tests/pcf/PCF.md) | PCF 노드 스펙 |
-| [tests/lrs/LRS.md](tests/lrs/LRS.md) | LRS 노드 스펙 |
-| [tests/upm/UPM.md](tests/upm/UPM.md) | UPM 노드 스펙 |
-| [tests/cds/CDS.md](tests/cds/CDS.md) | CDS 노드 스펙 |
-| [tests/nwdaf/NWDAF.md](tests/nwdaf/NWDAF.md) | NWDAF 노드 스펙 |
+| [docs/RESOURCES.md](docs/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 4종 카탈로그 |
+| [docs/nodes/NAG.md](docs/nodes/NAG.md) | NAG 노드 스펙 |
+| [docs/nodes/PCF.md](docs/nodes/PCF.md) | PCF 노드 스펙 |
+| [docs/nodes/LRS.md](docs/nodes/LRS.md) | LRS 노드 스펙 |
+| [docs/nodes/UPM.md](docs/nodes/UPM.md) | UPM 노드 스펙 |
+| [docs/nodes/CDS.md](docs/nodes/CDS.md) | CDS 노드 스펙 |
+| [docs/nodes/NWDAF.md](docs/nodes/NWDAF.md) | NWDAF 노드 스펙 |
 
 스킬 `pg-tc-authoring`(TC 작성) / `pg-wire-encoding`(전문 인코딩 대조)이 해당 작업에서 자동으로 걸린다.
 
@@ -68,13 +70,13 @@ wire 형식은 PG 소스로만 확정된다. 상세는 `pg-wire-encoding` 스킬
 **PG 소스 위치** (2026-07-31 확인) — 노드별 수신부·매크로는 여기서 확정한다.
 
 ```
-G:\내 드라이브\정리\work3\01_PG_GIT\SRC-remote-r133-ads-vertica\SRC-remote-r133-ads-vertica\DEV\Online\
+G:\내 드라이브\21_Work\001_Ntels\03_PG\repo\SRC-remote-r133-ads-vertica\SRC-remote-r133-ads-vertica\DEV\Online\
 ```
 
 노드별 디렉토리는 `SC_Package/<노드>/` 아래다 (NWDAF = `SC_Package/SCMQos/`).
 **같은 이름의 길이 매크로가 노드마다 값이 다르다** — `LEN_QOS_POLICY` 가 SCMQos 는 50,
 SC/LRS_SIM 은 16 이다. 반드시 해당 노드 헤더를 볼 것. 실제로 값이 섞여 들어온 전례가 있다
-(`tests/nwdaf/NWDAF.md` 의 "코드와 소스가 어긋난 상태" 절).
+(`docs/nodes/NWDAF.md` 의 "코드와 소스가 어긋난 상태" 절).
 
 **`--dryrun` 은 Python 을 실행하지 않는다** — 인자 타입 변환 오류나 헬퍼 버그를 잡지 못한다.
 송수신이 걸린 변경은 가짜 PG 를 띄워 실제로 돌려볼 것.

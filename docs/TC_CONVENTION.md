@@ -1,4 +1,4 @@
-# TC_CONVENTION.md — TC 작성 규칙
+# TC_CONVENTION — TC 작성 규칙
 
 ## 명명
 
@@ -151,7 +151,7 @@ bash run_tests.sh <iface>                        # 실 PG 대상
 
 ## 새 TC 를 추가할 때 순서
 
-1. 대상 노드 스펙(`tests/<iface>/<IFACE>.md`)에서 메시지 타입·인코딩 확인
+1. 대상 노드 스펙(`docs/nodes/<IFACE>.md`)에서 메시지 타입·인코딩 확인
 2. 값 상수가 `<iface>_variables.robot` 에 있는지 확인, 없으면 추가
 3. 번호 채번 → 뒤 TC 밀기 → `[TC 번호 체계]` 갱신
 4. `--dryrun` 통과 확인

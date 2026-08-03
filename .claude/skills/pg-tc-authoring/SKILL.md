@@ -8,7 +8,7 @@ description: PG 연동 Robot Framework 테스트 슈트(NAG/PCF/LRS/UPM/CDS/NWDA
 ## 먼저 읽을 것
 
 1. [docs/TC_CONVENTION.md](../../../docs/TC_CONVENTION.md) — 명명·태그·템플릿·비활성화 규칙
-2. `tests/<iface>/<IFACE>.md` — 대상 노드의 메시지 타입과 wire 인코딩
+2. `docs/nodes/<IFACE>.md` — 대상 노드의 메시지 타입과 wire 인코딩
 3. [docs/INTERFACES.md](../../../docs/INTERFACES.md) — opcode 충돌 여부 확인
 
 ## 절차

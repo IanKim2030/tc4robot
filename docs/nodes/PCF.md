@@ -1,7 +1,7 @@
-# PCF 노드 스펙
+# PCF — 노드 스펙
 
 규격: `PCRF-PG 간 ZONE 알림 정보 처리 연동 규격서_20210329`
-파일: [`pcf_tests.robot`](pcf_tests.robot) · [`pcf_keywords.robot`](../../resources/pcf_keywords.robot) · [`pcf_variables.robot`](../../resources/pcf_variables.robot)
+파일: [`pcf_tests.robot`](../../tests/pcf/pcf_tests.robot) · [`pcf_keywords.robot`](../../resources/pcf_keywords.robot) · [`pcf_variables.robot`](../../resources/pcf_variables.robot)
 
 ## 접속
 
@@ -14,7 +14,7 @@
 | Body | JSON |
 | 타임아웃 | `${PCF_TIMEOUT}` = 10초 |
 
-## 듀얼 소켓 — NAG 세션 선등록
+### 듀얼 소켓 — NAG 세션 선등록
 
 `Suite Connect With NAG` 가 PCF 테스트 전에 소켓 **두 개**를 연다.
 
