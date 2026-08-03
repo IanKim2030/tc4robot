@@ -130,7 +130,7 @@ ${CDS_CODE_M1}      M1     # 명의변경
 ${CDS_CODE_Y3}      Y3     # Voice Prompt 변경
 ${CDS_CODE_Y4}      Y4     # Password Reset
 ${CDS_CODE_Y5}      Y5    # 교환기등록정보 검색
-${CDS_CODE_G1}      G1     # G1 (TODO: 규격 확인)
+${CDS_CODE_G1}      G1     # 정보변경 (필드 집합은 A1 과 동일 — 2026-08-03 확인)
 ${CDS_CODE_Z1}      Z1     # 직권해지
 ${CDS_CODE_Z2}      Z2     # 가입해지
 ${CDS_CODE_1X}      1X     # HFC 서비스 가입

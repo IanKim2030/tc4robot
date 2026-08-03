@@ -346,7 +346,10 @@ def _fill_command_fields(code, kw, f):
          v in ('SW', 'SX', 'IC', 'ID') or v[0] in ('N', 'J', 'R', 'W', 'O'):
         s('mdn', 'limit')
     elif v == 'G1':
-        s('mdn', 'prod_id', 'data_prod_id', 'network', 'tablet_yn', 'os_ver',
+        # min 이 레거시 코드에 빠져 있었다(2026-08-03 규격 목록 + 실 G1 전문으로 확인).
+        # 규격 G1 은 A1 과 필드 집합이 완전히 같고, 실 전문도 min 을 채워 보낸다.
+        # ca/imsi 는 규격 목록엔 없으나 A1 실 전문 근거로 Z1 과 동일하게 유지한다.
+        s('mdn', 'min', 'prod_id', 'data_prod_id', 'network', 'tablet_yn', 'os_ver',
           'device_model', 'ca', 'aprf', 'imsi', 'mvno', 'limit', 'ms_type',
           'category_lte', 'category_5g', 'device_type', 'product_type')
     elif v == 'C1':
@@ -355,9 +358,14 @@ def _fill_command_fields(code, kw, f):
           'os_ver', 'device_model', 'ca', 'aprf', 'imsi', 'mvno', 'limit',
           'ms_type', 'category_lte', 'category_5g', 'device_type', 'product_type')
     elif v == 'I2' or v == 'I3':
-        f['min'] = kw.get('mdn', '')          # 레거시: min ← mdn
-        s('mdn', 'block_data_roaming_id', 'block_data_roaming_provider_id',
-          'block_harmful_yn', 'mvno', 'limit')
+        # 규격 I2/I3(2026-08-03 확인): opCode mdn min produId roamStopId
+        # roamStopProviId YoungHarmInfoBlock limitSubsFlag produGenType.
+        # prod_id/product_type 이 레거시 코드에 빠져 있었다(G1 의 min 과 같은 유형).
+        # mvno 는 규격 목록에 없어 뺐다 — 실 I2/I3 전문에 mvnoCompa 가 있으면
+        # A1 의 ca/imsi 처럼 되살릴 것.
+        f['min'] = kw.get('mdn', '')          # 레거시: min ← mdn (규격은 별도 필드 — 미확인)
+        s('mdn', 'prod_id', 'block_data_roaming_id', 'block_data_roaming_provider_id',
+          'block_harmful_yn', 'limit', 'product_type')
     elif v == 'I4' or v == 'I5':
         s('mdn', 'allow_mvoip_yn', 'mvno', 'limit')
     elif v == 'L1' or v == 'L2':
