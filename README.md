@@ -37,7 +37,7 @@ bash run_tests.sh nag stg     # 환경 지정 (dev 기본 / stg / prd)
 
 ---
 
-## 📑 연동규격서 목록
+##  연동규격서 목록
 
 | No. | PROCESS명 | 구간 | 규격서 | 상태 | 비고 |
 | :--- | :--- | :--- | :--- | :---: | :--- |
@@ -50,7 +50,7 @@ bash run_tests.sh nag stg     # 환경 지정 (dev 기본 / stg / prd)
 | 90 | PG.SCMQOS | ITM → PG.SCMQOS | ... | 적용필요 | 기지국 혼잡제어 |
 | 91 | PG.NWMQOS | NWDAF → PG.NWMQOS | PG_연동 규격서_V1.2_20240920 | 적용필요 | 기지국 혼잡제어 |
 
-### 💡 작성 팁
+###  작성 팁
 
 * **통신 방식:** REST API (HTTPS), gRPC, Socket, SFTP, DB Link 등
 * **데이터 포맷:** JSON, XML, Fixed Length (고정길이 전문), CSV 등
@@ -58,7 +58,7 @@ bash run_tests.sh nag stg     # 환경 지정 (dev 기본 / stg / prd)
 
 ---
 
-## 📑 구성 요소 및 약어 목록
+##  구성 요소 및 약어 목록
 
 | 약어 (Acronym) | 용어 (Full Name) | 주요 역할 및 설명 |
 | :--- | :--- | :--- |

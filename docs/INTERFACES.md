@@ -55,6 +55,75 @@ ConnectionRequest 를 보내고 ACK 를 받는 핸드셰이크를 한다.
 | 1 | Rchannel 9201 | `0003` RchannelConnectionRequest | `0004` ACK |
 | 2 | Schannel 9200 | `0001` SchannelConnectionRequest | `0002` ACK |
 
+## HFC 서비스 Call Flow — 세 노드가 어떻게 이어지는가
+
+**슈트는 CDS·UPM·NAG 를 각각 독립적으로 테스트하지만, 운영에서는 하나의 사슬이다.**
+HFC 가입(`1X`) / 해지(`1Y`) 전문 하나가 들어오면 UPM 의 Cell List 왕복과 NAG 의 Zone 정보
+왕복까지 연쇄로 일어난다. 슈트가 이 세 노드를 왜 같이 들고 있는지가 여기서 드러난다.
+
+출처: `PG (PCF Gateway) 교육 자료` Chapter 03 — *02. PG 서비스 별 동작 Flow — HFC 서비스*.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CDS as CDS
+    participant NAG as NAG
+    participant UPM as UPM
+    participant PGCDS as PG.CDS
+    participant SDM as PG.SDM
+    participant SNOTI as PG.SNOTI
+    participant BSUBS as PG.BSUBS
+    participant BNOTI as PG.BNOTI
+    participant PDB as PDB
+    participant PCF as PCF/PCRF
+
+    CDS->>PGCDS: HFC 전문 (1X / 1Y)
+    PGCDS->>PDB: SQL — T_CDS_ORDER_HIST 전문 정보 INSERT
+    SDM->>PDB: SQL — T_CDS_ORDER_HIST (주기적으로) 전문 정보 조회
+    PGCDS->>PDB: SQL — T_BAROD_ORDER_HIST 전문 정보 INSERT
+    SDM->>PDB: SQL — T_BAROD_ORDER_HIST (주기적으로) 전문 정보 조회
+    SDM->>PDB: SQL — T_5G_SUBS_SERVICE 가입자 정보 SELECT/INSERT/UPDATE/DELETE
+    SDM->>PDB: SQL — T_5G_SUBS_PROFILE 가입자 정보 SELECT/INSERT/UPDATE/DELETE
+    SDM->>SNOTI: RBUS Noti
+    SNOTI->>PCF: RBUS / SBI Noti
+    BSUBS->>UPM: Cell List Request
+    BSUBS->>PDB: SQL — T_BAROD_SUBS_CELLINFO Cell List INSERT
+    UPM->>BSUBS: Cell List Response
+    BSUBS->>PDB: SQL — T_BAROD_SUBS_CELLINFO Cell List INSERT
+    BSUBS->>PCF: Cell List 전송 (RBUS / SBI Noti)
+    PCF->>BNOTI: Zone In/Out 정보
+    BNOTI->>NAG: Zone In/Out 정보
+    NAG->>BNOTI: Zone 정보 Request
+    BNOTI->>PDB: SQL — T_SESSION_INFO / T_SMF_SESSION_INFO 가입자 세션 조회
+    BNOTI->>NAG: Zone 정보 Response
+```
+
+`RBUS / SBI Noti` 는 가입자에 따라 갈린다 — LTE 는 RBUS, SA 는 SBI.
+세션 테이블도 마찬가지로 `T_SESSION_INFO`(LTE) / `T_SMF_SESSION_INFO`(SA) 다.
+자세한 LTE/SA 대응은 [CDS 노드 스펙](nodes/CDS.md#lte--sa-차이--테이블-이름과-noti-방식뿐) 참조.
+
+**☞ 일부 전문에 대해서는 PCF/PCRF 로 NOTI 하지 않는다.**
+
+### 슈트의 어느 TC 가 어느 화살표인가
+
+도구가 실제로 잡는 구간만 추린 것이다. 나머지는 전부 PG 내부라 보이지 않는다.
+
+| 흐름의 화살표 | 도구 측 | opcode / 메시지 | 근거 |
+|---|---|---|---|
+| `CDS → PG.CDS` HFC 전문 | CDS 슈트 | `0015` CommandRequest, JOB Code `1X`/`1Y` | 확정 — [CDS 업무 코드](nodes/CDS.md#업무-코드별-필드-집합) |
+| `PG.BSUBS → UPM` Cell List Request | UPM 슈트 (수동 수신) | `0x07` `${MSG_UPM_SUBS_INFO_REQ}` | 확정 — [UPM 메시지 타입](nodes/UPM.md#메시지-타입--양방향) 의 PG→UPM 방향과 일치 |
+| `UPM → PG.BSUBS` Cell List Response | UPM 슈트 | `0x08` `${MSG_UPM_SUBS_INFO_RESP}` | 확정 |
+| `PG.BNOTI → NAG` Zone In/Out 정보 | NAG 슈트 (수동 수신) | `0x07` `${MSG_ZION_REQ}` | **추정** — ZION 이 PG→NAG 방향인 것은 맞으나 이 화살표와 같은 것인지 미확인 |
+| `NAG → PG.BNOTI` Zone 정보 Request/Response | NAG 슈트 | `0x09`/`0x0a` `${MSG_SUBS_ZONE_STATUS_*}` | **추정** — 위와 같음 |
+
+`1X` 는 [CDS 노드 스펙](nodes/CDS.md#업무-코드별-필드-집합) 에 필드 집합이 확보돼 있으나
+**`1Y`(HFC해지)는 미확인**이다. 이 흐름이 `1X`/`1Y` 를 쌍으로 다루므로 1Y 목록을 구하면
+반드시 대조할 것.
+
+**미확인 — `T_BAROD_ORDER_HIST` 를 읽고 쓰는 주체.** 슬라이드의 화살표 시작점이
+PG.CDS/PG.SDM/PG.BSUBS 중 어디인지 이미지에서 확정하지 못했다. 위 다이어그램은
+즉시 전문 흐름과 같은 패턴(수신 프로세스가 INSERT, SDM 이 주기 조회)으로 그렸다.
+
 ## opcode 충돌 — 노드별 상수명을 그대로 써라
 
 같은 opcode 가 노드마다 다른 의미다. **숫자를 직접 쓰지 말고 상수명을 쓴다.**

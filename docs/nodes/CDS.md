@@ -43,6 +43,142 @@ Release 는 `Run Keyword And Ignore Error` 로 감싸 **PG 가 ACK 없이 끊어
 Process State 값: `${CDS_PS_NORMAL}`=1 / `${CDS_PS_ABNORMAL}`=2, `uint16` 빅엔디안
 (`pack_process_state` / `unpack_process_state`).
 
+## Call Flow — PG 내부 처리
+
+**도구가 검증하는 구간은 첫 화살표 하나(`전문(JOB Code, MDN)`)뿐이다.** 그 뒤는 전부 PG
+내부이며 도구에서 보이지 않는다. 전문이 실제로 반영됐는지는 PDB 테이블로만 확인된다 —
+`CommandResult` 는 Body 내용과 무관하게 `SC` 로 오기 때문이다(아래 [함정](#body-인코딩-회귀를-자동으로-잡을-수-없다) 참조).
+
+전문은 **즉시 / 예약** 두 갈래이고 각각 **LTE / SA** 가입자로 갈린다 — 아래 다이어그램 2개와
+[차이 표](#lte--sa-차이--테이블-이름과-noti-방식뿐)로 네 경우를 모두 덮는다.
+CDS 가 여러 노드에 걸치는 HFC(`1X`/`1Y`) 흐름은 [INTERFACES.md](../INTERFACES.md#hfc-서비스-call-flow--세-노드가-어떻게-이어지는가) 에 있다.
+
+출처: `PG (PCF Gateway) 교육 자료` Chapter 03 — *02. PG 서비스 별 동작 Flow*.
+
+### 즉시 전문 — LTE 가입자
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant TOOL as CDS (도구)
+    participant PGCDS as PG.CDS
+    participant SDM as PG.SDM
+    participant SNOTI as PG.SNOTI
+    participant PDB as PDB
+    participant PCF as PCRF/PCF
+
+    SDM->>PDB: SQL — T_CDS_JOB_CFG 전문별 처리 쿼리문 조회 (SDM 기동 시)
+    TOOL->>PGCDS: 전문 (JOB Code, MDN)
+    PGCDS->>PDB: SQL — T_CDS_ORDER_HIST 전문 정보 INSERT
+    SDM->>PDB: SQL — T_CDS_ORDER_HIST 전문 정보 조회
+    SDM->>PDB: SQL — T_SUBSCRIBER_INFO 가입자 정보 SELECT/INSERT/UPDATE/DELETE
+    SDM->>SNOTI: RBUS NOTI
+    PGCDS->>PDB: SQL — T_CDS_ORDER_TID TID 정보 UPDATE
+    SDM->>PDB: SQL — T_CDS_ORDER_TID TID 정보 UPDATE
+    SNOTI->>PDB: SQL — T_5G_SUBS_SERVICE 가입자 정보 조회
+    SNOTI->>PDB: SQL — T_5G_SUBS_PROFILE 가입자 정보 조회
+    SNOTI->>PDB: SQL — T_SESSION_INFO 가입자 세션 정보 조회
+    SNOTI->>PCF: RBUS NOTI
+```
+
+### 즉시 전문 — SA 가입자
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant TOOL as CDS (도구)
+    participant PGCDS as PG.CDS
+    participant SDM as PG.SDM
+    participant SNOTI as PG.SNOTI
+    participant PDB as PDB
+    participant PCF as PCRF/PCF
+
+    SDM->>PDB: SQL — T_CDS_JOB_CFG 전문별 처리 쿼리문 조회 (SDM 기동 시)
+    TOOL->>PGCDS: 전문 (JOB Code, MDN)
+    PGCDS->>PDB: SQL — T_CDS_ORDER_HIST 전문 정보 INSERT
+    SDM->>PDB: SQL — T_CDS_ORDER_HIST 전문 정보 조회
+    SDM->>PDB: SQL — T_5G_SUBS_SERVICE 가입자 정보 SELECT/INSERT/UPDATE/DELETE
+    SDM->>PDB: SQL — T_5G_SUBS_PROFILE 가입자 정보 SELECT/INSERT/UPDATE/DELETE
+    SDM->>SNOTI: RBUS NOTI
+    PGCDS->>PDB: SQL — T_CDS_ORDER_TID TID 정보 UPDATE
+    SDM->>PDB: SQL — T_CDS_ORDER_TID TID 정보 UPDATE
+    SNOTI->>PDB: SQL — T_5G_SUBS_SERVICE 가입자 정보 조회
+    SNOTI->>PDB: SQL — T_5G_SUBS_PROFILE 가입자 정보 조회
+    SNOTI->>PDB: SQL — T_SMF_SESSION_INFO 가입자 세션 정보 조회
+    SNOTI->>PCF: SBI NOTI
+```
+
+### 예약 전문 — RDS 가 START TIME 까지 들고 있는다
+
+예약 전문은 **PG.RDS 가 추가로 낀다.** SDM 이 즉시 처리하지 않고 `T_RESERVED_JOB` 에
+Start Time 과 함께 넣어두면, RDS 가 `STATUS=N/R/D` 인 건을 돌면서 **현재 시각과 START TIME 을
+비교**해 때가 됐을 때 실행한다. `T_CDS_ORDER_TID` 대신 `T_RESERVED_ORDER_TID` 를 쓴다.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant TOOL as CDS (도구)
+    participant PGCDS as PG.CDS
+    participant SDM as PG.SDM
+    participant RDS as PG.RDS
+    participant SNOTI as PG.SNOTI
+    participant PDB as PDB
+    participant PCF as PCF/PCRF
+
+    SDM->>PDB: SQL — T_CDS_JOB_CFG 전문별 처리 쿼리문 조회 (SDM 기동 시)
+    TOOL->>PGCDS: 전문 (JOB Code, MDN)
+    PGCDS->>PDB: SQL — T_CDS_ORDER_HIST 전문 정보 INSERT
+    SDM->>PDB: SQL — T_CDS_ORDER_HIST (주기적으로) 전문 정보 조회
+    SDM->>PDB: SQL — T_RESERVED_JOB 예약 전문 정보 INSERT (Start Time)
+    RDS->>PDB: SQL — T_RESERVED_JOB STATUS=N/R/D 인 예약 전문 조회
+    Note over RDS: 현재 시간과 START TIME 비교
+    RDS->>PDB: SQL — T_RESERVED_ORDER_HIST 예약 전문 이력 INSERT
+    RDS->>PDB: SQL — T_RESERVED_ORDER_TID 예약 전문 TID 정보 UPDATE
+    SDM->>PDB: SQL — T_RESERVED_ORDER_TID 예약 전문 조회
+    SDM->>SNOTI: RBUS Noti
+    SNOTI->>PCF: RBUS Noti
+```
+
+### LTE / SA 차이 — 테이블 이름과 NOTI 방식뿐
+
+**흐름의 단계·순서는 LTE 와 SA 가 완전히 동일하다.** 위 다이어그램에서 아래 이름만 바뀐다.
+
+| 흐름 | 항목 | LTE | SA |
+|---|---|---|---|
+| 즉시 | SDM 가입자 정보 갱신 | `T_SUBSCRIBER_INFO` (1개) | `T_5G_SUBS_SERVICE` + `T_5G_SUBS_PROFILE` (2개) |
+| 즉시 | SNOTI 세션 정보 조회 | `T_SESSION_INFO` | `T_SMF_SESSION_INFO` |
+| 예약 | 예약 큐 | `T_RESERVED_JOB` | `T_5G_RESERVED_JOB` |
+| 예약 | 예약 이력 | `T_RESERVED_ORDER_HIST` | `T_5G_RESERVED_ORDER_HIST` |
+| 예약 | 예약 TID | `T_RESERVED_ORDER_TID` | `T_5G_RESERVED_ORDER_TID` |
+| 공통 | **PCF/PCRF 통보** | **RBUS Noti** | **SBI Noti** |
+
+`T_CDS_JOB_CFG` · `T_CDS_ORDER_HIST` 는 LTE/SA 공용이다. SDM→SNOTI 구간은 SA 도 RBUS Noti 이며,
+**바뀌는 건 SNOTI→PCF/PCRF 마지막 구간 하나**다.
+
+즉시 전문에서 SNOTI 의 가입자 정보 조회는 **LTE 도 `T_5G_SUBS_SERVICE` / `T_5G_SUBS_PROFILE` 를 본다**
+— SDM 이 쓰는 테이블(`T_SUBSCRIBER_INFO`)과 다르다.
+
+**☞ 일부 전문에 대해서는 PCF/PCRF 로 NOTI 하지 않는다.** 네 흐름 모두에 붙은 단서다.
+어떤 JOB Code 가 해당하는지는 자료에 없다 — TID 는 갱신되는데 PCF 반영이 없으면 이걸 먼저 의심할 것.
+
+### 도구 관점에서의 함의
+
+| 흐름 | 도구가 볼 수 있는 것 |
+|---|---|
+| `전문 → PG.CDS` | `CommandResult`(`SC`/`FA`) — **Body 내용과 무관하게 `SC`** |
+| `PG.CDS → PDB` 이후 전부 | **없음.** PDB 조회 없이는 판정 불가 |
+
+리포에 `robotframework-databaselibrary` / `pyodbc` 의존성이 잡혀 있으나 **CDS 슈트는
+현재 PDB 를 조회하지 않는다.** 전문 반영을 실제로 검증하려면 `T_CDS_ORDER_HIST` ·
+`T_CDS_ORDER_TID` 대조를 붙이는 것이 이 노드의 유일한 자동 판정 경로다.
+
+**예약 전문은 특히 그렇다.** 실행이 START TIME 까지 미뤄지므로 `CommandResult` 를 받은
+시점에는 아직 아무것도 반영되지 않았다 — `T_RESERVED_JOB` 에 적재만 된 상태다.
+
+어느 JOB Code 가 예약으로 분류되는지는 자료에 없고 **PG.SDM 이 정한다.** 슈트에도 예약을
+명시적으로 다루는 TC 는 없다. (`CdsHelper.py` 의 `start_time` 필드는 쿠폰/시간프리용이며
+이 예약 흐름의 START TIME 과 같은 것인지 확인되지 않았다.)
+
 ## wire 인코딩
 
 ### 48-옥텟 헤더
@@ -109,13 +245,13 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 | 46 | `prod_id` | PRODUCT_ID / produId | 10 | 상품 ID | ● |
 | 56 | `data_prod_id` | ADD_SVC / addSvc | 10 | 안심데이터상품ID | (옵션) |
 | 66 | `network` | NETWORK_ID / netId | 8 | WCDMA CDMA WiBro LTE 5G 플래그 | `10011` ★ |
-| 74 | `block_data_roaming_id` | ROADMING_STOP | 1 | 0=해당없음 1=가입/해지 | |
-| 75 | `block_data_roaming_provider_id` | ROADMING_STOP_PROVIDER | 1 | 0/1 | |
+| 74 | `block_data_roaming_id` | ROADMING_STOP / roamStopId | 1 | 0=해당없음 1=가입/해지 | |
+| 75 | `block_data_roaming_provider_id` | ROADMING_STOP_PROVIDER / roamStopProviId | 1 | 0/1 | |
 | 76 | `allow_mvoip_yn` | MVOIP_APPLY_FG | 1 | 0/1 | |
 | 77 | `tablet_yn` | TABLET_PC_YN / tabPcYn | 1 | 0=아니오 1=예 | ● |
 | 78 | `os_ver` | OS_VERSION / osVer | 2 | | ● |
 | 80 | `device_model` | TERMINAL_MODEL_CODE / termModelCode | 4 | | ● |
-| 84 | `block_harmful_yn` | YOUNG_HARM_INFO_BLOCK | 1 | 청소년 유해정보 차단 | |
+| 84 | `block_harmful_yn` | YOUNG_HARM_INFO_BLOCK / YoungHarmInfoBlock | 1 | 청소년 유해정보 차단 | |
 | 85 | `block_roaming_data_yn` | ROAMING_DATA | 1 | 0=허용 1=차단 2=VOMS제휴망 | |
 | 86 | `block_roaming_mvoip_yn` | ROAMING_MVOIP | 1 | 0=허용 1=차단 | |
 | 87 | `zone_code` | ZONE_CODE | 4 | 0000~9999 | |
@@ -147,27 +283,64 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 코드가 쓰지 않는 필드는 공백으로 나간다. 대상 필드는
 `CdsHelper._fill_command_fields(code)` 의 분기가 정한다.
 
+**A1 을 기준으로 읽는 게 빠르다.** 나머지는 대부분 A1 의 가감이다.
+
 | 코드 | 규격 필드 수 | 구성 |
 |---|---|---|
 | `A1` 신규 | 17 | `opCode` `mdn` `min` `produId` `addSvc`(**옵션**) `netId` `tabPcYn` `osVer` `termModelCode` `aprfTermAttri` `mvnoCompa` `limitSubsFlag` `catMsType` `lteCatgy` `5gCatgy` `devceType` `produGenType` |
-| `Z1` 해지 | 15 | A1 에서 **`min` · `addSvc` 를 뺀 집합** |
+| `G1` | 17 | **A1 과 완전히 동일** |
+| `C1` 기기변경 | 18 | **A1 + `newMin`** |
+| `Z1` 해지 | 15 | **A1 − `min` − `addSvc`** |
+| `D3` 번호변경 | 8 | `opCode` `mdn` `newMdn` `min` `newMin` `produId` `limitSubsFlag` `produGenType` |
+| `I2` `I3` | 9 | `opCode` `mdn` `min` `produId` `roamStopId` `roamStopProviId` `YoungHarmInfoBlock` `limitSubsFlag` `produGenType` |
 | `1X` HFC가입 | 6 | `opCode` `mdn` `produId` `limitSubsFlag` `addr` `produGenType` |
+| `1Y` HFC해지 | **미확인** | 아래 [업무 코드](#업무-코드) 참조 |
 
-`1X` 는 **`addr` 를 쓰는 유일한 코드**다(170B, cp949). 단말·망 필드는 하나도 안 쓴다.
-2026-07-31 확인했고 `_fill_command_fields` 분기와 일치한다(327B 패킹으로 대조).
+`A1` `G1` `C1` `Z1` 는 **단말·망 필드 전체**(`netId` `tabPcYn` `osVer` `termModelCode`
+`aprfTermAttri` `mvnoCompa` `catMsType` `lteCatgy` `5gCatgy` `devceType`)를 쓰는 계열이고,
+`D3` `I2` `I3` `1X` 는 **가입자 식별 + 업무 고유 필드만** 쓰는 계열이다.
+
+`1X` 는 **`addr` 를 쓰는 유일한 코드**다(170B, cp949).
+`I2`/`I3` 만 `roamStopId`(`ROADMING_STOP`) · `roamStopProviId`(`ROADMING_STOP_PROVIDER`) ·
+`YoungHarmInfoBlock`(`YOUNG_HARM_INFO_BLOCK`) 을 쓴다.
 
 `addSvc` 외에는 전부 필수다. **실 전문은 여기에 `CA` 와 `IMSI` 를 더 채워 보낸다**
-(아래 함정 참조) — 코드 분기도 두 필드를 유지한다.
+(아래 [함정](#규격표와-실-전문이-어긋난다--실-전문이-기준이다) 참조) — 코드 분기도 두 필드를 유지한다.
 
 `C1`(기기변경) 은 `min ← mdn` 을 강제하고 `new_mdn` 을 선언하지 않는다 — MDN 이 바뀌지
-않는 업무라서다. `new_min` 만 넘긴다.
+않는 업무라서다. `new_min` 만 넘긴다. **규격 C1 에도 `newMdn` 이 없어 이 판단이 확인됐다.**
 
 이 단말·망 필드들은 `${CDS_NETWORK}` `${CDS_CA}` `${CDS_IMSI}` 등 **코드 공용 변수**로
 `Send Command Request` 의 기본 인자에 올라가 있다. 하나를 채우면 그 필드를 선언한
 모든 코드에 반영된다.
 
-**미확인** — `D3`(번호변경) 분기는 `ms_type` 을 선언하지 않는다. D3 규격 필드 목록을
-확보하지 못해 누락인지 의도인지 판단하지 못했다.
+#### ⚠ 규격과 코드 분기가 어긋난 곳 (미반영)
+
+2026-08-03 에 위 규격 목록을 `_fill_command_fields` 분기와 나란히 대조한 결과다.
+**코드는 아직 고치지 않았다** — 고칠 때 이 절을 지울 것.
+
+| 코드 | 규격에 있는데 코드에 **없음** | 코드에만 **더 있음** | 판정 |
+|---|---|---|---|
+| `A1` | — | `ca` `imsi` | 정상 (실 전문 근거로 유지) |
+| `Z1` | — | `ca` `imsi` | **정상 — 규격으로 확인됨** |
+| `C1` | — | `ca` `imsi` | **정상 — 규격으로 확인됨** |
+| `G1` | **`min`** | `ca` `imsi` | ⚠ **누락 의심** |
+| `I2` `I3` | **`produId` · `produGenType`** | `mvnoCompa` | ⚠ **누락 의심** |
+| `D3` | — | `addSvc` `netId` `tabPcYn` `osVer` `termModelCode` `ca` `aprf` `imsi` `mvnoCompa` `lteCatgy` `5gCatgy` `devceType` (12개) | ⚠ **과다 선언** |
+
+**`G1` 의 `min` 누락이 가장 확실하다.** 규격상 G1 은 A1 과 필드 집합이 완전히 같은데
+코드 분기만 `min` 이 빠져 있다. A1 분기에는 있다.
+
+**`I2`/`I3` 는 `produId` · `produGenType` 이 빠진 채 `min ← mdn` 을 강제한다.**
+규격은 `min` 을 별도 필드로 요구하므로 강제 대입이 맞는지도 확인이 필요하다.
+
+**`D3` 의 12개 과다 선언은 성격이 다르다.** 규격 D3 는 번호변경에 필요한 8개뿐인데
+코드가 A1 계열 필드를 통째로 얹고 있다. 다만 [분기가 선언하지 않은 필드는 버려진다](#코드-분기가-선언하지-않은-필드는-값을-넘겨도-버려진다)
+는 규칙의 반대 방향이라 **값이 실제로 나가면 규격에 없는 필드가 채워져 송신된다.**
+단말·망 공용 변수가 현재 전부 비어 있어 증상이 없을 뿐이다.
+
+D3 가 `catMsType`(`ms_type`) 을 선언하지 않는 건 **의도대로다** — 규격 D3 목록에도 없다.
+(이전에 "누락인지 의도인지 판단 불가"로 남겨뒀던 항목이 여기서 해소됐다.)
 
 #### 업무 코드
 
@@ -177,7 +350,11 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 `F1~F6` `I1~I3` `M1` `Y3~Y5` `Z2` `1X` `1Y`)를 더 정의하고 `_fill_command_fields` 도
 이들을 처리한다. 그중 **`1X` `1Y` `I2` `I3` 는 위 규격 목록에 없지만** TC 로 유지 중이다
 — 규격표가 이미 여러 곳 낡은 것이 확인돼 목록도 불완전할 수 있어서다. 실제 가부는
-PG 응답(`SC`/`FA`)으로 판단한다. **`1X` 는 2026-07-31 필드 목록을 확보해 위 표에 넣었다.**
+PG 응답(`SC`/`FA`)으로 판단한다.
+
+필드 목록 확보 현황: **`1X` 2026-07-31**, **`D3` `G1` `Z1` `C1` `I2` `I3` 2026-08-03** —
+전부 위 표에 반영했다. `I2`/`I3` 는 허용 목록 밖인데도 필드 목록이 존재하므로,
+**허용 목록 쪽이 낡았다는 근거가 하나 더 늘었다.**
 
 **⚠ `1Y`(HFC해지) 필드 집합 미확인** — 현재 분기는 `mdn` `produId` `produGenType` 3개뿐이라
 쌍이 되는 `1X` 에 있는 **`limitSubsFlag` 가 빠져 있다.** 거의 모든 코드가 `limitSubsFlag` 를

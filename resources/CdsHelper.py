@@ -242,13 +242,13 @@ _CMD_LAYOUT = [
     ('prod_id',                       10),   # PRODUCT_ID / produId — 상품 ID
     ('data_prod_id',                  10),   # ADD_SVC / addSvc — 안심데이터상품ID (A1 옵션)
     ('network',                        8),   # NETWORK_ID / netId — WCDMA CDMA WiBro LTE 5G 플래그
-    ('block_data_roaming_id',          1),   # ROADMING_STOP — 데이터로밍차단ID
-    ('block_data_roaming_provider_id', 1),   # ROADMING_STOP_PROVIDER — 데이터로밍차단사업자ID
+    ('block_data_roaming_id',          1),   # ROADMING_STOP / roamStopId — 데이터로밍차단ID
+    ('block_data_roaming_provider_id', 1),   # ROADMING_STOP_PROVIDER / roamStopProviId — 데이터로밍차단사업자ID
     ('allow_mvoip_yn',                 1),   # MVOIP_APPLY_FG — mVoIP 허용
     ('tablet_yn',                      1),   # TABLET_PC_YN / tabPcYn — 0=아니오 1=예
     ('os_ver',                         2),   # OS_VERSION / osVer
     ('device_model',                   4),   # TERMINAL_MODEL_CODE / termModelCode
-    ('block_harmful_yn',               1),   # YOUNG_HARM_INFO_BLOCK — 청소년 유해정보 차단
+    ('block_harmful_yn',               1),   # YOUNG_HARM_INFO_BLOCK / YoungHarmInfoBlock — 청소년 유해정보 차단
     ('block_roaming_data_yn',          1),   # ROAMING_DATA — 0=허용 1=차단 2=허용(VOMS제휴망)
     ('block_roaming_mvoip_yn',         1),   # ROAMING_MVOIP — 0=허용 1=차단
     ('zone_code',                      4),   # ZONE_CODE — 0000~9999
