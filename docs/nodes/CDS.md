@@ -22,8 +22,24 @@
 | 1 | Rchannel 9201 | `0003` RchannelConnectionRequest | `0004` ACK |
 | 2 | Schannel 9200 | `0001` SchannelConnectionRequest | `0002` ACK |
 
-Teardown 은 역순이 아니라 Schannel→Rchannel 순으로 Release 를 보낸 뒤 닫는다.
-Release 는 `Run Keyword And Ignore Error` 로 감싸 **PG 가 ACK 없이 끊어도 실패로 보지 않는다.**
+**접속과 해제는 TC 가 아니라 Suite Setup / Teardown 이다.**
+
+| | 키워드 | 하는 일 |
+|---|---|---|
+| Suite Setup | `Suite CDS Connect` | Rch 연결 → `0003`/`0004` → Sch 연결 → `0001`/`0002` → **두 소켓 생존 확인** |
+| Suite Teardown | `Suite CDS Disconnect` | Sch `0005`→`0006` 검증 → Rch `0007`→`0008` 검증 → 소켓 종료 |
+
+Setup 이 실패하면 슈트가 서지 않으므로 접속을 TC 로 재확인할 필요가 없다. 해제도
+슈트가 끝나면 반드시 해야 하는 일이라 TC 로 두면 실패·필터 시 건너뛰게 된다.
+
+Teardown 은 역순이 아니라 **Schannel→Rchannel 순으로** Release 를 보낸 뒤 닫는다.
+`Send Release And Validate` 가 ACK 의 msg_id 와 `Result=SC` 를 검증하되,
+**PG 가 ACK 없이 끊는 것은 정상 해제로 간주**한다(규격상 허용).
+
+ACK 검증을 `Run Keyword And Ignore Error` 로 감싸지 않는다 — 감싸면 검증이 무력화된다.
+Robot 은 **teardown 안의 키워드가 실패해도 나머지를 계속 실행**하므로 소켓 종료는 어차피
+수행된다. 실제로 Release ACK 를 `FA` 로 돌려주는 가짜 PG 로 확인했다: 두 채널 모두
+실패를 보고하고, 그럼에도 소켓은 닫혔다.
 
 포트와 `${CDS_DST_SYS_ID}`(PG.CDS SYSTEM_ID, 기본 `PG01`)는 `cds_variables.robot` 기본값이며
 환경별로 다르면 `config/env/<env>.py` 에서 오버라이드한다.
@@ -330,11 +346,11 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 **`G1` 의 `min` 누락은 고쳤다.** 규격상 G1 은 A1 과 필드 집합이 완전히 같은데 코드 분기만
 `min` 이 빠져 있었다 — Z1 에서 발견됐던 것과 같은 유형의 레거시 누락이다.
 `Send Command Request` 는 모든 코드에 `min=${CDS_MIN}` 을 넘기고 있었으므로
-**`TC-CDS-009`(G1 정보변경)가 MIN 을 공백으로 송신하고 있었다.** 지금은 offset 26 에
+**`TC-CDS-008`(G1 정보변경)가 MIN 을 공백으로 송신하고 있었다.** 지금은 offset 26 에
 10B 로 들어간다.
 
 **`I2`/`I3` 도 고쳤다.** `produId` · `produGenType` 을 추가하고 규격 목록에 없는 `mvnoCompa`
-를 뺐다. `TC-CDS-006`/`TC-CDS-007` 이 `produId` 를 공백으로 보내고 있었다 —
+를 뺐다. `TC-CDS-005`/`TC-CDS-006` 이 `produId` 를 공백으로 보내고 있었다 —
 `${CDS_PROD_ID}`(`NA00003479`)가 분기에서 버려지고 있었기 때문이다.
 `mvnoCompa` 는 되살릴 근거(실 I2/I3 전문)가 나오면 A1 의 `ca`/`imsi` 처럼 다시 넣는다.
 
@@ -359,7 +375,7 @@ f['min'] = kw.get('mdn', '')          # C1 / I2 / I3
 | 강제 대입 결과 | **`0109001000`** ← 뒷자리 잘린 MDN. MIN 도 MDN 도 아니다 |
 
 MIN 은 통상 MDN 에서 선행 `0` 을 뗀 값이므로, 이 코드는 **자리를 하나 밀어 보내고 있다.**
-`TC-CDS-006`(I2) · `TC-CDS-007`(I3) · `TC-CDS-008`(C1) 이 전부 해당한다.
+`TC-CDS-005`(I2) · `TC-CDS-006`(I3) · `TC-CDS-007`(C1) 이 전부 해당한다.
 
 규격 `I2`/`I3`/`C1` 모두 `min` 을 **별도 필드로** 열거하므로 인자 값(`${CDS_MIN}`)을 그대로
 쓰는 게 맞아 보이지만, 레거시 도구가 의도적으로 MDN 을 넣었을 가능성을 배제하지 못했다.
@@ -420,23 +436,25 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 
 ## TC
 
-현재 **활성 14건 / 주석 2건**(001~016 연속). 태그: `cds` `connect` `process-state` `command` `release` `smoke` `validation`
+현재 **활성 12건 / 주석 2건**(001~014 연속). 태그: `cds` `process-state` `command` `smoke` `validation`
 (+ 주석 TC 에 `subs-data` `upload`)
 
 | 대역 | 내용 |
 |---|---|
-| 001~002 | 접속 · ProcessState |
-| 003~009 | Download Command — 업무 코드별 (원래 번호) |
-| 010~013 | Download Command — **번호변경(D3) 후 체인** |
-| 014~015 | SubsData · UpLoad (현재 비활성) |
-| 016 | 접속 해제 |
+| 001 | ProcessState 상태확인 |
+| 002~008 | Download Command — 업무 코드별 (원래 번호) |
+| 009~012 | Download Command — **번호변경(D3) 후 체인** |
+| 013~014 | SubsData · UpLoad (현재 비활성) |
+
+접속·해제는 TC 가 아니라 Suite Setup/Teardown 이다([접속](#접속--듀얼-소켓-rchannel-이-먼저) 참조).
+그래서 `connect` · `release` 태그는 더 이상 쓰이지 않는다.
 
 단말·망 공용 필드(`${CDS_NETWORK}` `${CDS_CA}` `${CDS_IMSI}` 등)는 현재 전부 비어 있다
 — 실환경 값이 없어서다. `Send Command Request` 의 기본 인자로 올라가 있으므로
 `cds_variables.robot` 에 값만 채우면 해당 필드를 선언한 모든 코드에 즉시 반영된다.
 채우지 않으면 그 필드들은 공백으로 나가고 **PG 는 그래도 `SC` 를 준다.**
 
-### TC 간 의존성 — `TC-CDS-010` ~ `013` 은 하나의 체인이다
+### TC 간 의존성 — `TC-CDS-009` ~ `012` 는 하나의 체인이다
 
 **이 슈트에서 유일하게 앞 TC 의 결과에 의존하는 구간이다.** 나머지 TC 는 서로 독립이다.
 
@@ -446,14 +464,14 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 
 | TC | 코드 | 하는 일 |
 |---|---|---|
-| 010 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
-| 011 | `1X` HFC가입 | **바뀐 번호로** HFC 가입 (`addr` 동봉) |
-| 012 | `1Y` HFC해제 | 011 이 가입한 번호를 해제 |
-| 013 | `Z1` 해지 | 가입자 자체를 해지 — **체인의 끝** |
+| 009 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
+| 010 | `1X` HFC가입 | **바뀐 번호로** HFC 가입 (`addr` 동봉) |
+| 011 | `1Y` HFC해제 | 010 이 가입한 번호를 해제 |
+| 012 | `Z1` 해지 | 가입자 자체를 해지 — **체인의 끝** |
 
 `${CDS_ACTIVE_MDN}`(`cds_variables.robot`) 이 "현재 유효 MDN" 을 들고 있다.
 
-| 상황 | `${CDS_ACTIVE_MDN}` | 011~013 의 대상 |
+| 상황 | `${CDS_ACTIVE_MDN}` | 010~012 의 대상 |
 |---|---|---|
 | D3 성공 | `Set Suite Variable` 로 `${CDS_NEW_MDN}` 교체 | **변경된 번호** |
 | D3 실패 | `Command Download Flow` 가 먼저 죽어 갱신 미실행 | 원래 번호 |
@@ -464,9 +482,9 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 
 ```bash
 # 체인 전체
-python -m robot --test "TC-CDS-01[0-3]*" tests/cds/
+python -m robot --test "TC-CDS-009*" --test "TC-CDS-01[0-2]*" tests/cds/
 # 번호를 직접 지정 (D3 없이 특정 가입자로)
-python -m robot --test "TC-CDS-011*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
+python -m robot --test "TC-CDS-010*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
 ```
 
 `--variable` 은 최우선이라 `${CDS_ACTIVE_MDN}` 을 직접 덮는다. `CDS_MDN` 을 덮어도
@@ -476,8 +494,8 @@ python -m robot --test "TC-CDS-011*" --variable CDS_ACTIVE_MDN:01090010002 tests
 **MIN 은 따라가지 않는다.** 규격 `Z1` 필드 집합에 `min` 이 없고(A1 − `min` − `addSvc`),
 `1X`/`1Y` 도 `min` 을 쓰지 않는다. 셋 다 MDN 만 보낸다.
 
-`TC-CDS-004`/`005` 는 **원래 번호로** 1X/1Y 를 검증하는 별개 TC 로 남아 있다.
-011/012 는 "번호가 바뀐 가입자에게 HFC 를 붙였다 떼는" 경로를 따로 본다.
+`TC-CDS-003`/`004` 는 **원래 번호로** 1X/1Y 를 검증하는 별개 TC 로 남아 있다.
+010/011 은 "번호가 바뀐 가입자에게 HFC 를 붙였다 떼는" 경로를 따로 본다.
 
 ## 함정
 

@@ -55,6 +55,10 @@ Suite CDS Connect
     ...    CDS Suite Setup 전용.
     ...    1) Schannel/Rchannel 2개 소켓 연결 → ${CDS_SCH_SOCK}/${CDS_RCH_SOCK}
     ...    2) Schannel/Rchannel ConnectionRequest(0001/0003) 송신 + ACK(0002/0004) 검증
+    ...    3) 두 소켓 생존 확인 — 실패 시 Suite Setup 이 실패해 전 TC 가 실행되지 않는다
+    ...
+    ...    ※ 접속 자체가 TC 가 아니다. Setup 이 실패하면 슈트가 서지 않으므로
+    ...       별도 TC 로 재확인할 필요가 없다(구 TC-CDS-001 을 여기로 흡수).
     [Arguments]    ${host}=${CDS_PG_HOST}
     ...            ${sch_port}=${CDS_SCH_PORT}    ${rch_port}=${CDS_RCH_PORT}
     ...            ${timeout}=${CDS_TIMEOUT}
@@ -76,12 +80,34 @@ Suite CDS Connect
     Send Connection Request    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_CONN_REQ}
     ${hdr2}    ${data2}=    Receive CDS Message    ${CDS_SCH_SOCK}
     Validate Connection Ack    ${hdr2}    ${data2}    ${CDS_MSG_SCH_CONN_ACK}
+    # 3) 두 소켓 생존 확인 (구 TC-CDS-001)
+    Should Not Be Equal    ${CDS_SCH_SOCK}    ${NONE}    msg=Schannel 소켓이 생성되지 않았습니다
+    Should Not Be Equal    ${CDS_RCH_SOCK}    ${NONE}    msg=Rchannel 소켓이 생성되지 않았습니다
+    ${ok_s}=    Cds.Is Connected    ${CDS_SCH_SOCK}
+    ${ok_r}=    Cds.Is Connected    ${CDS_RCH_SOCK}
+    Should Be True    ${ok_s}    msg=Schannel 소켓이 닫혀 있음
+    Should Be True    ${ok_r}    msg=Rchannel 소켓이 닫혀 있음
     Log    [Suite] CDS 접속 완료 (Rchannel→Schannel)    console=True
 
 Suite CDS Disconnect
-    [Documentation]    CDS Suite Teardown 전용. Release 요구(best-effort) 후 소켓 종료.
-    Run Keyword And Ignore Error    Send CDS Message    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_REL_REQ}
-    Run Keyword And Ignore Error    Send CDS Message    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_REL_REQ}
+    [Documentation]
+    ...    CDS Suite Teardown 전용.
+    ...    Schannel 해제 요구(0005) → ACK(0006, SC) 검증, 이어서 Rchannel(0007→0008),
+    ...    그 뒤 소켓 종료.
+    ...
+    ...    `Send Release And Validate` 가 ACK 를 검증하되 **PG 가 ACK 없이 끊는 것도
+    ...    정상 해제로 간주**한다(규격상 허용되는 동작). 따라서 Teardown 이 그 이유로
+    ...    실패하지 않는다.
+    ...
+    ...    ※ 해제 자체가 TC 가 아니다 — 슈트가 끝나면 반드시 수행돼야 하므로
+    ...       Teardown 이 맞다(구 TC-CDS-016 을 여기로 흡수).
+    ...       Teardown 은 TC 실패 여부와 무관하게 항상 실행된다.
+    ...
+    ...    ACK 검증을 Run Keyword And Ignore Error 로 감싸지 않는다 — 감싸면 구 TC-CDS-016
+    ...    의 검증이 무력화된다. Robot 은 teardown 안의 키워드가 실패해도 **나머지를 계속
+    ...    실행**하므로, 아래 Tcp Close 는 어차피 수행된다.
+    Send Release And Validate    ${CDS_SCH_SOCK}    ${CDS_MSG_SCH_REL_REQ}    ${CDS_MSG_SCH_REL_ACK}
+    Send Release And Validate    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_REL_REQ}    ${CDS_MSG_RCH_REL_ACK}
     Run Keyword If    $CDS_SCH_SOCK is not None    Cds.Tcp Close    ${CDS_SCH_SOCK}
     Run Keyword If    $CDS_RCH_SOCK is not None    Cds.Tcp Close    ${CDS_RCH_SOCK}
     Log    [Suite] CDS 연결 종료    console=True
