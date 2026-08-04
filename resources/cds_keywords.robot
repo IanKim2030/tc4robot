@@ -229,7 +229,12 @@ Send Release And Validate
     END
     ${status}    ${ret}=    Run Keyword And Ignore Error    Receive CDS Message    ${sock}
     IF    '${status}' == 'FAIL'
-        Log    Release(${req_msg_id}) 후 PG 가 ACK 없이 연결 종료 → 정상 해제로 간주    level=WARN
+        # 실 PG.CDS 는 Release 후 ACK 없이 끊는 것이 통상 동작이라 매 실행마다 WARN 2건
+        # (Release 5 / Release 7)이 리포트 상단에 떴다. 코드 스스로 "정상 해제로 간주"
+        # 한다고 선언한 경로를 WARN 으로 올리는 것이 어긋나므로 INFO 로 내렸다.
+        # 추적은 유지된다 — log.html 에서 이 줄로 ACK 수신 여부를 구분할 수 있다.
+        #Log    Release(${req_msg_id}) 후 PG 가 ACK 없이 연결 종료 → 정상 해제로 간주    level=WARN
+        Log    Release(${req_msg_id}) 후 PG 가 ACK 없이 연결 종료 → 정상 해제로 간주
         RETURN
     END
     ${hdr}=    Set Variable    ${ret}[0]

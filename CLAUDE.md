@@ -21,6 +21,7 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 | [docs/nodes/UPM.md](docs/nodes/UPM.md) | UPM 노드 스펙 |
 | [docs/nodes/CDS.md](docs/nodes/CDS.md) | CDS 노드 스펙 |
 | [docs/nodes/NWDAF.md](docs/nodes/NWDAF.md) | NWDAF 노드 스펙 |
+| [docs/callflow/CDS_X1.md](docs/callflow/CDS_X1.md) | 1X 전문 End-to-End Call Flow (PG 내부) |
 
 스킬 `pg-tc-authoring`(TC 작성) / `pg-wire-encoding`(전문 인코딩 대조)이 해당 작업에서 자동으로 걸린다.
 

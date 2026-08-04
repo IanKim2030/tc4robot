@@ -80,8 +80,8 @@ sequenceDiagram
     CDS->>PGCDS: HFC 전문 (1X / 1Y)
     PGCDS->>PDB: SQL — T_CDS_ORDER_HIST 전문 정보 INSERT
     SDM->>PDB: SQL — T_CDS_ORDER_HIST (주기적으로) 전문 정보 조회
-    PGCDS->>PDB: SQL — T_BAROD_ORDER_HIST 전문 정보 INSERT
-    SDM->>PDB: SQL — T_BAROD_ORDER_HIST (주기적으로) 전문 정보 조회
+    PGCDS->>PDB: SQL — T_BAROD_ORDER_HIST 전문 정보 INSERT (주소 암호화)
+    BSUBS->>PDB: SQL — T_BAROD_ORDER_HIST (주기적으로) 전문 정보 조회
     SDM->>PDB: SQL — T_5G_SUBS_SERVICE 가입자 정보 SELECT/INSERT/UPDATE/DELETE
     SDM->>PDB: SQL — T_5G_SUBS_PROFILE 가입자 정보 SELECT/INSERT/UPDATE/DELETE
     SDM->>SNOTI: RBUS Noti
@@ -120,9 +120,13 @@ sequenceDiagram
 **`1Y`(HFC해지)는 미확인**이다. 이 흐름이 `1X`/`1Y` 를 쌍으로 다루므로 1Y 목록을 구하면
 반드시 대조할 것.
 
-**미확인 — `T_BAROD_ORDER_HIST` 를 읽고 쓰는 주체.** 슬라이드의 화살표 시작점이
-PG.CDS/PG.SDM/PG.BSUBS 중 어디인지 이미지에서 확정하지 못했다. 위 다이어그램은
-즉시 전문 흐름과 같은 패턴(수신 프로세스가 INSERT, SDM 이 주기 조회)으로 그렸다.
+**~~미확인~~ `T_BAROD_ORDER_HIST` 를 읽고 쓰는 주체 — 확정됐다(2026-08-04).**
+**PG.CDS 가 쓰고 PG.BSUBS 가 주기적으로 읽는다.** 이전에 SDM 이 읽는 것으로 그렸던 것을
+바로잡았다. 근거와 상세는 [callflow/CDS_X1.md](callflow/CDS_X1.md).
+
+**위 다이어그램은 요약이다.** 1X 전문의 실제 처리에는 위에 없는 요소가 더 있다 —
+주소 필드의 Masking/암호화 이중 저장, UPM 연동 시 Base64 인코딩, EMS 의 복호화 조회,
+BSUBS 의 DB 폴링 기반 비동기 처리. 전부 [callflow/CDS_X1.md](callflow/CDS_X1.md) 에 있다.
 
 ## opcode 충돌 — 노드별 상수명을 그대로 써라
 

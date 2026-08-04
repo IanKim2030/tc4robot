@@ -36,6 +36,11 @@ Teardown 은 역순이 아니라 **Schannel→Rchannel 순으로** Release 를 �
 `Send Release And Validate` 가 ACK 의 msg_id 와 `Result=SC` 를 검증하되,
 **PG 가 ACK 없이 끊는 것은 정상 해제로 간주**한다(규격상 허용).
 
+실 PG.CDS 는 실제로 ACK 없이 끊는다. 이 경로의 로그는 **`INFO` 다** — 예전에는 `WARN`
+이라 매 실행마다 `Release(5)` / `Release(7)` 2건이 리포트 상단 경고에 떴다.
+코드가 스스로 "정상 해제로 간주"한다고 선언한 경로를 경고로 올리는 게 어긋나서 내렸다.
+추적은 그대로라 `log.html` 에서 ACK 수신 여부를 구분할 수 있다.
+
 ACK 검증을 `Run Keyword And Ignore Error` 로 감싸지 않는다 — 감싸면 검증이 무력화된다.
 Robot 은 **teardown 안의 키워드가 실패해도 나머지를 계속 실행**하므로 소켓 종료는 어차피
 수행된다. 실제로 Release ACK 를 `FA` 로 돌려주는 가짜 PG 로 확인했다: 두 채널 모두
