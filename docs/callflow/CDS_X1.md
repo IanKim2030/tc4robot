@@ -47,7 +47,7 @@ sequenceDiagram
     PCDS->>PDB: 전문저장 : 주소 부분 Masking (T_CDS_ORDER_HIST)
     PCDS->>PDB: 전문저장 : 주소 부분 암호화 저장 (T_BAROD_ORDER_HIST)
 
-    rect rgb(240, 240, 240)
+    rect rgba(128, 128, 128, 0.12)
     Note over SDM, PCF: ① 가입자 정보 처리 (SDM / SNOTI)
     SDM->>PDB: SQL – 전문 정보 조회 (T_CDS_ORDER_HIST)
     SDM->>PDB: SQL – 가입자 정보 SELECT/INSERT/UPDATE/DELETE (T_5G_SUBS_SERVICE)
@@ -62,7 +62,7 @@ sequenceDiagram
     Note over SNOTI, PCF: 일부 전문은 PCF/PCRF로 NOTI 하지 않음
     end
 
-    rect rgb(240, 240, 240)
+    rect rgba(128, 128, 128, 0.12)
     Note over BSUBS, EMS: ② HFC Cell 정보 처리 (BSUBS)
     BSUBS->>PDB: 주기적으로 전문 조회 (T_BAROD_ORDER_HIST)
     BSUBS->>UPM: Subs Info Request (주소 필드 = 암호화 데이터 + prefix → Base64)
