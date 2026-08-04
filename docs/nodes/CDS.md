@@ -420,35 +420,64 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 
 ## TC
 
-현재 **활성 12건 / 주석 2건**. 태그: `cds` `connect` `process-state` `command` `release` `smoke` `validation`
+현재 **활성 14건 / 주석 2건**(001~016 연속). 태그: `cds` `connect` `process-state` `command` `release` `smoke` `validation`
 (+ 주석 TC 에 `subs-data` `upload`)
+
+| 대역 | 내용 |
+|---|---|
+| 001~002 | 접속 · ProcessState |
+| 003~009 | Download Command — 업무 코드별 (원래 번호) |
+| 010~013 | Download Command — **번호변경(D3) 후 체인** |
+| 014~015 | SubsData · UpLoad (현재 비활성) |
+| 016 | 접속 해제 |
 
 단말·망 공용 필드(`${CDS_NETWORK}` `${CDS_CA}` `${CDS_IMSI}` 등)는 현재 전부 비어 있다
 — 실환경 값이 없어서다. `Send Command Request` 의 기본 인자로 올라가 있으므로
 `cds_variables.robot` 에 값만 채우면 해당 필드를 선언한 모든 코드에 즉시 반영된다.
 채우지 않으면 그 필드들은 공백으로 나가고 **PG 는 그래도 `SC` 를 준다.**
 
-### TC 간 의존성 — `TC-CDS-010`(D3) → `TC-CDS-011`(Z1)
+### TC 간 의존성 — `TC-CDS-010` ~ `013` 은 하나의 체인이다
 
-**이 슈트에서 유일하게 앞 TC 의 결과에 의존하는 구간이다.**
+**이 슈트에서 유일하게 앞 TC 의 결과에 의존하는 구간이다.** 나머지 TC 는 서로 독립이다.
 
 D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 으로 바뀐다. 따라서
-뒤따르는 Z1(해지)은 **바뀐 번호로 해지해야 한다** — 원래 번호로 보내면 이미 존재하지
-않는 가입자를 지우는 셈이다.
+뒤따르는 TC 들은 전부 **바뀐 번호를 대상으로** 해야 한다 — 원래 번호로 보내면 이미
+존재하지 않는 가입자를 건드리는 셈이다.
+
+| TC | 코드 | 하는 일 |
+|---|---|---|
+| 010 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
+| 011 | `1X` HFC가입 | **바뀐 번호로** HFC 가입 (`addr` 동봉) |
+| 012 | `1Y` HFC해제 | 011 이 가입한 번호를 해제 |
+| 013 | `Z1` 해지 | 가입자 자체를 해지 — **체인의 끝** |
 
 `${CDS_ACTIVE_MDN}`(`cds_variables.robot`) 이 "현재 유효 MDN" 을 들고 있다.
 
-| 상황 | `${CDS_ACTIVE_MDN}` | Z1 이 해지하는 번호 |
+| 상황 | `${CDS_ACTIVE_MDN}` | 011~013 의 대상 |
 |---|---|---|
-| D3 성공 | `Set Suite Variable` 로 `${CDS_NEW_MDN}` 으로 교체 | **변경된 번호** |
-| D3 실패 | `Command Download Flow` 가 먼저 죽어 갱신이 실행되지 않음 | 원래 번호 |
+| D3 성공 | `Set Suite Variable` 로 `${CDS_NEW_MDN}` 교체 | **변경된 번호** |
+| D3 실패 | `Command Download Flow` 가 먼저 죽어 갱신 미실행 | 원래 번호 |
 | D3 미실행 (`--test`, 태그 필터) | 기본값 유지 | 원래 번호 |
 
-기본값이 `${CDS_MDN}` 이라 **Z1 을 단독 실행해도 그대로 동작한다.** 갱신은 D3 의
+기본값이 `${CDS_MDN}` 이라 **개별 TC 를 단독 실행해도 그대로 동작한다.** 갱신은 D3 의
 `Command Download Flow` **뒤에** 두어 성공했을 때만 반영되게 했다.
 
-MIN 은 따라갈 필요가 없다 — 규격 Z1 필드 집합에 `min` 이 없기 때문이다
-(A1 − `min` − `addSvc`). Z1 은 MDN 만 보낸다.
+```bash
+# 체인 전체
+python -m robot --test "TC-CDS-01[0-3]*" tests/cds/
+# 번호를 직접 지정 (D3 없이 특정 가입자로)
+python -m robot --test "TC-CDS-011*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
+```
+
+`--variable` 은 최우선이라 `${CDS_ACTIVE_MDN}` 을 직접 덮는다. `CDS_MDN` 을 덮어도
+`${CDS_ACTIVE_MDN}` 이 그것을 참조해 정의되므로 함께 따라온다
+([변수 우선순위](../ENVIRONMENTS.md#변수-우선순위)).
+
+**MIN 은 따라가지 않는다.** 규격 `Z1` 필드 집합에 `min` 이 없고(A1 − `min` − `addSvc`),
+`1X`/`1Y` 도 `min` 을 쓰지 않는다. 셋 다 MDN 만 보낸다.
+
+`TC-CDS-004`/`005` 는 **원래 번호로** 1X/1Y 를 검증하는 별개 TC 로 남아 있다.
+011/012 는 "번호가 바뀐 가입자에게 HFC 를 붙였다 떼는" 경로를 따로 본다.
 
 ## 함정
 
