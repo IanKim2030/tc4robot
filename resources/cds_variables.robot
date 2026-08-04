@@ -155,6 +155,12 @@ ${CDS_DEVICE_TYPE}             ${EMPTY}                 # device_type   (1자, �
 # 코드별 추가 필드 (Send Command Request &{extra} 로 전달)
 ${CDS_NEW_MDN}                 01090010002              # new_mdn (D3 번호변경 신규 번호, TODO: 실환경 예비 번호)
 ${CDS_MIN}                     1090010001               # min     (10자, A1/D3 등)
+
+# D3(번호변경) 이후 가입자를 가리키는 번호. Z1(해지)처럼 "현재 번호"로 보내야 하는
+# 코드가 쓴다. 기본값은 원래 번호이고, TC-CDS-010(D3)이 성공하면 그 TC 가
+# Set Suite Variable 로 ${CDS_NEW_MDN} 을 덮어쓴다.
+# → D3 를 건너뛰거나 실패하면 기본값이 남아 **원래 번호로 해지**한다.
+${CDS_ACTIVE_MDN}              ${CDS_MDN}               # 현재 유효 MDN (D3 성공 시 new_mdn 으로 교체)
 ${CDS_NEW_MIN}                 1090010002               # new_min (C1 기기변경 시)
 ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
 #${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      # addr (1X HFC 가입 시, 170byte, cp949 인코딩, TODO: 실환경 값)

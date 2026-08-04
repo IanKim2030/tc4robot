@@ -22,6 +22,11 @@ Documentation
 ...      TC-CDS-012       : SubsData (0029~0032) ※ 현재 주석 처리 (PG 조회 필요)
 ...      TC-CDS-013       : UpLoad (0025~0028) ※ 현재 주석 처리 (PG 가 먼저 송신)
 ...      TC-CDS-014       : 접속 해제 (0005~0008)
+...
+...    [TC 간 의존성] TC-CDS-010(D3 번호변경) → TC-CDS-011(Z1 해지)
+...    D3 가 성공하면 가입자 번호가 ${CDS_NEW_MDN} 으로 바뀌므로 Z1 은 그 번호로 해지해야 한다.
+...    D3 가 ${CDS_ACTIVE_MDN} 을 갱신하고 Z1 이 그 값을 쓴다. D3 를 건너뛰거나 실패하면
+...    기본값(${CDS_MDN})이 남아 원래 번호로 해지한다 — 단독 실행도 그대로 동작한다.
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/cds_variables.robot
@@ -118,16 +123,22 @@ TC-CDS-009 Download(G1 정보변경) - Request → ACK → Result → ACK
     Command Download Flow    ${CDS_CODE_G1}
 
 TC-CDS-010 Download(D3 번호변경) - Request → ACK → Result → ACK
-    [Documentation]    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    [Documentation]
+    ...    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...    성공하면 가입자의 현재 번호가 new_mdn 으로 바뀌므로 ${CDS_ACTIVE_MDN} 을 갱신한다.
+    ...    이후 TC-CDS-011(Z1 해지)이 이 값으로 해지한다.
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_NEW_MDN}    new_min=${CDS_NEW_MIN}
+    Set Suite Variable    ${CDS_ACTIVE_MDN}    ${CDS_NEW_MDN}
 
 TC-CDS-011 Download(Z1 해지) - Request → ACK → Result → ACK
     [Documentation]
     ...    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    규격 Z1 필드 15개(A1 에서 min·addSvc 를 뺀 집합)를 기본값으로 전달한다.
+    ...    ※ 해지 대상은 ${CDS_ACTIVE_MDN} — TC-CDS-010(D3)이 번호를 바꿨으면 바뀐 번호,
+    ...       D3 를 건너뛰었거나 실패했으면 원래 번호(${CDS_MDN})다.
     [Tags]    cds    command    validation
-    Command Download Flow    ${CDS_CODE_Z1}
+    Command Download Flow    ${CDS_CODE_Z1}    mdn=${CDS_ACTIVE_MDN}
 
 # ════════════════════════════════════════════════════════════════
 # 가입자 데이터 SubsData (0029~0032)

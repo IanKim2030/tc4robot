@@ -428,6 +428,28 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 `cds_variables.robot` 에 값만 채우면 해당 필드를 선언한 모든 코드에 즉시 반영된다.
 채우지 않으면 그 필드들은 공백으로 나가고 **PG 는 그래도 `SC` 를 준다.**
 
+### TC 간 의존성 — `TC-CDS-010`(D3) → `TC-CDS-011`(Z1)
+
+**이 슈트에서 유일하게 앞 TC 의 결과에 의존하는 구간이다.**
+
+D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 으로 바뀐다. 따라서
+뒤따르는 Z1(해지)은 **바뀐 번호로 해지해야 한다** — 원래 번호로 보내면 이미 존재하지
+않는 가입자를 지우는 셈이다.
+
+`${CDS_ACTIVE_MDN}`(`cds_variables.robot`) 이 "현재 유효 MDN" 을 들고 있다.
+
+| 상황 | `${CDS_ACTIVE_MDN}` | Z1 이 해지하는 번호 |
+|---|---|---|
+| D3 성공 | `Set Suite Variable` 로 `${CDS_NEW_MDN}` 으로 교체 | **변경된 번호** |
+| D3 실패 | `Command Download Flow` 가 먼저 죽어 갱신이 실행되지 않음 | 원래 번호 |
+| D3 미실행 (`--test`, 태그 필터) | 기본값 유지 | 원래 번호 |
+
+기본값이 `${CDS_MDN}` 이라 **Z1 을 단독 실행해도 그대로 동작한다.** 갱신은 D3 의
+`Command Download Flow` **뒤에** 두어 성공했을 때만 반영되게 했다.
+
+MIN 은 따라갈 필요가 없다 — 규격 Z1 필드 집합에 `min` 이 없기 때문이다
+(A1 − `min` − `addSvc`). Z1 은 MDN 만 보낸다.
+
 ## 함정
 
 - **Upload 는 PG 가 먼저 보낸다.** `Receive Upload Request` → `Send Upload Request Ack`
