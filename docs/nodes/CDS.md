@@ -55,12 +55,12 @@ CDS 가 여러 노드에 걸치는 HFC(`1X`/`1Y`) 흐름은 [INTERFACES.md](../I
 
 출처: `PG (PCF Gateway) 교육 자료` Chapter 03 — *02. PG 서비스 별 동작 Flow*.
 
-### 즉시 전문 — LTE 가입자
+### LTE 가입자
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as CDS (도구)
+    participant TOOL as CDS
     participant PGCDS as PG.CDS
     participant SDM as PG.SDM
     participant SNOTI as PG.SNOTI
@@ -81,12 +81,12 @@ sequenceDiagram
     SNOTI->>PCF: RBUS NOTI
 ```
 
-### 즉시 전문 — SA 가입자
+### SA 가입자
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as CDS (도구)
+    participant TOOL as CDS
     participant PGCDS as PG.CDS
     participant SDM as PG.SDM
     participant SNOTI as PG.SNOTI

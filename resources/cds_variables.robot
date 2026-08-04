@@ -150,7 +150,7 @@ ${CDS_CMD_CODE}                ${CDS_CODE_A1}           # 기본 업무 코드 (
 ${CDS_MDN}                     01090010001              # mdn        (12자) — CDS 는 가입자가 다르다
 ${CDS_PROD_ID}                 NA00003479               # product_id (10자, prod_id)
 ${CDS_LIMIT}                   0                        # limitSubsFlag (1자, TODO: 실환경 값)
-${CDS_PROD_TYPE}               ${EMPTY}                 # produGenType  (2자, 코드별로 다름)
+${CDS_PROD_TYPE}               02                       # produGenType  (2자, 코드별로 다름)
 ${CDS_DEVICE_TYPE}             ${EMPTY}                 # device_type   (1자, 코드별로 다름)
 # 코드별 추가 필드 (Send Command Request &{extra} 로 전달)
 ${CDS_NEW_MDN}                 01090010002              # new_mdn (D3 번호변경 신규 번호, TODO: 실환경 예비 번호)
