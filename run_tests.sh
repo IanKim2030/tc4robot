@@ -31,6 +31,9 @@
 #   robot --test "TC-LRS-006*"   tests/lrs/
 #   robot --test "TC-UPM-005*"   tests/upm/
 #   robot --test "TC-NWDAF-001*" tests/nwdaf/
+#
+# 변수 지정:
+#   robot --test "TC-CDS-011*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
 
 TARGET=${1:-smoke}
 EXTRA_ARGS=()
