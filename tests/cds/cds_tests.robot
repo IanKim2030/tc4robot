@@ -72,7 +72,7 @@ TC-CDS-001 상태확인 - ProcessStateReuqest(0013) S/R채널 각각 → ACK(001
 # DownLoad Command (0015~0018)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-002 Download(A1 신규) - Request → ACK → Result → ACK
+TC-CDS-002 A1 (신규가입) 
     [Documentation]
     ...    0015(A1 신규) 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
     ...    규격 A1 이 요구하는 17개 필드는 cds_variables.robot 기본값으로 전달된다
@@ -82,27 +82,27 @@ TC-CDS-002 Download(A1 신규) - Request → ACK → Result → ACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_A1}
 
-TC-CDS-003 Download(1X HFC가입) - Request → ACK → Result → ACK
+TC-CDS-003 1X (HFC가입) 
     [Documentation]    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
 
-TC-CDS-004 Download(1Y HFC해지) - Request → ACK → Result → ACK
+TC-CDS-004 1Y (HFC해지) 
     [Documentation]    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_1Y}
 
-TC-CDS-005 Download(I2 부가서비스신청) - Request → ACK → Result → ACK
+TC-CDS-005 I2 (부가서비스신청) 
     [Documentation]    0015(I2 부가서비스신청) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_I2}
 
-TC-CDS-006 Download(I3 부가서비스해지) - Request → ACK → Result → ACK
+TC-CDS-006 I3 (부가서비스해지) 
     [Documentation]    0015(I3 부가서비스해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_I3}
 
-TC-CDS-007 Download(C1 기기변경) - Request → ACK → Result → ACK
+TC-CDS-007 C1 (기기변경) 
     [Documentation]
     ...    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    C1 은 MDN 이 바뀌지 않고 단말(MIN)만 바뀌므로 new_min 만 넘긴다.
@@ -110,12 +110,12 @@ TC-CDS-007 Download(C1 기기변경) - Request → ACK → Result → ACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_C1}    new_min=${CDS_NEW_MIN}
 
-TC-CDS-008 Download(G1 정보변경) - Request → ACK → Result → ACK
+TC-CDS-008 G1 (정보변경) 
     [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_G1}
 
-TC-CDS-009 Download(D3 번호변경) - Request → ACK → Result → ACK
+TC-CDS-009 D3 (번호변경) 
     [Documentation]
     ...    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    성공하면 가입자의 현재 번호가 new_mdn 으로 바뀌므로 ${CDS_ACTIVE_MDN} 을 갱신한다.
@@ -124,7 +124,7 @@ TC-CDS-009 Download(D3 번호변경) - Request → ACK → Result → ACK
     Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_NEW_MDN}    new_min=${CDS_NEW_MIN}
     Set Suite Variable    ${CDS_ACTIVE_MDN}    ${CDS_NEW_MDN}
 
-TC-CDS-010 Download(1X HFC가입 - 번호변경 후) - Request → ACK → Result → ACK
+TC-CDS-010 1X (HFC가입 - 번호변경 후)
     [Documentation]
     ...    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    TC-CDS-009(D3)이 바꾼 번호(${CDS_ACTIVE_MDN})로 HFC 가입한다.
@@ -134,7 +134,7 @@ TC-CDS-010 Download(1X HFC가입 - 번호변경 후) - Request → ACK → Resul
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_1X}    mdn=${CDS_ACTIVE_MDN}    addr=${CDS_ADDR}
 
-TC-CDS-011 Download(1Y HFC해제 - 번호변경 후) - Request → ACK → Result → ACK
+TC-CDS-011 1Y (HFC해제 - 번호변경 후)
     [Documentation]
     ...    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    바로 앞 TC-CDS-010 이 가입한 번호(${CDS_ACTIVE_MDN})를 그대로 해제한다.
@@ -143,7 +143,7 @@ TC-CDS-011 Download(1Y HFC해제 - 번호변경 후) - Request → ACK → Resul
     [Tags]    cds    command    validation
     Command Download Flow    ${CDS_CODE_1Y}    mdn=${CDS_ACTIVE_MDN}
 
-TC-CDS-012 Download(Z1 해지) - Request → ACK → Result → ACK
+TC-CDS-012 Z1 (가입해지) 
     [Documentation]
     ...    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    규격 Z1 필드 15개(A1 에서 min·addSvc 를 뺀 집합)를 기본값으로 전달한다.
