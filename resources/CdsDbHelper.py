@@ -40,25 +40,38 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
 import os
 import re
 
-# ── DB 종류별 ODBC 키워드 ─────────────────────────────────────────
-# 같은 의미의 항목이 DB 마다 이름이 다르다. DSN 방식·DSN-less 방식 모두 여기서
-# 이름을 가져온다(한 곳에서만 관리).
+# ── DB 종류별 ODBC 키워드 (DSN-less 전용) ─────────────────────────
+# 같은 의미의 항목이 DB 마다 이름이 다르다. **DSN-less 방식에서만** 쓴다 —
+# DSN 방식은 아래 _DSN_UID/_DSN_PWD(표준 ODBC 키)를 쓴다.
 #
 # goldilocks 값은 실환경 odbc.ini 실측이다 (2026-08-06, PG dev):
 #   Driver=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so
 #   UID=... PWD=... HOST=... PORT=... CHARSET=UHC
 #   → 호스트 키가 `SERVER` 가 아니라 **`HOST`** 다.
 # altibase 값은 아직 실환경으로 확인되지 않았다.
+#
+# `user_keys` 가 튜플인 것은 계정을 두 개 키로 동시에 넘겨야 하는 드라이버가
+# 있어서다(PG 참조 샘플이 그렇게 한다). 지금은 둘 다 하나면 충분하다.
+# `extra` 는 기본으로 붙일 부가 키워드다. 비워 뒀다 — 실환경에서 붙여야 하는 값이
+# 확인되면 여기 넣거나 ${CDS_DB_EXTRA} 로 준다.
 _KIND_SPEC = {
     'goldilocks': {
-        'host': 'HOST', 'port': 'PORT', 'database': 'DATABASE',
-        'uid': 'UID', 'pwd': 'PWD', 'extra': 'CHARSET=UHC',
+        'host_key': 'HOST', 'db_key': 'DATABASE',
+        'user_keys': ('UID',), 'pw_key': 'PWD', 'extra': (),
     },
     'altibase': {
-        'host': 'Server', 'port': 'Port', 'database': 'DBName',
-        'uid': 'User', 'pwd': 'Password', 'extra': 'NLS_USE=UTF8',
+        'host_key': 'Server', 'db_key': 'DBName',
+        'user_keys': ('UID',), 'pw_key': 'PWD', 'extra': (),
     },
 }
+
+# DSN 방식에서 계정을 덮어쓸 때 쓰는 **표준 ODBC 키**. DB 종류와 무관하다
+# (미지정 시 DSN 에 설정된 계정이 그대로 쓰인다).
+_DSN_UID = 'UID'
+_DSN_PWD = 'PWD'
+
+# 포트는 DB 종류와 무관하게 `PORT` 다 (PG 참조 샘플 확인).
+_PORT_KEY = 'PORT'
 
 _PASSWORD_ENV = 'PG_CDS_DB_PASSWORD'
 
@@ -122,18 +135,19 @@ def build_dsn_conn_str(dsn, kind='goldilocks', user='', database='', extra=''):
     """DSN 방식 접속 문자열 조립 — `DSN=name;UID=user;PWD=pw;`
 
     호스트·포트·드라이버 경로는 odbc.ini / ODBC 데이터 원본 관리자에 등록된 DSN 이
-    갖고 있으므로 여기서는 계정만 덧붙인다.
+    갖고 있으므로 여기서는 계정만 덧붙인다. 계정 키는 DB 종류와 무관하게
+    **표준 ODBC 키(UID/PWD)** 다.
 
     **빈 값은 아예 붙이지 않는다** — DSN 이 이미 갖고 있는 값을 빈 값으로 덮어쓰면
     안 되기 때문이다(odbc.ini 에 UID/PWD 가 있으면 계정도 생략 가능).
     """
-    spec = _KIND_SPEC[_normalize_kind(kind)]
+    spec = _KIND_SPEC[_normalize_kind(kind)]      # kind 유효성만 검사한다
     password = _resolve_password()
     return _join([
         'DSN=%s' % dsn,
-        ('%s=%s' % (spec['uid'], user)) if user else '',
-        ('%s=%s' % (spec['pwd'], password)) if password else '',
-        ('%s=%s' % (spec['database'], database)) if database else '',
+        ('%s=%s' % (_DSN_UID, user)) if user else '',
+        ('%s=%s' % (_DSN_PWD, password)) if password else '',
+        ('%s=%s' % (spec['db_key'], database)) if database else '',
         extra,
     ])
 
@@ -145,18 +159,21 @@ def build_dsnless_conn_str(kind='goldilocks', driver='', host='', port='',
     ※ 이 경로는 GOLDILOCKS 에서 실패한 전례가 있다 — docs/nodes/CDS.md 참조.
        접속이 안 되면 DSN 방식이나 ${CDS_DB_CONNSTR} 로 우회할 것.
     """
-    key = _normalize_kind(kind)
-    spec = _KIND_SPEC[key]
+    spec = _KIND_SPEC[_normalize_kind(kind)]
     password = _resolve_password()
-    return _join([
+    parts = [
         'DRIVER=%s' % _fmt_driver(driver),
-        '%s=%s' % (spec['host'], host),
-        '%s=%s' % (spec['port'], port),
-        ('%s=%s' % (spec['database'], database)) if database else '',
-        ('%s=%s' % (spec['uid'], user)) if user else '',
-        ('%s=%s' % (spec['pwd'], password)) if password else '',
-        extra if extra else spec['extra'],
-    ])
+        '%s=%s' % (spec['host_key'], host),
+        '%s=%s' % (_PORT_KEY, port),
+    ]
+    if database:
+        parts.append('%s=%s' % (spec['db_key'], database))
+    if user:
+        parts += ['%s=%s' % (uk, user) for uk in spec['user_keys']]
+    if password:
+        parts.append('%s=%s' % (spec['pw_key'], password))
+    parts += [extra] if extra else list(spec['extra'])
+    return _join(parts)
 
 
 def build_conn_str(kind='goldilocks', driver='', host='', port='',
@@ -177,15 +194,17 @@ def build_conn_str(kind='goldilocks', driver='', host='', port='',
 
 def db_connect(kind='goldilocks', driver='', host='', port='',
                database='', user='', conn_str='', dsn='', extra='',
-               encoding='', timeout=10):
+               encoding='utf-8', timeout=10):
     """PDB 에 접속해 connection 객체를 반환한다.
 
     접속 문자열은 conn_str(완성) → dsn(DSN 방식) → DRIVER/HOST/PORT(DSN-less)
     순으로 결정된다.
 
-    encoding 을 주면 pyodbc 의 문자 인코딩을 그 값으로 고정한다. pyodbc 는 기본적으로
-    문자열을 **와이드(UTF-16)** 로 주고받는데, 드라이버가 ANSI 만 받으면 진단 없는
-    실패가 난다. 골디락스가 `CHARSET=UHC` 면 `cp949` 가 맞는 값이다.
+    encoding 은 pyodbc 의 문자 인코딩을 고정한다(기본 `utf-8`).
+    **골디락스/알티베이스 ODBC 드라이버는 유니코드(SQL_WVARCHAR) 바인딩을 지원하지
+    않는 경우가 있어**, 문자열을 ANSI(SQL_CHAR)로 처리하도록 강제해야 한다
+    (PG 참조 샘플이 두 DB 모두에 무조건 적용한다). 이걸 안 하면 조회가 진단 없이
+    죽는다 — `('HY000', 'The driver did not supply an error!')`.
     """
     try:
         import pyodbc
@@ -198,6 +217,10 @@ def db_connect(kind='goldilocks', driver='', host='', port='',
     cs = conn_str or build_conn_str(kind, driver, host, port, database,
                                     user, dsn, extra)
     try:
+        # autocommit=True 는 의도적이다 — PG 참조 샘플은 False(트랜잭션 직접 제어)지만
+        # 이 헬퍼는 **조회만** 하고, `Verify Subscriber Provisioned In PDB` 가 30초간
+        # 재조회한다. autocommit=False 면 첫 조회가 연 트랜잭션의 스냅샷에 갇혀
+        # SDM 이 나중에 반영한 행을 영영 못 볼 수 있다.
         conn = pyodbc.connect(cs, timeout=int(timeout), autocommit=True)
     except Exception as exc:
         raise CdsDbError(
@@ -205,9 +228,9 @@ def db_connect(kind='goldilocks', driver='', host='', port='',
         )
     if encoding:
         try:
+            conn.setencoding(encoding=encoding)
             conn.setdecoding(pyodbc.SQL_CHAR, encoding=encoding)
             conn.setdecoding(pyodbc.SQL_WCHAR, encoding=encoding)
-            conn.setencoding(encoding=encoding)
         except Exception as exc:
             db_close(conn)
             raise CdsDbError(

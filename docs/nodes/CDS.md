@@ -229,13 +229,15 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LE
 
 | 항목 | 골디락스 | 알티베이스 |
 |---|---|---|
-| 호스트 / 포트 | `HOST` / `PORT` | `Server` / `Port` |
+| 호스트 | `HOST` | `Server` |
+| 포트 | `PORT` | `PORT` |
 | DB 이름 | `DATABASE` | `DBName` |
-| 계정 / 비밀번호 | `UID` / `PWD` | `User` / `Password` |
-| 기본 부가 키워드 | `CHARSET=UHC` | `NLS_USE=UTF8` |
+| 계정 / 비밀번호 | `UID` / `PWD` | `UID` / `PWD` |
 
 골디락스 값은 실환경 `odbc.ini` 실측(2026-08-06)이고 **알티베이스 값은 아직 미검증**이다.
-부가 키워드는 `${CDS_DB_EXTRA}` 로 덮을 수 있다.
+**DSN 방식에서는 계정 키가 DB 종류와 무관하게 표준 ODBC 키(`UID`/`PWD`)** 이며, 생략하면
+DSN 에 설정된 계정이 그대로 쓰인다. 부가 키워드는 기본이 없고 `${CDS_DB_EXTRA}` 로 준다
+(예: `LOCALITY_AWARE_TRANSACTION=0`).
 
 #### 함정 — 골디락스 DSN-less 는 `IM012` 로 거부됐다
 
@@ -265,9 +267,21 @@ DRIVER={/PG/goldilocks_home/lib/libgoldilockscs-ul64.so};SERVER=...;PORT=22581;.
 sql=SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?  params=('01090010001',)
 ```
 
-pyodbc 는 `?` 를 바인딩할 때 `SQLDescribeParam` 으로 파라미터 타입을 묻는데, 이를
-구현하지 않은 드라이버에서는 **진단 레코드 없이** SQL_ERROR 만 돌아온다. 그래서
-`${CDS_DB_BIND}` 로 방식을 고를 수 있게 했다.
+**주 원인은 문자 인코딩이다.** 골디락스·알티베이스 ODBC 드라이버는 유니코드
+(`SQL_WVARCHAR`) 바인딩을 지원하지 않는 경우가 있는데, pyodbc 는 기본적으로 문자열을
+와이드로 보낸다. 그래서 `${CDS_DB_ENCODING}`(기본 `utf-8`)로 ANSI(`SQL_CHAR`) 처리를
+강제한다 — PG 참조 샘플이 두 DB 모두에 무조건 적용하는 설정이다.
+
+```python
+conn.setencoding(encoding='utf-8')
+conn.setdecoding(pyodbc.SQL_CHAR,  encoding='utf-8')
+conn.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
+```
+
+**이 값을 비우면 증상이 재현된다.** 두 번째 요인은 바인딩 자체다 — pyodbc 는 `?` 를
+바인딩할 때 `SQLDescribeParam` 으로 파라미터 타입을 묻는데, 이를 구현하지 않은
+드라이버에서는 역시 진단 없이 SQL_ERROR 만 돌아온다. 그래서 `${CDS_DB_BIND}` 로
+방식을 고를 수 있게 했다.
 
 | 값 | 동작 |
 |---|---|
@@ -278,9 +292,12 @@ pyodbc 는 `?` 를 바인딩할 때 `SQLDescribeParam` 으로 파라미터 타�
 리터럴이 안전한 이유는 **넣는 값이 도구가 정한 상수뿐**(MDN·SVC_ID)이라서다 —
 외부 입력이 들어오는 자리가 아니다. 그래도 작은따옴표는 이스케이프한다(`_quote`).
 
-문자 인코딩도 같은 계열의 함정이다. pyodbc 는 기본적으로 문자열을 **와이드(UTF-16)** 로
-주고받으므로, 드라이버가 ANSI 만 받으면 역시 진단 없이 실패한다. 골디락스가
-`CHARSET=UHC` 면 `${CDS_DB_ENCODING}` 을 `cp949` 로 맞춘다(비우면 pyodbc 기본).
+#### `autocommit=True` 는 의도적이다
+
+PG 참조 샘플은 `autocommit=False`(트랜잭션 직접 제어)지만 이 헬퍼는 **조회만** 하고,
+`Verify Subscriber Provisioned In PDB` 가 30초간 재조회한다. `autocommit=False` 면 첫
+조회가 연 트랜잭션의 스냅샷에 갇혀 **SDM 이 나중에 반영한 행을 영영 못 볼 수 있다** —
+재조회 로직이 통째로 무력화된다. 샘플을 따라 바꾸지 말 것.
 
 `T_CDS_ORDER_HIST` · `T_CDS_ORDER_TID` 대조는 아직 붙이지 않았다 — 전문 단위 적재를
 보려면 그쪽이 맞다.

@@ -201,7 +201,7 @@ ${CDS_DB_PORT}            22581
 ${CDS_DB_NAME}            ${EMPTY}               # DB 이름. DSN 방식에선 보통 비워 둔다
 ${CDS_DB_USER}            pdb              # 두 방식 공용 (odbc.ini 에 UID 가 있으면 생략 가능)
 ${CDS_DB_PASSWORD}        pdb1234          # ← 환경변수 PG_CDS_DB_PASSWORD 가 우선
-${CDS_DB_EXTRA}           ${EMPTY}         # 덧붙일 키워드. 비우면 종류별 기본값(골디락스 CHARSET=UHC)
+${CDS_DB_EXTRA}           ${EMPTY}         # 덧붙일 키워드 (예: LOCALITY_AWARE_TRANSACTION=0)
 
 # 1) 위 조립이 실환경 드라이버와 안 맞을 때의 최종 우회 수단.
 #    이 값이 있으면 KIND/DSN/DRIVER/HOST/PORT/NAME/USER 는 무시된다.
@@ -218,9 +218,11 @@ ${CDS_DB_TIMEOUT}         10               # 접속·쿼리 타임아웃(초)
 #   literal : 값을 SQL 문자열에 직접 넣는다 (넣는 값이 도구 상수뿐이라 안전하다)
 ${CDS_DB_BIND}            auto
 
-# pyodbc 문자 인코딩. 비우면 pyodbc 기본(와이드/UTF-16)이다.
-# 드라이버가 ANSI 만 받으면 여기를 맞춰야 한다 — 골디락스 CHARSET=UHC 면 cp949.
-${CDS_DB_ENCODING}        ${EMPTY}
+# pyodbc 문자 인코딩. ★ 비우지 말 것 — 비우면 pyodbc 기본(와이드/UTF-16)이 되고,
+# 골디락스/알티베이스 드라이버는 유니코드(SQL_WVARCHAR) 바인딩을 지원하지 않는
+# 경우가 있어 위 HY000 이 바로 이것 때문에 난다. ANSI(SQL_CHAR)로 강제한다.
+# (PG 참조 샘플이 두 DB 모두에 utf-8 을 무조건 적용한다)
+${CDS_DB_ENCODING}        utf-8
 
 # ── 골디락스 DSN-less 실패 이력 (2026-08-06, PG dev) ──────────────
 # 아래 형태로 붙였다가 거부당했다.
