@@ -191,20 +191,18 @@ ${CDS_DB_CONNSTR}         ${EMPTY}
 ${CDS_DB_TIMEOUT}         10               # 접속·쿼리 타임아웃(초)
 
 
--------------------------------
-Driver = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
-Setup = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
-UID = pdb
-PWD = pdb1234
-HOST=192.168.15.185
-PORT=22581
-ALTERNATE_SERVERS=(HOST=192.168.15.186:PORT=22581,HOST=192.168.15.187:PORT=22581,HOST=192.168.15.188:PORT=22581)
-LOCALITY_AWARE_TRANSACTION = 1
-LOCATOR_DSN = LOCATOR
-CHARSET=UHC
-
-
---------------------------------
+#-------------------------------
+#Driver = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
+#Setup = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
+#UID = pdb
+#PWD = pdb1234
+#HOST=192.168.15.185
+#PORT=22581
+#ALTERNATE_SERVERS=(HOST=192.168.15.186:PORT=22581,HOST=192.168.15.187:PORT=22581,HOST=192.168.15.188:PORT=22581)
+#LOCALITY_AWARE_TRANSACTION = 1
+#LOCATOR_DSN = LOCATOR
+#CHARSET=UHC
+#--------------------------------
 
 
 
