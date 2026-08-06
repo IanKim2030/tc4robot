@@ -191,7 +191,7 @@ ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      #
 ${CDS_DB_KIND}            goldilocks       # goldilocks | altibase
 
 # 2) DSN 방식 — 아래 odbc.ini 스탠자 이름을 넣으면 이 방식으로 붙는다
-${CDS_DB_DSN}             ${EMPTY}         # 예: PDB  (TODO: 실환경 DSN 이름)
+${CDS_DB_DSN}             GOLD_GLOBAL        # 예: PDB  (TODO: 실환경 DSN 이름)
 
 # 3) DSN-less — ${CDS_DB_DSN} 이 비어 있을 때만 쓰인다
 ${CDS_DB_DRIVER}          /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
