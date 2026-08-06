@@ -209,7 +209,8 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LE
 | 드라이버 | ODBC (`pyodbc`). `resources/CdsDbHelper.py` 가 직접 쓴다 — `DatabaseLibrary` 는 쓰지 않는다 |
 | 접속 방식 | 아래 3가지. 고른 방식에 필요한 값이 없으면 TC 가 실패한다 |
 | 비밀번호 | 환경변수 `PG_CDS_DB_PASSWORD` 우선, 없으면 `${CDS_DB_PASSWORD}` |
-| 접속 시점 | **첫 조회 때 지연 접속**. Suite Setup 이 아니다 — DB 미설정 환경에서 전문 송수신 TC 까지 죽는 것을 막기 위함 |
+| 접속 시점 | **Suite Setup**(`Suite CDS Connect`)에서 소켓에 이어 1회. DB 가 안 붙으면 전문 송수신 TC 까지 포함해 슈트 전체가 서지 않는다 |
+| 트랜잭션 | `autocommit` **끔**(`${CDS_DB_AUTOCOMMIT}`=`${FALSE}`). 조회 직전마다 rollback — 아래 절 |
 | 종료 | `Suite CDS Disconnect` |
 | 반영 대기 | `${CDS_DB_WAIT}`(30s) 동안 `${CDS_DB_WAIT_INTERVAL}`(2s) 간격 재조회 |
 
@@ -292,12 +293,25 @@ conn.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
 리터럴이 안전한 이유는 **넣는 값이 도구가 정한 상수뿐**(MDN·SVC_ID)이라서다 —
 외부 입력이 들어오는 자리가 아니다. 그래도 작은따옴표는 이스케이프한다(`_quote`).
 
-#### `autocommit=True` 는 의도적이다
+#### 함정 — `autocommit=False` 는 재조회를 무력화할 수 있다
 
-PG 참조 샘플은 `autocommit=False`(트랜잭션 직접 제어)지만 이 헬퍼는 **조회만** 하고,
-`Verify Subscriber Provisioned In PDB` 가 30초간 재조회한다. `autocommit=False` 면 첫
-조회가 연 트랜잭션의 스냅샷에 갇혀 **SDM 이 나중에 반영한 행을 영영 못 볼 수 있다** —
-재조회 로직이 통째로 무력화된다. 샘플을 따라 바꾸지 말 것.
+`autocommit` 은 **꺼져 있다**(`${CDS_DB_AUTOCOMMIT}` 기본 `${FALSE}`, PG 참조 샘플과 동일).
+이 헬퍼는 조회만 하므로 커밋할 것이 없지만, **끈 상태에서는 `SELECT` 도 트랜잭션을 연다.**
+`Verify Subscriber Provisioned In PDB` 는 30초간 재조회하는데, 그 트랜잭션을 그대로 두면
+재조회가 **첫 조회의 스냅샷에 갇혀 SDM 이 나중에 반영한 행을 영영 못 본다** — 재시도가
+통째로 무력화된다.
+
+그래서 `db_count` 는 조회 직전마다 `db_end_transaction(conn)` 으로 트랜잭션을 끊는다.
+
+```python
+def db_end_transaction(conn):
+    if conn is None or getattr(conn, 'autocommit', True):
+        return            # autocommit 이면 열린 트랜잭션이 없다
+    conn.rollback()       # 되돌릴 변경이 없다 — 새 스냅샷을 뜨는 것이 목적
+```
+
+**autocommit 을 끈 채 이 rollback 을 빼면 증상이 바로 재현된다.** 반대로 `${TRUE}` 로
+켜면 rollback 은 no-op 이 되고 결과는 같아야 한다.
 
 `T_CDS_ORDER_HIST` · `T_CDS_ORDER_TID` 대조는 아직 붙이지 않았다 — 전문 단위 적재를
 보려면 그쪽이 맞다.

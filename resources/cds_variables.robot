@@ -209,7 +209,16 @@ ${CDS_DB_EXTRA}           ${EMPTY}         # 덧붙일 키워드 (예: LOCALITY_
 ${CDS_DB_CONNSTR}         DSN=GOLD_GLOBAL;UID=pdb;PWD=pdb1234
 ${CDS_DB_TIMEOUT}         10               # 접속·쿼리 타임아웃(초)
 
+# 트랜잭션 자동 커밋. **기본은 끔(${FALSE})** — PG 참조 샘플과 같다.
+# 이 헬퍼는 조회만 하므로 커밋할 것 자체가 없지만, 끈 상태에서는 **SELECT 도
+# 트랜잭션을 연다**. 그대로 두면 30초 재조회가 첫 조회의 스냅샷에 갇혀 SDM 이
+# 나중에 반영한 행을 영영 못 본다 → 그래서 `CDS DB Count` 가 조회 직전마다
+# rollback 으로 트랜잭션을 끊는다(CdsDbHelper.db_end_transaction).
+# 켜려면 ${TRUE}. 켜도 조회 결과는 같아야 한다(끊을 트랜잭션이 없을 뿐이다).
+${CDS_DB_AUTOCOMMIT}      ${FALSE}
+
 # ── 조회 동작 ────────────────────────────────────────────────────
+# 환경변수 : export GOLDILOCKS_HOME=/PG/goldilocks_home
 # 값을 SQL 에 넣는 방식. 드라이버가 `?` 바인딩(SQLDescribeParam)을 지원하지 않으면
 # 진단 없는 실패가 난다 — ('HY000', 'The driver did not supply an error!').
 # 골디락스에서 실제로 났다(2026-08-06).

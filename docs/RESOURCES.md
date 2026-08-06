@@ -89,9 +89,10 @@ Robot 변수 `${CDS_DB_PASSWORD}` 순으로 Python 이 직접 읽는다 — 인�
 
 **TC 별 connect/disconnect 로직을 추가하지 말 것.**
 
-CDS 의 PDB connection(`${CDS_DB_CONN}`)도 같은 규칙을 따르지만 **Suite Setup 에서 열지
-않는다** — 첫 조회 때 지연 접속하고 `Suite CDS Disconnect` 가 닫는다. DB 접속 정보가 없는
-환경에서 슈트 전체(전문 송수신 TC 포함)가 서지 못하는 것을 막기 위한 예외다.
+CDS 의 PDB connection(`${CDS_DB_CONN}`)도 **똑같이** 슈트당 1회다 — `Suite CDS Connect`
+가 소켓에 이어 붙이고 `Suite CDS Disconnect` 가 닫는다. 그래서 DB 접속 정보가 틀리면
+전문 송수신 TC 까지 포함해 **슈트 전체가 서지 않는다**(`--exclude db` 로도 피할 수 없다 —
+Suite Setup 은 태그와 무관하게 실행된다).
 
 주의: `Tcp.Is Connected` 는 `fileno() != -1` 만 본다 — **상대가 끊은 것은 감지하지 못한다.**
 NWDAF 만 `Tlv.Nwdaf Peer Closed`(논블로킹 `MSG_PEEK`)로 FIN/RST 를 잡는다.

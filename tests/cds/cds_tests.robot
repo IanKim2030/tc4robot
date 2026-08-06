@@ -8,7 +8,7 @@ Documentation
 ...
 ...    [Suite 소켓 정책]
 ...    Suite Setup    : Suite CDS Connect — 연결 → ConnectionRequest(0001/0003) + ACK 검증
-...                     → 두 소켓 생존 확인까지 (접속은 TC 가 아니다)
+...                     → 두 소켓 생존 확인 → PDB 접속 (접속은 TC 가 아니다)
 ...    Test Setup     : Check CDS Sockets (하나라도 닫히면 Suite 중단)
 ...    Suite Teardown : Suite CDS Disconnect — Release(0005/0007) + ACK(0006/0008) 검증 후 종료
 ...                     (해제도 TC 가 아니다. 슈트가 끝나면 반드시 수행돼야 한다)
@@ -27,8 +27,11 @@ Documentation
 ...    [PDB 조회] TC-CDS-002(A1 신규가입)만 전문 흐름에 더해 PDB 반영까지 판정한다
 ...      (`db` 태그). T_5G_SUBS_PROFILE 1건 + T_5G_SUBS_SERVICE 2건(DATA_USAGE_LEVEL /
 ...      DATA_USAGE_LEVEL_2)이 모두 있어야 성공이다. 접속 정보는 cds_variables.robot 의
-...      ${CDS_DB_*} 이며 기본값이 비어 있다 — 채우지 않으면 이 TC 는 실패한다.
-...      DB 접속은 첫 조회 때 지연 접속하고 Suite Teardown 에서 끊는다(TC별 접속 없음).
+...      ${CDS_DB_*} 이다.
+...      DB 접속은 **Suite Setup 에서 소켓과 함께 1회** 붙고 Suite Teardown 에서 끊는다
+...      (TC별 접속 없음). autocommit 은 꺼져 있다(${CDS_DB_AUTOCOMMIT}=${FALSE}).
+...      ★ 접속 정보가 틀리면 이 TC 뿐 아니라 **슈트 전체가 서지 않는다** — Suite Setup
+...        이 실패하기 때문이다. --exclude db 로도 피할 수 없다.
 ...
 ...    [TC 간 의존성] TC-CDS-009 ~ 012 는 하나의 체인이다
 ...      009 D3 번호변경  : 성공하면 ${CDS_ACTIVE_MDN} 을 ${CDS_NEW_MDN} 으로 갱신

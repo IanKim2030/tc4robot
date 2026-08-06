@@ -33,7 +33,7 @@ Resource   ${CURDIR}/common_keywords.robot
 *** Variables ***
 ${CDS_SCH_SOCK}        ${NONE}
 ${CDS_RCH_SOCK}        ${NONE}
-${CDS_DB_CONN}         ${NONE}     # PDB connection (첫 조회 시 지연 접속)
+${CDS_DB_CONN}         ${NONE}     # PDB connection (Suite Setup 에서 접속)
 ${CDS_SYSTEM_ID}       ${NONE}
 ${CDS_TID_SEQ}         ${0}        # 같은 초 안의 일련번호 (Next CDS TID 가 관리)
 ${CDS_TID_LAST_HMS}    ${EMPTY}    # 직전 TID 의 HHMMSS. 초가 바뀌면 위 일련번호를 리셋
@@ -58,9 +58,15 @@ Suite CDS Connect
     ...    1) Schannel/Rchannel 2개 소켓 연결 → ${CDS_SCH_SOCK}/${CDS_RCH_SOCK}
     ...    2) Schannel/Rchannel ConnectionRequest(0001/0003) 송신 + ACK(0002/0004) 검증
     ...    3) 두 소켓 생존 확인 — 실패 시 Suite Setup 이 실패해 전 TC 가 실행되지 않는다
+    ...    4) PDB 접속 → ${CDS_DB_CONN} (소켓과 같이 슈트당 1회)
     ...
     ...    ※ 접속 자체가 TC 가 아니다. Setup 이 실패하면 슈트가 서지 않으므로
     ...       별도 TC 로 재확인할 필요가 없다(구 TC-CDS-001 을 여기로 흡수).
+    ...
+    ...    ★ PDB 접속도 여기서 한다(소켓과 동일 정책) — 그래서 접속 정보가 없거나
+    ...       DB 가 안 붙으면 **DB 를 안 쓰는 전문 TC 까지 포함해 슈트 전체가 서지 않는다.**
+    ...       `--exclude db` 로도 피할 수 없다(Setup 은 태그와 무관하게 돈다).
+    ...       cds_variables.robot 의 ${CDS_DB_*} 를 반드시 채울 것.
     [Arguments]    ${host}=${CDS_PG_HOST}
     ...            ${sch_port}=${CDS_SCH_PORT}    ${rch_port}=${CDS_RCH_PORT}
     ...            ${timeout}=${CDS_TIMEOUT}
@@ -89,7 +95,9 @@ Suite CDS Connect
     ${ok_r}=    Cds.Is Connected    ${CDS_RCH_SOCK}
     Should Be True    ${ok_s}    msg=Schannel 소켓이 닫혀 있음
     Should Be True    ${ok_r}    msg=Rchannel 소켓이 닫혀 있음
-    Log    [Suite] CDS 접속 완료 (Rchannel→Schannel)    console=True
+    # 4) PDB 접속 — 소켓과 같이 슈트당 1회. Suite CDS Disconnect 가 닫는다.
+    Ensure CDS DB Connection
+    Log    [Suite] CDS 접속 완료 (Rchannel→Schannel + PDB)    console=True
 
 Suite CDS Disconnect
     [Documentation]
@@ -443,10 +451,13 @@ Command Download Flow
 # CommandResult(0017)는 Body 내용과 무관하게 SC 를 준다. 전문이 실제로 가입자
 # 테이블에 반영됐는지는 PDB 를 직접 봐야 알 수 있다.
 #
-# 소켓과 달리 **Suite Setup 에서 접속하지 않는다** — DB 접속 정보가 없는 환경에서
-# 슈트 전체(전문 송수신 TC 포함)가 서지 못하게 되기 때문이다. 첫 조회 시점에
-# 지연 접속하고 connection 은 Suite Variable 로 공유한다(TC 별 접속/해제 없음).
+# 접속은 **소켓과 같은 정책**이다 — Suite Setup(`Suite CDS Connect`)에서 슈트당 1회
+# 붙고 connection 을 Suite Variable 로 공유한다(TC 별 접속/해제 없음).
 # 종료는 Suite CDS Disconnect 가 한다.
+# → 그 대가로 DB 접속 정보가 없으면 전문 송수신 TC 까지 포함해 슈트가 서지 않는다.
+#
+# 트랜잭션은 **autocommit 을 끈 상태**로 연다(CdsDbHelper.db_connect). 조회 직전마다
+# rollback 으로 트랜잭션을 끊어야 재조회가 새 스냅샷을 본다 — 그건 Db Count 가 한다.
 # ══════════════════════════════════════════════════════════════════
 
 CDS DB Config Should Be Complete
@@ -478,7 +489,11 @@ CDS DB Config Should Be Complete
 Ensure CDS DB Connection
     [Documentation]
     ...    PDB 에 접속돼 있지 않으면 접속한다(슈트당 1회). 이미 있으면 그대로 쓴다.
+    ...    정상 경로에서는 `Suite CDS Connect` 가 한 번 부르고 끝이다 — 조회 키워드에도
+    ...    남겨 둔 것은 슈트 밖에서 키워드만 따로 부를 때의 안전장치다.
     ...    접속 문자열은 Python 쪽에서 조립한다 — 비밀번호가 log.html 인자에 남지 않게 하기 위함이다.
+    ...
+    ...    autocommit 은 ${CDS_DB_AUTOCOMMIT}(기본 ${FALSE}) 로 전달한다.
     IF    $CDS_DB_CONN is not None
         RETURN
     END
@@ -492,7 +507,9 @@ Ensure CDS DB Connection
     ...    host=${CDS_DB_HOST}    port=${CDS_DB_PORT}    database=${CDS_DB_NAME}
     ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}    dsn=${CDS_DB_DSN}
     ...    extra=${CDS_DB_EXTRA}    encoding=${CDS_DB_ENCODING}    timeout=${CDS_DB_TIMEOUT}
+    ...    autocommit=${CDS_DB_AUTOCOMMIT}
     Set Suite Variable    ${CDS_DB_CONN}    ${conn}
+    Log    [Suite] PDB 접속 완료 (autocommit=${CDS_DB_AUTOCOMMIT})    console=True
 
 Close CDS DB Connection
     [Documentation]    PDB connection 종료. 접속한 적이 없으면 아무것도 하지 않는다.

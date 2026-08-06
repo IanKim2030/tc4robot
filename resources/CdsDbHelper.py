@@ -7,6 +7,8 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
   대상 DB : 골디락스(Goldilocks) 또는 알티베이스(Altibase) — 환경에 따라 다르다
   드라이버 : ODBC (pyodbc). 두 DB 모두 ODBC 드라이버를 제공한다
   용도    : `SELECT COUNT(*)` 계열 조회만. **INSERT/UPDATE/DELETE 는 하지 않는다**
+  트랜잭션 : autocommit **끔**(기본). 조회 직전마다 rollback 으로 트랜잭션을 끊어
+             재조회가 새 스냅샷을 보게 한다 (`db_end_transaction`)
 
 `CommandResult`(0017)는 Body 내용과 무관하게 `SC` 를 돌려주므로, 전문이 실제로
 가입자 테이블에 반영됐는지는 PDB 를 직접 보지 않으면 판정할 수 없다
@@ -85,6 +87,17 @@ class CdsDbError(Exception):
 def _mask(conn_str):
     """접속 문자열에서 비밀번호를 가린다 (로그용)."""
     return re.sub(r'(?i)\b(PWD|Password)\s*=\s*[^;]*', r'\1=****', conn_str)
+
+
+def _as_bool(value):
+    """Robot 이 넘긴 값을 불리언으로. 문자열 'False'/'0'/'off'/'no' 는 거짓이다.
+
+    Robot 변수는 `${FALSE}` 로 주면 불리언이지만 `--variable` 이나 평문으로 오면
+    문자열이다 — `bool('False')` 가 True 라 그대로 쓰면 조용히 반대로 동작한다.
+    """
+    if isinstance(value, str):
+        return value.strip().lower() not in ('', 'false', '0', 'off', 'no', 'none')
+    return bool(value)
 
 
 def _resolve_password():
@@ -194,7 +207,7 @@ def build_conn_str(kind='goldilocks', driver='', host='', port='',
 
 def db_connect(kind='goldilocks', driver='', host='', port='',
                database='', user='', conn_str='', dsn='', extra='',
-               encoding='utf-8', timeout=10):
+               encoding='utf-8', timeout=10, autocommit=False):
     """PDB 에 접속해 connection 객체를 반환한다.
 
     접속 문자열은 conn_str(완성) → dsn(DSN 방식) → DRIVER/HOST/PORT(DSN-less)
@@ -205,6 +218,13 @@ def db_connect(kind='goldilocks', driver='', host='', port='',
     않는 경우가 있어**, 문자열을 ANSI(SQL_CHAR)로 처리하도록 강제해야 한다
     (PG 참조 샘플이 두 DB 모두에 무조건 적용한다). 이걸 안 하면 조회가 진단 없이
     죽는다 — `('HY000', 'The driver did not supply an error!')`.
+
+    autocommit 은 기본 **False**(끔)다 — PG 참조 샘플과 같다.
+    ★ 끈 상태에서는 SELECT 도 트랜잭션을 연다. 그대로 두면 `Verify Subscriber
+      Provisioned In PDB` 의 30초 재조회가 **첫 조회가 연 트랜잭션의 스냅샷에 갇혀**
+      SDM 이 나중에 반영한 행을 영영 못 본다. 그래서 `db_count` 가 조회 직전마다
+      `db_end_transaction`(rollback)으로 트랜잭션을 끊어 스냅샷을 새로 뜬다.
+      **autocommit 을 끄면서 이 rollback 을 빼면 재조회가 통째로 무력화된다.**
     """
     try:
         import pyodbc
@@ -217,11 +237,10 @@ def db_connect(kind='goldilocks', driver='', host='', port='',
     cs = conn_str or build_conn_str(kind, driver, host, port, database,
                                     user, dsn, extra)
     try:
-        # autocommit=True 는 의도적이다 — PG 참조 샘플은 False(트랜잭션 직접 제어)지만
-        # 이 헬퍼는 **조회만** 하고, `Verify Subscriber Provisioned In PDB` 가 30초간
-        # 재조회한다. autocommit=False 면 첫 조회가 연 트랜잭션의 스냅샷에 갇혀
-        # SDM 이 나중에 반영한 행을 영영 못 볼 수 있다.
-        conn = pyodbc.connect(cs, timeout=int(timeout), autocommit=True)
+        # 기본은 autocommit=False (PG 참조 샘플과 동일). 스냅샷 문제는 조회 직전
+        # rollback 으로 푼다 — 위 docstring 참조.
+        conn = pyodbc.connect(cs, timeout=int(timeout),
+                              autocommit=_as_bool(autocommit))
     except Exception as exc:
         raise CdsDbError(
             'PDB 접속 실패 — %s / 접속문자열=%s' % (exc, _mask(cs))
@@ -241,10 +260,29 @@ def db_connect(kind='goldilocks', driver='', host='', port='',
     return conn
 
 
+def db_end_transaction(conn):
+    """열려 있는 트랜잭션을 rollback 으로 끊는다 (autocommit=False 전용).
+
+    **조회 전용 헬퍼라 rollback 으로 잃을 것이 없다** — INSERT/UPDATE/DELETE 를
+    하지 않으므로 되돌릴 변경 자체가 없다. 목적은 오직 하나, 다음 SELECT 가
+    **새 스냅샷**을 보게 하는 것이다. autocommit 이 켜져 있으면 아무것도 하지 않는다.
+
+    best-effort 다 — 실패해도 예외를 올리지 않는다. 여기서 터지면 정작 조회 실패
+    원인이 가려진다.
+    """
+    if conn is None or getattr(conn, 'autocommit', True):
+        return
+    try:
+        conn.rollback()
+    except Exception:
+        pass
+
+
 def db_close(conn):
     """connection 종료. 이미 닫혔거나 None 이면 조용히 넘어간다."""
     if conn is None:
         return
+    db_end_transaction(conn)
     try:
         conn.close()
     except Exception:
@@ -344,9 +382,13 @@ def db_count(conn, sql, *params, bind='auto'):
     params 는 SQL 의 `?` 자리표시자에 순서대로 들어간다. 들어가는 방식은
     bind 로 고른다 ('auto' | 'param' | 'literal' — 위 주석 참조).
     결과가 1행 1열이 아니면 실패로 본다 — COUNT 조회 전용이다.
+
+    autocommit=False 인 connection 이면 **조회 직전에 트랜잭션을 끊는다**
+    (`db_end_transaction`). 안 그러면 재조회가 첫 조회의 스냅샷에 갇힌다.
     """
     if conn is None:
         raise CdsDbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
+    db_end_transaction(conn)
     mode = str(bind).strip().lower() or 'auto'
     if mode not in _BIND_MODES:
         raise CdsDbError(
