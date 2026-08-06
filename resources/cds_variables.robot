@@ -179,16 +179,34 @@ ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      #
 #    (이 리포는 과거 평문 비밀번호가 커밋된 전례가 있다 — docs/ENVIRONMENTS.md).
 # ════════════════════════════════════════════
 ${CDS_DB_KIND}            goldilocks       # goldilocks | altibase
-${CDS_DB_DRIVER}          ${EMPTY}         # ODBC 드라이버 이름 (TODO: 실환경 값)
-${CDS_DB_HOST}            ${EMPTY}         # PDB 호스트   (TODO: 실환경 값)
-${CDS_DB_PORT}            ${EMPTY}         # PDB 포트     (TODO: 실환경 값)
-${CDS_DB_NAME}            ${EMPTY}         # DB/스키마 이름
-${CDS_DB_USER}            ${EMPTY}         # 조회 계정    (TODO: 실환경 값)
-${CDS_DB_PASSWORD}        ${EMPTY}         # ← 환경변수 PG_CDS_DB_PASSWORD 가 우선
+${CDS_DB_DRIVER}          /PG/goldilocks_home/lib/libgoldilockscs-ul64.so         # ODBC 드라이버 이름 (TODO: 실환경 값)
+${CDS_DB_HOST}            192.168.15.185         # PDB 호스트   (TODO: 실환경 값)
+${CDS_DB_PORT}            22581         # PDB 포트     (TODO: 실환경 값)
+${CDS_DB_NAME}            PDB         # DB/스키마 이름
+${CDS_DB_USER}            pdb         # 조회 계정    (TODO: 실환경 값)
+${CDS_DB_PASSWORD}        pdb1234         # ← 환경변수 PG_CDS_DB_PASSWORD 가 우선
 # 위 조립이 실환경 드라이버와 안 맞으면 완성된 접속 문자열을 통째로 넣는다.
 # 이 값이 있으면 KIND/DRIVER/HOST/PORT/NAME/USER 는 무시된다.
 ${CDS_DB_CONNSTR}         ${EMPTY}
 ${CDS_DB_TIMEOUT}         10               # 접속·쿼리 타임아웃(초)
+
+
+-------------------------------
+Driver = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
+Setup = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
+UID = pdb
+PWD = pdb1234
+HOST=192.168.15.185
+PORT=22581
+ALTERNATE_SERVERS=(HOST=192.168.15.186:PORT=22581,HOST=192.168.15.187:PORT=22581,HOST=192.168.15.188:PORT=22581)
+LOCALITY_AWARE_TRANSACTION = 1
+LOCATOR_DSN = LOCATOR
+CHARSET=UHC
+
+
+--------------------------------
+
+
 
 # 반영 대기 — PG.SDM 이 T_CDS_ORDER_HIST 를 주기적으로 폴링해 가입자 테이블에
 # 반영하므로, CommandResult(0017) 수신 시점에는 아직 반영 전일 수 있다.
