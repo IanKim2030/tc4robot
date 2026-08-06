@@ -24,6 +24,12 @@ Documentation
 ...      TC-CDS-013       : SubsData (0029~0032) ※ 현재 주석 처리 (PG 조회 필요)
 ...      TC-CDS-014       : UpLoad (0025~0028) ※ 현재 주석 처리 (PG 가 먼저 송신)
 ...
+...    [PDB 조회] TC-CDS-002(A1 신규가입)만 전문 흐름에 더해 PDB 반영까지 판정한다
+...      (`db` 태그). T_5G_SUBS_PROFILE 1건 + T_5G_SUBS_SERVICE 2건(DATA_USAGE_LEVEL /
+...      DATA_USAGE_LEVEL_2)이 모두 있어야 성공이다. 접속 정보는 cds_variables.robot 의
+...      ${CDS_DB_*} 이며 기본값이 비어 있다 — 채우지 않으면 이 TC 는 실패한다.
+...      DB 접속은 첫 조회 때 지연 접속하고 Suite Teardown 에서 끊는다(TC별 접속 없음).
+...
 ...    [TC 간 의존성] TC-CDS-009 ~ 012 는 하나의 체인이다
 ...      009 D3 번호변경  : 성공하면 ${CDS_ACTIVE_MDN} 을 ${CDS_NEW_MDN} 으로 갱신
 ...      010 1X HFC가입   : 바뀐 번호로 가입
@@ -72,15 +78,25 @@ TC-CDS-001 상태확인 - ProcessStateReuqest(0013) S/R채널 각각 → ACK(001
 # DownLoad Command (0015~0018)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-002 A1 (신규가입) 
+TC-CDS-002 A1 (신규가입)
     [Documentation]
     ...    0015(A1 신규) 송신 → 0016 ACK(SC) → 0017 Result 수신 → 0018 ResultACK 송신
     ...    규격 A1 이 요구하는 17개 필드는 cds_variables.robot 기본값으로 전달된다
     ...    (Body 는 코드와 무관하게 항상 327B).
     ...    ※ 단말·망 필드(${CDS_NETWORK} 등)가 비어 있으면 공백으로 나가고 PG 는 그래도
     ...       SC 를 준다. 실환경 값을 채워야 실제 검증이 된다.
-    [Tags]    cds    command    validation
+    ...
+    ...    [성공 판단 기준] 전문 흐름(SC)만으로는 판정하지 않는다. PDB 조회 3건이
+    ...    **모두 1** 이어야 성공이다 — PG.SDM 이 가입자 테이블에 실제로 반영했는지를 본다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN='${CDS_MDN}'
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='DATA_USAGE_LEVEL'
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='DATA_USAGE_LEVEL_2'
+    ...    반영이 비동기라 ${CDS_DB_WAIT} 동안 재조회한다.
+    ...    ※ PDB 접속 정보(${CDS_DB_HOST} 등)가 비어 있으면 이 TC 는 실패한다 —
+    ...       config/env/<env>.py 에 채울 것.
+    [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_A1}
+    Verify Subscriber Provisioned In PDB    ${CDS_MDN}
 
 TC-CDS-003 1X (HFC가입) 
     [Documentation]    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK

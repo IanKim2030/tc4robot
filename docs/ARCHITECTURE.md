@@ -24,6 +24,7 @@ flowchart TD
             TLV["TlvHelper.py"]
             CDS_H["CdsHelper.py"]
             HTTP["HttpHelper.py"]
+            CDS_DB["CdsDbHelper.py"]
         end
     end
 
@@ -98,11 +99,15 @@ flowchart TD
 
 ### 4) Protocol & Transport Helper Layer (`resources/*Helper.py`)
 
-Python 기반 저수준 프로토콜 인코딩/디코딩 및 통신 엔진. 4종이며 각각
+Python 기반 저수준 프로토콜 인코딩/디코딩 및 통신 엔진. 5종이며 각각
 [TcpHelper.py](../resources/TcpHelper.py) · [TlvHelper.py](../resources/TlvHelper.py) ·
-[CdsHelper.py](../resources/CdsHelper.py) · [HttpHelper.py](../resources/HttpHelper.py) 다.
+[CdsHelper.py](../resources/CdsHelper.py) · [HttpHelper.py](../resources/HttpHelper.py) ·
+[CdsDbHelper.py](../resources/CdsDbHelper.py) 다.
 
-담당 범위와 주요 함수 목록은 [RESOURCES.md](RESOURCES.md#python-헬퍼-4종) 에 있다.
+마지막 하나만 전문이 아니라 **PG 가 DB 에 반영한 결과**를 본다 — CDS `CommandResult` 가
+Body 와 무관하게 `SC` 를 주기 때문이다(`TC-CDS-002`).
+
+담당 범위와 주요 함수 목록은 [RESOURCES.md](RESOURCES.md#python-헬퍼-5종) 에 있다.
 
 ---
 

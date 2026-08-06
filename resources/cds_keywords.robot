@@ -27,11 +27,13 @@ Library    String
 Library    DateTime
 Library    BuiltIn
 Library    ${CURDIR}/CdsHelper.py    WITH NAME    Cds
+Library    ${CURDIR}/CdsDbHelper.py    WITH NAME    CdsDb
 Resource   ${CURDIR}/common_keywords.robot
 
 *** Variables ***
 ${CDS_SCH_SOCK}        ${NONE}
 ${CDS_RCH_SOCK}        ${NONE}
+${CDS_DB_CONN}         ${NONE}     # PDB connection (첫 조회 시 지연 접속)
 ${CDS_SYSTEM_ID}       ${NONE}
 ${CDS_TID_SEQ}         ${0}        # 같은 초 안의 일련번호 (Next CDS TID 가 관리)
 ${CDS_TID_LAST_HMS}    ${EMPTY}    # 직전 TID 의 HHMMSS. 초가 바뀌면 위 일련번호를 리셋
@@ -110,6 +112,7 @@ Suite CDS Disconnect
     Send Release And Validate    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_REL_REQ}    ${CDS_MSG_RCH_REL_ACK}
     Run Keyword If    $CDS_SCH_SOCK is not None    Cds.Tcp Close    ${CDS_SCH_SOCK}
     Run Keyword If    $CDS_RCH_SOCK is not None    Cds.Tcp Close    ${CDS_RCH_SOCK}
+    Close CDS DB Connection
     Log    [Suite] CDS 연결 종료    console=True
 
 Check CDS Sockets
@@ -432,3 +435,105 @@ Command Download Flow
     ${hdr}    ${res}=    Receive Command Result
     CDS Result Should Be SC    ${res}
     Send Command Result Ack    ${hdr}[tid_date]    ${hdr}[tid_seq]
+
+
+# ══════════════════════════════════════════════════════════════════
+# PDB 조회 — 전문 반영 판정 (ODBC / pyodbc)
+#
+# CommandResult(0017)는 Body 내용과 무관하게 SC 를 준다. 전문이 실제로 가입자
+# 테이블에 반영됐는지는 PDB 를 직접 봐야 알 수 있다.
+#
+# 소켓과 달리 **Suite Setup 에서 접속하지 않는다** — DB 접속 정보가 없는 환경에서
+# 슈트 전체(전문 송수신 TC 포함)가 서지 못하게 되기 때문이다. 첫 조회 시점에
+# 지연 접속하고 connection 은 Suite Variable 로 공유한다(TC 별 접속/해제 없음).
+# 종료는 Suite CDS Disconnect 가 한다.
+# ══════════════════════════════════════════════════════════════════
+
+CDS DB Config Should Be Complete
+    [Documentation]
+    ...    PDB 접속 정보가 채워졌는지 확인. 비어 있으면 어디에 넣어야 하는지까지 알린다.
+    ...    ${CDS_DB_CONNSTR} 이 있으면 나머지는 무시되므로 통과시킨다.
+    IF    '${CDS_DB_CONNSTR}' != '${EMPTY}'
+        RETURN
+    END
+    @{missing}=    Create List
+    Run Keyword If    '${CDS_DB_DRIVER}' == '${EMPTY}'    Append To List    ${missing}    CDS_DB_DRIVER
+    Run Keyword If    '${CDS_DB_HOST}' == '${EMPTY}'      Append To List    ${missing}    CDS_DB_HOST
+    Run Keyword If    '${CDS_DB_PORT}' == '${EMPTY}'      Append To List    ${missing}    CDS_DB_PORT
+    Run Keyword If    '${CDS_DB_USER}' == '${EMPTY}'      Append To List    ${missing}    CDS_DB_USER
+    ${count}=    Get Length    ${missing}
+    ${names}=    Catenate    SEPARATOR=,${SPACE}    @{missing}
+    Run Keyword If    ${count} > 0    Fail
+    ...    PDB 접속 정보가 없어 DB 반영을 판정할 수 없습니다 (미설정: ${names}).
+    ...    config/env/<env>.py 에 값을 넣거나 --variable 로 지정하십시오.
+    ...    비밀번호는 환경변수 PG_CDS_DB_PASSWORD 로 주는 것을 권장합니다.
+
+Ensure CDS DB Connection
+    [Documentation]
+    ...    PDB 에 접속돼 있지 않으면 접속한다(슈트당 1회). 이미 있으면 그대로 쓴다.
+    ...    접속 문자열은 Python 쪽에서 조립한다 — 비밀번호가 log.html 인자에 남지 않게 하기 위함이다.
+    IF    $CDS_DB_CONN is not None
+        RETURN
+    END
+    CDS DB Config Should Be Complete
+    ${shown}=    CdsDb.Masked Conn Str    kind=${CDS_DB_KIND}    driver=${CDS_DB_DRIVER}
+    ...    host=${CDS_DB_HOST}    port=${CDS_DB_PORT}    database=${CDS_DB_NAME}
+    ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}
+    Log    [Suite] PDB 접속 시도 — ${shown}    console=True
+    ${conn}=    CdsDb.Db Connect    kind=${CDS_DB_KIND}    driver=${CDS_DB_DRIVER}
+    ...    host=${CDS_DB_HOST}    port=${CDS_DB_PORT}    database=${CDS_DB_NAME}
+    ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}    timeout=${CDS_DB_TIMEOUT}
+    Set Suite Variable    ${CDS_DB_CONN}    ${conn}
+
+Close CDS DB Connection
+    [Documentation]    PDB connection 종료. 접속한 적이 없으면 아무것도 하지 않는다.
+    IF    $CDS_DB_CONN is None
+        RETURN
+    END
+    CdsDb.Db Close    ${CDS_DB_CONN}
+    Set Suite Variable    ${CDS_DB_CONN}    ${NONE}
+    Log    [Suite] PDB 연결 종료    console=True
+
+CDS DB Count
+    [Documentation]
+    ...    COUNT(*) 조회 → 정수 반환. `?` 자리표시자에 @{params} 가 순서대로 바인딩된다.
+    [Arguments]    ${sql}    @{params}
+    Ensure CDS DB Connection
+    ${count}=    CdsDb.Db Count    ${CDS_DB_CONN}    ${sql}    @{params}
+    Log    [PDB] ${sql} / params=@{params} → ${count}
+    RETURN    ${count}
+
+CDS DB Count Should Be
+    [Documentation]    COUNT 조회 결과 검증. ${label} 은 실패 메시지에만 쓴다.
+    [Arguments]    ${label}    ${expected}    ${sql}    @{params}
+    ${count}=    CDS DB Count    ${sql}    @{params}
+    Should Be Equal As Integers    ${count}    ${expected}
+    ...    msg=${label} 행 수 기대=${expected}, 실제=${count}
+
+Subscriber Rows Should Be Provisioned
+    [Documentation]
+    ...    가입자 프로파일 1건 + 서비스 2건(DATA_USAGE_LEVEL / DATA_USAGE_LEVEL_2)이
+    ...    모두 있는지 한 번 조회한다. 재시도는 `Verify Subscriber Provisioned In PDB` 가 한다.
+    [Arguments]    ${mdn}    ${svc_1}    ${svc_2}
+    CDS DB Count Should Be    ${CDS_DB_TBL_PROFILE} (MDN=${mdn})
+    ...    ${1}    ${CDS_DB_SQL_PROFILE}    ${mdn}
+    CDS DB Count Should Be    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${svc_1})
+    ...    ${1}    ${CDS_DB_SQL_SERVICE}    ${mdn}    ${svc_1}
+    CDS DB Count Should Be    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${svc_2})
+    ...    ${1}    ${CDS_DB_SQL_SERVICE}    ${mdn}    ${svc_2}
+
+Verify Subscriber Provisioned In PDB
+    [Documentation]
+    ...    전문이 PDB 에 반영됐는지 판정한다. **세 조회가 모두 1이어야 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN=?
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? AND SVC_ID='DATA_USAGE_LEVEL'
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? AND SVC_ID='DATA_USAGE_LEVEL_2'
+    ...
+    ...    PG.SDM 이 T_CDS_ORDER_HIST 를 주기적으로 폴링해 반영하므로 CommandResult(0017)
+    ...    직후에는 아직 안 들어와 있을 수 있다 → ${CDS_DB_WAIT} 동안 ${CDS_DB_WAIT_INTERVAL}
+    ...    간격으로 재조회한다. 그 시간 안에 세 건이 다 차지 않으면 실패한다.
+    [Arguments]    ${mdn}=${CDS_MDN}
+    ...            ${svc_1}=${CDS_DB_SVC_DATA_USAGE}    ${svc_2}=${CDS_DB_SVC_DATA_USAGE_2}
+    Ensure CDS DB Connection
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Subscriber Rows Should Be Provisioned    ${mdn}    ${svc_1}    ${svc_2}

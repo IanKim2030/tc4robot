@@ -14,18 +14,19 @@ resources/<iface>_variables.robot     ← 노드별 상수 / 테스트 데이터
         ▼
 resources/common_keywords.robot       ← 공용 키워드 (TXN ID, 응답 검증)
 resources/variables.robot             ← 공용 상수 (PG_HOST, Hello/Ping opcode)
-        │ 사용 (WITH NAME Tcp / Cds / Tlv)
+        │ 사용 (WITH NAME Tcp / Cds / CdsDb / Tlv)
         ▼
 resources/TcpHelper.py                ← 원시 소켓 + 8옥텟 헤더
 resources/CdsHelper.py                ← 48옥텟 CDS 전문
 resources/TlvHelper.py                ← NWDAF TLV 바이너리
 resources/HttpHelper.py               ← LRS Session-Info (HTTP/XML)
+resources/CdsDbHelper.py              ← CDS PDB 조회 (ODBC/pyodbc)
 ```
 
 임포트 순서가 중요하다. `variables.robot` 이 `${PG_HOST}` 를 정의하고 노드별 변수 파일이
 이를 참조하므로 **`variables.robot` 을 항상 먼저 임포트**한다. 모든 슈트가 이 순서를 지킨다.
 
-## Python 헬퍼 4종
+## Python 헬퍼 5종
 
 | 모듈 | Robot 별칭 | 담당 | 주요 함수 |
 |---|---|---|---|
@@ -33,6 +34,13 @@ resources/HttpHelper.py               ← LRS Session-Info (HTTP/XML)
 | `CdsHelper.py` | `Cds` | 48옥텟 CDS 고정전문. 소켓은 `TcpHelper` 재사용 | `pack_cds_header` `parse_cds_header` `send_cds` `receive_cds` `pack_ack` `unpack_ack` `pack_command_body` `unpack_command_body` |
 | `TlvHelper.py` | `Tlv` | NWDAF TLV. 소켓까지 자체 구현 | `build_nwdaf_header` `parse_nwdaf_header` `pack_tlv` `unpack_tlv_stream` `tlv_find` `tlv_find_all` `build_common1` `build_pcef_qos_ctrl` `build_dpi_qos_ctrl` `build_enb_qos_ctrl` `build_common2` `send_nwdaf_notification` `send_nwdaf_raw` `receive_nwdaf_message` `hex_dump` |
 | `HttpHelper.py` | — | LRS Session-Info 전용 | `build_aims_req` `parse_xml_fields` `post_session_info` |
+| `CdsDbHelper.py` | `CdsDb` | CDS PDB(골디락스/알티베이스) **조회 전용**. ODBC | `build_conn_str` `masked_conn_str` `db_connect` `db_close` `db_count` |
+
+`CdsDbHelper` 만 성격이 다르다 — 전문을 만들지 않고 **PG 가 DB 에 반영했는지를 본다**.
+`pyodbc` 는 **지연 임포트**한다(모듈 최상단에 두면 pyodbc 없는 환경에서 CDS 슈트 전체가
+로드되지 않는다). 비밀번호는 키워드 인자로 받지 않고 환경변수 `PG_CDS_DB_PASSWORD` →
+Robot 변수 `${CDS_DB_PASSWORD}` 순으로 Python 이 직접 읽는다 — 인자로 넘기면 `log.html`
+의 Arguments 에 평문으로 남기 때문이다. 로그에 찍는 접속 문자열은 항상 마스킹된다.
 
 **Body 인코딩이 3계열로 갈리는 게 이 리포의 핵심 복잡도다.** JSON(NAG/PCF/UPM) /
 고정길이 ASCII(LRS 8890 채널) / TLV 바이너리(NWDAF) / 48B 고정전문(CDS).
@@ -78,6 +86,10 @@ resources/HttpHelper.py               ← LRS Session-Info (HTTP/XML)
 연결이 없으면 이후 TC 도 의미가 없기 때문이다.
 
 **TC 별 connect/disconnect 로직을 추가하지 말 것.**
+
+CDS 의 PDB connection(`${CDS_DB_CONN}`)도 같은 규칙을 따르지만 **Suite Setup 에서 열지
+않는다** — 첫 조회 때 지연 접속하고 `Suite CDS Disconnect` 가 닫는다. DB 접속 정보가 없는
+환경에서 슈트 전체(전문 송수신 TC 포함)가 서지 못하는 것을 막기 위한 예외다.
 
 주의: `Tcp.Is Connected` 는 `fileno() != -1` 만 본다 — **상대가 끊은 것은 감지하지 못한다.**
 NWDAF 만 `Tlv.Nwdaf Peer Closed`(논블로킹 `MSG_PEEK`)로 FIN/RST 를 잡는다.

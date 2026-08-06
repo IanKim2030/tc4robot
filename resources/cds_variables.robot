@@ -167,6 +167,46 @@ ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      #
 #${CDS_ADDR}                    가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마
 
 # ════════════════════════════════════════════
+# PDB 조회 (전문 반영 판정) — ODBC / pyodbc
+#
+# CommandResult(0017)는 Body 내용과 무관하게 SC 를 주므로, 전문이 실제로 가입자
+# 테이블에 반영됐는지는 PDB 를 봐야 판정된다(docs/nodes/CDS.md "도구 관점에서의 함의").
+#
+# 대상 DB 는 환경에 따라 골디락스 또는 알티베이스다 — ${CDS_DB_KIND} 로 고른다.
+# ★ 아래 접속 정보는 비어 있다. 채우지 않으면 DB 검증이 걸린 TC 는 실패한다.
+#    config/env/<env>.py 에서 오버라이드하는 것이 정석이다.
+# ★ 비밀번호는 여기 적지 말고 환경변수 PG_CDS_DB_PASSWORD 로 주는 것을 권장한다
+#    (이 리포는 과거 평문 비밀번호가 커밋된 전례가 있다 — docs/ENVIRONMENTS.md).
+# ════════════════════════════════════════════
+${CDS_DB_KIND}            goldilocks       # goldilocks | altibase
+${CDS_DB_DRIVER}          ${EMPTY}         # ODBC 드라이버 이름 (TODO: 실환경 값)
+${CDS_DB_HOST}            ${EMPTY}         # PDB 호스트   (TODO: 실환경 값)
+${CDS_DB_PORT}            ${EMPTY}         # PDB 포트     (TODO: 실환경 값)
+${CDS_DB_NAME}            ${EMPTY}         # DB/스키마 이름
+${CDS_DB_USER}            ${EMPTY}         # 조회 계정    (TODO: 실환경 값)
+${CDS_DB_PASSWORD}        ${EMPTY}         # ← 환경변수 PG_CDS_DB_PASSWORD 가 우선
+# 위 조립이 실환경 드라이버와 안 맞으면 완성된 접속 문자열을 통째로 넣는다.
+# 이 값이 있으면 KIND/DRIVER/HOST/PORT/NAME/USER 는 무시된다.
+${CDS_DB_CONNSTR}         ${EMPTY}
+${CDS_DB_TIMEOUT}         10               # 접속·쿼리 타임아웃(초)
+
+# 반영 대기 — PG.SDM 이 T_CDS_ORDER_HIST 를 주기적으로 폴링해 가입자 테이블에
+# 반영하므로, CommandResult(0017) 수신 시점에는 아직 반영 전일 수 있다.
+# 그래서 조회를 한 번만 하지 않고 아래 시간 동안 재시도한다.
+${CDS_DB_WAIT}            30s              # 반영 대기 총 시간
+${CDS_DB_WAIT_INTERVAL}   2s               # 재조회 간격
+
+# 조회 대상 테이블 / 서비스 ID
+${CDS_DB_TBL_PROFILE}     T_5G_SUBS_PROFILE
+${CDS_DB_TBL_SERVICE}     T_5G_SUBS_SERVICE
+${CDS_DB_SVC_DATA_USAGE}      DATA_USAGE_LEVEL
+${CDS_DB_SVC_DATA_USAGE_2}    DATA_USAGE_LEVEL_2
+
+# COUNT 조회 SQL — `?` 는 pyodbc 바인딩 자리표시자다(값을 문자열로 잇지 않는다)
+${CDS_DB_SQL_PROFILE}     SELECT COUNT(*) FROM ${CDS_DB_TBL_PROFILE} WHERE MDN = ?
+${CDS_DB_SQL_SERVICE}     SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ?
+
+# ════════════════════════════════════════════
 # 단말·망 필드 (코드 공용) — TODO: 실환경 값으로 교체
 #
 # A1(신규) / Z1(해지) / C1(기기변경) / G1(정보변경) / D3(번호변경) 이 같은 집합을 쓴다.

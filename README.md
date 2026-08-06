@@ -8,8 +8,11 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 ```bash
 python -m venv .venv
 pip install robotframework
-pip install robotframework-databaselibrary pyodbc
+pip install pyodbc            # CDS PDB(골디락스/알티베이스) 조회용 — TC-CDS-002
 ```
+
+`pyodbc` 는 CDS 슈트의 DB 검증(`db` 태그)에만 필요하다. 없으면 그 TC 만 실패하고
+전문 송수신 TC 는 그대로 돈다. 접속 정보는 [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) 참조.
 
 ## 실행
 

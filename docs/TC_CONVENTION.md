@@ -76,7 +76,7 @@ TC-NWDAF-006 PGW STATUS Normal (0)
 | PCF | `hello` `ping` `zion` `zone-inout` (+ `nag`) |
 | LRS | `health-check` `session-info` |
 | UPM | `hello` `ping` `cellinfo-noti` `subs-sync` `subs-info`* `subs-change`* `info-change`* |
-| CDS | `connect` `process-state` `command` `subs-data`* `upload`* `release` |
+| CDS | `connect` `process-state` `command` `db` `subs-data`* `upload`* `release` |
 | NWDAF | `nwdaf_smoke` `nwdaf_pgw` `nwdaf_enb` `nwdaf_dpi` `nwdaf_5g` `nwdaf_status` `nwdaf_quick` `nwdaf_qos_policy` `nwdaf_support` `nwdaf_arpqci` `nwdaf_band` `nwdaf_cu` `nwdaf_network` `nwdaf_ratio` `nwdaf_usage` `nwdaf_common1` `nwdaf_common2` `nwdaf_msgid_wrap` `nwdaf_healthcheck` |
 
 `*` = 주석 처리된 TC 에만 달려 있다. 해당 TC 를 살리면 함께 살아난다.
@@ -118,6 +118,11 @@ TC 를 쓰기 전에 **그 TC 가 실패할 수 있는지** 따져라. 실패할
 |---|---|
 | 요청 → 응답 (NAG/PCF/UPM/CDS/LRS) | 응답 코드·헤더·Body 필드 전부 |
 | 단방향 Notification (NWDAF) | **송신 성공과 소켓 생존뿐** |
+| 응답은 오지만 내용이 무의미 (CDS `CommandResult`) | 응답만으로는 불가 → **PDB 조회로 보완** |
+
+CDS 는 세 번째 경우다. `CommandResult`(0017)가 Body 내용과 무관하게 `SC` 를 주므로
+"전문이 반영됐는가" 는 PDB 를 봐야 안다. `TC-CDS-002` 가 `db` 태그로 이 경로를 쓴다
+(`Verify Subscriber Provisioned In PDB`, [nodes/CDS.md](nodes/CDS.md)).
 
 NWDAF Notification 은 PG 가 응답을 주지 않는다. 따라서 "PG 가 값을 올바로 해석했는가" 는
 **도구 단독으로 판정 불가**이며, 인코딩이 틀려도 TC 는 통과한다. 실제로 eNB 섹션 8개 필드 중

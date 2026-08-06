@@ -14,7 +14,7 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 | [docs/INTERFACES.md](docs/INTERFACES.md) ★ | **노드 간 연동 매트릭스** — 방향·포트·헤더·Body·opcode 충돌 |
 | [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) | dev/stg/prd 환경 설정, 변수 우선순위, 환경 축 변수 |
 | [docs/TC_CONVENTION.md](docs/TC_CONVENTION.md) | TC 명명·태그·템플릿·비활성화·판정 한계 |
-| [docs/RESOURCES.md](docs/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 4종 카탈로그 |
+| [docs/RESOURCES.md](docs/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 5종 카탈로그 |
 | [docs/nodes/NAG.md](docs/nodes/NAG.md) | NAG 노드 스펙 |
 | [docs/nodes/PCF.md](docs/nodes/PCF.md) | PCF 노드 스펙 |
 | [docs/nodes/LRS.md](docs/nodes/LRS.md) | LRS 노드 스펙 |

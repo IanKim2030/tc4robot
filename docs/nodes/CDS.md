@@ -189,9 +189,39 @@ sequenceDiagram
 | `전문 → PG.CDS` | `CommandResult`(`SC`/`FA`) — **Body 내용과 무관하게 `SC`** |
 | `PG.CDS → PDB` 이후 전부 | **없음.** PDB 조회 없이는 판정 불가 |
 
-리포에 `robotframework-databaselibrary` / `pyodbc` 의존성이 잡혀 있으나 **CDS 슈트는
-현재 PDB 를 조회하지 않는다.** 전문 반영을 실제로 검증하려면 `T_CDS_ORDER_HIST` ·
-`T_CDS_ORDER_TID` 대조를 붙이는 것이 이 노드의 유일한 자동 판정 경로다.
+그래서 **`TC-CDS-002`(A1 신규가입)만 PDB 를 직접 조회해 판정한다.** 나머지 TC 는 여전히
+`CommandResult`(`SC`)까지만 본다 — 즉 전문이 반영됐는지는 판정하지 않는다.
+
+### PDB 조회 (`TC-CDS-002`)
+
+`Command Download Flow` 뒤에 `Verify Subscriber Provisioned In PDB` 를 붙였다.
+**아래 세 조회가 모두 `1` 이어야 성공**이다.
+
+```sql
+SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LEVEL'
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LEVEL_2'
+```
+
+| 항목 | 내용 |
+|---|---|
+| 대상 DB | 환경에 따라 **골디락스** 또는 **알티베이스** — `${CDS_DB_KIND}` 로 고른다 |
+| 드라이버 | ODBC (`pyodbc`). `resources/CdsDbHelper.py` 가 직접 쓴다 — `DatabaseLibrary` 는 쓰지 않는다 |
+| 접속 정보 | `${CDS_DB_DRIVER}` `${CDS_DB_HOST}` `${CDS_DB_PORT}` `${CDS_DB_NAME}` `${CDS_DB_USER}` — **기본값이 비어 있고, 비면 TC 가 실패한다** |
+| 비밀번호 | 환경변수 `PG_CDS_DB_PASSWORD` 우선, 없으면 `${CDS_DB_PASSWORD}` |
+| 접속 시점 | **첫 조회 때 지연 접속**. Suite Setup 이 아니다 — DB 미설정 환경에서 전문 송수신 TC 까지 죽는 것을 막기 위함 |
+| 종료 | `Suite CDS Disconnect` |
+| 반영 대기 | `${CDS_DB_WAIT}`(30s) 동안 `${CDS_DB_WAIT_INTERVAL}`(2s) 간격 재조회 |
+
+재조회가 필요한 이유는 위 흐름 그대로다 — PG.SDM 이 `T_CDS_ORDER_HIST` 를 **주기적으로
+폴링**해 가입자 테이블에 반영하므로 `CommandResult`(0017) 수신 시점에는 아직 안 들어와 있다.
+
+두 DB 의 ODBC 접속 문자열 키워드가 달라 `CdsDbHelper._CONNSTR_TEMPLATES` 로 분기하는데,
+**이 템플릿은 실환경 드라이버로 검증되지 않았다.** 접속이 안 되면 `${CDS_DB_CONNSTR}` 에
+완성된 문자열을 통째로 넣어 우회한다(그러면 나머지 접속 변수는 무시된다).
+
+`T_CDS_ORDER_HIST` · `T_CDS_ORDER_TID` 대조는 아직 붙이지 않았다 — 전문 단위 적재를
+보려면 그쪽이 맞다.
 
 **예약 전문은 특히 그렇다.** 실행이 START TIME 까지 미뤄지므로 `CommandResult` 를 받은
 시점에는 아직 아무것도 반영되지 않았다 — `T_RESERVED_JOB` 에 적재만 된 상태다.

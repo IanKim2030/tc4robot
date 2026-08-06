@@ -85,6 +85,32 @@ NAG_PG_PORT    = 8012
 Robot 은 변수 파일의 **모듈 전역 이름을 그대로 변수로 읽는다.** `PG_HOST = ...` 가
 `${PG_HOST}` 가 된다. 언더스코어로 시작하는 이름은 무시된다.
 
+## CDS PDB 접속 (TC-CDS-002)
+
+`TC-CDS-002` 는 전문 흐름에 더해 **PDB 반영까지** 판정한다(`db` 태그). 접속 정보는
+`cds_variables.robot` 의 `${CDS_DB_*}` 이며 **기본값이 전부 비어 있어, 채우지 않으면
+이 TC 는 실패한다.** 나머지 CDS TC 는 영향받지 않는다.
+
+```python
+# config/env/stg.py
+CDS_DB_KIND   = 'goldilocks'    # goldilocks | altibase — 환경에 따라 다르다
+CDS_DB_DRIVER = 'Goldilocks'    # ODBC 드라이버 이름
+CDS_DB_HOST   = '10.20.30.40'
+CDS_DB_PORT   = '22581'
+CDS_DB_USER   = 'pgtest'
+```
+
+```bash
+export PG_CDS_DB_PASSWORD='...'    # PowerShell: $env:PG_CDS_DB_PASSWORD='...'
+```
+
+**비밀번호는 파일에 적지 말 것.** `${CDS_DB_PASSWORD}` 도 동작하지만, 환경변수
+`PG_CDS_DB_PASSWORD` 가 우선한다. 어느 쪽이든 Python 이 직접 읽으므로 `log.html` 에는
+마스킹된 접속 문자열(`PWD=****`)만 남는다.
+
+ODBC 접속 문자열 조립이 실환경 드라이버와 안 맞으면 `CDS_DB_CONNSTR` 에 완성된 문자열을
+통째로 넣는다 — 그러면 위 개별 값은 무시된다.
+
 ## prd 가드
 
 `config/env/prd.py` 는 환경변수 없이는 실행을 거부한다.
