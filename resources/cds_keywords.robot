@@ -491,7 +491,7 @@ Ensure CDS DB Connection
     ${conn}=    CdsDb.Db Connect    kind=${CDS_DB_KIND}    driver=${CDS_DB_DRIVER}
     ...    host=${CDS_DB_HOST}    port=${CDS_DB_PORT}    database=${CDS_DB_NAME}
     ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}    dsn=${CDS_DB_DSN}
-    ...    extra=${CDS_DB_EXTRA}    timeout=${CDS_DB_TIMEOUT}
+    ...    extra=${CDS_DB_EXTRA}    encoding=${CDS_DB_ENCODING}    timeout=${CDS_DB_TIMEOUT}
     Set Suite Variable    ${CDS_DB_CONN}    ${conn}
 
 Close CDS DB Connection
@@ -505,10 +505,12 @@ Close CDS DB Connection
 
 CDS DB Count
     [Documentation]
-    ...    COUNT(*) 조회 → 정수 반환. `?` 자리표시자에 @{params} 가 순서대로 바인딩된다.
+    ...    COUNT(*) 조회 → 정수 반환. `?` 자리표시자에 @{params} 가 순서대로 들어간다.
+    ...    들어가는 방식은 ${CDS_DB_BIND} 가 정한다 (auto | param | literal) —
+    ...    `?` 바인딩을 지원하지 않는 드라이버가 있다(CdsDbHelper 의 조회 절 주석).
     [Arguments]    ${sql}    @{params}
     Ensure CDS DB Connection
-    ${count}=    CdsDb.Db Count    ${CDS_DB_CONN}    ${sql}    @{params}
+    ${count}=    CdsDb.Db Count    ${CDS_DB_CONN}    ${sql}    @{params}    bind=${CDS_DB_BIND}
     Log    [PDB] ${sql} / params=@{params} → ${count}
     RETURN    ${count}
 

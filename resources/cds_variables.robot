@@ -197,15 +197,30 @@ ${CDS_DB_DSN}             GOLD_GLOBAL        # 예: PDB  (TODO: 실환경 DSN �
 ${CDS_DB_DRIVER}          /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
 ${CDS_DB_HOST}            192.168.15.185
 ${CDS_DB_PORT}            22581
-${CDS_DB_NAME}            PDB              # DB 이름. DSN 방식에선 보통 비워 둔다
+#${CDS_DB_NAME}            PDB              # DB 이름. DSN 방식에선 보통 비워 둔다
+${CDS_DB_NAME}            ${EMPTY}               # DB 이름. DSN 방식에선 보통 비워 둔다
 ${CDS_DB_USER}            pdb              # 두 방식 공용 (odbc.ini 에 UID 가 있으면 생략 가능)
 ${CDS_DB_PASSWORD}        pdb1234          # ← 환경변수 PG_CDS_DB_PASSWORD 가 우선
 ${CDS_DB_EXTRA}           ${EMPTY}         # 덧붙일 키워드. 비우면 종류별 기본값(골디락스 CHARSET=UHC)
 
 # 1) 위 조립이 실환경 드라이버와 안 맞을 때의 최종 우회 수단.
 #    이 값이 있으면 KIND/DSN/DRIVER/HOST/PORT/NAME/USER 는 무시된다.
-${CDS_DB_CONNSTR}         ${EMPTY}
+#${CDS_DB_CONNSTR}         ${EMPTY}
+${CDS_DB_CONNSTR}         DSN=GOLD_GLOBAL;UID=pdb;PWD=pdb1234
 ${CDS_DB_TIMEOUT}         10               # 접속·쿼리 타임아웃(초)
+
+# ── 조회 동작 ────────────────────────────────────────────────────
+# 값을 SQL 에 넣는 방식. 드라이버가 `?` 바인딩(SQLDescribeParam)을 지원하지 않으면
+# 진단 없는 실패가 난다 — ('HY000', 'The driver did not supply an error!').
+# 골디락스에서 실제로 났다(2026-08-06).
+#   auto    : `?` 먼저, 실패하면 리터럴로 재시도 (기본값)
+#   param   : `?` 만. setinputsizes 로 SQLDescribeParam 호출을 피한다
+#   literal : 값을 SQL 문자열에 직접 넣는다 (넣는 값이 도구 상수뿐이라 안전하다)
+${CDS_DB_BIND}            auto
+
+# pyodbc 문자 인코딩. 비우면 pyodbc 기본(와이드/UTF-16)이다.
+# 드라이버가 ANSI 만 받으면 여기를 맞춰야 한다 — 골디락스 CHARSET=UHC 면 cp949.
+${CDS_DB_ENCODING}        ${EMPTY}
 
 # ── 골디락스 DSN-less 실패 이력 (2026-08-06, PG dev) ──────────────
 # 아래 형태로 붙였다가 거부당했다.

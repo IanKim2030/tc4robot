@@ -256,6 +256,32 @@ DRIVER={/PG/goldilocks_home/lib/libgoldilockscs-ul64.so};SERVER=...;PORT=22581;.
 들어 있어 접속 문자열로 그대로 옮기기 번거롭기 때문이다. 스탠자 전문은
 `cds_variables.robot` 의 PDB 절 주석에 남겨 뒀다.
 
+#### 함정 — `?` 바인딩이 진단 없이 죽는다
+
+접속이 붙은 뒤 조회에서 다음이 나왔다(골디락스, 2026-08-06).
+
+```
+('HY000', 'The driver did not supply an error!')
+sql=SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?  params=('01090010001',)
+```
+
+pyodbc 는 `?` 를 바인딩할 때 `SQLDescribeParam` 으로 파라미터 타입을 묻는데, 이를
+구현하지 않은 드라이버에서는 **진단 레코드 없이** SQL_ERROR 만 돌아온다. 그래서
+`${CDS_DB_BIND}` 로 방식을 고를 수 있게 했다.
+
+| 값 | 동작 |
+|---|---|
+| `auto` (기본) | `?` 를 먼저 시도하고, 실패하면 **리터럴로 재시도**한다 |
+| `param` | `?` 만. `setinputsizes` 로 `SQLDescribeParam` 호출을 피한다(best-effort) |
+| `literal` | 값을 SQL 문자열에 직접 넣는다 |
+
+리터럴이 안전한 이유는 **넣는 값이 도구가 정한 상수뿐**(MDN·SVC_ID)이라서다 —
+외부 입력이 들어오는 자리가 아니다. 그래도 작은따옴표는 이스케이프한다(`_quote`).
+
+문자 인코딩도 같은 계열의 함정이다. pyodbc 는 기본적으로 문자열을 **와이드(UTF-16)** 로
+주고받으므로, 드라이버가 ANSI 만 받으면 역시 진단 없이 실패한다. 골디락스가
+`CHARSET=UHC` 면 `${CDS_DB_ENCODING}` 을 `cp949` 로 맞춘다(비우면 pyodbc 기본).
+
 `T_CDS_ORDER_HIST` · `T_CDS_ORDER_TID` 대조는 아직 붙이지 않았다 — 전문 단위 적재를
 보려면 그쪽이 맞다.
 

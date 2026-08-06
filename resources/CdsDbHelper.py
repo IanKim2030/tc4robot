@@ -176,11 +176,16 @@ def build_conn_str(kind='goldilocks', driver='', host='', port='',
 # ── 접속 / 해제 ───────────────────────────────────────────────────
 
 def db_connect(kind='goldilocks', driver='', host='', port='',
-               database='', user='', conn_str='', dsn='', extra='', timeout=10):
+               database='', user='', conn_str='', dsn='', extra='',
+               encoding='', timeout=10):
     """PDB 에 접속해 connection 객체를 반환한다.
 
     접속 문자열은 conn_str(완성) → dsn(DSN 방식) → DRIVER/HOST/PORT(DSN-less)
     순으로 결정된다.
+
+    encoding 을 주면 pyodbc 의 문자 인코딩을 그 값으로 고정한다. pyodbc 는 기본적으로
+    문자열을 **와이드(UTF-16)** 로 주고받는데, 드라이버가 ANSI 만 받으면 진단 없는
+    실패가 난다. 골디락스가 `CHARSET=UHC` 면 `cp949` 가 맞는 값이다.
     """
     try:
         import pyodbc
@@ -198,6 +203,17 @@ def db_connect(kind='goldilocks', driver='', host='', port='',
         raise CdsDbError(
             'PDB 접속 실패 — %s / 접속문자열=%s' % (exc, _mask(cs))
         )
+    if encoding:
+        try:
+            conn.setdecoding(pyodbc.SQL_CHAR, encoding=encoding)
+            conn.setdecoding(pyodbc.SQL_WCHAR, encoding=encoding)
+            conn.setencoding(encoding=encoding)
+        except Exception as exc:
+            db_close(conn)
+            raise CdsDbError(
+                "인코딩 설정 실패 (encoding='%s') — %s. "
+                "${CDS_DB_ENCODING} 을 확인하십시오." % (encoding, exc)
+            )
     conn.timeout = int(timeout)          # 쿼리 타임아웃
     return conn
 
@@ -213,41 +229,129 @@ def db_close(conn):
 
 
 def masked_conn_str(kind='goldilocks', driver='', host='', port='',
-                    database='', user='', conn_str='', dsn='', extra=''):
-    """로그용 마스킹된 접속 문자열. 비밀번호가 log.html 로 새지 않는다."""
+                    database='', user='', conn_str='', dsn='', extra='',
+                    **_ignored):
+    """로그용 마스킹된 접속 문자열. 비밀번호가 log.html 로 새지 않는다.
+
+    `db_connect` 와 **같은 인자 묶음을 그대로 받도록** `**_ignored` 를 둔다
+    (호출부가 두 곳에서 인자 목록을 따로 관리하면 어긋난다).
+    문자열 조립에 안 쓰이는 encoding/timeout 등은 여기서 무시된다.
+    """
     cs = conn_str or build_conn_str(kind, driver, host, port, database,
                                     user, dsn, extra)
     return _mask(cs)
 
 
 # ── 조회 ──────────────────────────────────────────────────────────
+#
+# [바인딩 방식 — `?` 가 안 먹는 드라이버가 있다]
+#   pyodbc 는 `?` 를 바인딩할 때 SQLDescribeParam 으로 파라미터 타입을 묻는데,
+#   이를 구현하지 않은 드라이버에서는 진단 레코드 없이 실패한다:
+#     ('HY000', 'The driver did not supply an error!')
+#   실제로 골디락스에서 이 증상이 나왔다(2026-08-06).
+#
+#   그래서 세 가지 모드를 둔다 (${CDS_DB_BIND}).
+#     auto    : `?` 바인딩을 먼저 시도하고, 실패하면 리터럴로 재시도 (기본값)
+#     param   : `?` 바인딩만. setinputsizes 로 SQLDescribeParam 호출을 피한다
+#     literal : 값을 SQL 문자열에 직접 넣는다
+#
+#   리터럴이 안전한 이유는 **넣는 값이 도구가 정한 상수뿐**이기 때문이다
+#   (MDN, SVC_ID). 외부 입력을 넣는 자리가 아니다. 그래도 따옴표는 이스케이프한다.
 
-def db_count(conn, sql, *params):
+_BIND_MODES = ('auto', 'param', 'literal')
+
+
+def _quote(value):
+    """SQL 리터럴로 만든다. 숫자는 그대로, 그 외는 작은따옴표 + 이스케이프."""
+    if isinstance(value, bool):
+        raise CdsDbError('불리언은 SQL 리터럴로 넣지 않는다: %r' % (value,))
+    if isinstance(value, (int, float)):
+        return str(value)
+    return "'%s'" % str(value).replace("'", "''")
+
+
+def _inline_params(sql, params):
+    """`?` 자리에 리터럴을 채워 넣는다. 개수가 안 맞으면 실패."""
+    chunks = sql.split('?')
+    if len(chunks) - 1 != len(params):
+        raise CdsDbError(
+            '자리표시자(?) 개수와 인자 개수가 다릅니다: ?=%d, 인자=%d, sql=%s'
+            % (len(chunks) - 1, len(params), sql)
+        )
+    out = chunks[0]
+    for value, chunk in zip(params, chunks[1:]):
+        out += _quote(value) + chunk
+    return out
+
+
+def _try_setinputsizes(cur, count):
+    """파라미터 타입을 못 박아 SQLDescribeParam 호출을 피한다 (best-effort).
+
+    pyodbc 전용 기능이라 **실패해도 무시한다** — 없으면 그냥 드라이버에 맡긴다.
+    여기서 예외를 올리면 바인딩 자체가 안 되는 것처럼 오진된다.
+    """
+    try:
+        import pyodbc
+        cur.setinputsizes([(pyodbc.SQL_VARCHAR, 64, 0)] * count)
+    except Exception:
+        pass
+
+
+def _fetch_count(cur, sql, params, use_param):
+    """한 번 실행하고 COUNT 값을 꺼낸다."""
+    if not params:
+        cur.execute(sql)
+    elif use_param:
+        _try_setinputsizes(cur, len(params))
+        cur.execute(sql, tuple(params))
+    else:
+        cur.execute(_inline_params(sql, params))
+    row = cur.fetchone()
+    if row is None or len(row) != 1:
+        raise CdsDbError(
+            'COUNT 조회 결과가 1행 1열이 아닙니다: sql=%s params=%r row=%r'
+            % (sql, params, row)
+        )
+    return int(row[0])
+
+
+def db_count(conn, sql, *params, bind='auto'):
     """`SELECT COUNT(*) ...` 을 실행해 정수 하나를 반환한다.
 
-    params 는 SQL 의 `?` 자리표시자에 순서대로 바인딩된다.
+    params 는 SQL 의 `?` 자리표시자에 순서대로 들어간다. 들어가는 방식은
+    bind 로 고른다 ('auto' | 'param' | 'literal' — 위 주석 참조).
     결과가 1행 1열이 아니면 실패로 본다 — COUNT 조회 전용이다.
     """
     if conn is None:
         raise CdsDbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
-    cur = conn.cursor()
-    try:
-        if params:
-            cur.execute(sql, tuple(params))
-        else:
-            cur.execute(sql)
-        row = cur.fetchone()
-        if row is None or len(row) != 1:
-            raise CdsDbError(
-                'COUNT 조회 결과가 1행 1열이 아닙니다: sql=%s params=%r row=%r'
-                % (sql, params, row)
-            )
-        return int(row[0])
-    except CdsDbError:
-        raise
-    except Exception as exc:
+    mode = str(bind).strip().lower() or 'auto'
+    if mode not in _BIND_MODES:
         raise CdsDbError(
-            'PDB 조회 실패 — %s / sql=%s params=%r' % (exc, sql, params)
+            "알 수 없는 바인딩 방식입니다: '%s' (사용 가능: %s). "
+            "${CDS_DB_BIND} 를 확인하십시오." % (bind, ', '.join(_BIND_MODES))
         )
-    finally:
-        cur.close()
+
+    attempts = {'auto': (True, False), 'param': (True,), 'literal': (False,)}[mode]
+    errors = []
+    for use_param in attempts:
+        cur = conn.cursor()
+        try:
+            return _fetch_count(cur, sql, params, use_param)
+        except CdsDbError:
+            raise
+        except Exception as exc:
+            errors.append('%s 바인딩: %s' % ('?' if use_param else '리터럴', exc))
+        finally:
+            cur.close()
+
+    hint = ''
+    if mode == 'auto':
+        hint = (' — ? 바인딩과 리터럴이 모두 실패했습니다. 드라이버가 이 테이블을'
+                ' 못 보거나 계정 권한이 없을 수 있습니다.')
+    elif mode == 'param':
+        hint = (" — 드라이버가 ? 바인딩을 지원하지 않을 수 있습니다."
+                " ${CDS_DB_BIND} 를 literal 로 바꿔 보십시오.")
+    raise CdsDbError(
+        'PDB 조회 실패%s / sql=%s params=%r / %s'
+        % (hint, sql, params, ' | '.join(errors))
+    )
