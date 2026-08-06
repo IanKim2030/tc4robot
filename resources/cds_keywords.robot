@@ -452,8 +452,11 @@ Command Download Flow
 CDS DB Config Should Be Complete
     [Documentation]
     ...    PDB 접속 정보가 채워졌는지 확인. 비어 있으면 어디에 넣어야 하는지까지 알린다.
-    ...    ${CDS_DB_CONNSTR} 이 있으면 나머지는 무시되므로 통과시킨다.
-    IF    '${CDS_DB_CONNSTR}' != '${EMPTY}'
+    ...    접속 방식이 3가지라 **고른 방식에 필요한 값만** 본다.
+    ...      ${CDS_DB_CONNSTR} 이 있으면  → 나머지는 무시되므로 통과
+    ...      ${CDS_DB_DSN} 이 있으면      → DSN 방식. 나머지는 DSN 이 갖고 있으므로 통과
+    ...      둘 다 없으면                 → DSN-less. DRIVER/HOST/PORT/USER 가 모두 있어야 한다
+    IF    '${CDS_DB_CONNSTR}' != '${EMPTY}' or '${CDS_DB_DSN}' != '${EMPTY}'
         RETURN
     END
     @{missing}=    Create List
@@ -463,10 +466,14 @@ CDS DB Config Should Be Complete
     Run Keyword If    '${CDS_DB_USER}' == '${EMPTY}'      Append To List    ${missing}    CDS_DB_USER
     ${count}=    Get Length    ${missing}
     ${names}=    Catenate    SEPARATOR=,${SPACE}    @{missing}
-    Run Keyword If    ${count} > 0    Fail
+    # ※ `Fail` 의 2번째 이후 인자는 메시지가 아니라 **태그**다(BuiltIn.Fail(msg, *tags)).
+    #    여러 줄을 ... 로 이어 넘기면 문장이 테스트 태그로 붙어 버린다. 한 줄로 합쳐서 넘긴다.
+    ${msg}=    Catenate    SEPARATOR=${\n}
     ...    PDB 접속 정보가 없어 DB 반영을 판정할 수 없습니다 (미설정: ${names}).
     ...    config/env/<env>.py 에 값을 넣거나 --variable 로 지정하십시오.
+    ...    odbc.ini 에 DSN 이 등록돼 있으면 CDS_DB_DSN 하나만 넣어도 됩니다.
     ...    비밀번호는 환경변수 PG_CDS_DB_PASSWORD 로 주는 것을 권장합니다.
+    Run Keyword If    ${count} > 0    Fail    ${msg}
 
 Ensure CDS DB Connection
     [Documentation]
@@ -478,11 +485,13 @@ Ensure CDS DB Connection
     CDS DB Config Should Be Complete
     ${shown}=    CdsDb.Masked Conn Str    kind=${CDS_DB_KIND}    driver=${CDS_DB_DRIVER}
     ...    host=${CDS_DB_HOST}    port=${CDS_DB_PORT}    database=${CDS_DB_NAME}
-    ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}
+    ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}    dsn=${CDS_DB_DSN}
+    ...    extra=${CDS_DB_EXTRA}
     Log    [Suite] PDB 접속 시도 — ${shown}    console=True
     ${conn}=    CdsDb.Db Connect    kind=${CDS_DB_KIND}    driver=${CDS_DB_DRIVER}
     ...    host=${CDS_DB_HOST}    port=${CDS_DB_PORT}    database=${CDS_DB_NAME}
-    ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}    timeout=${CDS_DB_TIMEOUT}
+    ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}    dsn=${CDS_DB_DSN}
+    ...    extra=${CDS_DB_EXTRA}    timeout=${CDS_DB_TIMEOUT}
     Set Suite Variable    ${CDS_DB_CONN}    ${conn}
 
 Close CDS DB Connection

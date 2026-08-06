@@ -207,7 +207,7 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LE
 |---|---|
 | 대상 DB | 환경에 따라 **골디락스** 또는 **알티베이스** — `${CDS_DB_KIND}` 로 고른다 |
 | 드라이버 | ODBC (`pyodbc`). `resources/CdsDbHelper.py` 가 직접 쓴다 — `DatabaseLibrary` 는 쓰지 않는다 |
-| 접속 정보 | `${CDS_DB_DRIVER}` `${CDS_DB_HOST}` `${CDS_DB_PORT}` `${CDS_DB_NAME}` `${CDS_DB_USER}` — **기본값이 비어 있고, 비면 TC 가 실패한다** |
+| 접속 방식 | 아래 3가지. 고른 방식에 필요한 값이 없으면 TC 가 실패한다 |
 | 비밀번호 | 환경변수 `PG_CDS_DB_PASSWORD` 우선, 없으면 `${CDS_DB_PASSWORD}` |
 | 접속 시점 | **첫 조회 때 지연 접속**. Suite Setup 이 아니다 — DB 미설정 환경에서 전문 송수신 TC 까지 죽는 것을 막기 위함 |
 | 종료 | `Suite CDS Disconnect` |
@@ -216,9 +216,45 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LE
 재조회가 필요한 이유는 위 흐름 그대로다 — PG.SDM 이 `T_CDS_ORDER_HIST` 를 **주기적으로
 폴링**해 가입자 테이블에 반영하므로 `CommandResult`(0017) 수신 시점에는 아직 안 들어와 있다.
 
-두 DB 의 ODBC 접속 문자열 키워드가 달라 `CdsDbHelper._CONNSTR_TEMPLATES` 로 분기하는데,
-**이 템플릿은 실환경 드라이버로 검증되지 않았다.** 접속이 안 되면 `${CDS_DB_CONNSTR}` 에
-완성된 문자열을 통째로 넣어 우회한다(그러면 나머지 접속 변수는 무시된다).
+#### 접속 방식 3가지 (우선순위 순)
+
+| 순위 | 변수 | 조립 결과 | 언제 쓰나 |
+|---|---|---|---|
+| 1 | `${CDS_DB_CONNSTR}` | 준 문자열 그대로 | 아래 둘이 실환경 드라이버와 안 맞을 때의 최종 우회. 나머지 값은 전부 무시된다 |
+| 2 | `${CDS_DB_DSN}` | `DSN=name;UID=user;PWD=pw;` | **골디락스 권장.** `odbc.ini`(Linux) / ODBC 데이터 원본 관리자(Windows)에 등록된 이름을 쓴다 |
+| 3 | `${CDS_DB_DRIVER}` + `HOST`/`PORT` | `DRIVER=...;HOST=...;PORT=...` | DSN 없이 직접 조립(DSN-less) |
+
+`${CDS_DB_KIND}` 는 **세 방식 모두에서** 의미가 있다 — 같은 항목의 키워드 표기가 DB 마다
+다르기 때문이다(`_KIND_SPEC`).
+
+| 항목 | 골디락스 | 알티베이스 |
+|---|---|---|
+| 호스트 / 포트 | `HOST` / `PORT` | `Server` / `Port` |
+| DB 이름 | `DATABASE` | `DBName` |
+| 계정 / 비밀번호 | `UID` / `PWD` | `User` / `Password` |
+| 기본 부가 키워드 | `CHARSET=UHC` | `NLS_USE=UTF8` |
+
+골디락스 값은 실환경 `odbc.ini` 실측(2026-08-06)이고 **알티베이스 값은 아직 미검증**이다.
+부가 키워드는 `${CDS_DB_EXTRA}` 로 덮을 수 있다.
+
+#### 함정 — 골디락스 DSN-less 는 `IM012` 로 거부됐다
+
+```
+DRIVER={/PG/goldilocks_home/lib/libgoldilockscs-ul64.so};SERVER=...;PORT=22581;...
+→ IM012 [SUNJESOFT][ODBC][GOLDILOCKS]DRIVER keyword syntax error (19043)
+```
+
+두 가지가 겹쳐 있었다.
+
+1. **`.so` 경로에 중괄호를 붙이면 안 된다.** ODBC 표준은 `DRIVER={이름}` 이지만 GOLDILOCKS
+   드라이버 매니저가 이를 거부한다 → `_fmt_driver()` 가 **값이 경로면 중괄호를 생략**하고,
+   드라이버 '이름'일 때만 감싼다(이름에는 공백이 흔해 중괄호가 필요하다).
+2. **호스트 키워드가 `SERVER` 가 아니라 `HOST`** 다 (`odbc.ini` 실측).
+
+둘을 고쳤어도 **골디락스는 DSN 방식(2)이 정석**이다. 실환경 `odbc.ini` 에
+`ALTERNATE_SERVERS`(186~188 폴백) · `LOCALITY_AWARE_TRANSACTION` · `LOCATOR_DSN` 이
+들어 있어 접속 문자열로 그대로 옮기기 번거롭기 때문이다. 스탠자 전문은
+`cds_variables.robot` 의 PDB 절 주석에 남겨 뒀다.
 
 `T_CDS_ORDER_HIST` · `T_CDS_ORDER_TID` 대조는 아직 붙이지 않았다 — 전문 단위 적재를
 보려면 그쪽이 맞다.

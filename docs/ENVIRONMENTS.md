@@ -91,13 +91,34 @@ Robot 은 변수 파일의 **모듈 전역 이름을 그대로 변수로 읽는�
 `cds_variables.robot` 의 `${CDS_DB_*}` 이며 **기본값이 전부 비어 있어, 채우지 않으면
 이 TC 는 실패한다.** 나머지 CDS TC 는 영향받지 않는다.
 
+접속 방식은 3가지이며 **아래 우선순위로 하나만 채우면 된다.**
+
+**2) DSN 방식 — 골디락스 권장.** `odbc.ini`(Linux) / ODBC 데이터 원본 관리자(Windows)에
+등록해 둔 이름만 준다. 드라이버 경로·호스트·포트는 DSN 이 갖고 있다.
+
 ```python
 # config/env/stg.py
-CDS_DB_KIND   = 'goldilocks'    # goldilocks | altibase — 환경에 따라 다르다
-CDS_DB_DRIVER = 'Goldilocks'    # ODBC 드라이버 이름
+CDS_DB_KIND = 'goldilocks'      # 계정 키워드가 DB 마다 다르므로 DSN 방식에서도 필요하다
+CDS_DB_DSN  = 'PDB'             # odbc.ini 스탠자 이름
+CDS_DB_USER = 'pgtest'          # odbc.ini 에 UID 가 있으면 생략 가능
+```
+
+**3) DSN-less** — DSN 없이 직접 조립한다.
+
+```python
+CDS_DB_KIND   = 'goldilocks'
+CDS_DB_DRIVER = '/PG/goldilocks_home/lib/libgoldilockscs-ul64.so'   # 경로 또는 드라이버 이름
 CDS_DB_HOST   = '10.20.30.40'
 CDS_DB_PORT   = '22581'
+CDS_DB_NAME   = 'PDB'
 CDS_DB_USER   = 'pgtest'
+```
+
+**1) 완성 문자열** — 위 둘이 실환경 드라이버와 안 맞을 때의 최종 우회 수단.
+이 값이 있으면 나머지는 전부 무시된다.
+
+```python
+CDS_DB_CONNSTR = 'DSN=PDB;UID=pgtest;PWD=...;'
 ```
 
 ```bash
@@ -108,8 +129,8 @@ export PG_CDS_DB_PASSWORD='...'    # PowerShell: $env:PG_CDS_DB_PASSWORD='...'
 `PG_CDS_DB_PASSWORD` 가 우선한다. 어느 쪽이든 Python 이 직접 읽으므로 `log.html` 에는
 마스킹된 접속 문자열(`PWD=****`)만 남는다.
 
-ODBC 접속 문자열 조립이 실환경 드라이버와 안 맞으면 `CDS_DB_CONNSTR` 에 완성된 문자열을
-통째로 넣는다 — 그러면 위 개별 값은 무시된다.
+골디락스 DSN-less 가 `IM012 DRIVER keyword syntax error` 로 거부된 이력과 그 대응은
+[nodes/CDS.md](nodes/CDS.md) 의 PDB 조회 절에 있다.
 
 ## prd 가드
 

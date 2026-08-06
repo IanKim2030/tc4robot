@@ -34,9 +34,11 @@ resources/CdsDbHelper.py              ← CDS PDB 조회 (ODBC/pyodbc)
 | `CdsHelper.py` | `Cds` | 48옥텟 CDS 고정전문. 소켓은 `TcpHelper` 재사용 | `pack_cds_header` `parse_cds_header` `send_cds` `receive_cds` `pack_ack` `unpack_ack` `pack_command_body` `unpack_command_body` |
 | `TlvHelper.py` | `Tlv` | NWDAF TLV. 소켓까지 자체 구현 | `build_nwdaf_header` `parse_nwdaf_header` `pack_tlv` `unpack_tlv_stream` `tlv_find` `tlv_find_all` `build_common1` `build_pcef_qos_ctrl` `build_dpi_qos_ctrl` `build_enb_qos_ctrl` `build_common2` `send_nwdaf_notification` `send_nwdaf_raw` `receive_nwdaf_message` `hex_dump` |
 | `HttpHelper.py` | — | LRS Session-Info 전용 | `build_aims_req` `parse_xml_fields` `post_session_info` |
-| `CdsDbHelper.py` | `CdsDb` | CDS PDB(골디락스/알티베이스) **조회 전용**. ODBC | `build_conn_str` `masked_conn_str` `db_connect` `db_close` `db_count` |
+| `CdsDbHelper.py` | `CdsDb` | CDS PDB(골디락스/알티베이스) **조회 전용**. ODBC | `build_conn_str` `build_dsn_conn_str` `build_dsnless_conn_str` `masked_conn_str` `db_connect` `db_close` `db_count` |
 
 `CdsDbHelper` 만 성격이 다르다 — 전문을 만들지 않고 **PG 가 DB 에 반영했는지를 본다**.
+접속 방식은 3가지다(완성 문자열 / **DSN** / DSN-less). 골디락스는 DSN 방식이 정석이며
+그 이유와 `IM012` 이력은 [nodes/CDS.md](nodes/CDS.md) 에 있다.
 `pyodbc` 는 **지연 임포트**한다(모듈 최상단에 두면 pyodbc 없는 환경에서 CDS 슈트 전체가
 로드되지 않는다). 비밀번호는 키워드 인자로 받지 않고 환경변수 `PG_CDS_DB_PASSWORD` →
 Robot 변수 `${CDS_DB_PASSWORD}` 순으로 Python 이 직접 읽는다 — 인자로 넘기면 `log.html`

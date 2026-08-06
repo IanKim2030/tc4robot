@@ -173,37 +173,65 @@ ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      #
 # 테이블에 반영됐는지는 PDB 를 봐야 판정된다(docs/nodes/CDS.md "도구 관점에서의 함의").
 #
 # 대상 DB 는 환경에 따라 골디락스 또는 알티베이스다 — ${CDS_DB_KIND} 로 고른다.
-# ★ 아래 접속 정보는 비어 있다. 채우지 않으면 DB 검증이 걸린 TC 는 실패한다.
+# ★ 접속 정보를 채우지 않으면 DB 검증이 걸린 TC 는 실패한다.
 #    config/env/<env>.py 에서 오버라이드하는 것이 정석이다.
 # ★ 비밀번호는 여기 적지 말고 환경변수 PG_CDS_DB_PASSWORD 로 주는 것을 권장한다
 #    (이 리포는 과거 평문 비밀번호가 커밋된 전례가 있다 — docs/ENVIRONMENTS.md).
+#
+# [접속 방식 3가지 — 이 우선순위로 하나만 골라 채운다]
+#   1) ${CDS_DB_CONNSTR} : 완성된 ODBC 문자열을 통째로. 나머지 값은 전부 무시된다
+#   2) ${CDS_DB_DSN}     : DSN 방식 ★골디락스 권장. odbc.ini(Linux) / ODBC 데이터 원본
+#                          관리자(Windows)에 등록한 이름. 드라이버 경로·호스트·포트는
+#                          DSN 이 갖고 있어 여기서는 계정만 붙는다
+#                          → DSN=name;UID=user;PWD=pw;
+#   3) ${CDS_DB_DRIVER} + HOST/PORT : DSN 없이 직접 조립(DSN-less)
+# ${CDS_DB_KIND} 는 세 방식 모두에서 의미가 있다 — 키워드 표기가 DB 마다 다르다
+# (골디락스 HOST/UID/PWD, 알티베이스 Server/User/Password).
 # ════════════════════════════════════════════
 ${CDS_DB_KIND}            goldilocks       # goldilocks | altibase
-${CDS_DB_DRIVER}          /PG/goldilocks_home/lib/libgoldilockscs-ul64.so         # ODBC 드라이버 이름 (TODO: 실환경 값)
-${CDS_DB_HOST}            192.168.15.185         # PDB 호스트   (TODO: 실환경 값)
-${CDS_DB_PORT}            22581         # PDB 포트     (TODO: 실환경 값)
-${CDS_DB_NAME}            PDB         # DB/스키마 이름
-${CDS_DB_USER}            pdb         # 조회 계정    (TODO: 실환경 값)
-${CDS_DB_PASSWORD}        pdb1234         # ← 환경변수 PG_CDS_DB_PASSWORD 가 우선
-# 위 조립이 실환경 드라이버와 안 맞으면 완성된 접속 문자열을 통째로 넣는다.
-# 이 값이 있으면 KIND/DRIVER/HOST/PORT/NAME/USER 는 무시된다.
+
+# 2) DSN 방식 — 아래 odbc.ini 스탠자 이름을 넣으면 이 방식으로 붙는다
+${CDS_DB_DSN}             ${EMPTY}         # 예: PDB  (TODO: 실환경 DSN 이름)
+
+# 3) DSN-less — ${CDS_DB_DSN} 이 비어 있을 때만 쓰인다
+${CDS_DB_DRIVER}          /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
+${CDS_DB_HOST}            192.168.15.185
+${CDS_DB_PORT}            22581
+${CDS_DB_NAME}            PDB              # DB 이름. DSN 방식에선 보통 비워 둔다
+${CDS_DB_USER}            pdb              # 두 방식 공용 (odbc.ini 에 UID 가 있으면 생략 가능)
+${CDS_DB_PASSWORD}        pdb1234          # ← 환경변수 PG_CDS_DB_PASSWORD 가 우선
+${CDS_DB_EXTRA}           ${EMPTY}         # 덧붙일 키워드. 비우면 종류별 기본값(골디락스 CHARSET=UHC)
+
+# 1) 위 조립이 실환경 드라이버와 안 맞을 때의 최종 우회 수단.
+#    이 값이 있으면 KIND/DSN/DRIVER/HOST/PORT/NAME/USER 는 무시된다.
 ${CDS_DB_CONNSTR}         ${EMPTY}
 ${CDS_DB_TIMEOUT}         10               # 접속·쿼리 타임아웃(초)
 
-
-#-------------------------------
-#Driver = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
-#Setup = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
-#UID = pdb
-#PWD = pdb1234
-#HOST=192.168.15.185
-#PORT=22581
-#ALTERNATE_SERVERS=(HOST=192.168.15.186:PORT=22581,HOST=192.168.15.187:PORT=22581,HOST=192.168.15.188:PORT=22581)
-#LOCALITY_AWARE_TRANSACTION = 1
-#LOCATOR_DSN = LOCATOR
-#CHARSET=UHC
-#--------------------------------
-
+# ── 골디락스 DSN-less 실패 이력 (2026-08-06, PG dev) ──────────────
+# 아래 형태로 붙였다가 거부당했다.
+#   DRIVER={/PG/goldilocks_home/lib/libgoldilockscs-ul64.so};SERVER=192.168.15.185;
+#   PORT=22581;DATABASE=PDB;UID=pdb;PWD=****;
+#   → IM012 [SUNJESOFT][ODBC][GOLDILOCKS]DRIVER keyword syntax error (19043)
+#
+# 그래서 CdsDbHelper 를 두 군데 고쳤다:
+#   · 드라이버 값이 **경로면 중괄호를 붙이지 않는다**(_fmt_driver)
+#   · 호스트 키워드가 `SERVER` 가 아니라 **`HOST`** 다 (아래 odbc.ini 실측)
+# 그래도 안 되면 DSN 방식(2)을 쓸 것 — odbc.ini 에는 아래처럼 들어 있다.
+#
+#   [<DSN 이름>]
+#   Driver = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
+#   Setup  = /PG/goldilocks_home/lib/libgoldilockscs-ul64.so
+#   UID = pdb
+#   PWD = pdb1234
+#   HOST=192.168.15.185
+#   PORT=22581
+#   ALTERNATE_SERVERS=(HOST=192.168.15.186:PORT=22581,HOST=192.168.15.187:PORT=22581,HOST=192.168.15.188:PORT=22581)
+#   LOCALITY_AWARE_TRANSACTION = 1
+#   LOCATOR_DSN = LOCATOR
+#   CHARSET=UHC
+#
+# ALTERNATE_SERVERS(186~188 폴백)·LOCATOR_DSN 은 접속 문자열로 옮기기 번거롭다.
+# 이것만으로도 DSN 방식이 골디락스에서는 정석이다.
 
 
 # 반영 대기 — PG.SDM 이 T_CDS_ORDER_HIST 를 주기적으로 폴링해 가입자 테이블에
