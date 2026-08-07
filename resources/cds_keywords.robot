@@ -460,54 +460,26 @@ Command Download Flow
 # rollback 으로 트랜잭션을 끊어야 재조회가 새 스냅샷을 본다 — 그건 Db Count 가 한다.
 # ══════════════════════════════════════════════════════════════════
 
-CDS DB Config Should Be Complete
-    [Documentation]
-    ...    PDB 접속 정보가 채워졌는지 확인. 비어 있으면 어디에 넣어야 하는지까지 알린다.
-    ...    접속 방식이 3가지라 **고른 방식에 필요한 값만** 본다.
-    ...      ${CDS_DB_CONNSTR} 이 있으면  → 나머지는 무시되므로 통과
-    ...      ${CDS_DB_DSN} 이 있으면      → DSN 방식. 나머지는 DSN 이 갖고 있으므로 통과
-    ...      둘 다 없으면                 → DSN-less. DRIVER/HOST/PORT/USER 가 모두 있어야 한다
-    IF    '${CDS_DB_CONNSTR}' != '${EMPTY}' or '${CDS_DB_DSN}' != '${EMPTY}'
-        RETURN
-    END
-    @{missing}=    Create List
-    Run Keyword If    '${CDS_DB_DRIVER}' == '${EMPTY}'    Append To List    ${missing}    CDS_DB_DRIVER
-    Run Keyword If    '${CDS_DB_HOST}' == '${EMPTY}'      Append To List    ${missing}    CDS_DB_HOST
-    Run Keyword If    '${CDS_DB_PORT}' == '${EMPTY}'      Append To List    ${missing}    CDS_DB_PORT
-    Run Keyword If    '${CDS_DB_USER}' == '${EMPTY}'      Append To List    ${missing}    CDS_DB_USER
-    ${count}=    Get Length    ${missing}
-    ${names}=    Catenate    SEPARATOR=,${SPACE}    @{missing}
-    # ※ `Fail` 의 2번째 이후 인자는 메시지가 아니라 **태그**다(BuiltIn.Fail(msg, *tags)).
-    #    여러 줄을 ... 로 이어 넘기면 문장이 테스트 태그로 붙어 버린다. 한 줄로 합쳐서 넘긴다.
-    ${msg}=    Catenate    SEPARATOR=${\n}
-    ...    PDB 접속 정보가 없어 DB 반영을 판정할 수 없습니다 (미설정: ${names}).
-    ...    config/env/<env>.py 에 값을 넣거나 --variable 로 지정하십시오.
-    ...    odbc.ini 에 DSN 이 등록돼 있으면 CDS_DB_DSN 하나만 넣어도 됩니다.
-    ...    비밀번호는 환경변수 PG_CDS_DB_PASSWORD 로 주는 것을 권장합니다.
-    Run Keyword If    ${count} > 0    Fail    ${msg}
-
 Ensure CDS DB Connection
     [Documentation]
     ...    PDB 에 접속돼 있지 않으면 접속한다(슈트당 1회). 이미 있으면 그대로 쓴다.
     ...    정상 경로에서는 `Suite CDS Connect` 가 한 번 부르고 끝이다 — 조회 키워드에도
     ...    남겨 둔 것은 슈트 밖에서 키워드만 따로 부를 때의 안전장치다.
-    ...    접속 문자열은 Python 쪽에서 조립한다 — 비밀번호가 log.html 인자에 남지 않게 하기 위함이다.
+    ...
+    ...    ★ 접속 문자열(${CDS_DB_CONNSTR})은 **인자로 넘기지 않는다** — 비밀번호가
+    ...      들어 있어 log.html 의 Arguments 에 평문으로 남기 때문이다. Python 이
+    ...      환경변수 PG_CDS_DB_CONNSTR → ${CDS_DB_CONNSTR} 순으로 직접 읽고,
+    ...      비어 있으면 어디에 채워야 하는지까지 담아 실패한다.
+    ...      로그에는 마스킹된 문자열(PWD=****)만 남는다.
     ...
     ...    autocommit 은 ${CDS_DB_AUTOCOMMIT}(기본 ${FALSE}) 로 전달한다.
     IF    $CDS_DB_CONN is not None
         RETURN
     END
-    CDS DB Config Should Be Complete
-    ${shown}=    CdsDb.Masked Conn Str    kind=${CDS_DB_KIND}    driver=${CDS_DB_DRIVER}
-    ...    host=${CDS_DB_HOST}    port=${CDS_DB_PORT}    database=${CDS_DB_NAME}
-    ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}    dsn=${CDS_DB_DSN}
-    ...    extra=${CDS_DB_EXTRA}
+    ${shown}=    CdsDb.Masked Conn Str
     Log    [Suite] PDB 접속 시도 — ${shown}    console=True
-    ${conn}=    CdsDb.Db Connect    kind=${CDS_DB_KIND}    driver=${CDS_DB_DRIVER}
-    ...    host=${CDS_DB_HOST}    port=${CDS_DB_PORT}    database=${CDS_DB_NAME}
-    ...    user=${CDS_DB_USER}    conn_str=${CDS_DB_CONNSTR}    dsn=${CDS_DB_DSN}
-    ...    extra=${CDS_DB_EXTRA}    encoding=${CDS_DB_ENCODING}    timeout=${CDS_DB_TIMEOUT}
-    ...    autocommit=${CDS_DB_AUTOCOMMIT}
+    ${conn}=    CdsDb.Db Connect
+    ...    timeout=${CDS_DB_TIMEOUT}    autocommit=${CDS_DB_AUTOCOMMIT}
     Set Suite Variable    ${CDS_DB_CONN}    ${conn}
     Log    [Suite] PDB 접속 완료 (autocommit=${CDS_DB_AUTOCOMMIT})    console=True
 
@@ -522,12 +494,11 @@ Close CDS DB Connection
 
 CDS DB Count
     [Documentation]
-    ...    COUNT(*) 조회 → 정수 반환. `?` 자리표시자에 @{params} 가 순서대로 들어간다.
-    ...    들어가는 방식은 ${CDS_DB_BIND} 가 정한다 (auto | param | literal) —
-    ...    `?` 바인딩을 지원하지 않는 드라이버가 있다(CdsDbHelper 의 조회 절 주석).
+    ...    COUNT(*) 조회 → 정수 반환. `?` 자리표시자에 @{params} 가 순서대로
+    ...    **파라미터 바인딩**된다 — 방식 선택은 없다(리터럴 모드는 제거됐다).
     [Arguments]    ${sql}    @{params}
     Ensure CDS DB Connection
-    ${count}=    CdsDb.Db Count    ${CDS_DB_CONN}    ${sql}    @{params}    bind=${CDS_DB_BIND}
+    ${count}=    CdsDb.Db Count    ${CDS_DB_CONN}    ${sql}    @{params}
     Log    [PDB] ${sql} / params=@{params} → ${count}
     RETURN    ${count}
 

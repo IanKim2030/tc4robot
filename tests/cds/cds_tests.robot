@@ -27,7 +27,7 @@ Documentation
 ...    [PDB 조회] TC-CDS-002(A1 신규가입)만 전문 흐름에 더해 PDB 반영까지 판정한다
 ...      (`db` 태그). T_5G_SUBS_PROFILE 1건 + T_5G_SUBS_SERVICE 2건(DATA_USAGE_LEVEL /
 ...      DATA_USAGE_LEVEL_2)이 모두 있어야 성공이다. 접속 정보는 cds_variables.robot 의
-...      ${CDS_DB_*} 이다.
+...      ${CDS_DB_CONNSTR}(완성된 ODBC 문자열) 하나다 — 환경변수 PG_CDS_DB_CONNSTR 가 우선.
 ...      DB 접속은 **Suite Setup 에서 소켓과 함께 1회** 붙고 Suite Teardown 에서 끊는다
 ...      (TC별 접속 없음). autocommit 은 꺼져 있다(${CDS_DB_AUTOCOMMIT}=${FALSE}).
 ...      ★ 접속 정보가 틀리면 이 TC 뿐 아니라 **슈트 전체가 서지 않는다** — Suite Setup
@@ -95,8 +95,8 @@ TC-CDS-002 A1 (신규가입)
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='DATA_USAGE_LEVEL'
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='DATA_USAGE_LEVEL_2'
     ...    반영이 비동기라 ${CDS_DB_WAIT} 동안 재조회한다.
-    ...    ※ PDB 접속 정보(${CDS_DB_HOST} 등)가 비어 있으면 이 TC 는 실패한다 —
-    ...       config/env/<env>.py 에 채울 것.
+    ...    ※ PDB 접속 문자열(${CDS_DB_CONNSTR})이 비어 있으면 이 TC 뿐 아니라 슈트 전체가
+    ...       서지 않는다(Suite Setup 에서 접속한다). config/env/<env>.py 에 채울 것.
     [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_A1}
     Verify Subscriber Provisioned In PDB    ${CDS_MDN}

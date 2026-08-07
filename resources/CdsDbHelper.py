@@ -19,63 +19,34 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
   로드되지 않는다(전문 송수신 TC 까지 못 돌게 된다). 그래서 `db_connect` 안에서
   임포트하고, 실패 시 설치 방법을 담은 한글 메시지를 낸다.
 
-[접속 방식 3가지 — 우선순위 순]
-  1) `${CDS_DB_CONNSTR}`  완성된 ODBC 문자열을 통째로 준다. 나머지 값은 전부 무시된다
-  2) `${CDS_DB_DSN}`      **DSN 방식.** odbc.ini(Linux) / ODBC 데이터 원본 관리자(Windows)
-                          에 등록해 둔 이름을 쓴다. 호스트·포트·DB 는 DSN 이 갖고 있으므로
-                          여기서는 계정만 붙인다 → `DSN=name;UID=user;PWD=pw;`
-  3) DRIVER/HOST/PORT     DSN 없이 직접 조립(DSN-less). `_KIND_SPEC` 으로 분기한다
+[접속 방식은 완성 문자열 하나뿐이다]
+  `${CDS_DB_CONNSTR}` 에 완성된 ODBC 접속 문자열을 통째로 준다. **이 헬퍼는 접속
+  문자열을 조립하지 않는다** — 받은 값을 그대로 pyodbc 에 넘긴다.
 
-  ※ 2)·3) 의 조립 형태는 **실환경 ODBC 드라이버로 검증되지 않았다.** 접속이 안 되면
-     1) 로 우회할 것 (config/env/<env>.py 에서 오버라이드).
-  ※ DSN 방식에서도 `${CDS_DB_KIND}` 는 의미가 있다 — 계정 키워드가 DB 마다 달라
-     골디락스는 `UID`/`PWD`, 알티베이스는 `User`/`Password` 로 붙인다(`_KIND_SPEC`).
+    CDS_DB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=pdb1234'
 
-[비밀번호]
-  `${CDS_DB_PASSWORD}` 를 Robot 키워드 인자로 넘기면 log.html 의 Arguments 에
-  평문으로 남는다. 그래서 비밀번호만은 **인자로 받지 않고** 아래 순서로 직접 읽는다.
-    1) 환경변수 `PG_CDS_DB_PASSWORD`
-    2) Robot 변수 `${CDS_DB_PASSWORD}`
-  로그에 남기는 접속 문자열은 항상 마스킹한다(`_mask`).
+  KIND/DSN/DRIVER/HOST/PORT 로 조립하던 경로는 제거했다. 골디락스에서 DSN-less
+  조립이 `IM012 DRIVER keyword syntax error` 로 거부됐고, 실환경 odbc.ini 에
+  `ALTERNATE_SERVERS`·`LOCATOR_DSN` 처럼 문자열로 옮기기 번거로운 항목이 있어
+  결국 DSN 등록 + 완성 문자열로 수렴했다 (docs/nodes/CDS.md).
+
+[비밀번호 — 접속 문자열 안에 들어간다]
+  그래서 접속 문자열은 **Robot 키워드 인자로 받지 않는다.** 인자로 넘기면 log.html
+  의 Arguments 에 평문으로 남는다. 아래 순서로 Python 이 직접 읽는다.
+    1) 환경변수 `PG_CDS_DB_CONNSTR`   ← 파일에 안 남기려면 이쪽
+    2) Robot 변수 `${CDS_DB_CONNSTR}`
+  로그에 남기는 접속 문자열은 항상 마스킹한다(`_mask` → `PWD=****`).
+  ※ 2) 를 쓰면 **파일에 평문으로 남는다** — 실환경 값은 커밋되는
+     cds_variables.robot 이 아니라 config/env/<env>.py 에서 오버라이드할 것.
 """
 
 import os
 import re
 
-# ── DB 종류별 ODBC 키워드 (DSN-less 전용) ─────────────────────────
-# 같은 의미의 항목이 DB 마다 이름이 다르다. **DSN-less 방식에서만** 쓴다 —
-# DSN 방식은 아래 _DSN_UID/_DSN_PWD(표준 ODBC 키)를 쓴다.
-#
-# goldilocks 값은 실환경 odbc.ini 실측이다 (2026-08-06, PG dev):
-#   Driver=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so
-#   UID=... PWD=... HOST=... PORT=... CHARSET=UHC
-#   → 호스트 키가 `SERVER` 가 아니라 **`HOST`** 다.
-# altibase 값은 아직 실환경으로 확인되지 않았다.
-#
-# `user_keys` 가 튜플인 것은 계정을 두 개 키로 동시에 넘겨야 하는 드라이버가
-# 있어서다(PG 참조 샘플이 그렇게 한다). 지금은 둘 다 하나면 충분하다.
-# `extra` 는 기본으로 붙일 부가 키워드다. 비워 뒀다 — 실환경에서 붙여야 하는 값이
-# 확인되면 여기 넣거나 ${CDS_DB_EXTRA} 로 준다.
-_KIND_SPEC = {
-    'goldilocks': {
-        'host_key': 'HOST', 'db_key': 'DATABASE',
-        'user_keys': ('UID',), 'pw_key': 'PWD', 'extra': (),
-    },
-    'altibase': {
-        'host_key': 'Server', 'db_key': 'DBName',
-        'user_keys': ('UID',), 'pw_key': 'PWD', 'extra': (),
-    },
-}
-
-# DSN 방식에서 계정을 덮어쓸 때 쓰는 **표준 ODBC 키**. DB 종류와 무관하다
-# (미지정 시 DSN 에 설정된 계정이 그대로 쓰인다).
-_DSN_UID = 'UID'
-_DSN_PWD = 'PWD'
-
-# 포트는 DB 종류와 무관하게 `PORT` 다 (PG 참조 샘플 확인).
-_PORT_KEY = 'PORT'
-
-_PASSWORD_ENV = 'PG_CDS_DB_PASSWORD'
+# 접속 문자열을 읽는 곳. 환경변수가 Robot 변수보다 우선한다 —
+# 비밀번호가 들어 있어 파일에 안 남기고 싶을 때 쓰는 통로다.
+_CONN_STR_ENV = 'PG_CDS_DB_CONNSTR'
+_CONN_STR_VAR = '${CDS_DB_CONNSTR}'
 
 
 class CdsDbError(Exception):
@@ -100,124 +71,58 @@ def _as_bool(value):
     return bool(value)
 
 
-def _resolve_password():
-    """비밀번호를 환경변수 → Robot 변수 순으로 읽는다 (인자로 받지 않는다)."""
-    pw = os.environ.get(_PASSWORD_ENV)
-    if pw:
-        return pw
+def _read_conn_str(conn_str=''):
+    """접속 문자열을 인자 → 환경변수 → Robot 변수 순으로 읽는다 (없으면 빈 문자열).
+
+    **평소에는 인자로 넘기지 않는다.** 접속 문자열에는 비밀번호가 들어 있는데,
+    Robot 키워드 인자로 넘기면 log.html 의 Arguments 에 평문으로 남기 때문이다
+    (예전에 비밀번호만 따로 읽던 이유와 같다). 인자는 Robot 밖에서 이 모듈을
+    직접 쓸 때를 위해 남겨 뒀다.
+    """
+    if conn_str:
+        return str(conn_str).strip()
+    env = os.environ.get(_CONN_STR_ENV)
+    if env:
+        return env.strip()
     try:
         from robot.libraries.BuiltIn import BuiltIn
-        return BuiltIn().get_variable_value('${CDS_DB_PASSWORD}') or ''
+        return (BuiltIn().get_variable_value(_CONN_STR_VAR) or '').strip()
     except Exception:          # Robot 밖에서 직접 호출된 경우
         return ''
 
 
-def _normalize_kind(kind):
-    key = str(kind).strip().lower()
-    if key not in _KIND_SPEC:
+def _require_conn_str(conn_str=''):
+    """접속 문자열을 읽고, 비어 있으면 어디에 채워야 하는지까지 알린다."""
+    cs = _read_conn_str(conn_str)
+    if not cs:
         raise CdsDbError(
-            "알 수 없는 DB 종류입니다: '%s' (사용 가능: %s). "
-            "${CDS_DB_KIND} 를 확인하십시오."
-            % (kind, ', '.join(sorted(_KIND_SPEC)))
+            'PDB 접속 문자열이 비어 있습니다 — DB 반영을 판정할 수 없습니다.\n'
+            "  ${CDS_DB_CONNSTR} 예: 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'\n"
+            '  config/env/<env>.py 에 넣거나 --variable 로 지정하십시오.\n'
+            '  비밀번호를 파일에 남기지 않으려면 환경변수 %s 를 쓰십시오.\n'
+            '  (DSN 은 odbc.ini / ODBC 데이터 원본 관리자에 미리 등록돼 있어야 합니다.)'
+            % _CONN_STR_ENV
         )
-    return key
-
-
-def _fmt_driver(driver):
-    """`DRIVER=` 값 표기 — 중괄호를 붙일지 말지.
-
-    ODBC 표준은 `DRIVER={이름}` 이지만 **GOLDILOCKS 드라이버 매니저는 .so 경로에
-    중괄호가 붙으면 거부한다.** 실측(2026-08-06):
-
-        DRIVER={/PG/goldilocks_home/lib/libgoldilockscs-ul64.so};SERVER=...
-        → IM012 [SUNJESOFT][ODBC][GOLDILOCKS]DRIVER keyword syntax error (19043)
-
-    그래서 값이 **경로면 그대로**, 드라이버 **이름이면 중괄호**로 감싼다
-    (이름에는 공백이 흔해 중괄호가 필요하다).
-    """
-    d = str(driver)
-    return d if ('/' in d or '\\' in d) else '{%s}' % d
-
-
-def _join(parts):
-    """`k=v` 조각들을 ODBC 접속 문자열로 잇는다."""
-    return ';'.join(p for p in parts if p) + ';'
-
-
-def build_dsn_conn_str(dsn, kind='goldilocks', user='', database='', extra=''):
-    """DSN 방식 접속 문자열 조립 — `DSN=name;UID=user;PWD=pw;`
-
-    호스트·포트·드라이버 경로는 odbc.ini / ODBC 데이터 원본 관리자에 등록된 DSN 이
-    갖고 있으므로 여기서는 계정만 덧붙인다. 계정 키는 DB 종류와 무관하게
-    **표준 ODBC 키(UID/PWD)** 다.
-
-    **빈 값은 아예 붙이지 않는다** — DSN 이 이미 갖고 있는 값을 빈 값으로 덮어쓰면
-    안 되기 때문이다(odbc.ini 에 UID/PWD 가 있으면 계정도 생략 가능).
-    """
-    spec = _KIND_SPEC[_normalize_kind(kind)]      # kind 유효성만 검사한다
-    password = _resolve_password()
-    return _join([
-        'DSN=%s' % dsn,
-        ('%s=%s' % (_DSN_UID, user)) if user else '',
-        ('%s=%s' % (_DSN_PWD, password)) if password else '',
-        ('%s=%s' % (spec['db_key'], database)) if database else '',
-        extra,
-    ])
-
-
-def build_dsnless_conn_str(kind='goldilocks', driver='', host='', port='',
-                           database='', user='', extra=''):
-    """DSN 없이 DRIVER/HOST/PORT 로 직접 조립한다.
-
-    ※ 이 경로는 GOLDILOCKS 에서 실패한 전례가 있다 — docs/nodes/CDS.md 참조.
-       접속이 안 되면 DSN 방식이나 ${CDS_DB_CONNSTR} 로 우회할 것.
-    """
-    spec = _KIND_SPEC[_normalize_kind(kind)]
-    password = _resolve_password()
-    parts = [
-        'DRIVER=%s' % _fmt_driver(driver),
-        '%s=%s' % (spec['host_key'], host),
-        '%s=%s' % (_PORT_KEY, port),
-    ]
-    if database:
-        parts.append('%s=%s' % (spec['db_key'], database))
-    if user:
-        parts += ['%s=%s' % (uk, user) for uk in spec['user_keys']]
-    if password:
-        parts.append('%s=%s' % (spec['pw_key'], password))
-    parts += [extra] if extra else list(spec['extra'])
-    return _join(parts)
-
-
-def build_conn_str(kind='goldilocks', driver='', host='', port='',
-                   database='', user='', dsn='', extra=''):
-    """ODBC 접속 문자열 조립. 비밀번호는 여기서 직접 읽는다.
-
-    dsn 이 있으면 DSN 방식, 없으면 DSN-less(DRIVER/HOST/PORT) 방식이다.
-    kind : 'goldilocks' | 'altibase'
-    """
-    if dsn:
-        return build_dsn_conn_str(dsn, kind=kind, user=user,
-                                  database=database, extra=extra)
-    return build_dsnless_conn_str(kind=kind, driver=driver, host=host, port=port,
-                                  database=database, user=user, extra=extra)
+    return cs
 
 
 # ── 접속 / 해제 ───────────────────────────────────────────────────
 
-def db_connect(kind='goldilocks', driver='', host='', port='',
-               database='', user='', conn_str='', dsn='', extra='',
-               encoding='utf-8', timeout=10, autocommit=False):
+def db_connect(conn_str='', timeout=10, autocommit=False):
     """PDB 에 접속해 connection 객체를 반환한다.
 
-    접속 문자열은 conn_str(완성) → dsn(DSN 방식) → DRIVER/HOST/PORT(DSN-less)
-    순으로 결정된다.
+    접속 문자열은 **완성된 ODBC 문자열**이며 조립하지 않고 그대로 넘긴다.
+    conn_str 을 비워 두면 `PG_CDS_DB_CONNSTR` → `${CDS_DB_CONNSTR}` 순으로
+    직접 읽는다 — 비밀번호가 log.html 인자에 남지 않게 하기 위함이다.
 
-    encoding 은 pyodbc 의 문자 인코딩을 고정한다(기본 `utf-8`).
-    **골디락스/알티베이스 ODBC 드라이버는 유니코드(SQL_WVARCHAR) 바인딩을 지원하지
-    않는 경우가 있어**, 문자열을 ANSI(SQL_CHAR)로 처리하도록 강제해야 한다
-    (PG 참조 샘플이 두 DB 모두에 무조건 적용한다). 이걸 안 하면 조회가 진단 없이
-    죽는다 — `('HY000', 'The driver did not supply an error!')`.
+    [문자 인코딩은 접속 문자열에서 지정한다]
+      예전에는 `conn.setencoding` / `setdecoding` 으로 pyodbc 쪽을 ANSI 로 못 박았다.
+      지금은 그 코드가 없다 — **드라이버 쪽 `CHARSET=` 으로 지정한다.**
+        CDS_DB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...;CHARSET=UHC'
+      ※ 둘은 같은 것이 아니다. `CHARSET=` 은 드라이버가 서버와 주고받는 문자셋이고,
+        `setencoding` 은 pyodbc 가 Python str 을 어느 SQL 타입으로 바인딩하는지다.
+        `('HY000', 'The driver did not supply an error!')` 가 다시 나오면 이 차이를
+        의심할 것 — 되살리는 법은 docs/nodes/CDS.md 의 해당 함정 절에 적어 뒀다.
 
     autocommit 은 기본 **False**(끔)다 — PG 참조 샘플과 같다.
     ★ 끈 상태에서는 SELECT 도 트랜잭션을 연다. 그대로 두면 `Verify Subscriber
@@ -234,8 +139,7 @@ def db_connect(kind='goldilocks', driver='', host='', port='',
             '`pip install pyodbc` 후 다시 실행하십시오. (원인: %s)' % exc
         )
 
-    cs = conn_str or build_conn_str(kind, driver, host, port, database,
-                                    user, dsn, extra)
+    cs = _require_conn_str(conn_str)
     try:
         # 기본은 autocommit=False (PG 참조 샘플과 동일). 스냅샷 문제는 조회 직전
         # rollback 으로 푼다 — 위 docstring 참조.
@@ -245,17 +149,6 @@ def db_connect(kind='goldilocks', driver='', host='', port='',
         raise CdsDbError(
             'PDB 접속 실패 — %s / 접속문자열=%s' % (exc, _mask(cs))
         )
-    if encoding:
-        try:
-            conn.setencoding(encoding=encoding)
-            conn.setdecoding(pyodbc.SQL_CHAR, encoding=encoding)
-            conn.setdecoding(pyodbc.SQL_WCHAR, encoding=encoding)
-        except Exception as exc:
-            db_close(conn)
-            raise CdsDbError(
-                "인코딩 설정 실패 (encoding='%s') — %s. "
-                "${CDS_DB_ENCODING} 을 확인하십시오." % (encoding, exc)
-            )
     conn.timeout = int(timeout)          # 쿼리 타임아웃
     return conn
 
@@ -289,61 +182,31 @@ def db_close(conn):
         pass
 
 
-def masked_conn_str(kind='goldilocks', driver='', host='', port='',
-                    database='', user='', conn_str='', dsn='', extra='',
-                    **_ignored):
-    """로그용 마스킹된 접속 문자열. 비밀번호가 log.html 로 새지 않는다.
+def masked_conn_str(conn_str='', **_ignored):
+    """로그용 마스킹된 접속 문자열(`PWD=****`). 비밀번호가 log.html 로 새지 않는다.
 
-    `db_connect` 와 **같은 인자 묶음을 그대로 받도록** `**_ignored` 를 둔다
-    (호출부가 두 곳에서 인자 목록을 따로 관리하면 어긋난다).
-    문자열 조립에 안 쓰이는 encoding/timeout 등은 여기서 무시된다.
+    `db_connect` 와 **같은 곳에서 같은 순서로** 읽는다(`_read_conn_str`) — 로그에
+    찍힌 문자열과 실제로 접속에 쓰인 문자열이 어긋나면 진단이 무의미해진다.
+    `db_connect` 와 인자 묶음을 맞추려고 `**_ignored` 를 둔다(encoding/timeout 등).
+    빈 값이어도 실패하지 않는다 — 로그용이라 정작 접속 실패 진단을 가리면 안 된다.
     """
-    cs = conn_str or build_conn_str(kind, driver, host, port, database,
-                                    user, dsn, extra)
-    return _mask(cs)
+    return _mask(_read_conn_str(conn_str)) or '(비어 있음)'
 
 
 # ── 조회 ──────────────────────────────────────────────────────────
 #
-# [바인딩 방식 — `?` 가 안 먹는 드라이버가 있다]
+# [바인딩은 `?` 파라미터로 고정이다]
 #   pyodbc 는 `?` 를 바인딩할 때 SQLDescribeParam 으로 파라미터 타입을 묻는데,
 #   이를 구현하지 않은 드라이버에서는 진단 레코드 없이 실패한다:
 #     ('HY000', 'The driver did not supply an error!')
 #   실제로 골디락스에서 이 증상이 나왔다(2026-08-06).
 #
-#   그래서 세 가지 모드를 둔다 (${CDS_DB_BIND}).
-#     auto    : `?` 바인딩을 먼저 시도하고, 실패하면 리터럴로 재시도 (기본값)
-#     param   : `?` 바인딩만. setinputsizes 로 SQLDescribeParam 호출을 피한다
-#     literal : 값을 SQL 문자열에 직접 넣는다
+#   그 대응이 `_try_setinputsizes` 다 — 파라미터 타입을 미리 못 박아 드라이버에
+#   SQLDescribeParam 을 묻지 않게 한다.
 #
-#   리터럴이 안전한 이유는 **넣는 값이 도구가 정한 상수뿐**이기 때문이다
-#   (MDN, SVC_ID). 외부 입력을 넣는 자리가 아니다. 그래도 따옴표는 이스케이프한다.
-
-_BIND_MODES = ('auto', 'param', 'literal')
-
-
-def _quote(value):
-    """SQL 리터럴로 만든다. 숫자는 그대로, 그 외는 작은따옴표 + 이스케이프."""
-    if isinstance(value, bool):
-        raise CdsDbError('불리언은 SQL 리터럴로 넣지 않는다: %r' % (value,))
-    if isinstance(value, (int, float)):
-        return str(value)
-    return "'%s'" % str(value).replace("'", "''")
-
-
-def _inline_params(sql, params):
-    """`?` 자리에 리터럴을 채워 넣는다. 개수가 안 맞으면 실패."""
-    chunks = sql.split('?')
-    if len(chunks) - 1 != len(params):
-        raise CdsDbError(
-            '자리표시자(?) 개수와 인자 개수가 다릅니다: ?=%d, 인자=%d, sql=%s'
-            % (len(chunks) - 1, len(params), sql)
-        )
-    out = chunks[0]
-    for value, chunk in zip(params, chunks[1:]):
-        out += _quote(value) + chunk
-    return out
-
+#   예전에는 값을 SQL 문자열에 직접 넣는 리터럴 모드와 `auto` 폴백이 있었고
+#   ${CDS_DB_BIND} 로 골랐다. **지금은 `?` 바인딩 하나뿐이다** — 모드 선택과 리터럴
+#   경로를 함께 제거했다. 조회가 위 HY000 으로 죽으면 폴백 없이 그대로 실패한다.
 
 def _try_setinputsizes(cur, count):
     """파라미터 타입을 못 박아 SQLDescribeParam 호출을 피한다 (best-effort).
@@ -358,15 +221,13 @@ def _try_setinputsizes(cur, count):
         pass
 
 
-def _fetch_count(cur, sql, params, use_param):
-    """한 번 실행하고 COUNT 값을 꺼낸다."""
-    if not params:
-        cur.execute(sql)
-    elif use_param:
+def _fetch_count(cur, sql, params):
+    """한 번 실행하고 COUNT 값을 꺼낸다. 값은 항상 `?` 로 바인딩한다."""
+    if params:
         _try_setinputsizes(cur, len(params))
         cur.execute(sql, tuple(params))
     else:
-        cur.execute(_inline_params(sql, params))
+        cur.execute(sql)
     row = cur.fetchone()
     if row is None or len(row) != 1:
         raise CdsDbError(
@@ -376,11 +237,11 @@ def _fetch_count(cur, sql, params, use_param):
     return int(row[0])
 
 
-def db_count(conn, sql, *params, bind='auto'):
+def db_count(conn, sql, *params):
     """`SELECT COUNT(*) ...` 을 실행해 정수 하나를 반환한다.
 
-    params 는 SQL 의 `?` 자리표시자에 순서대로 들어간다. 들어가는 방식은
-    bind 로 고른다 ('auto' | 'param' | 'literal' — 위 주석 참조).
+    params 는 SQL 의 `?` 자리표시자에 순서대로 **파라미터 바인딩**된다 (고정이다 —
+    리터럴 모드와 ${CDS_DB_BIND} 는 제거됐다. 위 주석 참조).
     결과가 1행 1열이 아니면 실패로 본다 — COUNT 조회 전용이다.
 
     autocommit=False 인 connection 이면 **조회 직전에 트랜잭션을 끊는다**
@@ -389,34 +250,18 @@ def db_count(conn, sql, *params, bind='auto'):
     if conn is None:
         raise CdsDbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
     db_end_transaction(conn)
-    mode = str(bind).strip().lower() or 'auto'
-    if mode not in _BIND_MODES:
+    cur = conn.cursor()
+    try:
+        return _fetch_count(cur, sql, params)
+    except CdsDbError:
+        raise
+    except Exception as exc:
         raise CdsDbError(
-            "알 수 없는 바인딩 방식입니다: '%s' (사용 가능: %s). "
-            "${CDS_DB_BIND} 를 확인하십시오." % (bind, ', '.join(_BIND_MODES))
+            'PDB 조회 실패 — %s / sql=%s params=%r\n'
+            '  진단이 없는 HY000 이면 드라이버가 ? 바인딩(SQLDescribeParam)을 지원하지'
+            ' 않거나, 접속 문자열의 CHARSET 이 서버와 안 맞을 수 있습니다.\n'
+            '  테이블이 안 보이거나 계정 권한이 없을 때도 같은 자리에서 실패합니다.'
+            % (exc, sql, params)
         )
-
-    attempts = {'auto': (True, False), 'param': (True,), 'literal': (False,)}[mode]
-    errors = []
-    for use_param in attempts:
-        cur = conn.cursor()
-        try:
-            return _fetch_count(cur, sql, params, use_param)
-        except CdsDbError:
-            raise
-        except Exception as exc:
-            errors.append('%s 바인딩: %s' % ('?' if use_param else '리터럴', exc))
-        finally:
-            cur.close()
-
-    hint = ''
-    if mode == 'auto':
-        hint = (' — ? 바인딩과 리터럴이 모두 실패했습니다. 드라이버가 이 테이블을'
-                ' 못 보거나 계정 권한이 없을 수 있습니다.')
-    elif mode == 'param':
-        hint = (" — 드라이버가 ? 바인딩을 지원하지 않을 수 있습니다."
-                " ${CDS_DB_BIND} 를 literal 로 바꿔 보십시오.")
-    raise CdsDbError(
-        'PDB 조회 실패%s / sql=%s params=%r / %s'
-        % (hint, sql, params, ' | '.join(errors))
-    )
+    finally:
+        cur.close()

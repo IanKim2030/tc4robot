@@ -205,10 +205,10 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LE
 
 | 항목 | 내용 |
 |---|---|
-| 대상 DB | 환경에 따라 **골디락스** 또는 **알티베이스** — `${CDS_DB_KIND}` 로 고른다 |
+| 대상 DB | 환경에 따라 **골디락스** 또는 **알티베이스** |
 | 드라이버 | ODBC (`pyodbc`). `resources/CdsDbHelper.py` 가 직접 쓴다 — `DatabaseLibrary` 는 쓰지 않는다 |
-| 접속 방식 | 아래 3가지. 고른 방식에 필요한 값이 없으면 TC 가 실패한다 |
-| 비밀번호 | 환경변수 `PG_CDS_DB_PASSWORD` 우선, 없으면 `${CDS_DB_PASSWORD}` |
+| 접속 방식 | **완성된 ODBC 문자열 하나뿐** — `${CDS_DB_CONNSTR}`. 도구가 조립하지 않는다 |
+| 비밀번호 | 접속 문자열 안에. 환경변수 `PG_CDS_DB_CONNSTR` 우선, 없으면 `${CDS_DB_CONNSTR}` |
 | 접속 시점 | **Suite Setup**(`Suite CDS Connect`)에서 소켓에 이어 1회. DB 가 안 붙으면 전문 송수신 TC 까지 포함해 슈트 전체가 서지 않는다 |
 | 트랜잭션 | `autocommit` **끔**(`${CDS_DB_AUTOCOMMIT}`=`${FALSE}`). 조회 직전마다 rollback — 아래 절 |
 | 종료 | `Suite CDS Disconnect` |
@@ -217,16 +217,24 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LE
 재조회가 필요한 이유는 위 흐름 그대로다 — PG.SDM 이 `T_CDS_ORDER_HIST` 를 **주기적으로
 폴링**해 가입자 테이블에 반영하므로 `CommandResult`(0017) 수신 시점에는 아직 안 들어와 있다.
 
-#### 접속 방식 3가지 (우선순위 순)
+#### 접속 문자열 — 조립하지 않는다
 
-| 순위 | 변수 | 조립 결과 | 언제 쓰나 |
-|---|---|---|---|
-| 1 | `${CDS_DB_CONNSTR}` | 준 문자열 그대로 | 아래 둘이 실환경 드라이버와 안 맞을 때의 최종 우회. 나머지 값은 전부 무시된다 |
-| 2 | `${CDS_DB_DSN}` | `DSN=name;UID=user;PWD=pw;` | **골디락스 권장.** `odbc.ini`(Linux) / ODBC 데이터 원본 관리자(Windows)에 등록된 이름을 쓴다 |
-| 3 | `${CDS_DB_DRIVER}` + `HOST`/`PORT` | `DRIVER=...;HOST=...;PORT=...` | DSN 없이 직접 조립(DSN-less) |
+`${CDS_DB_CONNSTR}` 에 완성된 ODBC 문자열을 넣으면 **그대로** `pyodbc` 로 간다.
+DSN 을 `odbc.ini`(Linux) / ODBC 데이터 원본 관리자(Windows)에 등록해 두고 이름만
+참조하는 것이 골디락스 정석이다.
 
-`${CDS_DB_KIND}` 는 **세 방식 모두에서** 의미가 있다 — 같은 항목의 키워드 표기가 DB 마다
-다르기 때문이다(`_KIND_SPEC`).
+```python
+CDS_DB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'
+```
+
+`${CDS_DB_KIND}` `${CDS_DB_DSN}` `${CDS_DB_DRIVER}` `HOST`/`PORT`/`NAME`/`USER`/
+`PASSWORD`/`EXTRA` 로 **조립하던 경로는 제거했다.** 조립 로직(`_KIND_SPEC`,
+`build_conn_str`, `_fmt_driver`)도 함께 없앴다. 골디락스에서 DSN-less 조립이 거부됐고
+(아래 절), 실환경 `odbc.ini` 에 문자열로 옮기기 번거로운 항목이 있어 결국 전부 DSN
+등록 + 완성 문자열로 수렴했기 때문이다.
+
+DB 마다 키워드 표기가 다르다는 사실 자체는 **여전히 유효하다** — 이제 문자열을 직접
+쓰는 사람이 알아야 한다.
 
 | 항목 | 골디락스 | 알티베이스 |
 |---|---|---|
@@ -236,9 +244,6 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LE
 | 계정 / 비밀번호 | `UID` / `PWD` | `UID` / `PWD` |
 
 골디락스 값은 실환경 `odbc.ini` 실측(2026-08-06)이고 **알티베이스 값은 아직 미검증**이다.
-**DSN 방식에서는 계정 키가 DB 종류와 무관하게 표준 ODBC 키(`UID`/`PWD`)** 이며, 생략하면
-DSN 에 설정된 계정이 그대로 쓰인다. 부가 키워드는 기본이 없고 `${CDS_DB_EXTRA}` 로 준다
-(예: `LOCALITY_AWARE_TRANSACTION=0`).
 
 #### 함정 — 골디락스 DSN-less 는 `IM012` 로 거부됐다
 
@@ -247,17 +252,18 @@ DRIVER={/PG/goldilocks_home/lib/libgoldilockscs-ul64.so};SERVER=...;PORT=22581;.
 → IM012 [SUNJESOFT][ODBC][GOLDILOCKS]DRIVER keyword syntax error (19043)
 ```
 
-두 가지가 겹쳐 있었다.
+두 가지가 겹쳐 있었다. **DSN 없이 문자열을 직접 쓸 때 그대로 적용된다.**
 
 1. **`.so` 경로에 중괄호를 붙이면 안 된다.** ODBC 표준은 `DRIVER={이름}` 이지만 GOLDILOCKS
-   드라이버 매니저가 이를 거부한다 → `_fmt_driver()` 가 **값이 경로면 중괄호를 생략**하고,
-   드라이버 '이름'일 때만 감싼다(이름에는 공백이 흔해 중괄호가 필요하다).
+   드라이버 매니저가 이를 거부한다. 경로는 맨몸으로 쓰고, 드라이버 '이름'일 때만 감싼다
+   (이름에는 공백이 흔해 중괄호가 필요하다).
 2. **호스트 키워드가 `SERVER` 가 아니라 `HOST`** 다 (`odbc.ini` 실측).
 
-둘을 고쳤어도 **골디락스는 DSN 방식(2)이 정석**이다. 실환경 `odbc.ini` 에
+둘을 알고도 **골디락스는 DSN 등록이 정석**이다. 실환경 `odbc.ini` 에
 `ALTERNATE_SERVERS`(186~188 폴백) · `LOCALITY_AWARE_TRANSACTION` · `LOCATOR_DSN` 이
 들어 있어 접속 문자열로 그대로 옮기기 번거롭기 때문이다. 스탠자 전문은
-`cds_variables.robot` 의 PDB 절 주석에 남겨 뒀다.
+`cds_variables.robot` 의 PDB 절 주석에 남겨 뒀다. 조립 경로를 지우고 완성 문자열
+하나만 남긴 것도 이 결론의 연장이다.
 
 #### 함정 — `?` 바인딩이 진단 없이 죽는다
 
@@ -270,8 +276,22 @@ sql=SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?  params=('01090010001',
 
 **주 원인은 문자 인코딩이다.** 골디락스·알티베이스 ODBC 드라이버는 유니코드
 (`SQL_WVARCHAR`) 바인딩을 지원하지 않는 경우가 있는데, pyodbc 는 기본적으로 문자열을
-와이드로 보낸다. 그래서 `${CDS_DB_ENCODING}`(기본 `utf-8`)로 ANSI(`SQL_CHAR`) 처리를
-강제한다 — PG 참조 샘플이 두 DB 모두에 무조건 적용하는 설정이다.
+와이드로 보낸다. 두 번째 요인은 바인딩 자체다 — pyodbc 는 `?` 를 바인딩할 때
+`SQLDescribeParam` 으로 파라미터 타입을 묻는데, 이를 구현하지 않은 드라이버에서는
+역시 진단 없이 SQL_ERROR 만 돌아온다.
+
+**현재 대응은 접속 문자열의 `CHARSET=` + `?` 바인딩 고정이다.**
+
+| 요인 | 예전 | 지금 |
+|---|---|---|
+| 문자 인코딩 | `${CDS_DB_ENCODING}`(기본 `utf-8`) → `conn.setencoding` / `setdecoding` | **`${CDS_DB_CONNSTR}` 의 `CHARSET=`** (골디락스는 `UHC`). 변수·코드 모두 제거 |
+| 파라미터 바인딩 | `${CDS_DB_BIND}` 로 `auto`/`param`/`literal` 선택, 리터럴 폴백 있음 | **`?` 고정**(`param` 상당). `setinputsizes` 로 `SQLDescribeParam` 회피. 모드 선택·리터럴 경로 제거 |
+
+★ **둘은 같은 것이 아니다.** `CHARSET=` 은 **드라이버**가 서버와 주고받는 문자셋이고,
+`setencoding` 은 **pyodbc** 가 Python `str` 을 어느 SQL 타입으로 바인딩하는지다.
+`CHARSET=` 만으로 이 HY000 이 안 나는지는 **실환경에서 확인해야 한다** — 리터럴 폴백이
+없으므로 재발하면 조회가 그대로 실패한다. 그때 pyodbc 쪽을 되살리려면 `db_connect` 의
+`pyodbc.connect(...)` 직후에 세 줄을 넣으면 된다.
 
 ```python
 conn.setencoding(encoding='utf-8')
@@ -279,19 +299,7 @@ conn.setdecoding(pyodbc.SQL_CHAR,  encoding='utf-8')
 conn.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
 ```
 
-**이 값을 비우면 증상이 재현된다.** 두 번째 요인은 바인딩 자체다 — pyodbc 는 `?` 를
-바인딩할 때 `SQLDescribeParam` 으로 파라미터 타입을 묻는데, 이를 구현하지 않은
-드라이버에서는 역시 진단 없이 SQL_ERROR 만 돌아온다. 그래서 `${CDS_DB_BIND}` 로
-방식을 고를 수 있게 했다.
-
-| 값 | 동작 |
-|---|---|
-| `auto` (기본) | `?` 를 먼저 시도하고, 실패하면 **리터럴로 재시도**한다 |
-| `param` | `?` 만. `setinputsizes` 로 `SQLDescribeParam` 호출을 피한다(best-effort) |
-| `literal` | 값을 SQL 문자열에 직접 넣는다 |
-
-리터럴이 안전한 이유는 **넣는 값이 도구가 정한 상수뿐**(MDN·SVC_ID)이라서다 —
-외부 입력이 들어오는 자리가 아니다. 그래도 작은따옴표는 이스케이프한다(`_quote`).
+(PG 참조 샘플은 두 DB 모두에 이 설정을 무조건 적용한다.)
 
 #### 함정 — `autocommit=False` 는 재조회를 무력화할 수 있다
 
