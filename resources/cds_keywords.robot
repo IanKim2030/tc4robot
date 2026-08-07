@@ -509,6 +509,25 @@ CDS DB Count Should Be
     Should Be Equal As Integers    ${count}    ${expected}
     ...    msg=${label} 행 수 기대=${expected}, 실제=${count}
 
+CDS DB Count Should Be At Least
+    [Documentation]
+    ...    COUNT 조회 결과가 ${minimum} 이상인지 검증. ${label} 은 실패 메시지에만 쓴다.
+    ...    "있으면 성공" 판정용이다 — 몇 건인지는 업무·환경에 따라 달라 못 박지 않는다.
+    [Arguments]    ${label}    ${minimum}    ${sql}    @{params}
+    ${count}=    CDS DB Count    ${sql}    @{params}
+    Should Be True    ${count} >= ${minimum}
+    ...    msg=${label} 행 수 기대=${minimum}건 이상, 실제=${count}
+
+CDS DB Group Counts
+    [Documentation]
+    ...    `SELECT <키>, COUNT(*) ... GROUP BY <키>` → `{키: 개수}` 딕셔너리 반환.
+    ...    행이 없으면 빈 딕셔너리다(실패가 아니다).
+    [Arguments]    ${sql}    @{params}
+    Ensure CDS DB Connection
+    ${counts}=    CdsDb.Db Group Counts    ${CDS_DB_CONN}    ${sql}    @{params}
+    Log    [PDB] ${sql} / params=@{params} → ${counts}
+    RETURN    ${counts}
+
 Subscriber Rows Should Be Provisioned
     [Documentation]
     ...    가입자 프로파일 1건 + 서비스 2건(DATA_USAGE_LEVEL / DATA_USAGE_LEVEL_2)이
@@ -536,3 +555,156 @@ Verify Subscriber Provisioned In PDB
     Ensure CDS DB Connection
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Subscriber Rows Should Be Provisioned    ${mdn}    ${svc_1}    ${svc_2}
+
+Subscriber Rows Should Be Absent
+    [Documentation]
+    ...    가입자 프로파일·서비스 행이 **하나도 없는지** 한 번 조회한다.
+    ...    재시도는 `Verify Subscriber Removed From PDB` 가 한다.
+    ...
+    ...    서비스는 SVC_ID 를 가리지 않고 본다(${CDS_DB_SQL_SERVICE_ANY}) — 해지라면
+    ...    DATA_USAGE_LEVEL 두 건뿐 아니라 **어떤 서비스도 남아 있으면 안 되기** 때문이다.
+    [Arguments]    ${mdn}
+    CDS DB Count Should Be    ${CDS_DB_TBL_PROFILE} (MDN=${mdn}, 해지 후 잔존)
+    ...    ${0}    ${CDS_DB_SQL_PROFILE}    ${mdn}
+    CDS DB Count Should Be    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, 해지 후 잔존)
+    ...    ${0}    ${CDS_DB_SQL_SERVICE_ANY}    ${mdn}
+
+Verify Subscriber Removed From PDB
+    [Documentation]
+    ...    해지 전문이 PDB 에 반영됐는지 판정한다. **두 조회가 모두 0이어야 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN=?
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=?
+    ...    행이 남아 있으면 실패다 — `Verify Subscriber Provisioned In PDB` 의 반대다.
+    ...
+    ...    반영이 비동기인 것도 같다 → ${CDS_DB_WAIT} 동안 ${CDS_DB_WAIT_INTERVAL} 간격으로
+    ...    재조회한다. 그 시간 안에 행이 다 사라지지 않으면 실패한다.
+    ...
+    ...    ※ **가입한 적이 없어도 통과한다** — 0건은 "지워졌다"와 "원래 없었다"를
+    ...      구분하지 못한다. 해지 TC 는 앞선 가입 TC 가 실제로 넣은 뒤에 도는 것을
+    ...      전제로 한다(슈트 순서상 TC-CDS-002 가 넣는다).
+    [Arguments]    ${mdn}=${CDS_MDN}
+    Ensure CDS DB Connection
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Subscriber Rows Should Be Absent    ${mdn}
+
+
+# ── 업무 코드별 PDB 판정 (1X / 1Y / I2 / I3 / C1 / G1 / D3) ────────
+#
+# 위 A1/Z1 과 같은 이유로 CommandResult(SC)만으로는 판정할 수 없다.
+# 판정 기준은 2026-08-07 에 지정된 것이며 두 갈래다.
+#
+#   [있다/없다]  1X·I2 는 조건을 만족하는 행이 **1건 이상**이면 성공,
+#                쌍이 되는 1Y·I3 는 해당 SVC_ID 행이 **0건**이면 성공.
+#   [전후 동일]  C1·G1·D3 는 업무 수행 **전** SVC_ID 별 행 수와, 수행 **후**
+#                그 업무 코드로 적재된 행의 SVC_ID 별 행 수가 같으면 성공.
+#
+# 전후 비교형은 TC 가 `Command Download Flow` **앞에서** Capture 키워드를 먼저
+# 불러야 한다 — 순서가 바뀌면 이미 바뀐 상태를 기준으로 삼게 된다.
+
+Zone Service Should Be Subscribed
+    [Documentation]    1X 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}
+    CDS DB Count Should Be At Least
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_ZONE_D}, SVC_TYPE=${CDS_DB_SVC_TYPE_D}, JOB_CODE=${CDS_CODE_1X})
+    ...    ${1}    ${CDS_DB_SQL_SERVICE_1X}
+    ...    ${mdn}    ${CDS_DB_SVC_ZONE_D}    ${CDS_DB_SVC_TYPE_D}    ${CDS_CODE_1X}
+
+Verify Zone Service Subscribed In PDB
+    [Documentation]
+    ...    1X(HFC 서비스 가입) 판정. **1건 이상이면 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN=? AND SVC_ID='ZONE_SVC_D' AND SVC_TYPE='D' AND JOB_CODE='1X'
+    ...    건수를 못 박지 않는 것은 의도다 — 존 서비스가 여러 건일 수 있다.
+    [Arguments]    ${mdn}=${CDS_MDN}
+    Ensure CDS DB Connection
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Zone Service Should Be Subscribed    ${mdn}
+
+Zone Service Should Be Released
+    [Documentation]    1Y 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}
+    CDS DB Count Should Be
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_ZONE_D}, 해지 후 잔존)
+    ...    ${0}    ${CDS_DB_SQL_SERVICE}    ${mdn}    ${CDS_DB_SVC_ZONE_D}
+
+Verify Zone Service Released In PDB
+    [Documentation]
+    ...    1Y(HFC 서비스 해지) 판정. **0건이어야 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? AND SVC_ID='ZONE_SVC_D'
+    ...    SVC_TYPE·JOB_CODE 를 걸지 않는다 — 어떤 형태로든 남아 있으면 해지가 덜 된 것이다.
+    [Arguments]    ${mdn}=${CDS_MDN}
+    Ensure CDS DB Connection
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Zone Service Should Be Released    ${mdn}
+
+Addon Service Should Be Subscribed
+    [Documentation]    I2 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}
+    CDS DB Count Should Be At Least
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_YOUNG_HARM}, SVC_TYPE=${CDS_DB_SVC_TYPE_N}, JOB_CODE=${CDS_CODE_I2}, TIME_PERIOD_ID=${CDS_DB_TIME_PERIOD_ID}, LIMIT=${CDS_DB_LIMIT_FLAG})
+    ...    ${1}    ${CDS_DB_SQL_SERVICE_I2}
+    ...    ${mdn}    ${CDS_DB_SVC_YOUNG_HARM}    ${CDS_DB_SVC_TYPE_N}    ${CDS_CODE_I2}
+    ...    ${CDS_DB_TIME_PERIOD_ID}    ${CDS_DB_LIMIT_FLAG}
+
+Verify Addon Service Subscribed In PDB
+    [Documentation]
+    ...    I2(부가서비스신청) 판정. **1건 이상이면 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN=? AND SVC_TYPE='N' AND JOB_CODE='I2' AND TIME_PERIOD_ID='56'
+    ...             AND "LIMIT"='Y' AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
+    ...    ※ LIMIT 은 예약어라 큰따옴표로 감쌌다 — cds_variables.robot 의 해당 SQL 주석 참조.
+    [Arguments]    ${mdn}=${CDS_MDN}
+    Ensure CDS DB Connection
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Addon Service Should Be Subscribed    ${mdn}
+
+Addon Service Should Be Released
+    [Documentation]    I3 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}
+    CDS DB Count Should Be
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_YOUNG_HARM}, 해지 후 잔존)
+    ...    ${0}    ${CDS_DB_SQL_SERVICE}    ${mdn}    ${CDS_DB_SVC_YOUNG_HARM}
+
+Verify Addon Service Released In PDB
+    [Documentation]
+    ...    I3(부가서비스해지) 판정. **0건이어야 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
+    [Arguments]    ${mdn}=${CDS_MDN}
+    Ensure CDS DB Connection
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Addon Service Should Be Released    ${mdn}
+
+Capture Service Counts Per SVC_ID
+    [Documentation]
+    ...    현재 MDN 의 SVC_ID 별 서비스 행 수를 딕셔너리로 떠 둔다.
+    ...    C1/G1/D3 판정의 **기준선**이며 `Command Download Flow` **앞에서** 불러야 한다.
+    ...      SELECT SVC_ID, COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? GROUP BY SVC_ID
+    [Arguments]    ${mdn}=${CDS_MDN}
+    ${counts}=    CDS DB Group Counts    ${CDS_DB_SQL_SERVICE_GROUP}    ${mdn}
+    Log    [PDB] 수행 전 SVC_ID 별 행 수 (MDN=${mdn}): ${counts}    console=True
+    RETURN    ${counts}
+
+Service Counts Should Match Baseline
+    [Documentation]    전후 비교 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}    ${job_code}    ${before}
+    ${after}=    CDS DB Group Counts    ${CDS_DB_SQL_SERVICE_GROUP_JOB}    ${mdn}    ${job_code}
+    Dictionaries Should Be Equal    ${after}    ${before}
+    ...    msg=${job_code} 수행 후 SVC_ID 별 행 수가 수행 전과 다릅니다 (MDN=${mdn}) — 수행전=${before}, 수행후(JOB_CODE=${job_code})=${after}
+
+Verify Service Counts Preserved In PDB
+    [Documentation]
+    ...    C1/G1/D3 판정. **수행 전 SVC_ID 별 행 수 == 수행 후 같은 집계**면 성공이다.
+    ...      수행 전: SELECT SVC_ID, COUNT(*) ... WHERE MDN=?                GROUP BY SVC_ID
+    ...      수행 후: SELECT SVC_ID, COUNT(*) ... WHERE MDN=? AND JOB_CODE=? GROUP BY SVC_ID
+    ...    "기존 서비스가 하나도 빠짐없이 이번 업무 코드로 다시 쓰였는가" 를 본다.
+    ...
+    ...    ${before} 는 `Capture Service Counts Per SVC_ID` 가 미리 떠 둔 값이다.
+    ...    ${mdn} 은 **수행 후** 가입자 번호다 — D3(번호변경)는 수행 전후가 다르므로
+    ...    Capture 에는 옛 번호를, 여기에는 새 번호를 넘겨야 한다.
+    ...
+    ...    ※ 수행 전이 0건이면(서비스가 원래 없으면) 수행 후도 0건이라 그냥 통과한다 —
+    ...      이 판정은 "지켜졌는가"만 보고 "있었는가"는 보지 않는다.
+    [Arguments]    ${mdn}    ${job_code}    ${before}
+    Ensure CDS DB Connection
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Service Counts Should Match Baseline    ${mdn}    ${job_code}    ${before}

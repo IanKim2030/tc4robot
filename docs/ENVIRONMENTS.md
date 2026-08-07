@@ -85,13 +85,14 @@ NAG_PG_PORT    = 8012
 Robot 은 변수 파일의 **모듈 전역 이름을 그대로 변수로 읽는다.** `PG_HOST = ...` 가
 `${PG_HOST}` 가 된다. 언더스코어로 시작하는 이름은 무시된다.
 
-## CDS PDB 접속 (TC-CDS-002)
+## CDS PDB 접속 (TC-CDS-002 / TC-CDS-012)
 
-`TC-CDS-002` 는 전문 흐름에 더해 **PDB 반영까지** 판정한다(`db` 태그). 접속 문자열은
-`cds_variables.robot` 의 `${CDS_DB_CONNSTR}` 하나뿐이다.
+`db` 태그가 붙은 두 TC 는 전문 흐름에 더해 **PDB 반영까지** 판정한다 —
+`TC-CDS-002`(A1 신규가입)는 행이 생겼는지, `TC-CDS-012`(Z1 가입해지)는 행이
+사라졌는지를 본다. 접속 문자열은 `cds_variables.robot` 의 `${CDS_DB_CONNSTR}` 하나뿐이다.
 
-★ **CDS 슈트는 Suite Setup 에서 PDB 에 붙는다.** 그래서 이 값이 틀리면 `TC-CDS-002`
-뿐 아니라 **전문 송수신 TC 까지 포함해 CDS 슈트 전체가 서지 않는다**(`--exclude db`
+★ **CDS 슈트는 Suite Setup 에서 PDB 에 붙는다.** 그래서 이 값이 틀리면 이 두 TC 뿐
+아니라 **전문 송수신 TC 까지 포함해 CDS 슈트 전체가 서지 않는다**(`--exclude db`
 로도 피할 수 없다 — Suite Setup 은 태그와 무관하게 실행된다).
 
 **완성된 ODBC 접속 문자열을 통째로 준다.** 도구는 조립하지 않는다 — 받은 값을 그대로

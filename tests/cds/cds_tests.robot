@@ -24,9 +24,21 @@ Documentation
 ...      TC-CDS-013       : SubsData (0029~0032) ※ 현재 주석 처리 (PG 조회 필요)
 ...      TC-CDS-014       : UpLoad (0025~0028) ※ 현재 주석 처리 (PG 가 먼저 송신)
 ...
-...    [PDB 조회] TC-CDS-002(A1 신규가입)만 전문 흐름에 더해 PDB 반영까지 판정한다
-...      (`db` 태그). T_5G_SUBS_PROFILE 1건 + T_5G_SUBS_SERVICE 2건(DATA_USAGE_LEVEL /
-...      DATA_USAGE_LEVEL_2)이 모두 있어야 성공이다. 접속 정보는 cds_variables.robot 의
+...    [PDB 조회] `db` 태그가 붙은 TC 는 전문 흐름(SC)에 더해 PDB 반영까지 판정한다.
+...      002 A1 신규가입 : PROFILE 1건 + SERVICE 2건(DATA_USAGE_LEVEL / _2) — 모두 1
+...      003 1X HFC가입  : SERVICE(SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X) 1건 이상
+...      004 1Y HFC해지  : SERVICE(SVC_ID=ZONE_SVC_D) 0건
+...      005 I2 부가신청 : SERVICE(YOUNG_HARM_INFO_BLOCK, N, I2, 56, LIMIT=Y) 1건 이상
+...      006 I3 부가해지 : SERVICE(SVC_ID=YOUNG_HARM_INFO_BLOCK) 0건
+...      007 C1 기기변경 : 수행 전 SVC_ID 별 행 수 == 수행 후 JOB_CODE=C1 집계
+...      008 G1 정보변경 : 위와 같음 (JOB_CODE=G1)
+...      009 D3 번호변경 : 위와 같음 (옛 번호 기준 → 새 번호 + JOB_CODE=D3)
+...      010 1X          : 003 과 같음 (바뀐 번호 기준)
+...      011 1Y          : 004 와 같음 (바뀐 번호 기준)
+...      012 Z1 가입해지 : PROFILE / SERVICE(SVC_ID 무관) 모두 0건
+...      "1건 이상"은 건수를 못 박지 않는다는 뜻이다 — 존·부가 서비스가 여러 건일 수 있다.
+...      전후 비교형(007~009)은 `Command Download Flow` **앞**에서 기준선을 먼저 뜬다.
+...      접속 정보는 cds_variables.robot 의
 ...      ${CDS_DB_CONNSTR}(완성된 ODBC 문자열) 하나다 — 환경변수 PG_CDS_DB_CONNSTR 가 우선.
 ...      DB 접속은 **Suite Setup 에서 소켓과 함께 1회** 붙고 Suite Teardown 에서 끊는다
 ...      (TC별 접속 없음). autocommit 은 꺼져 있다(${CDS_DB_AUTOCOMMIT}=${FALSE}).
@@ -37,7 +49,7 @@ Documentation
 ...      009 D3 번호변경  : 성공하면 ${CDS_ACTIVE_MDN} 을 ${CDS_NEW_MDN} 으로 갱신
 ...      010 1X HFC가입   : 바뀐 번호로 가입
 ...      011 1Y HFC해제   : 010 이 가입한 번호를 해제
-...      012 Z1 해지      : 가입자 자체를 해지 (체인의 끝)
+...      012 Z1 해지      : 가입자 자체를 해지 (체인의 끝). PDB 에서 사라졌는지까지 본다
 ...    D3 를 건너뛰거나 실패하면 ${CDS_ACTIVE_MDN} 이 기본값(${CDS_MDN})으로 남아
 ...    010~012 가 원래 번호를 대상으로 동작한다 — 단독 실행도 그대로 된다.
 ...    특정 번호를 지정하려면: --variable CDS_ACTIVE_MDN:01090010002
@@ -101,47 +113,92 @@ TC-CDS-002 A1 (신규가입)
     Command Download Flow    ${CDS_CODE_A1}
     Verify Subscriber Provisioned In PDB    ${CDS_MDN}
 
-TC-CDS-003 1X (HFC가입) 
-    [Documentation]    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    [Tags]    cds    command    validation
+TC-CDS-003 1X (HFC가입)
+    [Documentation]
+    ...    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...
+    ...    [성공 판단 기준] PDB 에 존 서비스 행이 **1건 이상** 생겨야 성공이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='ZONE_SVC_D' AND SVC_TYPE='D' AND JOB_CODE='1X'
+    [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
+    Verify Zone Service Subscribed In PDB    ${CDS_MDN}
 
-TC-CDS-004 1Y (HFC해지) 
-    [Documentation]    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    [Tags]    cds    command    validation
+TC-CDS-004 1Y (HFC해지)
+    [Documentation]
+    ...    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...
+    ...    [성공 판단 기준] TC-CDS-003 이 넣은 존 서비스가 **0건**이어야 성공이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='ZONE_SVC_D'
+    ...    SVC_TYPE·JOB_CODE 를 걸지 않는다 — 어떤 형태로든 남아 있으면 해지가 덜 된 것이다.
+    [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_1Y}
+    Verify Zone Service Released In PDB    ${CDS_MDN}
 
-TC-CDS-005 I2 (부가서비스신청) 
-    [Documentation]    0015(I2 부가서비스신청) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    [Tags]    cds    command    validation
+TC-CDS-005 I2 (부가서비스신청)
+    [Documentation]
+    ...    0015(I2 부가서비스신청) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...
+    ...    [성공 판단 기준] 아래 6개 조건을 모두 만족하는 행이 **1건 이상**이어야 성공이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN='${CDS_MDN}' AND SVC_TYPE='N' AND JOB_CODE='I2'
+    ...             AND TIME_PERIOD_ID='56' AND "LIMIT"='Y' AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
+    [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_I2}
+    Verify Addon Service Subscribed In PDB    ${CDS_MDN}
 
-TC-CDS-006 I3 (부가서비스해지) 
-    [Documentation]    0015(I3 부가서비스해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    [Tags]    cds    command    validation
+TC-CDS-006 I3 (부가서비스해지)
+    [Documentation]
+    ...    0015(I3 부가서비스해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...
+    ...    [성공 판단 기준] TC-CDS-005 가 넣은 부가서비스가 **0건**이어야 성공이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
+    [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_I3}
+    Verify Addon Service Released In PDB    ${CDS_MDN}
 
-TC-CDS-007 C1 (기기변경) 
+TC-CDS-007 C1 (기기변경)
     [Documentation]
     ...    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    C1 은 MDN 이 바뀌지 않고 단말(MIN)만 바뀌므로 new_min 만 넘긴다.
     ...    C1 분기는 min ← mdn 을 강제하고 new_mdn 을 선언하지 않는다(CdsHelper).
-    [Tags]    cds    command    validation
+    ...
+    ...    [성공 판단 기준] 기존 서비스가 **하나도 빠짐없이 C1 으로 다시 쓰였는지**를 본다.
+    ...      수행 전: SELECT SVC_ID, COUNT(*) ... WHERE MDN=?                   GROUP BY SVC_ID
+    ...      수행 후: SELECT SVC_ID, COUNT(*) ... WHERE MDN=? AND JOB_CODE='C1' GROUP BY SVC_ID
+    ...    두 집계가 SVC_ID 별로 완전히 같아야 성공이다.
+    [Tags]    cds    command    validation    db
+    ${before}=    Capture Service Counts Per SVC_ID    ${CDS_MDN}
     Command Download Flow    ${CDS_CODE_C1}    new_min=${CDS_NEW_MIN}
+    Verify Service Counts Preserved In PDB    ${CDS_MDN}    ${CDS_CODE_C1}    ${before}
 
-TC-CDS-008 G1 (정보변경) 
-    [Documentation]    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    [Tags]    cds    command    validation
+TC-CDS-008 G1 (정보변경)
+    [Documentation]
+    ...    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...
+    ...    [성공 판단 기준] TC-CDS-007(C1)과 같은 방식이다 — 수행 전 SVC_ID 별 행 수와
+    ...    수행 후 JOB_CODE='G1' 집계가 같아야 성공이다.
+    [Tags]    cds    command    validation    db
+    ${before}=    Capture Service Counts Per SVC_ID    ${CDS_MDN}
     Command Download Flow    ${CDS_CODE_G1}
+    Verify Service Counts Preserved In PDB    ${CDS_MDN}    ${CDS_CODE_G1}    ${before}
 
-TC-CDS-009 D3 (번호변경) 
+TC-CDS-009 D3 (번호변경)
     [Documentation]
     ...    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    성공하면 가입자의 현재 번호가 new_mdn 으로 바뀌므로 ${CDS_ACTIVE_MDN} 을 갱신한다.
     ...    이후 TC-CDS-010 ~ 012 가 전부 이 값을 대상으로 동작한다.
-    [Tags]    cds    command    validation
+    ...
+    ...    [성공 판단 기준] C1/G1 과 같은 전후 비교인데 **번호가 바뀌는 것이 다르다.**
+    ...      수행 전: MDN = 바뀌기 전 번호(${CDS_ACTIVE_MDN})
+    ...      수행 후: MDN = 바뀐 번호(${CDS_NEW_MDN}) AND JOB_CODE='D3'
+    ...    옛 번호의 서비스가 새 번호로 그대로 옮겨졌는지를 보는 셈이다.
+    [Tags]    cds    command    validation    db
+    ${before}=    Capture Service Counts Per SVC_ID    ${CDS_ACTIVE_MDN}
     Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_NEW_MDN}    new_min=${CDS_NEW_MIN}
     Set Suite Variable    ${CDS_ACTIVE_MDN}    ${CDS_NEW_MDN}
+    Verify Service Counts Preserved In PDB    ${CDS_NEW_MDN}    ${CDS_CODE_D3}    ${before}
 
 TC-CDS-010 1X (HFC가입 - 번호변경 후)
     [Documentation]
@@ -150,8 +207,11 @@ TC-CDS-010 1X (HFC가입 - 번호변경 후)
     ...    번호가 바뀐 가입자에게 HFC 를 붙이는 경로를 검증한다 — TC-CDS-003 는 원래 번호다.
     ...    D3 를 건너뛰었거나 실패하면 ${CDS_MDN} 이 되어 TC-CDS-003 와 같은 전문이 된다.
     ...    1X 는 addr 를 쓰는 유일한 코드다(170B, cp949).
-    [Tags]    cds    command    validation
+    ...
+    ...    [성공 판단 기준] TC-CDS-003 과 같다 — 바뀐 번호 기준으로 존 서비스 1건 이상.
+    [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_1X}    mdn=${CDS_ACTIVE_MDN}    addr=${CDS_ADDR}
+    Verify Zone Service Subscribed In PDB    ${CDS_ACTIVE_MDN}
 
 TC-CDS-011 1Y (HFC해제 - 번호변경 후)
     [Documentation]
@@ -159,18 +219,32 @@ TC-CDS-011 1Y (HFC해제 - 번호변경 후)
     ...    바로 앞 TC-CDS-010 이 가입한 번호(${CDS_ACTIVE_MDN})를 그대로 해제한다.
     ...    ※ 1Y 규격 필드 집합은 아직 미확인이다 — 쌍이 되는 1X 에 있는 limitSubsFlag 가
     ...       현재 분기에 빠져 있어 누락이 의심된다(docs/nodes/CDS.md 의 업무 코드 절).
-    [Tags]    cds    command    validation
+    ...
+    ...    [성공 판단 기준] TC-CDS-004 와 같다 — 바뀐 번호 기준으로 존 서비스 0건.
+    [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_1Y}    mdn=${CDS_ACTIVE_MDN}
+    Verify Zone Service Released In PDB    ${CDS_ACTIVE_MDN}
 
-TC-CDS-012 Z1 (가입해지) 
+TC-CDS-012 Z1 (가입해지)
     [Documentation]
     ...    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    규격 Z1 필드 15개(A1 에서 min·addSvc 를 뺀 집합)를 기본값으로 전달한다.
     ...    ※ 해지 대상은 ${CDS_ACTIVE_MDN} — TC-CDS-009(D3)이 번호를 바꿨으면 바뀐 번호,
     ...       D3 를 건너뛰었거나 실패했으면 원래 번호(${CDS_MDN})다.
     ...    가입자 자체를 없애므로 이 체인의 마지막에 둔다.
-    [Tags]    cds    command    validation
+    ...
+    ...    [성공 판단 기준] TC-CDS-002 와 같은 이유로 전문 흐름(SC)만으로는 판정하지
+    ...    않는다. 다만 **방향이 반대다** — PDB 조회 2건이 **모두 0** 이어야 성공이고,
+    ...    행이 남아 있으면 실패다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN='${CDS_ACTIVE_MDN}'
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_ACTIVE_MDN}'
+    ...    서비스는 SVC_ID 를 가리지 않는다 — 해지라면 어떤 서비스도 남으면 안 된다.
+    ...    반영이 비동기라 ${CDS_DB_WAIT} 동안 재조회한다.
+    ...    ※ 0건은 "지워졌다"와 "원래 없었다"를 구분하지 못한다. 이 TC 는 앞선
+    ...       TC-CDS-002(A1 신규가입)가 실제로 넣은 뒤에 도는 것을 전제로 한다.
+    [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_Z1}    mdn=${CDS_ACTIVE_MDN}
+    Verify Subscriber Removed From PDB    ${CDS_ACTIVE_MDN}
 
 # 접속 해제(0005~0008)는 Suite Teardown(`Suite CDS Disconnect`)에서 수행한다.
 # 슈트가 끝나면 반드시 해야 하는 일이라 TC 로 두면 실패·필터 시 건너뛰게 된다.

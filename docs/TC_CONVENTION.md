@@ -121,8 +121,10 @@ TC 를 쓰기 전에 **그 TC 가 실패할 수 있는지** 따져라. 실패할
 | 응답은 오지만 내용이 무의미 (CDS `CommandResult`) | 응답만으로는 불가 → **PDB 조회로 보완** |
 
 CDS 는 세 번째 경우다. `CommandResult`(0017)가 Body 내용과 무관하게 `SC` 를 주므로
-"전문이 반영됐는가" 는 PDB 를 봐야 안다. `TC-CDS-002` 가 `db` 태그로 이 경로를 쓴다
-(`Verify Subscriber Provisioned In PDB`, [nodes/CDS.md](nodes/CDS.md)).
+"전문이 반영됐는가" 는 PDB 를 봐야 안다. `db` 태그가 붙은 TC 가 이 경로를 쓰며, 기준은
+업무 코드마다 다르다 — 행이 **생겼는지**(A1·1X·I2), **사라졌는지**(1Y·I3·Z1), 수행
+**전후 집계가 같은지**(C1·G1·D3). 코드별 SQL 과 그 기준이 놓치는 것은
+[nodes/CDS.md](nodes/CDS.md) 의 PDB 판정 기준 절에 있다.
 
 NWDAF Notification 은 PG 가 응답을 주지 않는다. 따라서 "PG 가 값을 올바로 해석했는가" 는
 **도구 단독으로 판정 불가**이며, 인코딩이 틀려도 TC 는 통과한다. 실제로 eNB 섹션 8개 필드 중

@@ -34,7 +34,7 @@ resources/CdsDbHelper.py              ← CDS PDB 조회 (ODBC/pyodbc)
 | `CdsHelper.py` | `Cds` | 48옥텟 CDS 고정전문. 소켓은 `TcpHelper` 재사용 | `pack_cds_header` `parse_cds_header` `send_cds` `receive_cds` `pack_ack` `unpack_ack` `pack_command_body` `unpack_command_body` |
 | `TlvHelper.py` | `Tlv` | NWDAF TLV. 소켓까지 자체 구현 | `build_nwdaf_header` `parse_nwdaf_header` `pack_tlv` `unpack_tlv_stream` `tlv_find` `tlv_find_all` `build_common1` `build_pcef_qos_ctrl` `build_dpi_qos_ctrl` `build_enb_qos_ctrl` `build_common2` `send_nwdaf_notification` `send_nwdaf_raw` `receive_nwdaf_message` `hex_dump` |
 | `HttpHelper.py` | — | LRS Session-Info 전용 | `build_aims_req` `parse_xml_fields` `post_session_info` |
-| `CdsDbHelper.py` | `CdsDb` | CDS PDB(골디락스/알티베이스) **조회 전용**. ODBC | `masked_conn_str` `db_connect` `db_end_transaction` `db_close` `db_count` |
+| `CdsDbHelper.py` | `CdsDb` | CDS PDB(골디락스/알티베이스) **조회 전용**. ODBC | `masked_conn_str` `db_connect` `db_end_transaction` `db_close` `db_count` `db_group_counts` |
 
 `CdsDbHelper` 만 성격이 다르다 — 전문을 만들지 않고 **PG 가 DB 에 반영했는지를 본다**.
 접속 방식은 **완성 문자열 하나뿐**이다(`${CDS_DB_CONNSTR}`) — 도구가 조립하지 않는다.

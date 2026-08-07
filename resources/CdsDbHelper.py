@@ -237,6 +237,53 @@ def _fetch_count(cur, sql, params):
     return int(row[0])
 
 
+def _fetch_group_counts(cur, sql, params):
+    """`SELECT <key>, COUNT(*) ... GROUP BY <key>` 을 dict 로 만든다."""
+    if params:
+        _try_setinputsizes(cur, len(params))
+        cur.execute(sql, tuple(params))
+    else:
+        cur.execute(sql)
+    out = {}
+    for row in cur.fetchall():
+        if len(row) != 2:
+            raise CdsDbError(
+                'GROUP BY 조회 결과가 2열이 아닙니다: sql=%s params=%r row=%r'
+                % (sql, params, row)
+            )
+        key = '' if row[0] is None else str(row[0]).strip()
+        if key in out:
+            raise CdsDbError(
+                '같은 키가 두 번 나왔습니다 — GROUP BY 가 빠졌을 수 있습니다: '
+                'key=%r sql=%s' % (key, sql)
+            )
+        out[key] = int(row[1])
+    return out
+
+
+def _query(conn, sql, params, fetch, what):
+    """조회 공통 — 트랜잭션 끊기 / 커서 관리 / 실패 메시지를 한곳에 모은다."""
+    if conn is None:
+        raise CdsDbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
+    db_end_transaction(conn)
+    cur = conn.cursor()
+    try:
+        return fetch(cur, sql, params)
+    except CdsDbError:
+        raise
+    except Exception as exc:
+        raise CdsDbError(
+            'PDB %s 조회 실패 — %s / sql=%s params=%r\n'
+            '  진단이 없는 HY000 이면 드라이버가 ? 바인딩(SQLDescribeParam)을 지원하지'
+            ' 않거나, 접속 문자열의 CHARSET 이 서버와 안 맞을 수 있습니다.\n'
+            '  테이블·컬럼이 안 보이거나 계정 권한이 없을 때도 같은 자리에서 실패합니다.\n'
+            '  예약어와 겹치는 컬럼명(LIMIT 등)은 큰따옴표로 감싸야 할 수 있습니다.'
+            % (what, exc, sql, params)
+        )
+    finally:
+        cur.close()
+
+
 def db_count(conn, sql, *params):
     """`SELECT COUNT(*) ...` 을 실행해 정수 하나를 반환한다.
 
@@ -247,21 +294,16 @@ def db_count(conn, sql, *params):
     autocommit=False 인 connection 이면 **조회 직전에 트랜잭션을 끊는다**
     (`db_end_transaction`). 안 그러면 재조회가 첫 조회의 스냅샷에 갇힌다.
     """
-    if conn is None:
-        raise CdsDbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
-    db_end_transaction(conn)
-    cur = conn.cursor()
-    try:
-        return _fetch_count(cur, sql, params)
-    except CdsDbError:
-        raise
-    except Exception as exc:
-        raise CdsDbError(
-            'PDB 조회 실패 — %s / sql=%s params=%r\n'
-            '  진단이 없는 HY000 이면 드라이버가 ? 바인딩(SQLDescribeParam)을 지원하지'
-            ' 않거나, 접속 문자열의 CHARSET 이 서버와 안 맞을 수 있습니다.\n'
-            '  테이블이 안 보이거나 계정 권한이 없을 때도 같은 자리에서 실패합니다.'
-            % (exc, sql, params)
-        )
-    finally:
-        cur.close()
+    return _query(conn, sql, params, _fetch_count, 'COUNT')
+
+
+def db_group_counts(conn, sql, *params):
+    """`SELECT <key>, COUNT(*) ... GROUP BY <key>` 을 `{키: 개수}` dict 로 반환한다.
+
+    C1/G1/D3 처럼 **업무 수행 전후의 SVC_ID 별 행 수가 같아야** 하는 판정에 쓴다.
+    행이 하나도 없으면 빈 dict 다 — 그것도 유효한 결과이며 실패가 아니다.
+
+    키는 문자열로 정규화한다(공백 제거) — 고정길이 CHAR 컬럼이면 드라이버가 오른쪽을
+    공백으로 채워 돌려주는 경우가 있어, 그대로 두면 전후 비교가 어긋난다.
+    """
+    return _query(conn, sql, params, _fetch_group_counts, 'GROUP BY')

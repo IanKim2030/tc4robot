@@ -189,19 +189,76 @@ sequenceDiagram
 | `전문 → PG.CDS` | `CommandResult`(`SC`/`FA`) — **Body 내용과 무관하게 `SC`** |
 | `PG.CDS → PDB` 이후 전부 | **없음.** PDB 조회 없이는 판정 불가 |
 
-그래서 **`TC-CDS-002`(A1 신규가입)만 PDB 를 직접 조회해 판정한다.** 나머지 TC 는 여전히
-`CommandResult`(`SC`)까지만 본다 — 즉 전문이 반영됐는지는 판정하지 않는다.
+그래서 **`db` 태그가 붙은 TC 는 PDB 를 직접 조회해 판정한다.** 현재 `TC-CDS-013`
+(SubsData, 주석 처리)을 뺀 **11개 TC 전부**가 여기 해당한다. `TC-CDS-001`
+(ProcessState)만 전문 흐름으로 완결된다.
 
-### PDB 조회 (`TC-CDS-002`)
+### PDB 판정 기준 (업무 코드별)
 
-`Command Download Flow` 뒤에 `Verify Subscriber Provisioned In PDB` 를 붙였다.
-**아래 세 조회가 모두 `1` 이어야 성공**이다.
+`Command Download Flow` 뒤에 판정 키워드를 붙인다. 기준은 세 갈래다.
+
+| TC | 코드 | 키워드 | 성공 조건 |
+|---|---|---|---|
+| 002 | A1 신규가입 | `Verify Subscriber Provisioned In PDB` | PROFILE 1건 + SERVICE 2건이 **모두 `1`** |
+| 003 / 010 | 1X HFC가입 | `Verify Zone Service Subscribed In PDB` | **`1`건 이상** |
+| 004 / 011 | 1Y HFC해지 | `Verify Zone Service Released In PDB` | **`0`건** |
+| 005 | I2 부가서비스신청 | `Verify Addon Service Subscribed In PDB` | **`1`건 이상** |
+| 006 | I3 부가서비스해지 | `Verify Addon Service Released In PDB` | **`0`건** |
+| 007 / 008 / 009 | C1 / G1 / D3 | `Verify Service Counts Preserved In PDB` | 수행 **전후 `SVC_ID` 별 행 수가 동일** |
+| 012 | Z1 가입해지 | `Verify Subscriber Removed From PDB` | PROFILE / SERVICE 가 **모두 `0`** |
 
 ```sql
+-- 002 A1 : 생겼는지
 SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?
 SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LEVEL'
 SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'DATA_USAGE_LEVEL_2'
+
+-- 003/010 1X : 존 서비스가 붙었는지            → 1건 이상
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+ WHERE MDN = ? AND SVC_ID = 'ZONE_SVC_D' AND SVC_TYPE = 'D' AND JOB_CODE = '1X'
+
+-- 004/011 1Y : 존 서비스가 떨어졌는지          → 0건
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'ZONE_SVC_D'
+
+-- 005 I2 : 부가서비스가 붙었는지               → 1건 이상
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+ WHERE MDN = ? AND SVC_ID = 'YOUNG_HARM_INFO_BLOCK' AND SVC_TYPE = 'N'
+       AND JOB_CODE = 'I2' AND TIME_PERIOD_ID = '56' AND "LIMIT" = 'Y'
+
+-- 006 I3 : 부가서비스가 떨어졌는지             → 0건
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'YOUNG_HARM_INFO_BLOCK'
+
+-- 007/008/009 C1·G1·D3 : 수행 전후 집계가 같은지
+SELECT SVC_ID, COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?                  GROUP BY SVC_ID  -- 전
+SELECT SVC_ID, COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND JOB_CODE = ? GROUP BY SVC_ID  -- 후
+
+-- 012 Z1 : 사라졌는지 (SVC_ID 를 가리지 않는다)
+SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?
 ```
+
+몇 가지가 의도적이다.
+
+- **"1건 이상"은 건수를 못 박지 않는다는 뜻이다.** 존·부가 서비스가 여러 건일 수 있어
+  `= 1` 로 잠그지 않았다.
+- **해지 쪽은 `SVC_TYPE`·`JOB_CODE` 를 걸지 않는다.** 어떤 형태로든 남아 있으면 해지가
+  덜 된 것이기 때문이다. `Z1` 이 `SVC_ID` 까지 안 거는 것도 같은 이유다.
+- **`I2` 의 `LIMIT` 은 큰따옴표로 감쌌다.** 골디락스·알티베이스 모두 `LIMIT` 절이 있어
+  예약어와 겹친다. 큰따옴표 식별자는 대소문자를 구분하므로 컬럼이 대문자로 만들어져
+  있어야 맞는다 — `컬럼 없음` 으로 실패하면 따옴표를 빼 보고, 그래도 구문 오류면 실제
+  컬럼명을 확인할 것.
+- **전후 비교형은 `Command Download Flow` 앞에서 기준선을 뜬다**
+  (`Capture Service Counts Per SVC_ID`). 순서가 바뀌면 이미 바뀐 상태를 기준으로 삼는다.
+  `D3` 는 번호가 바뀌므로 **기준선은 옛 번호, 검증은 새 번호**로 넘긴다.
+
+#### 이 기준이 놓치는 것
+
+**`0` 건은 "지워졌다"와 "원래 없었다"를 구분하지 못한다.** 해지 TC(004/006/011/012)는
+짝이 되는 가입 TC 가 앞서 도는 것을 전제로 한다(슈트 순서). 단독 실행하면 애초에
+가입이 없어도 통과한다.
+
+**전후 비교도 "0건 → 0건" 이면 그냥 통과한다.** 서비스가 하나도 없는 가입자에게
+`C1`/`G1`/`D3` 를 걸면 이 판정은 아무것도 보증하지 않는다.
 
 | 항목 | 내용 |
 |---|---|

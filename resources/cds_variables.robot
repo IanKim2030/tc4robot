@@ -214,9 +214,42 @@ ${CDS_DB_TBL_SERVICE}     T_5G_SUBS_SERVICE
 ${CDS_DB_SVC_DATA_USAGE}      DATA_USAGE_LEVEL
 ${CDS_DB_SVC_DATA_USAGE_2}    DATA_USAGE_LEVEL_2
 
+# 업무 코드별 판정에 쓰는 컬럼 값 (2026-08-07 지정)
+${CDS_DB_SVC_ZONE_D}          ZONE_SVC_D               # 1X 가입 / 1Y 해지 대상 SVC_ID
+${CDS_DB_SVC_YOUNG_HARM}      YOUNG_HARM_INFO_BLOCK    # I2 신청 / I3 해지 대상 SVC_ID
+${CDS_DB_SVC_TYPE_D}          D                        # 1X 의 SVC_TYPE
+${CDS_DB_SVC_TYPE_N}          N                        # I2 의 SVC_TYPE
+${CDS_DB_TIME_PERIOD_ID}      56                       # I2 의 TIME_PERIOD_ID
+${CDS_DB_LIMIT_FLAG}          Y                        # I2 의 LIMIT
+
 # COUNT 조회 SQL — `?` 는 pyodbc 바인딩 자리표시자다(값을 문자열로 잇지 않는다)
 ${CDS_DB_SQL_PROFILE}     SELECT COUNT(*) FROM ${CDS_DB_TBL_PROFILE} WHERE MDN = ?
 ${CDS_DB_SQL_SERVICE}     SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ?
+# 해지(Z1) 판정용 — SVC_ID 를 가리지 않는다. 서비스 행이 **하나라도** 남아 있으면
+# 해지가 덜 된 것이므로, 특정 SVC_ID 두 개만 보는 위 SQL 로는 부족하다.
+${CDS_DB_SQL_SERVICE_ANY}    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ?
+
+# 1X(HFC/ZONE 가입) — SVC_ID + SVC_TYPE + JOB_CODE 를 모두 만족하는 행이 1건 이상이어야 한다.
+# 해지(1Y) 판정은 위 ${CDS_DB_SQL_SERVICE}(MDN+SVC_ID) 를 그대로 쓰고 0 을 기대한다.
+${CDS_DB_SQL_SERVICE_1X}
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ?
+
+# I2(부가서비스신청) — 조건이 6개다. LIMIT 은 **예약어와 겹쳐 큰따옴표로 감쌌다**
+# (골디락스/알티베이스 모두 LIMIT 절이 있다). 큰따옴표 식별자는 대소문자를 구분하므로
+# 컬럼이 대문자로 만들어져 있어야 맞는다 — 안 맞으면 "컬럼 없음"으로 실패한다.
+# 그때는 따옴표를 빼 보고, 그래도 구문 오류면 실제 컬럼명을 확인할 것.
+# 해지(I3) 판정은 ${CDS_DB_SQL_SERVICE}(MDN+SVC_ID) 로 0 을 기대한다.
+${CDS_DB_SQL_SERVICE_I2}
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ?
+
+# C1/G1/D3 — 업무 수행 **전후의 SVC_ID 별 행 수가 같아야** 한다.
+#   전: MDN 의 모든 서비스 행을 SVC_ID 로 묶어 센다
+#   후: 같은 집계를 **그 업무 코드로 적재된 행만** 대상으로 다시 낸다
+# 즉 "기존 서비스가 하나도 빠짐없이 이번 업무 코드로 다시 쓰였는가" 를 본다.
+${CDS_DB_SQL_SERVICE_GROUP}
+...    SELECT SVC_ID, COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? GROUP BY SVC_ID
+${CDS_DB_SQL_SERVICE_GROUP_JOB}
+...    SELECT SVC_ID, COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND JOB_CODE = ? GROUP BY SVC_ID
 
 # ════════════════════════════════════════════
 # 단말·망 필드 (코드 공용) — TODO: 실환경 값으로 교체
