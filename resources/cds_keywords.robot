@@ -518,6 +518,23 @@ CDS DB Count Should Be At Least
     Should Be True    ${count} >= ${minimum}
     ...    msg=${label} 행 수 기대=${minimum}건 이상, 실제=${count}
 
+Settle Before PDB Query
+    [Documentation]
+    ...    ResultAck(0018) 를 보낸 뒤 **첫 PDB 조회까지 쉬는 시간**.
+    ...    모든 `Verify ... In PDB` 키워드가 재조회 루프에 들어가기 전에 한 번 부른다.
+    ...
+    ...    PG.SDM 이 T_CDS_ORDER_HIST 를 폴링해 반영하므로 ResultAck 직후에는 아직
+    ...    아무것도 안 들어와 있다. 그 상태로 조회하면 "없음"을 보고 재시도 루프만 돌게
+    ...    되는데, 실패한 조회도 로그를 남기고 트랜잭션을 여닫아 진단이 지저분해진다.
+    ...
+    ...    ${CDS_DB_WAIT} 와 **별개로 센다** — 최대 대기는 settle + ${CDS_DB_WAIT} 다.
+    ...    0 이나 0s 를 주면 쉬지 않고 바로 조회한다.
+    [Arguments]    ${settle}=${CDS_DB_SETTLE}
+    IF    not ${{ str($settle).strip() in ('', '0', '0s', 'None') }}
+        Log    [PDB] ResultAck 수신 → ${settle} 대기 후 조회    console=True
+        Sleep    ${settle}
+    END
+
 CDS DB Group Counts
     [Documentation]
     ...    `SELECT <키>, COUNT(*) ... GROUP BY <키>` → `{키: 개수}` 딕셔너리 반환.
@@ -552,7 +569,9 @@ Verify Subscriber Provisioned In PDB
     ...    간격으로 재조회한다. 그 시간 안에 세 건이 다 차지 않으면 실패한다.
     [Arguments]    ${mdn}=${CDS_MDN}
     ...            ${svc_1}=${CDS_DB_SVC_DATA_USAGE}    ${svc_2}=${CDS_DB_SVC_DATA_USAGE_2}
+    ...            ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Subscriber Rows Should Be Provisioned    ${mdn}    ${svc_1}    ${svc_2}
 
@@ -582,8 +601,9 @@ Verify Subscriber Removed From PDB
     ...    ※ **가입한 적이 없어도 통과한다** — 0건은 "지워졌다"와 "원래 없었다"를
     ...      구분하지 못한다. 해지 TC 는 앞선 가입 TC 가 실제로 넣은 뒤에 도는 것을
     ...      전제로 한다(슈트 순서상 TC-CDS-002 가 넣는다).
-    [Arguments]    ${mdn}=${CDS_MDN}
+    [Arguments]    ${mdn}=${CDS_MDN}    ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Subscriber Rows Should Be Absent    ${mdn}
 
@@ -600,6 +620,10 @@ Verify Subscriber Removed From PDB
 #
 # 전후 비교형은 TC 가 `Command Download Flow` **앞에서** Capture 키워드를 먼저
 # 불러야 한다 — 순서가 바뀌면 이미 바뀐 상태를 기준으로 삼게 된다.
+#
+# 모든 `Verify ... In PDB` 는 재조회 루프에 들어가기 전에 `Settle Before PDB Query`
+# 로 ${CDS_DB_SETTLE} 만큼 쉰다(ResultAck 직후에는 아직 반영 전이다).
+# 특정 코드만 더 기다려야 하면 TC 에서 `settle=10s` 처럼 덮어쓴다.
 
 Zone Service Should Be Subscribed
     [Documentation]    1X 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
@@ -615,8 +639,9 @@ Verify Zone Service Subscribed In PDB
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN=? AND SVC_ID='ZONE_SVC_D' AND SVC_TYPE='D' AND JOB_CODE='1X'
     ...    건수를 못 박지 않는 것은 의도다 — 존 서비스가 여러 건일 수 있다.
-    [Arguments]    ${mdn}=${CDS_MDN}
+    [Arguments]    ${mdn}=${CDS_MDN}    ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Zone Service Should Be Subscribed    ${mdn}
 
@@ -632,8 +657,9 @@ Verify Zone Service Released In PDB
     ...    1Y(HFC 서비스 해지) 판정. **0건이어야 성공**이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? AND SVC_ID='ZONE_SVC_D'
     ...    SVC_TYPE·JOB_CODE 를 걸지 않는다 — 어떤 형태로든 남아 있으면 해지가 덜 된 것이다.
-    [Arguments]    ${mdn}=${CDS_MDN}
+    [Arguments]    ${mdn}=${CDS_MDN}    ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Zone Service Should Be Released    ${mdn}
 
@@ -653,8 +679,9 @@ Verify Addon Service Subscribed In PDB
     ...       WHERE MDN=? AND SVC_TYPE='N' AND JOB_CODE='I2' AND TIME_PERIOD_ID='56'
     ...             AND "LIMIT"='Y' AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
     ...    ※ LIMIT 은 예약어라 큰따옴표로 감쌌다 — cds_variables.robot 의 해당 SQL 주석 참조.
-    [Arguments]    ${mdn}=${CDS_MDN}
+    [Arguments]    ${mdn}=${CDS_MDN}    ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Addon Service Should Be Subscribed    ${mdn}
 
@@ -669,8 +696,9 @@ Verify Addon Service Released In PDB
     [Documentation]
     ...    I3(부가서비스해지) 판정. **0건이어야 성공**이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
-    [Arguments]    ${mdn}=${CDS_MDN}
+    [Arguments]    ${mdn}=${CDS_MDN}    ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Addon Service Should Be Released    ${mdn}
 
@@ -704,7 +732,8 @@ Verify Service Counts Preserved In PDB
     ...
     ...    ※ 수행 전이 0건이면(서비스가 원래 없으면) 수행 후도 0건이라 그냥 통과한다 —
     ...      이 판정은 "지켜졌는가"만 보고 "있었는가"는 보지 않는다.
-    [Arguments]    ${mdn}    ${job_code}    ${before}
+    [Arguments]    ${mdn}    ${job_code}    ${before}    ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Service Counts Should Match Baseline    ${mdn}    ${job_code}    ${before}

@@ -269,10 +269,30 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?
 | 접속 시점 | **Suite Setup**(`Suite CDS Connect`)에서 소켓에 이어 1회. DB 가 안 붙으면 전문 송수신 TC 까지 포함해 슈트 전체가 서지 않는다 |
 | 트랜잭션 | `autocommit` **끔**(`${CDS_DB_AUTOCOMMIT}`=`${FALSE}`). 조회 직전마다 rollback — 아래 절 |
 | 종료 | `Suite CDS Disconnect` |
-| 반영 대기 | `${CDS_DB_WAIT}`(30s) 동안 `${CDS_DB_WAIT_INTERVAL}`(2s) 간격 재조회 |
+| 반영 대기 | `${CDS_DB_SETTLE}`(1s) 쉰 뒤, `${CDS_DB_WAIT}`(30s) 동안 `${CDS_DB_WAIT_INTERVAL}`(2s) 간격 재조회 |
 
 재조회가 필요한 이유는 위 흐름 그대로다 — PG.SDM 이 `T_CDS_ORDER_HIST` 를 **주기적으로
 폴링**해 가입자 테이블에 반영하므로 `CommandResult`(0017) 수신 시점에는 아직 안 들어와 있다.
+
+그래서 대기가 **두 단계**다. `ResultAck`(0018)를 보낸 직후부터:
+
+```
+ ResultAck ─── SETTLE ─── 1차 조회 ─┬─ INTERVAL ─ 재조회 ─┬─ … ─ 판정 종료
+                                    └───── WAIT 안에서 반복 ─────┘
+```
+
+`SETTLE` 은 **첫 조회 전에 무조건 쉬는 시간**이다(`Settle Before PDB Query`). 반영이
+시작되기도 전에 조회해 "없음"을 보고 루프를 도는 낭비를 줄인다 — 실패한 조회도 로그를
+남기고 트랜잭션을 여닫아 진단이 지저분해지기 때문이다. `WAIT` 은 `SETTLE` 과 **별개로
+센다**: 최대 대기는 `SETTLE + WAIT` 다.
+
+특정 업무 코드만 반영이 느리면 TC 에서 그 TC 만 덮어쓴다.
+
+```robotframework
+Verify Zone Service Subscribed In PDB    ${CDS_MDN}    settle=10s
+```
+
+`settle=0` 이면 쉬지 않고 곧바로 조회한다.
 
 #### 접속 문자열 — 조립하지 않는다
 

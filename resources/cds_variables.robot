@@ -205,7 +205,19 @@ ${CDS_DB_AUTOCOMMIT}      ${FALSE}
 # 반영 대기 — PG.SDM 이 T_CDS_ORDER_HIST 를 주기적으로 폴링해 가입자 테이블에
 # 반영하므로, CommandResult(0017) 수신 시점에는 아직 반영 전일 수 있다.
 # 그래서 조회를 한 번만 하지 않고 아래 시간 동안 재시도한다.
-${CDS_DB_WAIT}            30s              # 반영 대기 총 시간
+#
+# 시간 축이 둘이다. ResultAck(0018) 송신 직후부터 세면:
+#   ┌ SETTLE ┬─ WAIT (INTERVAL 간격 재조회) ─────────────┐
+#   ResultAck   1차 조회                              판정 종료
+#
+# SETTLE : **첫 조회 전에 무조건 쉬는 시간.** 반영이 시작되기도 전에 조회해서
+#          "없음"을 보고 재시도 루프를 도는 낭비를 줄인다. 0 또는 0s 면 안 쉰다.
+#          업무 코드마다 반영이 더 느리면 TC 에서 settle= 로 덮어쓸 수 있다
+#          (예: Verify Zone Service Subscribed In PDB    ${mdn}    settle=10s).
+# WAIT   : SETTLE 이 끝난 뒤 재조회를 반복하는 총 시간. **SETTLE 과 별개로 센다**
+#          — 최대 대기는 SETTLE + WAIT 다.
+${CDS_DB_SETTLE}          1s               # ResultAck 수신 → 1차 조회까지의 대기
+${CDS_DB_WAIT}            30s              # 반영 대기 총 시간 (SETTLE 이후)
 ${CDS_DB_WAIT_INTERVAL}   2s               # 재조회 간격
 
 # 조회 대상 테이블 / 서비스 ID
