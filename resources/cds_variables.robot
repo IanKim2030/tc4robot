@@ -203,10 +203,11 @@ ${CDS_START_TIME}              203712312359             # 예약 시작 시각 Y
 #
 #   전문 START_TIME    : 12자리 YYYYMMDDHH24MI      (T_5G_CDS_ORDER_CFG ID=25,
 #                                                    SUBTITLE 이 LIMIT_VALID_TIME)
-#   DB LIMIT_VALID_TIME: 14자리 YYYYMMDDHH24MISS    ← 뒤에 초 '00' 이 붙는다
+#   DB LIMIT_VALID_TIME: CHAR(14) YYYYMMDDHH24MISS  ← 뒤에 초 '00' 이 붙는다
 #
-# ★ 그래서 ${CDS_START_TIME} 을 그대로 비교하면 **안 맞는다.** 12자리로 조회하면
-#   가입 판정(K1/K5/Y9)만 0건이 나와 실패한다. 초를 붙인 이 변수를 쓸 것.
+# ★ 그래서 ${CDS_START_TIME} 을 그대로 비교하면 **안 맞는다.** CHAR 는 고정폭이라
+#   12자리로 조회하면 가입 판정(K1/K5/Y9)만 0건이 나와 실패한다. 이 변수를 쓸 것.
+#   컬럼 타입은 docs/nodes/CDS.md 의 T_5G_SUBS_SERVICE 스키마 절 참조.
 ${CDS_LIMIT_VALID_TIME}        ${CDS_START_TIME}00      # 14자리 (전문 12자리 + 초 '00')
 
 # SS 의 TIME_PERIOD_ID 는 **'SS_' 접두 + 위 14자리 값**이다.

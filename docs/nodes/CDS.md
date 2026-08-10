@@ -451,9 +451,9 @@ SELECT * FROM T_5G_CDS_ORDER_CFG;
 DB 로 넘어간 값이다.
 
 **다만 폭이 다르다.** 전문의 `START_TIME` 은 12자리(`YYYYMMDDHH24MI`)인데 DB 의
-`LIMIT_VALID_TIME` 은 **14자리**(`YYYYMMDDHH24MISS`)로, 뒤에 초 `00` 이 붙는다.
+`LIMIT_VALID_TIME` 은 **`CHAR(14)`**(`YYYYMMDDHH24MISS`)로, 뒤에 초 `00` 이 붙는다.
 cfg 의 `SIZE 12` 는 전문 필드 폭이지 컬럼 폭이 아니다 — 여기서 어긋나기 쉽다.
-12자리로 조회하면 가입 판정만 0건이 나와 실패한다.
+`CHAR` 는 고정폭이라 12자리로 조회하면 절대 안 맞는다(가입 판정만 0건으로 실패).
 
 | 코드 | 시간 컬럼 | 기대값 | 변수 |
 |---|---|---|---|
@@ -466,6 +466,35 @@ SS 의 `TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)` 가 쓰는 `$LIMIT_VALID_TIME` 은
 형식이 또 어긋나면 저 두 변수만 고치면 된다 — 조회 SQL 과 키워드는 그대로다.
 
 슈트는 `TC-CDS-009 ~ 017` 에서 이 9개를 다룬다. 시간프리 계열(`91`/`92`)은 아직 TC 가 없다.
+
+### `T_5G_SUBS_SERVICE` 스키마
+
+판정 SQL 을 쓸 때 컬럼명·타입을 여기서 확인한다. 슈트가 조회하는 컬럼은 전부 여기 있다
+(2026-08-10 대조).
+
+```sql
+SELECT column_name, data_type, data_length, nullable
+  FROM user_tab_columns WHERE table_name = 'T_5G_SUBS_SERVICE';
+```
+
+| 컬럼 | 타입 | 길이 | NULL | 슈트에서 |
+|---|---|---|---|---|
+| `MDN` | VARCHAR | 15 | **N** | 전 판정의 기준 |
+| `SVC_ID` | VARCHAR | 32 | **N** | `R17` `ZONE_SVC_B` `ZONE_SVC_D` `TIME_SVC_I` `YOUNG_HARM_INFO_BLOCK` … |
+| `CNUM` | VARCHAR | 12 | **N** | 쿠폰 핀(11자리). SS 는 `0` |
+| `SVC_TYPE` | VARCHAR | 8 | Y | `N` `Z` `T` `D` |
+| `JOB_CODE` | VARCHAR | 4 | Y | 인입 업무 코드 |
+| `TIME_PERIOD_ID` | VARCHAR | 32 | Y | K1 `113` / K5 `0` / Y9 `25` / SS `SS_`+14자리 |
+| `LIMIT` | VARCHAR | 6 | Y | **예약어** — SQL 에서 `"LIMIT"` 로 감싼다 |
+| `LIMIT_VALID_TIME` | **CHAR** | **14** | Y | 전문 START_TIME + 초 `00` |
+| `CREATE_TIME` `UPDATE_TIME` `ACTIVE_TIME` `EXPIRE_TIME` | CHAR | 14 | Y | 미사용 |
+| `UPDATE_TID` | CHAR | 16 | Y | 미사용 (전문 TID 16자와 같은 폭) |
+| `LIMIT_VALID_NOTI` | CHAR | 1 | Y | 미사용 |
+| `DESCRIPTION` | VARCHAR | 32 | Y | 미사용 |
+
+`NOT NULL` 인 셋(`MDN` + `SVC_ID` + `CNUM`)이 사실상 이 테이블의 키다. 그래서 같은
+가입자가 같은 `SVC_ID` 로 **핀만 다른 쿠폰을 여러 건** 들 수 있고, 해지·만료·취소 판정이
+`CNUM` 까지 걸어야 하는 이유가 된다 — 슈트가 쿠폰 TC 마다 핀을 나눠 쓰는 근거다.
 
 ### `T_5G_CDS_ORDER_CFG` 는 Body 레이아웃의 1차 근거다
 
