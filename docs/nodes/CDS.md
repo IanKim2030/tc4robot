@@ -439,9 +439,15 @@ def db_end_transaction(conn):
 **START TIME 이 미래여야 한다.** 과거를 넣으면 가입과 동시에 걸린 만료 예약을 RDS 가
 즉시 집어가 서비스 행이 사라진다 → 가입 판정이 이유 없이 실패한다 (`${CDS_START_TIME}`).
 
-`LIMIT_VALID_TIME` 과 SS 의 `TIME_PERIOD_ID` 는 시간 파생값이라 **아직 판정에서 빠져 있다**
-(기준표가 "시간 확인 필요"로 남겨 둔 자리다). 슈트는 `TC-CDS-009 ~ 017` 에서 이 9개를
-다룬다. 시간프리 계열(`91`/`92`)은 아직 TC 가 없다.
+`LIMIT_VALID_TIME` 기대값은 **전문이 보낸 `START_TIME` 과 같다.** 기준표의
+`$LIMIT_VALID_TIME` 은 `$COUPON_PIN` 과 같은 표기이고, K1/K5/Y9 가 보내는 필드 중 시각은
+`start_time` 하나뿐이라 다른 후보가 없다 — `_CMD_LAYOUT` 의 `start_time` 주석
+("쿠폰 종료 시간")과도 맞는다. 다만 **저장 형식까지 확인된 것은 아니라서**, DB 가 초 단위를
+붙이거나 폭이 다르면 가입 판정만 어긋난다. 그때는 `${CDS_LIMIT_VALID_TIME}` 만 고치면 된다.
+
+SS 의 `TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)` 만 `SS_` 접두가 붙은 합성값이라 아직 판정에서
+빠져 있다. 슈트는 `TC-CDS-009 ~ 017` 에서 이 9개를 다룬다.
+시간프리 계열(`91`/`92`)은 아직 TC 가 없다.
 
 ## wire 인코딩
 

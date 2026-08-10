@@ -33,14 +33,14 @@ Documentation
 ...      006 I3 부가해지 : SERVICE(SVC_ID=YOUNG_HARM_INFO_BLOCK) 0건
 ...      007 C1 기기변경 : 수행 전 SVC_ID 별 행 수 == 수행 후 JOB_CODE=C1 집계
 ...      008 G1 정보변경 : 위와 같음 (JOB_CODE=G1)
-...      009 Y9 Zone쿠폰  : SERVICE(ZONE_SVC_B, Z, Y9, 25, LIMIT=0) 1건 이상
+...      009 Y9 Zone쿠폰  : SERVICE(ZONE_SVC_B, Z, Y9, 25, LIMIT=0, LIMIT_VALID_TIME) 1건 이상
 ...                        + RESERVED_JOB(JOB_CODE=Y6, 핀) 1건 이상
-...      010 K1 쿠폰가입  : SERVICE(R17, N, K1, 113, LIMIT=1, CNUM=핀) 1건 이상
+...      010 K1 쿠폰가입  : SERVICE(R17, N, K1, 113, LIMIT=1, LIMIT_VALID_TIME, CNUM=핀) 1건 이상
 ...                        + RESERVED_JOB(JOB_CODE=K3, 핀) 1건 이상
 ...      011 K2 쿠폰해지  : 010 의 핀으로 SERVICE(R17, CNUM) 0건
 ...      012 K3 쿠폰만료  : TC 안에서 K1 로 가입시킨 뒤 만료 → 그 핀으로 0건
 ...      013 K4 쿠폰취소  : 012 와 같은 구조 (핀만 다름)
-...      014 K5 쿠폰가입  : SERVICE(R17, N, K5, 0, LIMIT=2, CNUM=핀) 1건 이상
+...      014 K5 쿠폰가입  : SERVICE(R17, N, K5, 0, LIMIT=2, LIMIT_VALID_TIME, CNUM=핀) 1건 이상
 ...                        + RESERVED_JOB(JOB_CODE=K7, 핀) 1건 이상
 ...      015 K6 쿠폰해지  : 014 의 핀으로 SERVICE(R17, CNUM) 0건
 ...      016 SS 옵션가입  : SERVICE(TIME_SVC_I, T, SS, LIMIT=0, CNUM=0) 1건 이상
@@ -53,8 +53,9 @@ Documentation
 ...        인입 코드로 조회하면 한 건도 나오지 않는다.
 ...      ★ K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다**(MDN+R17+CNUM 삭제) — 해지·만료·
 ...        취소가 서로 구분되지 않는다. 그래서 012/013 은 자기 핀으로 가입을 먼저 만든다.
-...      ★ 시간 컬럼(LIMIT_VALID_TIME, SS 의 TIME_PERIOD_ID)은 값이 확정되지 않아 조건에서
-...        빠져 있다 — 판정 기준표가 "시간 확인 필요"로 남겨 둔 자리다.
+...      ★ LIMIT_VALID_TIME 기대값(009/010/014)은 전문이 보낸 start_time 과 같다
+...        (${CDS_LIMIT_VALID_TIME}). 저장 형식이 다르면 그 변수만 고치면 된다.
+...        SS 의 TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)만 합성값이라 조건에서 빠져 있다.
 ...      접속 정보는 cds_variables.robot 의
 ...      ${CDS_DB_CONNSTR}(완성된 ODBC 문자열) 하나다 — 환경변수 PG_CDS_DB_CONNSTR 가 우선.
 ...      DB 접속은 **Suite Setup 에서 소켓과 함께 1회** 붙고 Suite Teardown 에서 끊는다
@@ -237,7 +238,8 @@ TC-CDS-009 Y9 (Data(Zone) 부가서비스 쿠폰 사용시점 알림)
     ...      1. 서비스 저장 — 1건 이상
     ...         SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...          WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_ZONE_B}' AND SVC_TYPE='${CDS_DB_SVC_TYPE_Z}'
-    ...                AND JOB_CODE='${CDS_CODE_Y9}' AND TIME_PERIOD_ID='${CDS_DB_TPID_Y9}' AND "LIMIT"='${CDS_DB_LIMIT_Y9}'
+    ...                AND JOB_CODE='${CDS_CODE_Y9}' AND TIME_PERIOD_ID='${CDS_DB_TPID_Y9}'
+    ...                AND "LIMIT"='${CDS_DB_LIMIT_Y9}' AND LIMIT_VALID_TIME='${CDS_LIMIT_VALID_TIME}'
     ...      2. 예약 큐 적재 — 1건 이상
     ...         SELECT COUNT(*) FROM T_5G_RESERVED_JOB
     ...          WHERE MDN='${CDS_MDN}' AND JOB_CODE='${CDS_DB_RSV_JOB_Y9}' AND COUPON_PIN='${CDS_COUPON_PIN_Y9}'
@@ -265,7 +267,8 @@ TC-CDS-010 K1 (Data(Time) 쿠폰 가입)
     ...         SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...          WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND SVC_TYPE='${CDS_DB_SVC_TYPE_N}'
     ...                AND JOB_CODE='${CDS_CODE_K1}' AND TIME_PERIOD_ID='${CDS_DB_TPID_K1}'
-    ...                AND "LIMIT"='${CDS_DB_LIMIT_K1}' AND CNUM='${CDS_COUPON_PIN_K1}'
+    ...                AND "LIMIT"='${CDS_DB_LIMIT_K1}' AND LIMIT_VALID_TIME='${CDS_LIMIT_VALID_TIME}'
+    ...                AND CNUM='${CDS_COUPON_PIN_K1}'
     ...      2. 예약 큐 적재 — 1건 이상 (JOB_CODE='${CDS_DB_RSV_JOB_K1}', 만료 예약)
     ...
     ...    CNUM 이 쿠폰 핀이 들어가는 컬럼이다.
@@ -351,7 +354,8 @@ TC-CDS-014 K5 (Data(Time) 3Mbps 쿠폰 가입)
     ...
     ...    [성공 판단 기준] K1(TC-CDS-010)과 같은 2건 조회인데 **기대값이 다르다.**
     ...      1. 서비스 저장 — JOB_CODE='${CDS_CODE_K5}', TIME_PERIOD_ID='${CDS_DB_TPID_K5}',
-    ...         "LIMIT"='${CDS_DB_LIMIT_K5}', CNUM='${CDS_COUPON_PIN_K5}' (K1 은 113/1)
+    ...         "LIMIT"='${CDS_DB_LIMIT_K5}', LIMIT_VALID_TIME='${CDS_LIMIT_VALID_TIME}',
+    ...         CNUM='${CDS_COUPON_PIN_K5}' (K1 은 113/1)
     ...      2. 예약 큐 적재 — JOB_CODE='${CDS_DB_RSV_JOB_K5}' (K1 은 K3)
     ...
     ...    핀을 K1 과 달리 쓰는 이유는 해지 판정이 `MDN + R17 + CNUM` 으로만 걸려
@@ -389,8 +393,8 @@ TC-CDS-016 SS (0플랜 옵션 3시간프리 가입)
     ...    쿠폰이 아니라 옵션이라 CNUM 이 핀이 아니라 **0 고정**이다.
     ...    예약 큐는 보지 않는다 — SS 는 예약을 걸지 않는다.
     ...
-    ...    ※ 판정 기준표의 TIME_PERIOD_ID 는 시간 파생값이라 조건에서 뺐다 — 이 판정은
-    ...       시간 컬럼을 검증하지 않는다.
+    ...    ※ 판정 기준표의 TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)는 'SS_' 가 붙은 합성값이라
+    ...       만들어낼 근거가 없어 조건에서 뺐다. SS 는 별도 LIMIT_VALID_TIME 컬럼도 없다.
     [Tags]    cds    command    validation    db    coupon
     Command Download Flow    ${CDS_CODE_SS}
     ...    start_time=${CDS_START_TIME}    coupon_type=${CDS_COUPON_TYPE}

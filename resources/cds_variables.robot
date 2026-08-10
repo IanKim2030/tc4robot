@@ -198,6 +198,17 @@ ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (0
 #   이 값이 과거가 되면 여기를 먼저 볼 것.
 ${CDS_START_TIME}              203712312359             # 예약 시작 시각 YYYYMMDDHH24MI (미래여야 함)
 
+# 판정 기준표의 $LIMIT_VALID_TIME — 서비스 테이블 LIMIT_VALID_TIME 컬럼의 기대값이다.
+# $COUPON_PIN 이 전문의 COUPON_PIN 을 가리키듯 이것도 **전문이 보낸 값**을 가리키는데,
+# K1/K5/Y9 가 보내는 필드 중 시각은 start_time 하나뿐이다(mdn/limit/start_time/
+# coupon_type/coupon_pin/coupon_category). 그래서 ${CDS_START_TIME} 과 같은 값이다.
+# CdsHelper._CMD_LAYOUT 의 start_time 주석도 "쿠폰 종료 시간"이라 한도 유효 시각과 맞다.
+#
+# ★ 저장 형식까지 확인된 것은 아니다. DB 가 초 단위를 붙이거나 폭이 다르면(예:
+#   YYYYMMDDHH24MISS) 문자열 비교가 어긋나 가입 판정만 실패한다. 그때 이 값만 고치면
+#   되도록 별도 변수로 뺐다 — 조회 SQL·키워드는 손대지 않아도 된다.
+${CDS_LIMIT_VALID_TIME}        ${CDS_START_TIME}        # 서비스 테이블 LIMIT_VALID_TIME 기대값
+
 # COUPON_TYPE='T' 는 Y9 의 분기를 가른다 — 'T' 면 예약 큐에 Y6, 숫자면 Y8 이 들어간다.
 # TC 는 Y6 을 기대하므로 'T' 로 고정한다.
 ${CDS_COUPON_TYPE}             T                        # coupon_type(2)
@@ -355,11 +366,9 @@ ${CDS_DB_LIMIT_Y9}            0            # Y9 LIMIT
 ${CDS_DB_LIMIT_SS}            0            # SS LIMIT
 ${CDS_DB_CNUM_SS}             0            # SS CNUM (쿠폰이 아니라 0 고정)
 
-# ※ 판정 기준표의 LIMIT_VALID_TIME($LIMIT_VALID_TIME) 과 SS 의
-#    TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME) 은 **값이 확정되지 않아 조건에서 뺐다**
-#    (표 자체가 "시간 확인 필요"로 남겨 둔 자리다). 값이 정해지면 아래 SQL 에
-#    AND LIMIT_VALID_TIME = ? 을 더하고 키워드 인자를 늘리면 된다.
-#    그 전까지 이 판정은 시간 컬럼을 **검증하지 않는다.**
+# ※ SS 의 TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME) 만 조건에서 빠져 있다 — 'SS_' 접두가
+#    붙은 합성값이라 만들어낼 근거가 없다. SS 판정은 그 컬럼을 검증하지 않는다.
+#    (LIMIT_VALID_TIME 자체는 ${CDS_LIMIT_VALID_TIME} 으로 K1/K5/Y9 판정에 들어간다.)
 
 # 예약 큐 — 테이블 이름이 LTE 와 SA 가 다르다(docs/nodes/CDS.md "LTE / SA 차이"):
 #   LTE = T_RESERVED_JOB   /   SA(5G) = T_5G_RESERVED_JOB
@@ -373,14 +382,13 @@ ${CDS_DB_RSV_JOB_K5}          K7       # K5 가입 → 만료(K7) 예약
 ${CDS_DB_RSV_JOB_Y9}          Y6       # Y9 + COUPON_TYPE='T' → Y6 (숫자 권종이면 Y8)
 
 # ── 쿠폰 계열 판정 SQL ───────────────────────────────────────────
-# 쿠폰 가입 (K1/K5) — 7개 조건. "LIMIT" 은 예약어라 큰따옴표로 감쌌다(I2 SQL 주석 참조).
+# 쿠폰 가입 (K1/K5) — 8개 조건. "LIMIT" 은 예약어라 큰따옴표로 감쌌다(I2 SQL 주석 참조).
 ${CDS_DB_SQL_SERVICE_COUPON}
-...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ? AND CNUM = ?
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ? AND LIMIT_VALID_TIME = ? AND CNUM = ?
 
-# Y9 — CNUM 을 걸지 않는 6개 조건 (${CDS_DB_SQL_SERVICE_I2} 와 모양은 같지만
-# 값 집합이 달라 별도로 둔다).
+# Y9 — CNUM 을 걸지 않는 7개 조건.
 ${CDS_DB_SQL_SERVICE_ZONE_B}
-...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ?
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ? AND LIMIT_VALID_TIME = ?
 
 # SS — TIME_PERIOD_ID 를 빼고(값 미확정) CNUM 을 거는 6개 조건.
 ${CDS_DB_SQL_SERVICE_OPTION}
