@@ -55,9 +55,10 @@ Documentation
 ...        취소가 서로 구분되지 않는다. 그래서 012/013 은 자기 핀으로 가입을 먼저 만든다.
 ...      ★ 시간 컬럼은 전부 전문의 START_TIME 에서 나온다 — PDB 의 필드 정의 테이블
 ...        T_5G_CDS_ORDER_CFG 에서 START_TIME 의 별칭(SUBTITLE)이 LIMIT_VALID_TIME 이다.
-...          009/010/014 : LIMIT_VALID_TIME = START_TIME         (${CDS_LIMIT_VALID_TIME})
-...          016         : TIME_PERIOD_ID   = 'SS_' + START_TIME (${CDS_DB_TPID_SS})
-...        저장 형식이 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
+...        다만 **폭이 다르다** — 전문은 12자리인데 DB 는 초 '00' 이 붙은 14자리다.
+...          009/010/014 : LIMIT_VALID_TIME = START_TIME+'00'         (${CDS_LIMIT_VALID_TIME})
+...          016         : TIME_PERIOD_ID   = 'SS_' + START_TIME+'00' (${CDS_DB_TPID_SS})
+...        형식이 또 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
 ...      접속 정보는 cds_variables.robot 의
 ...      ${CDS_DB_CONNSTR}(완성된 ODBC 문자열) 하나다 — 환경변수 PG_CDS_DB_CONNSTR 가 우선.
 ...      DB 접속은 **Suite Setup 에서 소켓과 함께 1회** 붙고 Suite Teardown 에서 끊는다
@@ -397,7 +398,7 @@ TC-CDS-016 SS (0플랜 옵션 3시간프리 가입)
     ...    예약 큐는 보지 않는다 — SS 는 예약을 걸지 않는다.
     ...
     ...    SS 는 별도 LIMIT_VALID_TIME 컬럼이 없고 **TIME_PERIOD_ID 가 시간을 담는다** —
-    ...    'SS_' 접두 + 전문 START_TIME 이다.
+    ...    'SS_' 접두 + 14자리 LIMIT_VALID_TIME(전문 START_TIME + 초 '00') 이다.
     [Tags]    cds    command    validation    db    coupon
     Command Download Flow    ${CDS_CODE_SS}
     ...    start_time=${CDS_START_TIME}    coupon_type=${CDS_COUPON_TYPE}

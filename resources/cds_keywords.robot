@@ -756,11 +756,11 @@ Verify Service Counts Preserved In PDB
 #   그래서 각 TC 는 자기 전용 핀으로 가입을 먼저 만든 뒤 그게 지워지는 것을 봐야 한다 —
 #   0건은 "지워졌다"와 "원래 없었다"를 구분하지 못하기 때문이다.
 #
-# ★ 시간 컬럼은 전부 전문의 START_TIME 에서 나온다 — PDB 의 필드 정의 테이블
-#   T_5G_CDS_ORDER_CFG 에서 START_TIME 의 SUBTITLE(별칭)이 LIMIT_VALID_TIME 이다.
-#     K1/K5/Y9 : LIMIT_VALID_TIME = START_TIME          (${CDS_LIMIT_VALID_TIME})
-#     SS       : TIME_PERIOD_ID   = 'SS_' + START_TIME  (${CDS_DB_TPID_SS})
-#   저장 형식이 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
+# ★ 시간 컬럼은 전부 전문의 START_TIME 에서 나오는데 **폭이 다르다** — 전문은 12자리
+#   (YYYYMMDDHH24MI)인데 DB 는 초 '00' 이 붙은 **14자리**다. 12자리로 조회하면 안 맞는다.
+#     K1/K5/Y9 : LIMIT_VALID_TIME = START_TIME+'00'          (${CDS_LIMIT_VALID_TIME})
+#     SS       : TIME_PERIOD_ID   = 'SS_' + START_TIME+'00'  (${CDS_DB_TPID_SS})
+#   형식이 또 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
 
 Coupon Service Should Be Subscribed
     [Documentation]    K1/K5 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
@@ -781,8 +781,9 @@ Verify Coupon Service Subscribed In PDB
     ...    CNUM 이 쿠폰 핀(COUPON_PIN)이 들어가는 컬럼이다.
     ...    K1 은 (113, 1), K5 는 (0, 2) 로 TIME_PERIOD_ID·LIMIT 이 다르다.
     ...
-    ...    LIMIT_VALID_TIME 기대값은 전문이 보낸 start_time 과 같다(${CDS_LIMIT_VALID_TIME}).
-    ...    저장 형식이 다르면 이 판정만 실패하므로 그 변수부터 확인할 것.
+    ...    LIMIT_VALID_TIME 기대값은 전문 start_time 에 초 '00' 을 붙인 **14자리**다
+    ...    (${CDS_LIMIT_VALID_TIME}). 전문은 12자리라 그대로 비교하면 안 맞는다.
+    ...    형식이 또 어긋나면 이 판정만 실패하므로 그 변수부터 확인할 것.
     [Arguments]    ${mdn}    ${job_code}    ${time_period_id}    ${limit}    ${coupon_pin}
     ...            ${limit_valid_time}=${CDS_LIMIT_VALID_TIME}    ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
@@ -830,7 +831,7 @@ Verify Zone Coupon Service Subscribed In PDB
     ...             AND TIME_PERIOD_ID='25' AND "LIMIT"='0' AND LIMIT_VALID_TIME=?
     ...    SVC_ID 가 1X 의 ZONE_SVC_D 가 아니라 **ZONE_SVC_B** 인 것에 주의.
     ...    JOB_CODE 는 인입 코드 그대로 Y9 다 — 예약 큐 쪽만 Y6 으로 바뀐다.
-    ...    LIMIT_VALID_TIME 기대값은 K1/K5 와 같은 ${CDS_LIMIT_VALID_TIME} 이다.
+    ...    LIMIT_VALID_TIME 기대값은 K1/K5 와 같은 14자리 ${CDS_LIMIT_VALID_TIME} 이다.
     [Arguments]    ${mdn}=${CDS_MDN}    ${limit_valid_time}=${CDS_LIMIT_VALID_TIME}
     ...            ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
@@ -856,7 +857,7 @@ Verify Option Service Subscribed In PDB
     ...    CNUM 이 쿠폰 핀이 아니라 **0 고정**이다 — 쿠폰이 아니라 옵션이기 때문이다.
     ...
     ...    SS 는 별도 LIMIT_VALID_TIME 컬럼이 없고 **TIME_PERIOD_ID 가 시간을 담는다** —
-    ...    'SS_' 접두 + 전문 START_TIME 이다(${CDS_DB_TPID_SS}).
+    ...    'SS_' 접두 + 14자리 LIMIT_VALID_TIME 이다(${CDS_DB_TPID_SS}).
     [Arguments]    ${mdn}=${CDS_MDN}    ${time_period_id}=${CDS_DB_TPID_SS}
     ...            ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection

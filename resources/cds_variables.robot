@@ -199,20 +199,20 @@ ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (0
 ${CDS_START_TIME}              203712312359             # 예약 시작 시각 YYYYMMDDHH24MI (미래여야 함)
 
 # 판정 기준표의 $LIMIT_VALID_TIME — 서비스 테이블 LIMIT_VALID_TIME 컬럼의 기대값이다.
-# **전문의 START_TIME 과 같은 값이다.** 추정이 아니라 PDB 의 필드 정의 테이블로 확인됐다:
+# 전문의 START_TIME 에서 나오지만 **폭이 다르다.**
 #
-#   SELECT * FROM T_5G_CDS_ORDER_CFG;
-#   ID  TITLE        SUBTITLE          SIZE
-#   25  START_TIME   LIMIT_VALID_TIME   12
+#   전문 START_TIME    : 12자리 YYYYMMDDHH24MI      (T_5G_CDS_ORDER_CFG ID=25,
+#                                                    SUBTITLE 이 LIMIT_VALID_TIME)
+#   DB LIMIT_VALID_TIME: 14자리 YYYYMMDDHH24MISS    ← 뒤에 초 '00' 이 붙는다
 #
-# TITLE 이 전문 필드명, SUBTITLE 이 그 별칭이다. 즉 LIMIT_VALID_TIME 은 START_TIME 의
-# 다른 이름일 뿐이고, 폭도 12 로 같다(YYYYMMDDHH24MI). 별도 변수로 둔 것은 저장 형식이
-# 어긋났을 때 조회 SQL·키워드를 건드리지 않고 여기만 고치기 위해서다.
-${CDS_LIMIT_VALID_TIME}        ${CDS_START_TIME}        # = 전문 START_TIME (T_5G_CDS_ORDER_CFG ID=25)
+# ★ 그래서 ${CDS_START_TIME} 을 그대로 비교하면 **안 맞는다.** 12자리로 조회하면
+#   가입 판정(K1/K5/Y9)만 0건이 나와 실패한다. 초를 붙인 이 변수를 쓸 것.
+${CDS_LIMIT_VALID_TIME}        ${CDS_START_TIME}00      # 14자리 (전문 12자리 + 초 '00')
 
-# SS 의 TIME_PERIOD_ID 는 **'SS_' 접두 + 전문 START_TIME** 이다(기준표의
-# TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)). 위 별칭 매핑을 넣고 풀면 SS_<START_TIME> 이다.
-${CDS_DB_TPID_SS}              SS_${CDS_START_TIME}     # SS TIME_PERIOD_ID (접두 + START_TIME)
+# SS 의 TIME_PERIOD_ID 는 **'SS_' 접두 + 위 14자리 값**이다.
+# 기준표 표기가 TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME) 이고, $LIMIT_VALID_TIME 은
+# K1 행의 LIMIT_VALID_TIME($LIMIT_VALID_TIME) 과 같은 토큰이므로 같은 14자리 값이다.
+${CDS_DB_TPID_SS}              SS_${CDS_LIMIT_VALID_TIME}   # SS TIME_PERIOD_ID (접두 + 14자리)
 
 # COUPON_TYPE='T' 는 Y9 의 분기를 가른다 — 'T' 면 예약 큐에 Y6, 숫자면 Y8 이 들어간다.
 # TC 는 Y6 을 기대하므로 'T' 로 고정한다.
@@ -372,7 +372,8 @@ ${CDS_DB_LIMIT_SS}            0            # SS LIMIT
 ${CDS_DB_CNUM_SS}             0            # SS CNUM (쿠폰이 아니라 0 고정)
 
 # ※ 시간 컬럼은 전부 판정에 들어가 있다 — K1/K5/Y9 는 LIMIT_VALID_TIME,
-#    SS 는 TIME_PERIOD_ID(=SS_ + START_TIME). 둘 다 전문의 START_TIME 에서 나온다.
+#    SS 는 TIME_PERIOD_ID(='SS_' + 그 값). 둘 다 전문 START_TIME + 초 '00' 인
+#    **14자리**다(전문은 12자리). 위 ${CDS_LIMIT_VALID_TIME} 주석 참조.
 
 # 예약 큐 — 테이블 이름이 LTE 와 SA 가 다르다(docs/nodes/CDS.md "LTE / SA 차이"):
 #   LTE = T_RESERVED_JOB   /   SA(5G) = T_5G_RESERVED_JOB

@@ -447,16 +447,23 @@ SELECT * FROM T_5G_CDS_ORDER_CFG;
 -- 25  START_TIME   LIMIT_VALID_TIME    12
 ```
 
-`TITLE` 이 전문 필드명, `SUBTITLE` 이 그 별칭이다. 즉 `LIMIT_VALID_TIME` 은 `START_TIME` 의
-다른 이름일 뿐이고 폭도 12 로 같다. SS 의 `TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)` 는
-여기에 `SS_` 접두를 붙인 것 — `SS_<START_TIME>` 이다.
+`TITLE` 이 전문 필드명, `SUBTITLE` 이 그 별칭이다. 즉 `LIMIT_VALID_TIME` 은 `START_TIME` 이
+DB 로 넘어간 값이다.
+
+**다만 폭이 다르다.** 전문의 `START_TIME` 은 12자리(`YYYYMMDDHH24MI`)인데 DB 의
+`LIMIT_VALID_TIME` 은 **14자리**(`YYYYMMDDHH24MISS`)로, 뒤에 초 `00` 이 붙는다.
+cfg 의 `SIZE 12` 는 전문 필드 폭이지 컬럼 폭이 아니다 — 여기서 어긋나기 쉽다.
+12자리로 조회하면 가입 판정만 0건이 나와 실패한다.
 
 | 코드 | 시간 컬럼 | 기대값 | 변수 |
 |---|---|---|---|
-| `K1` `K5` `Y9` | `LIMIT_VALID_TIME` | START_TIME | `${CDS_LIMIT_VALID_TIME}` |
-| `SS` | `TIME_PERIOD_ID` | `SS_` + START_TIME | `${CDS_DB_TPID_SS}` |
+| `K1` `K5` `Y9` | `LIMIT_VALID_TIME` | START_TIME + `00` (14) | `${CDS_LIMIT_VALID_TIME}` |
+| `SS` | `TIME_PERIOD_ID` | `SS_` + 위 14자리 | `${CDS_DB_TPID_SS}` |
 
-저장 형식이 어긋나면 저 두 변수만 고치면 된다 — 조회 SQL 과 키워드는 그대로다.
+SS 의 `TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)` 가 쓰는 `$LIMIT_VALID_TIME` 은 K1 행의
+`LIMIT_VALID_TIME($LIMIT_VALID_TIME)` 과 같은 토큰이므로, 12자리가 아니라 이 14자리다.
+
+형식이 또 어긋나면 저 두 변수만 고치면 된다 — 조회 SQL 과 키워드는 그대로다.
 
 슈트는 `TC-CDS-009 ~ 017` 에서 이 9개를 다룬다. 시간프리 계열(`91`/`92`)은 아직 TC 가 없다.
 
