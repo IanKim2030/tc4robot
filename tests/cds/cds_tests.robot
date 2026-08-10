@@ -43,7 +43,7 @@ Documentation
 ...      014 K5 쿠폰가입  : SERVICE(R17, N, K5, 0, LIMIT=2, LIMIT_VALID_TIME, CNUM=핀) 1건 이상
 ...                        + RESERVED_JOB(JOB_CODE=K7, 핀) 1건 이상
 ...      015 K6 쿠폰해지  : 014 의 핀으로 SERVICE(R17, CNUM) 0건
-...      016 SS 옵션가입  : SERVICE(TIME_SVC_I, T, SS, LIMIT=0, CNUM=0) 1건 이상
+...      016 SS 옵션가입  : SERVICE(TIME_SVC_I, T, SS, TIME_PERIOD_ID=SS_+START_TIME, LIMIT=0, CNUM=0) 1건 이상
 ...      017 ST 옵션해지  : SERVICE(SVC_ID=TIME_SVC_I) 0건
 ...      018 D3 번호변경 : 007 과 같은 전후 비교 (옛 번호 기준 → 새 번호 + JOB_CODE=D3)
 ...      019 Z1 가입해지 : PROFILE / SERVICE(SVC_ID 무관) 모두 0건
@@ -53,9 +53,11 @@ Documentation
 ...        인입 코드로 조회하면 한 건도 나오지 않는다.
 ...      ★ K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다**(MDN+R17+CNUM 삭제) — 해지·만료·
 ...        취소가 서로 구분되지 않는다. 그래서 012/013 은 자기 핀으로 가입을 먼저 만든다.
-...      ★ LIMIT_VALID_TIME 기대값(009/010/014)은 전문이 보낸 start_time 과 같다
-...        (${CDS_LIMIT_VALID_TIME}). 저장 형식이 다르면 그 변수만 고치면 된다.
-...        SS 의 TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)만 합성값이라 조건에서 빠져 있다.
+...      ★ 시간 컬럼은 전부 전문의 START_TIME 에서 나온다 — PDB 의 필드 정의 테이블
+...        T_5G_CDS_ORDER_CFG 에서 START_TIME 의 별칭(SUBTITLE)이 LIMIT_VALID_TIME 이다.
+...          009/010/014 : LIMIT_VALID_TIME = START_TIME         (${CDS_LIMIT_VALID_TIME})
+...          016         : TIME_PERIOD_ID   = 'SS_' + START_TIME (${CDS_DB_TPID_SS})
+...        저장 형식이 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
 ...      접속 정보는 cds_variables.robot 의
 ...      ${CDS_DB_CONNSTR}(완성된 ODBC 문자열) 하나다 — 환경변수 PG_CDS_DB_CONNSTR 가 우선.
 ...      DB 접속은 **Suite Setup 에서 소켓과 함께 1회** 붙고 Suite Teardown 에서 끊는다
@@ -389,12 +391,13 @@ TC-CDS-016 SS (0플랜 옵션 3시간프리 가입)
     ...    [성공 판단 기준] 서비스 행이 **1건 이상** 생겨야 성공이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_TIME_I}' AND SVC_TYPE='${CDS_DB_SVC_TYPE_T}'
-    ...             AND JOB_CODE='${CDS_CODE_SS}' AND "LIMIT"='${CDS_DB_LIMIT_SS}' AND CNUM='${CDS_DB_CNUM_SS}'
+    ...             AND JOB_CODE='${CDS_CODE_SS}' AND TIME_PERIOD_ID='${CDS_DB_TPID_SS}'
+    ...             AND "LIMIT"='${CDS_DB_LIMIT_SS}' AND CNUM='${CDS_DB_CNUM_SS}'
     ...    쿠폰이 아니라 옵션이라 CNUM 이 핀이 아니라 **0 고정**이다.
     ...    예약 큐는 보지 않는다 — SS 는 예약을 걸지 않는다.
     ...
-    ...    ※ 판정 기준표의 TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)는 'SS_' 가 붙은 합성값이라
-    ...       만들어낼 근거가 없어 조건에서 뺐다. SS 는 별도 LIMIT_VALID_TIME 컬럼도 없다.
+    ...    SS 는 별도 LIMIT_VALID_TIME 컬럼이 없고 **TIME_PERIOD_ID 가 시간을 담는다** —
+    ...    'SS_' 접두 + 전문 START_TIME 이다.
     [Tags]    cds    command    validation    db    coupon
     Command Download Flow    ${CDS_CODE_SS}
     ...    start_time=${CDS_START_TIME}    coupon_type=${CDS_COUPON_TYPE}

@@ -199,15 +199,20 @@ ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (0
 ${CDS_START_TIME}              203712312359             # 예약 시작 시각 YYYYMMDDHH24MI (미래여야 함)
 
 # 판정 기준표의 $LIMIT_VALID_TIME — 서비스 테이블 LIMIT_VALID_TIME 컬럼의 기대값이다.
-# $COUPON_PIN 이 전문의 COUPON_PIN 을 가리키듯 이것도 **전문이 보낸 값**을 가리키는데,
-# K1/K5/Y9 가 보내는 필드 중 시각은 start_time 하나뿐이다(mdn/limit/start_time/
-# coupon_type/coupon_pin/coupon_category). 그래서 ${CDS_START_TIME} 과 같은 값이다.
-# CdsHelper._CMD_LAYOUT 의 start_time 주석도 "쿠폰 종료 시간"이라 한도 유효 시각과 맞다.
+# **전문의 START_TIME 과 같은 값이다.** 추정이 아니라 PDB 의 필드 정의 테이블로 확인됐다:
 #
-# ★ 저장 형식까지 확인된 것은 아니다. DB 가 초 단위를 붙이거나 폭이 다르면(예:
-#   YYYYMMDDHH24MISS) 문자열 비교가 어긋나 가입 판정만 실패한다. 그때 이 값만 고치면
-#   되도록 별도 변수로 뺐다 — 조회 SQL·키워드는 손대지 않아도 된다.
-${CDS_LIMIT_VALID_TIME}        ${CDS_START_TIME}        # 서비스 테이블 LIMIT_VALID_TIME 기대값
+#   SELECT * FROM T_5G_CDS_ORDER_CFG;
+#   ID  TITLE        SUBTITLE          SIZE
+#   25  START_TIME   LIMIT_VALID_TIME   12
+#
+# TITLE 이 전문 필드명, SUBTITLE 이 그 별칭이다. 즉 LIMIT_VALID_TIME 은 START_TIME 의
+# 다른 이름일 뿐이고, 폭도 12 로 같다(YYYYMMDDHH24MI). 별도 변수로 둔 것은 저장 형식이
+# 어긋났을 때 조회 SQL·키워드를 건드리지 않고 여기만 고치기 위해서다.
+${CDS_LIMIT_VALID_TIME}        ${CDS_START_TIME}        # = 전문 START_TIME (T_5G_CDS_ORDER_CFG ID=25)
+
+# SS 의 TIME_PERIOD_ID 는 **'SS_' 접두 + 전문 START_TIME** 이다(기준표의
+# TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)). 위 별칭 매핑을 넣고 풀면 SS_<START_TIME> 이다.
+${CDS_DB_TPID_SS}              SS_${CDS_START_TIME}     # SS TIME_PERIOD_ID (접두 + START_TIME)
 
 # COUPON_TYPE='T' 는 Y9 의 분기를 가른다 — 'T' 면 예약 큐에 Y6, 숫자면 Y8 이 들어간다.
 # TC 는 Y6 을 기대하므로 'T' 로 고정한다.
@@ -366,9 +371,8 @@ ${CDS_DB_LIMIT_Y9}            0            # Y9 LIMIT
 ${CDS_DB_LIMIT_SS}            0            # SS LIMIT
 ${CDS_DB_CNUM_SS}             0            # SS CNUM (쿠폰이 아니라 0 고정)
 
-# ※ SS 의 TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME) 만 조건에서 빠져 있다 — 'SS_' 접두가
-#    붙은 합성값이라 만들어낼 근거가 없다. SS 판정은 그 컬럼을 검증하지 않는다.
-#    (LIMIT_VALID_TIME 자체는 ${CDS_LIMIT_VALID_TIME} 으로 K1/K5/Y9 판정에 들어간다.)
+# ※ 시간 컬럼은 전부 판정에 들어가 있다 — K1/K5/Y9 는 LIMIT_VALID_TIME,
+#    SS 는 TIME_PERIOD_ID(=SS_ + START_TIME). 둘 다 전문의 START_TIME 에서 나온다.
 
 # 예약 큐 — 테이블 이름이 LTE 와 SA 가 다르다(docs/nodes/CDS.md "LTE / SA 차이"):
 #   LTE = T_RESERVED_JOB   /   SA(5G) = T_5G_RESERVED_JOB
@@ -390,9 +394,9 @@ ${CDS_DB_SQL_SERVICE_COUPON}
 ${CDS_DB_SQL_SERVICE_ZONE_B}
 ...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ? AND LIMIT_VALID_TIME = ?
 
-# SS — TIME_PERIOD_ID 를 빼고(값 미확정) CNUM 을 거는 6개 조건.
+# SS — 별도 LIMIT_VALID_TIME 컬럼은 없고 TIME_PERIOD_ID 가 시간을 담는다. 7개 조건.
 ${CDS_DB_SQL_SERVICE_OPTION}
-...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND "LIMIT" = ? AND CNUM = ?
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ? AND CNUM = ?
 
 # 쿠폰 해지/만료/취소 (K2/K3/K4/K6) — MDN + SVC_ID + CNUM 으로 0건.
 # ST 해지는 CNUM 이 없으므로 기존 ${CDS_DB_SQL_SERVICE}(MDN+SVC_ID)를 그대로 쓴다.

@@ -422,7 +422,7 @@ def db_end_transaction(conn):
 | `K5` | 3Mbps 쿠폰 가입 | `R17` + `N` + `K5` + TPID `0` + LIMIT `2` + CNUM(핀) 저장 | `K7` |
 | `K6` | 3Mbps 쿠폰 해지 | `R17` + CNUM(핀) 삭제 | — |
 | `Y9` | Zone 부가서비스(쿠폰) 사용시점 알림 | `ZONE_SVC_B` + `Z` + `Y9` + TPID `25` + LIMIT `0` 저장 | `Y6` |
-| `SS` | 0플랜 옵션(3시간 프리) 가입 | `TIME_SVC_I` + `T` + `SS` + LIMIT `0` + CNUM `0` 저장 | — |
+| `SS` | 0플랜 옵션(3시간 프리) 가입 | `TIME_SVC_I` + `T` + `SS` + TPID `SS_`+START_TIME + LIMIT `0` + CNUM `0` 저장 | — |
 | `ST` | 0플랜 옵션(3시간 프리) 해지 | `TIME_SVC_I` 삭제 | — |
 
 세 가지가 함정이다.
@@ -439,15 +439,37 @@ def db_end_transaction(conn):
 **START TIME 이 미래여야 한다.** 과거를 넣으면 가입과 동시에 걸린 만료 예약을 RDS 가
 즉시 집어가 서비스 행이 사라진다 → 가입 판정이 이유 없이 실패한다 (`${CDS_START_TIME}`).
 
-`LIMIT_VALID_TIME` 기대값은 **전문이 보낸 `START_TIME` 과 같다.** 기준표의
-`$LIMIT_VALID_TIME` 은 `$COUPON_PIN` 과 같은 표기이고, K1/K5/Y9 가 보내는 필드 중 시각은
-`start_time` 하나뿐이라 다른 후보가 없다 — `_CMD_LAYOUT` 의 `start_time` 주석
-("쿠폰 종료 시간")과도 맞는다. 다만 **저장 형식까지 확인된 것은 아니라서**, DB 가 초 단위를
-붙이거나 폭이 다르면 가입 판정만 어긋난다. 그때는 `${CDS_LIMIT_VALID_TIME}` 만 고치면 된다.
+**시간 컬럼은 전부 전문의 `START_TIME` 에서 나온다.** PDB 의 필드 정의 테이블이 근거다.
 
-SS 의 `TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)` 만 `SS_` 접두가 붙은 합성값이라 아직 판정에서
-빠져 있다. 슈트는 `TC-CDS-009 ~ 017` 에서 이 9개를 다룬다.
-시간프리 계열(`91`/`92`)은 아직 TC 가 없다.
+```sql
+SELECT * FROM T_5G_CDS_ORDER_CFG;
+-- ID  TITLE        SUBTITLE           SIZE
+-- 25  START_TIME   LIMIT_VALID_TIME    12
+```
+
+`TITLE` 이 전문 필드명, `SUBTITLE` 이 그 별칭이다. 즉 `LIMIT_VALID_TIME` 은 `START_TIME` 의
+다른 이름일 뿐이고 폭도 12 로 같다. SS 의 `TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)` 는
+여기에 `SS_` 접두를 붙인 것 — `SS_<START_TIME>` 이다.
+
+| 코드 | 시간 컬럼 | 기대값 | 변수 |
+|---|---|---|---|
+| `K1` `K5` `Y9` | `LIMIT_VALID_TIME` | START_TIME | `${CDS_LIMIT_VALID_TIME}` |
+| `SS` | `TIME_PERIOD_ID` | `SS_` + START_TIME | `${CDS_DB_TPID_SS}` |
+
+저장 형식이 어긋나면 저 두 변수만 고치면 된다 — 조회 SQL 과 키워드는 그대로다.
+
+슈트는 `TC-CDS-009 ~ 017` 에서 이 9개를 다룬다. 시간프리 계열(`91`/`92`)은 아직 TC 가 없다.
+
+### `T_5G_CDS_ORDER_CFG` 는 Body 레이아웃의 1차 근거다
+
+같은 테이블의 `ID` 순서 · `TITLE` · `SIZE` 가 곧 `CdsHelper._CMD_LAYOUT` 이다
+(ID 1~35 = `svc_code` ~ `product_type`, 합 327B). 레이아웃을 의심할 일이 생기면
+PG 소스보다 이 테이블을 먼저 보는 편이 빠르다.
+
+한 가지 어긋나는 것이 있다. **ID 36 `RESERVED`(50B)** 가 정의돼 있어 cfg 기준 전체는
+377B 인데, 도구는 327B 만 보낸다(실 A1 전문 캡처가 327B였던 근거). CDS 시뮬레이터는
+또 30B 를 붙여 357B 다. 셋이 다 다르지만 `RESERVED` 는 뒤에 붙는 미사용 패딩이고 PG 는
+헤더의 `data_size` 만큼 읽으므로 지금까지 문제가 되지 않았다.
 
 ## wire 인코딩
 
