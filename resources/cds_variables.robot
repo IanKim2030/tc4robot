@@ -136,6 +136,26 @@ ${CDS_CODE_Z2}      Z2     # 가입해지
 ${CDS_CODE_1X}      1X     # HFC 서비스 가입
 ${CDS_CODE_1Y}      1Y     # HFC 서비스 해지
 
+# ── 쿠폰 / 옵션 계열 업무 코드 ──────────────────────────────────
+# 가입자 서비스 테이블(${CDS_DB_TBL_SERVICE})에 반영되는 것은 앞의 코드들과 같다.
+# 다른 점은 **가입 계열 3개(K1/K5/Y9)가 예약 큐에 후속 예약을 함께 건다**는 것이다
+# — 쿠폰은 유효기간이 끝나면 만료돼야 하므로 PG.RDS 가 그때까지 들고 있는다.
+# 근거: PG SDM/Syncer/Syncer.cpp SyncReservedJobTBL() 의 jobCode 분기.
+#
+#   K1 → 예약 큐 JOB_CODE='K3'   K5 → 'K7'   Y9 → 'Y6' (COUPON_TYPE 숫자면 'Y8')
+#
+# ★ 인입 코드와 예약 큐 적재 코드가 다르다. K3/K7 은 인입 업무 코드이면서 동시에
+#   K1/K5 가 만들어 넣는 예약 코드이기도 하다.
+${CDS_CODE_Y9}      Y9     # Data(Zone) 부가서비스(쿠폰) 사용시점 알림 → 예약 큐에 Y6
+${CDS_CODE_K1}      K1     # Data(Time) 쿠폰 가입      → 예약 큐에 K3
+${CDS_CODE_K2}      K2     # Data(Time) 쿠폰 해지
+${CDS_CODE_K3}      K3     # Data(Time) 쿠폰 만료
+${CDS_CODE_K4}      K4     # Data(Time) 쿠폰 취소
+${CDS_CODE_K5}      K5     # Data(Time) 3Mbps 쿠폰 가입 → 예약 큐에 K7
+${CDS_CODE_K6}      K6     # Data(Time) 3Mbps 쿠폰 해지
+${CDS_CODE_SS}      SS     # 0플랜 옵션(3시간 프리) 가입
+${CDS_CODE_ST}      ST     # 0플랜 옵션(3시간 프리) 해지
+
 # ════════════════════════════════════════════
 # 테스트 데이터
 # TODO: 실환경 명령어/가입자 데이터 값으로 교체
@@ -157,12 +177,45 @@ ${CDS_NEW_MDN}                 01090010002              # new_mdn (D3 번호변�
 ${CDS_MIN}                     1090010001               # min     (10자, A1/D3 등)
 
 # D3(번호변경) 이후 가입자를 가리키는 번호. Z1(해지)처럼 "현재 번호"로 보내야 하는
-# 코드가 쓴다. 기본값은 원래 번호이고, TC-CDS-010(D3)이 성공하면 그 TC 가
+# 코드가 쓴다. 기본값은 원래 번호이고, TC-CDS-018(D3)이 성공하면 그 TC 가
 # Set Suite Variable 로 ${CDS_NEW_MDN} 을 덮어쓴다.
 # → D3 를 건너뛰거나 실패하면 기본값이 남아 **원래 번호로 해지**한다.
 ${CDS_ACTIVE_MDN}              ${CDS_MDN}               # 현재 유효 MDN (D3 성공 시 new_mdn 으로 교체)
 ${CDS_NEW_MIN}                 1090010002               # new_min (C1 기기변경 시)
 ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
+
+# ── 예약(쿠폰) 계열 필드 — Y9 / K1~K6 / SS / ST ─────────────────
+# 필드 집합은 시뮬레이터 GenCds.py gen() 의 각 분기에서 뽑았다(2026-08-10 대조).
+#   Y9       : mdn limit zone_code start_time coupon_type coupon_pin
+#   K1/K5    : mdn limit start_time coupon_type coupon_pin coupon_category
+#   K2/K3/K4/K6 : mdn limit coupon_pin
+#   SS/ST    : mdn limit start_time coupon_type
+#
+# ★ START_TIME 은 반드시 **미래**여야 한다.
+#   K1/K5 가입은 서비스 행을 넣는 동시에 예약 큐에 만료(K3/K7) 예약을 건다. PG.RDS 가
+#   START_TIME 이 지난 예약을 집어 실행하므로, 과거 시각을 넣으면 **가입하자마자 만료가
+#   실행돼** 서비스 행이 사라진다 → 가입 판정(TC-CDS-010/014)이 이유 없이 실패한다.
+#   이 값이 과거가 되면 여기를 먼저 볼 것.
+${CDS_START_TIME}              203712312359             # 예약 시작 시각 YYYYMMDDHH24MI (미래여야 함)
+
+# COUPON_TYPE='T' 는 Y9 의 분기를 가른다 — 'T' 면 예약 큐에 Y6, 숫자면 Y8 이 들어간다.
+# TC 는 Y6 을 기대하므로 'T' 로 고정한다.
+${CDS_COUPON_TYPE}             T                        # coupon_type(2)
+# COUPON_CATEGORY 는 K1/K5 에서 'T'(Time) 또는 'P'(Period) 가 아니면 Syncer 가
+# Invalid 로그를 남기고 **예약을 넣지 않는다** → 반드시 T 나 P 여야 한다.
+${CDS_COUPON_CATEGORY}         T                        # coupon_category(1) T=Time P=Period
+${CDS_ZONE_CODE}               0002                     # zone_code(4) → 예약 큐 ZONE_SVC_CODE
+
+# COUPON_PIN 은 업무별로 **다른 값을 쓴다.**
+# 쿠폰 행이 서비스 테이블에서 `MDN + SVC_ID + CNUM(=핀)` 으로 식별되고, 해지·만료·취소
+# (K2/K3/K4/K6)가 모두 그 조합으로 지우기 때문이다 — 핀을 공유하면 한 TC 가 지운 행을
+# 다른 TC 가 자기 결과로 착각한다("0건"은 지워졌는지 원래 없었는지 구분하지 못한다).
+${CDS_COUPON_PIN}              00000000020              # coupon_pin(11) 공용 기본값
+${CDS_COUPON_PIN_Y9}           00000000091              # Y9 전용
+${CDS_COUPON_PIN_K1}           00000000011              # K1 가입 → K2 해지 쌍 전용
+${CDS_COUPON_PIN_K3}           00000000031              # K3 만료 검증 전용 (TC 안에서 K1 로 먼저 가입)
+${CDS_COUPON_PIN_K4}           00000000041              # K4 취소 검증 전용 (TC 안에서 K1 로 먼저 가입)
+${CDS_COUPON_PIN_K5}           00000000051              # K5 가입 → K6 해지 쌍 전용
 ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      # addr (1X HFC 가입 시, 170byte, cp949 인코딩, TODO: 실환경 값)
 #${CDS_ADDR}                    가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마바사아자타가나다라마
 
@@ -262,6 +315,86 @@ ${CDS_DB_SQL_SERVICE_GROUP}
 ...    SELECT SVC_ID, COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? GROUP BY SVC_ID
 ${CDS_DB_SQL_SERVICE_GROUP_JOB}
 ...    SELECT SVC_ID, COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND JOB_CODE = ? GROUP BY SVC_ID
+
+# ── 쿠폰/옵션 계열 (Y9 / K1~K6 / SS / ST) ────────────────────────
+# 판정 기준은 2026-08-10 에 지정된 표를 그대로 옮긴 것이다.
+#
+# **주 판정 대상은 가입자 서비스 테이블(${CDS_DB_TBL_SERVICE})이다.**
+# K1/K5/Y9 만 예약 큐(${CDS_DB_TBL_RESERVED}) 적재를 **추가로** 본다 — 가입과 동시에
+# 만료/사용시점 예약이 걸리기 때문이다.
+#
+#   코드  동작                    서비스 테이블            예약 큐
+#   ----  ----------------------  ----------------------  ---------------
+#   K1    Data(Time) 쿠폰 가입    R17 저장 (K1/113/1)      JOB_CODE=K3
+#   K2    Data(Time) 쿠폰 해지    R17 삭제 (핀)            —
+#   K3    Data(Time) 쿠폰 만료    R17 삭제 (핀)            —
+#   K4    Data(Time) 쿠폰 취소    R17 삭제 (핀)            —
+#   K5    3Mbps 쿠폰 가입         R17 저장 (K5/0/2)        JOB_CODE=K7
+#   K6    3Mbps 쿠폰 해지         R17 삭제 (핀)            —
+#   Y9    Zone 쿠폰 사용시점 알림 ZONE_SVC_B 저장 (Y9/25/0) JOB_CODE=Y6
+#   SS    0플랜 3시간프리 가입    TIME_SVC_I 저장 (SS/0)   —
+#   ST    0플랜 3시간프리 해지    TIME_SVC_I 삭제          —
+#
+# ★ K2/K3/K4/K6 은 판정 기준이 **완전히 같다**(MDN+R17+CNUM 삭제). 서로 구분되지
+#   않으므로 각 TC 는 자기 핀으로 가입을 먼저 만든 뒤 지워지는 것을 봐야 한다.
+${CDS_DB_SVC_COUPON}          R17          # K1~K6 쿠폰 SVC_ID
+${CDS_DB_SVC_ZONE_B}          ZONE_SVC_B   # Y9 SVC_ID (1X 의 ZONE_SVC_D 와 다르다)
+${CDS_DB_SVC_TIME_I}          TIME_SVC_I   # SS/ST SVC_ID
+
+# K1/K5 의 SVC_TYPE 은 I2 와 같은 'N' 이라 위 ${CDS_DB_SVC_TYPE_N} 을 재사용한다.
+${CDS_DB_SVC_TYPE_Z}          Z            # Y9 SVC_TYPE
+${CDS_DB_SVC_TYPE_T}          T            # SS SVC_TYPE
+
+# TIME_PERIOD_ID / LIMIT — 코드마다 다르다. LIMIT 은 I2 의 'Y' 와 달리 숫자다.
+${CDS_DB_TPID_K1}             113          # K1 TIME_PERIOD_ID
+${CDS_DB_TPID_K5}             0            # K5 TIME_PERIOD_ID
+${CDS_DB_TPID_Y9}             25           # Y9 TIME_PERIOD_ID
+${CDS_DB_LIMIT_K1}            1            # K1 LIMIT
+${CDS_DB_LIMIT_K5}            2            # K5 LIMIT
+${CDS_DB_LIMIT_Y9}            0            # Y9 LIMIT
+${CDS_DB_LIMIT_SS}            0            # SS LIMIT
+${CDS_DB_CNUM_SS}             0            # SS CNUM (쿠폰이 아니라 0 고정)
+
+# ※ 판정 기준표의 LIMIT_VALID_TIME($LIMIT_VALID_TIME) 과 SS 의
+#    TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME) 은 **값이 확정되지 않아 조건에서 뺐다**
+#    (표 자체가 "시간 확인 필요"로 남겨 둔 자리다). 값이 정해지면 아래 SQL 에
+#    AND LIMIT_VALID_TIME = ? 을 더하고 키워드 인자를 늘리면 된다.
+#    그 전까지 이 판정은 시간 컬럼을 **검증하지 않는다.**
+
+# 예약 큐 — 테이블 이름이 LTE 와 SA 가 다르다(docs/nodes/CDS.md "LTE / SA 차이"):
+#   LTE = T_RESERVED_JOB   /   SA(5G) = T_5G_RESERVED_JOB
+# 이 슈트는 가입자 테이블을 T_5G_* 로 보고 있으므로 SA 쪽 이름을 기본값으로 둔다.
+${CDS_DB_TBL_RESERVED}        T_5G_RESERVED_JOB
+
+# 인입 업무 코드 → 예약 큐에 실제로 적재되는 JOB_CODE (같지 않다!)
+# PG SDM/Syncer/Syncer.cpp SyncReservedJobTBL() 의 INSERT 문에서 확인했다.
+${CDS_DB_RSV_JOB_K1}          K3       # K1 가입 → 만료(K3) 예약
+${CDS_DB_RSV_JOB_K5}          K7       # K5 가입 → 만료(K7) 예약
+${CDS_DB_RSV_JOB_Y9}          Y6       # Y9 + COUPON_TYPE='T' → Y6 (숫자 권종이면 Y8)
+
+# ── 쿠폰 계열 판정 SQL ───────────────────────────────────────────
+# 쿠폰 가입 (K1/K5) — 7개 조건. "LIMIT" 은 예약어라 큰따옴표로 감쌌다(I2 SQL 주석 참조).
+${CDS_DB_SQL_SERVICE_COUPON}
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ? AND CNUM = ?
+
+# Y9 — CNUM 을 걸지 않는 6개 조건 (${CDS_DB_SQL_SERVICE_I2} 와 모양은 같지만
+# 값 집합이 달라 별도로 둔다).
+${CDS_DB_SQL_SERVICE_ZONE_B}
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ?
+
+# SS — TIME_PERIOD_ID 를 빼고(값 미확정) CNUM 을 거는 6개 조건.
+${CDS_DB_SQL_SERVICE_OPTION}
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND "LIMIT" = ? AND CNUM = ?
+
+# 쿠폰 해지/만료/취소 (K2/K3/K4/K6) — MDN + SVC_ID + CNUM 으로 0건.
+# ST 해지는 CNUM 이 없으므로 기존 ${CDS_DB_SQL_SERVICE}(MDN+SVC_ID)를 그대로 쓴다.
+${CDS_DB_SQL_SERVICE_CNUM}
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND CNUM = ?
+
+# 예약 큐 적재 (K1/K5/Y9) — STATUS 는 걸지 않는다. 판정 기준표가 예약 건에 대해
+# "시간 확인 필요"로만 남겨 둬 대기/실행 상태를 못 박을 근거가 없기 때문이다.
+${CDS_DB_SQL_RESERVED_JOB}
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_RESERVED} WHERE MDN = ? AND JOB_CODE = ? AND COUPON_PIN = ?
 
 # ════════════════════════════════════════════
 # 단말·망 필드 (코드 공용) — TODO: 실환경 값으로 교체

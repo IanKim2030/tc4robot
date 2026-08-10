@@ -737,3 +737,164 @@ Verify Service Counts Preserved In PDB
     Settle Before PDB Query    ${settle}
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Service Counts Should Match Baseline    ${mdn}    ${job_code}    ${before}
+
+
+
+
+# ── 쿠폰/옵션 계열 PDB 판정 (Y9 / K1~K6 / SS / ST) ────────────────
+#
+# 판정 기준은 2026-08-10 지정표를 그대로 옮긴 것이다. 앞의 코드들과 마찬가지로
+# **주 판정 대상은 가입자 서비스 테이블**(${CDS_DB_TBL_SERVICE})이고, 가입 계열
+# 3개(K1/K5/Y9)만 예약 큐 적재를 **추가로** 본다 — 가입과 동시에 만료·사용시점
+# 예약이 걸리기 때문이다.
+#
+#   [저장]  K1·K5·Y9·SS 는 지정된 컬럼 조합을 만족하는 행이 **1건 이상**이면 성공.
+#   [삭제]  K2·K3·K4·K6 은 `MDN + R17 + CNUM(핀)` 행이 **0건**,
+#           ST 는 `MDN + TIME_SVC_I` 행이 **0건**이면 성공.
+#
+# ★ K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다**(해지·만료·취소가 구분되지 않는다).
+#   그래서 각 TC 는 자기 전용 핀으로 가입을 먼저 만든 뒤 그게 지워지는 것을 봐야 한다 —
+#   0건은 "지워졌다"와 "원래 없었다"를 구분하지 못하기 때문이다.
+#
+# ★ 시간 컬럼(LIMIT_VALID_TIME, SS 의 TIME_PERIOD_ID)은 값이 확정되지 않아 조건에서
+#   빠져 있다. 이 판정은 시간을 **검증하지 않는다** — cds_variables.robot 참조.
+
+Coupon Service Should Be Subscribed
+    [Documentation]    K1/K5 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}    ${job_code}    ${time_period_id}    ${limit}    ${coupon_pin}
+    CDS DB Count Should Be At Least
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_COUPON}, SVC_TYPE=${CDS_DB_SVC_TYPE_N}, JOB_CODE=${job_code}, TIME_PERIOD_ID=${time_period_id}, LIMIT=${limit}, CNUM=${coupon_pin})
+    ...    ${1}    ${CDS_DB_SQL_SERVICE_COUPON}
+    ...    ${mdn}    ${CDS_DB_SVC_COUPON}    ${CDS_DB_SVC_TYPE_N}    ${job_code}
+    ...    ${time_period_id}    ${limit}    ${coupon_pin}
+
+Verify Coupon Service Subscribed In PDB
+    [Documentation]
+    ...    쿠폰 가입(K1/K5) 판정. **1건 이상이면 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN=? AND SVC_ID='R17' AND SVC_TYPE='N' AND JOB_CODE=?
+    ...             AND TIME_PERIOD_ID=? AND "LIMIT"=? AND CNUM=?
+    ...    CNUM 이 쿠폰 핀(COUPON_PIN)이 들어가는 컬럼이다.
+    ...    K1 은 (113, 1), K5 는 (0, 2) 로 TIME_PERIOD_ID·LIMIT 이 다르다.
+    ...
+    ...    ※ LIMIT_VALID_TIME 은 값이 확정되지 않아 조건에서 뺐다 — 시간은 검증하지 않는다.
+    [Arguments]    ${mdn}    ${job_code}    ${time_period_id}    ${limit}    ${coupon_pin}
+    ...            ${settle}=${CDS_DB_SETTLE}
+    Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Coupon Service Should Be Subscribed
+    ...    ${mdn}    ${job_code}    ${time_period_id}    ${limit}    ${coupon_pin}
+
+Coupon Service Should Be Released
+    [Documentation]    K2/K3/K4/K6 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}    ${coupon_pin}
+    CDS DB Count Should Be
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_COUPON}, CNUM=${coupon_pin}, 해지 후 잔존)
+    ...    ${0}    ${CDS_DB_SQL_SERVICE_CNUM}
+    ...    ${mdn}    ${CDS_DB_SVC_COUPON}    ${coupon_pin}
+
+Verify Coupon Service Released In PDB
+    [Documentation]
+    ...    쿠폰 해지(K2/K6) · 만료(K3) · 취소(K4) 판정. **0건이어야 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? AND SVC_ID='R17' AND CNUM=?
+    ...
+    ...    네 코드의 판정 기준이 **완전히 같다** — 해지·만료·취소를 서로 구분하지 못한다.
+    ...    그래서 각 TC 는 자기 전용 핀으로 가입을 먼저 만들어야 판정이 의미를 갖는다.
+    [Arguments]    ${mdn}    ${coupon_pin}    ${settle}=${CDS_DB_SETTLE}
+    Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Coupon Service Should Be Released    ${mdn}    ${coupon_pin}
+
+Zone Coupon Service Should Be Subscribed
+    [Documentation]    Y9 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}
+    CDS DB Count Should Be At Least
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_ZONE_B}, SVC_TYPE=${CDS_DB_SVC_TYPE_Z}, JOB_CODE=${CDS_CODE_Y9}, TIME_PERIOD_ID=${CDS_DB_TPID_Y9}, LIMIT=${CDS_DB_LIMIT_Y9})
+    ...    ${1}    ${CDS_DB_SQL_SERVICE_ZONE_B}
+    ...    ${mdn}    ${CDS_DB_SVC_ZONE_B}    ${CDS_DB_SVC_TYPE_Z}    ${CDS_CODE_Y9}
+    ...    ${CDS_DB_TPID_Y9}    ${CDS_DB_LIMIT_Y9}
+
+Verify Zone Coupon Service Subscribed In PDB
+    [Documentation]
+    ...    Y9(Zone 부가서비스 쿠폰 사용시점 알림) 판정. **1건 이상이면 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN=? AND SVC_ID='ZONE_SVC_B' AND SVC_TYPE='Z' AND JOB_CODE='Y9'
+    ...             AND TIME_PERIOD_ID='25' AND "LIMIT"='0'
+    ...    SVC_ID 가 1X 의 ZONE_SVC_D 가 아니라 **ZONE_SVC_B** 인 것에 주의.
+    ...    JOB_CODE 는 인입 코드 그대로 Y9 다 — 예약 큐 쪽만 Y6 으로 바뀐다.
+    [Arguments]    ${mdn}=${CDS_MDN}    ${settle}=${CDS_DB_SETTLE}
+    Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Zone Coupon Service Should Be Subscribed    ${mdn}
+
+Option Service Should Be Subscribed
+    [Documentation]    SS 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}
+    CDS DB Count Should Be At Least
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_TIME_I}, SVC_TYPE=${CDS_DB_SVC_TYPE_T}, JOB_CODE=${CDS_CODE_SS}, LIMIT=${CDS_DB_LIMIT_SS}, CNUM=${CDS_DB_CNUM_SS})
+    ...    ${1}    ${CDS_DB_SQL_SERVICE_OPTION}
+    ...    ${mdn}    ${CDS_DB_SVC_TIME_I}    ${CDS_DB_SVC_TYPE_T}    ${CDS_CODE_SS}
+    ...    ${CDS_DB_LIMIT_SS}    ${CDS_DB_CNUM_SS}
+
+Verify Option Service Subscribed In PDB
+    [Documentation]
+    ...    SS(0플랜 옵션 3시간프리 가입) 판정. **1건 이상이면 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN=? AND SVC_ID='TIME_SVC_I' AND SVC_TYPE='T' AND JOB_CODE='SS'
+    ...             AND "LIMIT"='0' AND CNUM='0'
+    ...    CNUM 이 쿠폰 핀이 아니라 **0 고정**이다 — 쿠폰이 아니라 옵션이기 때문이다.
+    ...
+    ...    ※ 판정 기준표의 TIME_PERIOD_ID 는 시간 파생값이라 조건에서 뺐다.
+    ...      정해지면 ${CDS_DB_SQL_SERVICE_OPTION} 과 이 키워드에 인자를 늘릴 것.
+    [Arguments]    ${mdn}=${CDS_MDN}    ${settle}=${CDS_DB_SETTLE}
+    Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Option Service Should Be Subscribed    ${mdn}
+
+Option Service Should Be Released
+    [Documentation]    ST 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
+    [Arguments]    ${mdn}
+    CDS DB Count Should Be
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_TIME_I}, 해지 후 잔존)
+    ...    ${0}    ${CDS_DB_SQL_SERVICE}    ${mdn}    ${CDS_DB_SVC_TIME_I}
+
+Verify Option Service Released In PDB
+    [Documentation]
+    ...    ST(0플랜 옵션 3시간프리 해지) 판정. **0건이어야 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? AND SVC_ID='TIME_SVC_I'
+    ...    CNUM 을 걸지 않는다 — 판정 기준이 MDN + SVC_ID 뿐이다.
+    [Arguments]    ${mdn}=${CDS_MDN}    ${settle}=${CDS_DB_SETTLE}
+    Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Option Service Should Be Released    ${mdn}
+
+Reserved Job Should Be Created
+    [Documentation]    K1/K5/Y9 의 예약 큐 적재 1회 조회. 재시도는 Verify ... 가 한다.
+    [Arguments]    ${mdn}    ${rsv_job_code}    ${coupon_pin}
+    CDS DB Count Should Be At Least
+    ...    ${CDS_DB_TBL_RESERVED} (MDN=${mdn}, JOB_CODE=${rsv_job_code}, COUPON_PIN=${coupon_pin})
+    ...    ${1}    ${CDS_DB_SQL_RESERVED_JOB}
+    ...    ${mdn}    ${rsv_job_code}    ${coupon_pin}
+
+Verify Reserved Job Created In PDB
+    [Documentation]
+    ...    가입(K1/K5/Y9)이 예약 큐에 만료·사용시점 예약을 걸었는지 판정한다.
+    ...    **1건 이상이면 성공**이다.
+    ...      SELECT COUNT(*) FROM T_5G_RESERVED_JOB WHERE MDN=? AND JOB_CODE=? AND COUPON_PIN=?
+    ...
+    ...    ${rsv_job_code} 는 **인입 업무 코드가 아니라 예약 큐에 적재되는 코드**다.
+    ...    K1→${CDS_DB_RSV_JOB_K1} / K5→${CDS_DB_RSV_JOB_K5} / Y9→${CDS_DB_RSV_JOB_Y9}.
+    ...    인입 코드로 조회하면 한 건도 나오지 않는다.
+    ...
+    ...    STATUS 를 걸지 않는 것은 의도다 — 판정 기준표가 예약 건을 "시간 확인 필요"로
+    ...    남겨 둬 대기(N)/실행(R) 중 무엇을 기대할지 못 박을 근거가 없다.
+    [Arguments]    ${mdn}    ${rsv_job_code}    ${coupon_pin}    ${settle}=${CDS_DB_SETTLE}
+    Ensure CDS DB Connection
+    Settle Before PDB Query    ${settle}
+    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    ...    Reserved Job Should Be Created    ${mdn}    ${rsv_job_code}    ${coupon_pin}
