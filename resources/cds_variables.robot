@@ -218,10 +218,14 @@ ${CDS_K3_START_OFFSET_MIN}     ${0}                     # K3 만료 TC 의 START
 #   컬럼 타입은 docs/nodes/CDS.md 의 T_5G_SUBS_SERVICE 스키마 절 참조.
 ${CDS_LIMIT_VALID_TIME}        ${CDS_START_TIME}00      # 14자리 (전문 12자리 + 초 '00')
 
-# SS 의 TIME_PERIOD_ID 는 **'SS_' 접두 + 위 14자리 값**이다.
-# 기준표 표기가 TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME) 이고, $LIMIT_VALID_TIME 은
-# K1 행의 LIMIT_VALID_TIME($LIMIT_VALID_TIME) 과 같은 토큰이므로 같은 14자리 값이다.
-${CDS_DB_TPID_SS}              SS_${CDS_LIMIT_VALID_TIME}   # SS TIME_PERIOD_ID (접두 + 14자리)
+# SS 의 TIME_PERIOD_ID 는 **'SS_' 접두 + 전문 START_TIME(12자리)** 이다.
+#   예) SS_203712312359
+#
+# ★ 기준표 표기가 TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME) 이라 K1 행의
+#   LIMIT_VALID_TIME($LIMIT_VALID_TIME) 과 같은 값(14자리)으로 읽기 쉬운데 **아니다.**
+#   같은 토큰이지만 SS 쪽은 초 '00' 이 붙지 않은 12자리 원본이 들어간다
+#   (2026-08-11 실값 확인). 위 ${CDS_LIMIT_VALID_TIME} 을 붙이면 14자리가 되어 안 맞는다.
+${CDS_DB_TPID_SS}              SS_${CDS_START_TIME}     # SS TIME_PERIOD_ID (접두 + 12자리)
 
 # COUPON_TYPE='T' 는 Y9 의 분기를 가른다 — 'T' 면 예약 큐에 Y6, 숫자면 Y8 이 들어간다.
 # TC 는 Y6 을 기대하므로 'T' 로 고정한다.
@@ -380,9 +384,10 @@ ${CDS_DB_LIMIT_Y9}            0            # Y9 LIMIT
 ${CDS_DB_LIMIT_SS}            0            # SS LIMIT
 ${CDS_DB_CNUM_SS}             0            # SS CNUM (쿠폰이 아니라 0 고정)
 
-# ※ 시간 컬럼은 전부 판정에 들어가 있다 — K1/K5/Y9 는 LIMIT_VALID_TIME,
-#    SS 는 TIME_PERIOD_ID(='SS_' + 그 값). 둘 다 전문 START_TIME + 초 '00' 인
-#    **14자리**다(전문은 12자리). 위 ${CDS_LIMIT_VALID_TIME} 주석 참조.
+# ※ 시간 컬럼은 전부 판정에 들어가 있는데 **폭이 서로 다르다.**
+#    K1/K5/Y9 : LIMIT_VALID_TIME = START_TIME + 초 '00'  → 14자리
+#    SS       : TIME_PERIOD_ID   = 'SS_' + START_TIME     → 접두 + 12자리
+#    기준표가 둘 다 $LIMIT_VALID_TIME 으로 표기해 헷갈리는 자리다.
 
 # 예약 큐 — 테이블 이름이 LTE 와 SA 가 다르다(docs/nodes/CDS.md "LTE / SA 차이"):
 #   LTE = T_RESERVED_JOB   /   SA(5G) = T_5G_RESERVED_JOB

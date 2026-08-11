@@ -422,7 +422,7 @@ def db_end_transaction(conn):
 | `K5` | 3Mbps 쿠폰 가입 | `R17` + `N` + `K5` + TPID `0` + LIMIT `2` + CNUM(핀) 저장 | `K7` |
 | `K6` | 3Mbps 쿠폰 해지 | `R17` + CNUM(핀) 삭제 | — |
 | `Y9` | Zone 부가서비스(쿠폰) 사용시점 알림 | `ZONE_SVC_B` + `Z` + `Y9` + TPID `25` + LIMIT `0` 저장 | `Y6` |
-| `SS` | 0플랜 옵션(3시간 프리) 가입 | `TIME_SVC_I` + `T` + `SS` + TPID `SS_`+START_TIME + LIMIT `0` + CNUM `0` 저장 | — |
+| `SS` | 0플랜 옵션(3시간 프리) 가입 | `TIME_SVC_I` + `T` + `SS` + TPID `SS_`+START_TIME(12) + LIMIT `0` + CNUM `0` 저장 | — |
 | `ST` | 0플랜 옵션(3시간 프리) 해지 | `TIME_SVC_I` 삭제 | — |
 
 세 가지가 함정이다.
@@ -450,18 +450,19 @@ SELECT * FROM T_5G_CDS_ORDER_CFG;
 `TITLE` 이 전문 필드명, `SUBTITLE` 이 그 별칭이다. 즉 `LIMIT_VALID_TIME` 은 `START_TIME` 이
 DB 로 넘어간 값이다.
 
-**다만 폭이 다르다.** 전문의 `START_TIME` 은 12자리(`YYYYMMDDHH24MI`)인데 DB 의
-`LIMIT_VALID_TIME` 은 **`CHAR(14)`**(`YYYYMMDDHH24MISS`)로, 뒤에 초 `00` 이 붙는다.
-cfg 의 `SIZE 12` 는 전문 필드 폭이지 컬럼 폭이 아니다 — 여기서 어긋나기 쉽다.
-`CHAR` 는 고정폭이라 12자리로 조회하면 절대 안 맞는다(가입 판정만 0건으로 실패).
+**다만 들어가는 컬럼마다 폭이 다르다.** 전문의 `START_TIME` 은 12자리(`YYYYMMDDHH24MI`)인데,
+`LIMIT_VALID_TIME` 컬럼은 `CHAR(14)`(`YYYYMMDDHH24MISS`)라 뒤에 초 `00` 이 붙는다.
+반면 SS 의 `TIME_PERIOD_ID` 는 **초 없이 12자리 그대로** 접두만 붙인다.
 
-| 코드 | 시간 컬럼 | 기대값 | 변수 |
-|---|---|---|---|
-| `K1` `K5` `Y9` | `LIMIT_VALID_TIME` | START_TIME + `00` (14) | `${CDS_LIMIT_VALID_TIME}` |
-| `SS` | `TIME_PERIOD_ID` | `SS_` + 위 14자리 | `${CDS_DB_TPID_SS}` |
+| 코드 | 시간 컬럼 | 기대값 | 예 | 변수 |
+|---|---|---|---|---|
+| `K1` `K5` `Y9` | `LIMIT_VALID_TIME` | START_TIME + `00` → **14** | `20371231235900` | `${CDS_LIMIT_VALID_TIME}` |
+| `SS` | `TIME_PERIOD_ID` | `SS_` + START_TIME → 접두 + **12** | `SS_203712312359` | `${CDS_DB_TPID_SS}` |
 
-SS 의 `TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)` 가 쓰는 `$LIMIT_VALID_TIME` 은 K1 행의
-`LIMIT_VALID_TIME($LIMIT_VALID_TIME)` 과 같은 토큰이므로, 12자리가 아니라 이 14자리다.
+**여기가 가장 헷갈리는 자리다.** 판정 기준표가 `LIMIT_VALID_TIME($LIMIT_VALID_TIME)` 과
+`TIME_PERIOD_ID(SS_$LIMIT_VALID_TIME)` 로 **같은 토큰**을 쓰지만 실제 값은 다르다 —
+SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 전문 필드 폭이지 컬럼
+폭이 아니다. `LIMIT_VALID_TIME` 은 `CHAR` 고정폭이라 12자리로 조회하면 절대 안 맞는다.
 
 형식이 또 어긋나면 저 두 변수만 고치면 된다 — 조회 SQL 과 키워드는 그대로다.
 

@@ -757,10 +757,11 @@ Verify Service Counts Preserved In PDB
 #   0건은 "지워졌다"와 "원래 없었다"를 구분하지 못하기 때문이다.
 #
 # ★ 시간 컬럼은 전부 전문의 START_TIME 에서 나오는데 **폭이 다르다** — 전문은 12자리
-#   (YYYYMMDDHH24MI)인데 DB 는 초 '00' 이 붙은 **14자리**다. 12자리로 조회하면 안 맞는다.
-#     K1/K5/Y9 : LIMIT_VALID_TIME = START_TIME+'00'          (${CDS_LIMIT_VALID_TIME})
-#     SS       : TIME_PERIOD_ID   = 'SS_' + START_TIME+'00'  (${CDS_DB_TPID_SS})
-#   형식이 또 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
+#   (YYYYMMDDHH24MI)인데 **컬럼마다 폭이 다르다.**
+#     K1/K5/Y9 : LIMIT_VALID_TIME = START_TIME+'00'   14자리  (${CDS_LIMIT_VALID_TIME})
+#     SS       : TIME_PERIOD_ID   = 'SS_' + START_TIME 접두+12 (${CDS_DB_TPID_SS})
+#   ★ 기준표가 둘 다 $LIMIT_VALID_TIME 으로 적어 놔서 같은 값으로 읽기 쉬운데 아니다.
+#     SS 만 초 '00' 이 붙지 않는다. 형식이 또 어긋나면 저 두 변수만 고치면 된다.
 
 Current CDS Start Time
     [Documentation]
@@ -887,10 +888,12 @@ Verify Option Service Subscribed In PDB
     ...             AND TIME_PERIOD_ID=? AND "LIMIT"='0' AND CNUM='0'
     ...    CNUM 이 쿠폰 핀이 아니라 **0 고정**이다 — 쿠폰이 아니라 옵션이기 때문이다.
     ...
-    ...    SS 는 시간을 **TIME_PERIOD_ID 로 본다** — 'SS_' 접두 + 14자리
-    ...    LIMIT_VALID_TIME 이다(${CDS_DB_TPID_SS}).
-    ...    LIMIT_VALID_TIME 컬럼 자체는 이 테이블에 있지만 SS 판정 기준에는 없다
-    ...    (K1/K5/Y9 만 그 컬럼을 직접 본다).
+    ...    SS 는 시간을 **TIME_PERIOD_ID 로 본다** — 'SS_' 접두 + 전문 START_TIME(12자리)
+    ...    이다. 예) SS_203712312359 (${CDS_DB_TPID_SS})
+    ...
+    ...    ★ K1/K5/Y9 의 LIMIT_VALID_TIME(14자리, 초 '00' 부가)과 **값이 다르다.**
+    ...      기준표가 둘 다 $LIMIT_VALID_TIME 으로 적어 놔 같은 값으로 읽기 쉬운 자리다.
+    ...      LIMIT_VALID_TIME 컬럼 자체는 이 테이블에 있지만 SS 판정 기준에는 없다.
     [Arguments]    ${mdn}=${CDS_MDN}    ${time_period_id}=${CDS_DB_TPID_SS}
     ...            ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection

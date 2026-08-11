@@ -43,7 +43,7 @@ Documentation
 ...      014 K6 쿠폰해지  : 013 의 핀으로 SERVICE(R17, CNUM) 0건
 ...      015 Y9 Zone쿠폰  : SERVICE(ZONE_SVC_B, Z, Y9, 25, LIMIT=0, LIMIT_VALID_TIME) 1건 이상
 ...                        + RESERVED_JOB(JOB_CODE=Y6, 핀) 1건 이상
-...      016 SS 옵션가입  : SERVICE(TIME_SVC_I, T, SS, TIME_PERIOD_ID=SS_+START_TIME, LIMIT=0, CNUM=0) 1건 이상
+...      016 SS 옵션가입  : SERVICE(TIME_SVC_I, T, SS, TIME_PERIOD_ID=SS_+START_TIME(12), LIMIT=0, CNUM=0) 1건 이상
 ...      017 ST 옵션해지  : SERVICE(SVC_ID=TIME_SVC_I) 0건
 ...      018 D3 번호변경 : 007 과 같은 전후 비교 (옛 번호 기준 → 새 번호 + JOB_CODE=D3)
 ...      019 Z1 가입해지 : PROFILE / SERVICE(SVC_ID 무관) 모두 0건
@@ -55,9 +55,10 @@ Documentation
 ...        취소가 서로 구분되지 않는다. 그래서 011/012 는 자기 핀으로 가입을 먼저 만든다.
 ...      ★ 시간 컬럼은 전부 전문의 START_TIME 에서 나온다 — PDB 의 필드 정의 테이블
 ...        T_5G_CDS_ORDER_CFG 에서 START_TIME 의 별칭(SUBTITLE)이 LIMIT_VALID_TIME 이다.
-...        다만 **폭이 다르다** — 전문은 12자리인데 DB 는 초 '00' 이 붙은 14자리다.
-...          009/013/015 : LIMIT_VALID_TIME = START_TIME+'00'         (${CDS_LIMIT_VALID_TIME})
-...          016         : TIME_PERIOD_ID   = 'SS_' + START_TIME+'00' (${CDS_DB_TPID_SS})
+...        다만 **컬럼마다 폭이 다르다.** 기준표가 둘 다 $LIMIT_VALID_TIME 으로 적어
+...        놔서 같은 값으로 읽기 쉬운데 아니다 — SS 만 초 '00' 이 붙지 않는다.
+...          009/013/015 : LIMIT_VALID_TIME = START_TIME+'00'   14자리  (${CDS_LIMIT_VALID_TIME})
+...          016         : TIME_PERIOD_ID   = 'SS_' + START_TIME 접두+12 (${CDS_DB_TPID_SS})
 ...        형식이 또 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
 ...      ★ START_TIME 은 **012 만 현재 시각**이고 나머지는 먼 미래(${CDS_START_TIME})다.
 ...        012 는 만료 업무라 유효기간이 찬 쿠폰이 필요하기 때문이다 — 그 TC 주석 참조.
@@ -421,10 +422,12 @@ TC-CDS-016 SS (0플랜 옵션 3시간프리 가입)
     ...    쿠폰이 아니라 옵션이라 CNUM 이 핀이 아니라 **0 고정**이다.
     ...    예약 큐는 보지 않는다 — SS 는 예약을 걸지 않는다.
     ...
-    ...    SS 는 시간을 **TIME_PERIOD_ID 로 본다** — 'SS_' 접두 + 14자리
-    ...    LIMIT_VALID_TIME(전문 START_TIME + 초 '00') 이다.
-    ...    LIMIT_VALID_TIME 컬럼 자체는 이 테이블에 있지만 SS 판정 기준에는 없다
-    ...    (K1/K5/Y9 만 그 컬럼을 직접 본다).
+    ...    SS 는 시간을 **TIME_PERIOD_ID 로 본다** — 'SS_' 접두 + 전문 START_TIME(12자리)
+    ...    이다. 예) SS_203712312359
+    ...
+    ...    ★ K1/K5/Y9 의 LIMIT_VALID_TIME(14자리, 초 '00' 부가)과 **값이 다르다.**
+    ...      기준표가 둘 다 $LIMIT_VALID_TIME 으로 적어 놔 같은 값으로 읽기 쉬운 자리다.
+    ...      LIMIT_VALID_TIME 컬럼 자체는 이 테이블에 있지만 SS 판정 기준에는 없다.
     [Tags]    cds    command    validation    db    coupon
     Command Download Flow    ${CDS_CODE_SS}
     ...    start_time=${CDS_START_TIME}    coupon_type=${CDS_COUPON_TYPE}
