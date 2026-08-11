@@ -274,33 +274,8 @@ TC-CDS-010 K2 (Data(Time) 쿠폰 해지)
     Command Download Flow    ${CDS_CODE_K2}    coupon_pin=${CDS_COUPON_PIN_K1}
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K1}
 
-TC-CDS-011 K3 (Data(Time) 쿠폰 만료)
-    [Documentation]
-    ...    0015(K3) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    필드: mdn / limit / coupon_pin
-    ...
-    ...    **이 TC 는 자기 전제를 직접 만든다.** 만료시킬 쿠폰이 없으면 삭제 판정이
-    ...    "원래 없었다"로 그냥 통과하기 때문이다. 그래서 앞에 K1 을 전용 핀
-    ...    (${CDS_COUPON_PIN_K1})으로 한 번 보내 쿠폰을 만들어 둔다. 이 선행 송신은
-    ...    검증 대상이 아니라 준비 동작이지만, 실패하면 뒤의 판정이 무의미해지므로
-    ...    가입까지 확인하고 넘어간다.
-    ...
-    ...    [성공 판단 기준] 만료 후 그 핀의 쿠폰 행이 **0건**이어야 성공이다.
-    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K1}'
-    ...    K2(해지)·K4(취소)와 **판정 기준이 완전히 같다** — 세 코드를 서로 구분하지 못한다.
-    [Tags]    cds    command    validation    db    coupon
-    # 준비: 만료 대상이 될 쿠폰을 K1 으로 가입시킨다
-    Command Download Flow    ${CDS_CODE_K1}
-    ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
-    ...    coupon_pin=${CDS_COUPON_PIN_K1}         coupon_category=${CDS_COUPON_CATEGORY}
-    Verify Coupon Service Subscribed In PDB
-    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K1}
-    # 검증: K3 로 만료
-    Command Download Flow    ${CDS_CODE_K3}    coupon_pin=${CDS_COUPON_PIN_K1}
-    Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K1}
 
-TC-CDS-012 K4 (Data(Time) 쿠폰 취소)
+TC-CDS-011 K4 (Data(Time) 쿠폰 취소)
     [Documentation]
     ...    0015(K4) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    필드: mdn / limit / coupon_pin
@@ -322,6 +297,31 @@ TC-CDS-012 K4 (Data(Time) 쿠폰 취소)
     Command Download Flow    ${CDS_CODE_K4}    coupon_pin=${CDS_COUPON_PIN_K4}
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K4}
 
+TC-CDS-012 K3 (Data(Time) 쿠폰 만료)
+    [Documentation]
+    ...    0015(K3) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...    필드: mdn / limit / coupon_pin
+    ...
+    ...    **이 TC 는 자기 전제를 직접 만든다.** 만료시킬 쿠폰이 없으면 삭제 판정이
+    ...    "원래 없었다"로 그냥 통과하기 때문이다. 그래서 앞에 K1 을 전용 핀
+    ...    (${CDS_COUPON_PIN_K3})으로 한 번 보내 쿠폰을 만들어 둔다. 이 선행 송신은
+    ...    검증 대상이 아니라 준비 동작이지만, 실패하면 뒤의 판정이 무의미해지므로
+    ...    가입까지 확인하고 넘어간다.
+    ...
+    ...    [성공 판단 기준] 만료 후 그 핀의 쿠폰 행이 **0건**이어야 성공이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K3}'
+    ...    K2(해지)·K4(취소)와 **판정 기준이 완전히 같다** — 세 코드를 서로 구분하지 못한다.
+    [Tags]    cds    command    validation    db    coupon
+    # 준비: 만료 대상이 될 쿠폰을 K1 으로 가입시킨다
+    Command Download Flow    ${CDS_CODE_K1}
+    ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
+    ...    coupon_pin=${CDS_COUPON_PIN_K3}         coupon_category=${CDS_COUPON_CATEGORY}
+    Verify Coupon Service Subscribed In PDB
+    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K3}
+    # 검증: K3 로 만료
+    Command Download Flow    ${CDS_CODE_K3}    coupon_pin=${CDS_COUPON_PIN_K3}
+    Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K3}
 
 
 TC-CDS-013 K5 (Data(Time) 3Mbps 쿠폰 가입)
