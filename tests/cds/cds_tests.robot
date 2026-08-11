@@ -291,11 +291,11 @@ TC-CDS-011 K3 (Data(Time) 쿠폰 만료)
     ...    K2(해지)·K4(취소)와 **판정 기준이 완전히 같다** — 세 코드를 서로 구분하지 못한다.
     [Tags]    cds    command    validation    db    coupon
     # 준비: 만료 대상이 될 쿠폰을 K1 으로 가입시킨다
-    #Command Download Flow    ${CDS_CODE_K1}
-    #...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
-    #...    coupon_pin=${CDS_COUPON_PIN_K1}         coupon_category=${CDS_COUPON_CATEGORY}
-    #Verify Coupon Service Subscribed In PDB
-    #...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K1}
+    Command Download Flow    ${CDS_CODE_K1}
+    ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
+    ...    coupon_pin=${CDS_COUPON_PIN_K1}         coupon_category=${CDS_COUPON_CATEGORY}
+    Verify Coupon Service Subscribed In PDB
+    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K1}
     # 검증: K3 로 만료
     Command Download Flow    ${CDS_CODE_K3}    coupon_pin=${CDS_COUPON_PIN_K1}
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K1}
@@ -306,21 +306,21 @@ TC-CDS-012 K4 (Data(Time) 쿠폰 취소)
     ...    필드: mdn / limit / coupon_pin
     ...
     ...    TC-CDS-012(K3)와 같은 구조다 — 취소 대상을 K1 으로 먼저 만든 뒤 취소한다.
-    ...    핀만 ${CDS_COUPON_PIN_K1} 로 다르다.
+    ...    핀만 ${CDS_COUPON_PIN_K4} 로 다르다.
     ...
     ...    [성공 판단 기준] 취소 후 그 핀의 쿠폰 행이 **0건**이어야 성공이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K1}'
+    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K4}'
     [Tags]    cds    command    validation    db    coupon
     # 준비: 취소 대상이 될 쿠폰을 K1 으로 가입시킨다
     #Command Download Flow    ${CDS_CODE_K1}
     #...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
-    #...    coupon_pin=${CDS_COUPON_PIN_K1}         coupon_category=${CDS_COUPON_CATEGORY}
+    #...    coupon_pin=${CDS_COUPON_PIN_K4}         coupon_category=${CDS_COUPON_CATEGORY}
     #Verify Coupon Service Subscribed In PDB
-    #...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K1}
+    #...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K4}
     # 검증: K4 로 취소
-    Command Download Flow    ${CDS_CODE_K4}    coupon_pin=${CDS_COUPON_PIN_K1}
-    Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K1}
+    Command Download Flow    ${CDS_CODE_K4}    coupon_pin=${CDS_COUPON_PIN_K4}
+    Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K4}
 
 TC-CDS-013 K5 (Data(Time) 3Mbps 쿠폰 가입)
     [Documentation]
