@@ -421,8 +421,10 @@ TC-CDS-016 SS (0플랜 옵션 3시간프리 가입)
     ...    쿠폰이 아니라 옵션이라 CNUM 이 핀이 아니라 **0 고정**이다.
     ...    예약 큐는 보지 않는다 — SS 는 예약을 걸지 않는다.
     ...
-    ...    SS 는 별도 LIMIT_VALID_TIME 컬럼이 없고 **TIME_PERIOD_ID 가 시간을 담는다** —
-    ...    'SS_' 접두 + 14자리 LIMIT_VALID_TIME(전문 START_TIME + 초 '00') 이다.
+    ...    SS 는 시간을 **TIME_PERIOD_ID 로 본다** — 'SS_' 접두 + 14자리
+    ...    LIMIT_VALID_TIME(전문 START_TIME + 초 '00') 이다.
+    ...    LIMIT_VALID_TIME 컬럼 자체는 이 테이블에 있지만 SS 판정 기준에는 없다
+    ...    (K1/K5/Y9 만 그 컬럼을 직접 본다).
     [Tags]    cds    command    validation    db    coupon
     Command Download Flow    ${CDS_CODE_SS}
     ...    start_time=${CDS_START_TIME}    coupon_type=${CDS_COUPON_TYPE}

@@ -887,8 +887,10 @@ Verify Option Service Subscribed In PDB
     ...             AND TIME_PERIOD_ID=? AND "LIMIT"='0' AND CNUM='0'
     ...    CNUM 이 쿠폰 핀이 아니라 **0 고정**이다 — 쿠폰이 아니라 옵션이기 때문이다.
     ...
-    ...    SS 는 별도 LIMIT_VALID_TIME 컬럼이 없고 **TIME_PERIOD_ID 가 시간을 담는다** —
-    ...    'SS_' 접두 + 14자리 LIMIT_VALID_TIME 이다(${CDS_DB_TPID_SS}).
+    ...    SS 는 시간을 **TIME_PERIOD_ID 로 본다** — 'SS_' 접두 + 14자리
+    ...    LIMIT_VALID_TIME 이다(${CDS_DB_TPID_SS}).
+    ...    LIMIT_VALID_TIME 컬럼 자체는 이 테이블에 있지만 SS 판정 기준에는 없다
+    ...    (K1/K5/Y9 만 그 컬럼을 직접 본다).
     [Arguments]    ${mdn}=${CDS_MDN}    ${time_period_id}=${CDS_DB_TPID_SS}
     ...            ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
