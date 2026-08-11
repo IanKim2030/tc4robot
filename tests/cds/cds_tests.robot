@@ -322,6 +322,8 @@ TC-CDS-012 K4 (Data(Time) 쿠폰 취소)
     Command Download Flow    ${CDS_CODE_K4}    coupon_pin=${CDS_COUPON_PIN_K4}
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K4}
 
+
+
 TC-CDS-013 K5 (Data(Time) 3Mbps 쿠폰 가입)
     [Documentation]
     ...    0015(K5) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
