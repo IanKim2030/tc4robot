@@ -762,6 +762,37 @@ Verify Service Counts Preserved In PDB
 #     SS       : TIME_PERIOD_ID   = 'SS_' + START_TIME+'00'  (${CDS_DB_TPID_SS})
 #   형식이 또 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
 
+Current CDS Start Time
+    [Documentation]
+    ...    현재 시각(±${offset_min}분)을 전문 START_TIME 형식으로 만든다.
+    ...    ${CDS_START_TIME}(먼 미래 고정값) 대신 **지금 근처**를 보내야 하는 TC 가 쓴다.
+    ...
+    ...    ${offset_min} : 현재 시각에 더할 **분**. 음수면 과거다. 기본 0 = 지금.
+    ...
+    ...    반환 2개 — 폭이 다르니 섞어 쓰지 말 것.
+    ...      1) start_time       12자리 YYYYMMDDHH24MI    → **전문 필드에 넣는 값**
+    ...      2) limit_valid_time 14자리 (+ 초 '00')       → **PDB 판정에 쓰는 값**
+    ...                                                     (LIMIT_VALID_TIME 은 CHAR(14))
+    ...
+    ...    예)
+    ...    | ${st}    ${lvt}=    Current CDS Start Time              | # 지금
+    ...    | ${st}    ${lvt}=    Current CDS Start Time    ${5}      | # 5분 뒤
+    ...    | ${st}    ${lvt}=    Current CDS Start Time    ${-10}    | # 10분 전
+    ...
+    ...    분 단위인 것은 전문 형식이 분까지만 담기 때문이다(초 자리가 없다).
+    ...    그래서 **0 과 1 사이에도 실질 차이가 있다** — 0 이면 이번 분이 이미
+    ...    시작돼 있어 PG.RDS 가 곧 집어가고, 양수면 그만큼 여유가 생긴다.
+    ...    만료(K3)처럼 "때가 된 예약"을 다루는 TC 는 0 이나 음수를, 예약이 아직
+    ...    실행되면 안 되는 TC 는 양수를 준다.
+    ...
+    ...    ★ 초를 버리므로 같은 분 안에서는 같은 값이 나온다. 판정에 쓸 값은 전문을
+    ...      보내기 **전에 한 번 받아 두고 그것을 계속 써야 한다** — 조회 시점에 다시
+    ...      부르면 분이 넘어가는 순간 값이 어긋난다.
+    [Arguments]    ${offset_min}=${0}
+    ${start}=    Get Current Date
+    ...    increment=${offset_min} minutes    result_format=%Y%m%d%H%M
+    RETURN    ${start}    ${start}00
+
 Coupon Service Should Be Subscribed
     [Documentation]    K1/K5 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
     [Arguments]    ${mdn}    ${job_code}    ${time_period_id}    ${limit}    ${coupon_pin}
