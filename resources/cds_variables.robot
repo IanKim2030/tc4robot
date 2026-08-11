@@ -252,7 +252,7 @@ ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      #
 # DSN-less 방식
 ${CDS_DB_CONNSTR}         DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;
 
-${CDS_DB_TIMEOUT}         10               # 접속·쿼리 타임아웃(초)
+${CDS_DB_TIMEOUT}         5               # 접속·쿼리 타임아웃(초)
 
 # 트랜잭션 자동 커밋. **기본은 끔(${FALSE})**
 # 나중에 TC가 끝나면 Rollback 할지 결정 필요 
@@ -287,7 +287,7 @@ ${CDS_DB_AUTOCOMMIT}      ${FALSE}
 # WAIT   : SETTLE 이 끝난 뒤 재조회를 반복하는 총 시간. **SETTLE 과 별개로 센다**
 #          — 최대 대기는 SETTLE + WAIT 다.
 ${CDS_DB_SETTLE}          1s               # ResultAck 수신 → 1차 조회까지의 대기
-${CDS_DB_WAIT}            30s              # 반영 대기 총 시간 (SETTLE 이후)
+${CDS_DB_WAIT}            10s              # 반영 대기 총 시간 (SETTLE 이후)
 ${CDS_DB_WAIT_INTERVAL}   2s               # 재조회 간격
 
 # 조회 대상 테이블 / 서비스 ID
