@@ -313,11 +313,11 @@ TC-CDS-012 K4 (Data(Time) 쿠폰 취소)
     ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K4}'
     [Tags]    cds    command    validation    db    coupon
     # 준비: 취소 대상이 될 쿠폰을 K1 으로 가입시킨다
-    #Command Download Flow    ${CDS_CODE_K1}
-    #...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
-    #...    coupon_pin=${CDS_COUPON_PIN_K4}         coupon_category=${CDS_COUPON_CATEGORY}
-    #Verify Coupon Service Subscribed In PDB
-    #...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K4}
+    Command Download Flow    ${CDS_CODE_K1}
+    ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
+    ...    coupon_pin=${CDS_COUPON_PIN_K4}         coupon_category=${CDS_COUPON_CATEGORY}
+    Verify Coupon Service Subscribed In PDB
+    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K4}
     # 검증: K4 로 취소
     Command Download Flow    ${CDS_CODE_K4}    coupon_pin=${CDS_COUPON_PIN_K4}
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K4}
