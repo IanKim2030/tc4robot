@@ -44,6 +44,34 @@ ${CDS_UP_RCH_PORT}        6101
 ${CDS_UPM_VERIFY}         ${TRUE}          # 1X → UPM Subs-Info(0x07/0x08) 검증 여부
 
 # ════════════════════════════════════════════
+# PCF Noti 수신 (도구가 PCF 역할로 HTTP/2 Listen)
+#
+# SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다(docs/INTERFACES.md).
+# 1X 흐름에서 PCF 방향 화살표가 둘이다.
+#   SNOTI → PCF : 가입자 정보 변경 통보 (SDM 반영 뒤)
+#   BSUBS → PCF : Cell List 전송 (UPM 0x08 응답 뒤)
+# 도구가 이 포트로 Listen 하면 전문·PDB 와 별개로 "실제로 나갔는지"를 볼 수 있다.
+#
+# ★ 프로토콜은 **HTTP/2 평문(h2c)** 이다. 표준 http.server 로는 안 되고
+#   HttpNotiServer.py 가 h2 패키지로 처리한다(prior-knowledge 방식만 지원).
+#   → 의존성: pip install h2
+#
+# ★ PG 가 이 주소로 보내도록 설정돼 있어야 한다. 포트가 다르면 여기서 맞출 것.
+#   LTE 가입자는 SBI 가 아니라 RBUS 라 아무것도 안 들어온다(docs/nodes/CDS.md).
+${CDS_NOTI_VERIFY}        ${TRUE}          # PCF Noti 수신 검증 여부
+${CDS_NOTI_PORT}          8081             # 도구가 Listen 할 포트 (PG 설정과 일치해야 함)
+${CDS_NOTI_HOST}          0.0.0.0          # 모든 인터페이스 Listen
+${CDS_NOTI_WAIT}          30s              # Noti 도착 대기 시간
+
+# 알림 종류를 :path 로 가른다. **기본은 빈 값 = 경로를 가리지 않음**이다 —
+# 실제 PG 가 쓰는 경로가 확인되지 않았기 때문이다. 확인되면 여기에 채워 넣으면
+# 그때부터 종류별로 구분해 판정한다(SQL 이나 키워드는 손대지 않아도 된다).
+#   예) ${CDS_NOTI_PATH_SUBS}    /npcf-smpolicycontrol/v1/
+#       ${CDS_NOTI_PATH_CELL}    /cell-list
+${CDS_NOTI_PATH_SUBS}     ${EMPTY}         # SNOTI→PCF 가입자 Noti 의 :path 조각
+${CDS_NOTI_PATH_CELL}     ${EMPTY}         # BSUBS→PCF Cell List 의 :path 조각
+
+# ════════════════════════════════════════════
 # 시스템 / Application 식별자 (헤더 char(6) 필드)
 # ${CDS_DST_SYS_ID} 는 PG.CDS 의 SYSTEM_ID 로, 헤더 Destination System ID 에 쓴다.
 # 환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.

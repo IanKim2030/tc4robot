@@ -27,12 +27,14 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 
 ## 명령
 
+의존성: `pip install -r requirements.txt` (robotframework / pyodbc / h2)
+
 ```bash
 bash run_tests.sh nag                       # NAG   (→ PG:8012)
 bash run_tests.sh pcf                       # PCF   (→ PG:8011, NAG 세션 선등록)
 bash run_tests.sh lrs                       # LRS   (→ PG.LRS:10204 + 8890 Listen)
 bash run_tests.sh upm                       # UPM   (→ PG:10506)
-bash run_tests.sh cds                       # CDS   (듀얼 → 9201 → 9200, + PDB, + UPM:10506)
+bash run_tests.sh cds                       # CDS   (듀얼 → 9201 → 9200, + PDB, + UPM:10506, + PCF Noti 8081 Listen)
 bash run_tests.sh nwdaf                     # NWDAF (→ PG:10305)
 bash run_tests.sh all                       # 전체
 bash run_tests.sh smoke                     # --include smoke

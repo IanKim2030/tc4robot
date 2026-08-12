@@ -28,6 +28,8 @@ Library    DateTime
 Library    BuiltIn
 Library    ${CURDIR}/CdsHelper.py    WITH NAME    Cds
 Library    ${CURDIR}/CdsDbHelper.py    WITH NAME    CdsDb
+# 도구가 PCF 역할로 SBI Noti(HTTP/2 h2c)를 받는다 → 의존성: pip install h2
+Library    ${CURDIR}/HttpNotiServer.py    WITH NAME    Noti
 Resource   ${CURDIR}/common_keywords.robot
 # 1X(HFC 가입)가 PG.BSUBS→UPM Subs-Info(0x07)를 유발한다 → TC-CDS-003 이 UPM
 # 키워드를 쓴다. PCF 슈트가 nag_keywords 를 들여오는 것과 같은 구조.
@@ -38,6 +40,7 @@ ${CDS_SCH_SOCK}        ${NONE}
 ${CDS_RCH_SOCK}        ${NONE}
 ${CDS_DB_CONN}         ${NONE}     # PDB connection (Suite Setup 에서 접속)
 ${CDS_SYSTEM_ID}       ${NONE}
+${CDS_NOTI_SRV}        ${NONE}     # PCF Noti 수신 서버 핸들 (Suite Setup 에서 기동)
 ${CDS_TID_SEQ}         ${0}        # 같은 초 안의 일련번호 (Next CDS TID 가 관리)
 ${CDS_TID_LAST_HMS}    ${EMPTY}    # 직전 TID 의 HHMMSS. 초가 바뀌면 위 일련번호를 리셋
 
@@ -107,7 +110,16 @@ Suite CDS Connect
     ELSE
         Log    [Suite] UPM 연동 검증 꺼짐 (CDS_UPM_VERIFY=${CDS_UPM_VERIFY})    console=True
     END
-    Log    [Suite] CDS 접속 완료 (Rchannel→Schannel + PDB, UPM=${CDS_UPM_VERIFY})    console=True
+    # 6) PCF Noti 수신 서버 — 도구가 PCF 역할로 h2c Listen.
+    #    소켓·DB 와 달리 **PG 가 붙어 오는 쪽**이라 여기서는 Listen 만 열어 둔다.
+    IF    ${CDS_NOTI_VERIFY}
+        Log    [Suite] PCF Noti 수신 서버 시작 → ${CDS_NOTI_HOST}:${CDS_NOTI_PORT} (h2c)    console=True
+        ${srv}=    Noti.Noti Server Start    ${CDS_NOTI_PORT}    ${CDS_NOTI_HOST}
+        Set Suite Variable    ${CDS_NOTI_SRV}    ${srv}
+    ELSE
+        Log    [Suite] PCF Noti 검증 꺼짐 (CDS_NOTI_VERIFY=${CDS_NOTI_VERIFY})    console=True
+    END
+    Log    [Suite] CDS 접속 완료 (Rchannel→Schannel + PDB, UPM=${CDS_UPM_VERIFY}, Noti=${CDS_NOTI_VERIFY})    console=True
 
 Suite CDS Disconnect
     [Documentation]
@@ -134,6 +146,9 @@ Suite CDS Disconnect
     # UPM 은 붙었을 때만 닫는다. Suite Setup 이 CDS 소켓 단계에서 실패했으면
     # ${UPM_SOCK} 이 ${NONE} 이라 Suite UPM Disconnect 가 그냥 지나간다.
     Run Keyword If    ${CDS_UPM_VERIFY}    Suite UPM Disconnect
+    # Noti 서버는 데몬 스레드라 안 닫아도 프로세스와 함께 죽지만, 포트를 붙들고 있으면
+    # 바로 이어 도는 다음 실행이 bind 에서 실패한다 → 반드시 닫는다.
+    Run Keyword If    $CDS_NOTI_SRV is not None    Noti.Noti Server Stop    ${CDS_NOTI_SRV}
     Log    [Suite] CDS 연결 종료    console=True
 
 Check CDS Sockets
@@ -687,6 +702,76 @@ Verify UPM Subs Info Notified
     Send Subs Info Response    ${hdr}[txn_id]    ${body}
     ...    cell_list=${cells}    result_code=${UPM_RC_SUCCESS}
     Log    [UPM] Subs-Info 0x07 수신 → 0x08 응답 완료 (mdn=${body}[mdn])    console=True
+
+
+# ── PCF Noti 수신 (도구가 PCF 역할, HTTP/2 h2c) ──────────────────
+#
+# SA(5G) 가입자는 PG 가 PCF 로 SBI Noti 를 보낸다. 도구가 그 포트를 Listen 해
+# **알림이 실제로 나갔는지**를 본다 — 전문(SC)·PDB 로는 안 보이는 구간이다.
+#
+# 1X 흐름의 PCF 방향 화살표는 둘이고 나가는 시점이 다르다.
+#   SNOTI → PCF : 가입자 정보 변경 통보 (SDM 이 가입자 테이블을 고친 뒤)
+#   BSUBS → PCF : Cell List 전송      (UPM 0x08 응답을 받은 뒤)
+# 둘 다 CommandResult(0017) 보다 **늦게** 오므로 대기가 필요하다(${CDS_NOTI_WAIT}).
+#
+# ★ 경로(:path)로 종류를 가르는데 ${CDS_NOTI_PATH_*} 기본값이 비어 있다 — 실 PG 의
+#   경로가 확인되지 않아서다. 비어 있으면 **경로를 가리지 않고** "무엇이든 왔는가"만
+#   본다. 경로가 확인되면 변수만 채우면 그때부터 종류별로 구분된다.
+#
+# ★ LTE 가입자는 SBI 가 아니라 RBUS 라 아무것도 안 들어온다 — 이 판정은 SA 전제다.
+
+Clear PCF Noti
+    [Documentation]
+    ...    쌓인 수신 알림을 비운다. **전문을 보내기 직전에** 부를 것 —
+    ...    안 비우면 앞 TC 가 유발한 알림을 자기 결과로 착각한다.
+    IF    not ${CDS_NOTI_VERIFY}
+        RETURN
+    END
+    Noti.Noti Clear    ${CDS_NOTI_SRV}
+
+Verify PCF Noti Received
+    [Documentation]
+    ...    PCF Noti 가 ${CDS_NOTI_WAIT} 안에 **1건 이상** 도착했는지 본다.
+    ...
+    ...    ${path}      : :path 에 포함돼야 할 문자열. 비면 경로를 가리지 않는다.
+    ...    ${body}      : 본문에 포함돼야 할 문자열(예: MDN). 비면 내용을 가리지 않는다.
+    ...    ${label}     : 실패 메시지에 쓸 이름 (예: "Cell List").
+    ...    반환: 조건에 맞는 요청 목록(dict) — ${req}[json] / [path] / [headers] 로 꺼낸다.
+    ...
+    ...    ${CDS_NOTI_VERIFY}=${FALSE} 면 아무것도 하지 않고 빈 목록을 준다.
+    ...
+    ...    ★ 못 받으면 서버가 남긴 오류도 함께 띄운다. 가장 흔한 원인은 PG 가
+    ...      HTTP/1.1 로 붙는 경우인데(h2c prior-knowledge 만 지원), 그러면
+    ...      "h2c prior-knowledge 가 아닌 접속" 이 오류 목록에 찍힌다.
+    ...    ★ ${since} 를 주면 **그 시각 이후 도착분만** 본다. 경로 필터가 비어 있을 때
+    ...      앞서 온 다른 알림을 다시 집어 "통과"해 버리는 것을 막는 유일한 수단이다
+    ...      (`Noti Timestamp` 로 기준 시각을 뜬다).
+    [Arguments]    ${label}=PCF Noti    ${path}=${EMPTY}    ${body}=${EMPTY}
+    ...            ${since}=${NONE}    ${wait}=${CDS_NOTI_WAIT}
+    IF    not ${CDS_NOTI_VERIFY}
+        Log    [Noti] 수신 검증 꺼짐 — ${label} 확인을 건너뜁니다    console=True
+        ${empty}=    Create List
+        RETURN    ${empty}
+    END
+    ${alive}=    Noti.Noti Server Is Running    ${CDS_NOTI_SRV}
+    Should Be True    ${alive}
+    ...    msg=PCF Noti 수신 서버가 떠 있지 않습니다 (포트 ${CDS_NOTI_PORT})
+    ${found}=    Noti.Noti Wait    ${CDS_NOTI_SRV}    timeout=${wait}
+    ...          path_contains=${path}    body_contains=${body}    since=${since}
+    ${n}=      Get Length    ${found}
+    ${errs}=   Noti.Noti Errors    ${CDS_NOTI_SRV}
+    ${all}=    Noti.Noti Count    ${CDS_NOTI_SRV}
+    Should Be True    ${n} > 0
+    ...    msg=${label} 알림이 ${wait} 안에 오지 않았습니다 (조건: path~'${path}', body~'${body}', since=${since} / 전체 수신 ${all}건 / 서버 오류 ${errs})
+    Log    [Noti] ${label} ${n}건 수신 — ${found}[0][method] ${found}[0][path]    console=True
+    RETURN    ${found}
+
+Noti Timestamp
+    [Documentation]
+    ...    현재 시각(epoch)을 뜬다. `Verify PCF Noti Received` 의 since= 기준점이다.
+    ...    "이 동작 **뒤에** 온 알림"만 보고 싶을 때 그 동작 앞에서 부른다.
+    ${ts}=    Noti.Noti Now
+    RETURN    ${ts}
 
 
 Zone Service Should Be Subscribed

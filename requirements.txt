@@ -1,0 +1,20 @@
+# PG 연동 테스트 슈트 실행 의존성
+#
+#   pip install -r requirements.txt
+#
+# 버전을 고정하지 않는다 — 세 패키지 모두 이 리포가 쓰는 API 가 안정적이고,
+# 환경(사내 미러/오프라인)마다 받을 수 있는 버전이 달라서다.
+
+robotframework
+
+# PDB(골디락스 / 알티베이스) 조회용. CdsDbHelper 가 **지연 임포트**하므로,
+# DB 판정을 안 쓰는 노드(NAG/PCF/LRS/NWDAF)는 없어도 돌아간다.
+# CDS 슈트는 Suite Setup 에서 PDB 에 붙으므로 반드시 필요하다.
+# ※ 패키지만으로는 부족하다 — 해당 DB 의 **ODBC 드라이버**가 따로 깔려 있어야 한다
+#   (cds_variables.robot 의 ${CDS_DB_CONNSTR} 주석 참조).
+pyodbc
+
+# PCF Noti 수신 서버(HttpNotiServer.py)용 HTTP/2 스택.
+# 3GPP SBI 가 HTTP/2 라 표준 http.server 로는 받을 수 없다.
+# hpack / hyperframe 이 딸려 온다. CDS 슈트의 ${CDS_NOTI_VERIFY} 를 끄면 없어도 된다.
+h2

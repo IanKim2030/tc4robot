@@ -8,7 +8,8 @@ Documentation
 ...
 ...    [Suite 소켓 정책]
 ...    Suite Setup    : Suite CDS Connect — 연결 → ConnectionRequest(0001/0003) + ACK 검증
-...                     → 두 소켓 생존 확인 → PDB 접속 → UPM 접속 (접속은 TC 가 아니다)
+...                     → 두 소켓 생존 확인 → PDB 접속 → UPM 접속
+...                     → PCF Noti 수신 서버 Listen (접속은 TC 가 아니다)
 ...    Test Setup     : Check CDS Sockets (하나라도 닫히면 Suite 중단)
 ...    Suite Teardown : Suite CDS Disconnect — Release(0005/0007) + ACK(0006/0008) 검증 후 종료
 ...                     (해제도 TC 가 아니다. 슈트가 끝나면 반드시 수행돼야 한다)
@@ -29,6 +30,7 @@ Documentation
 ...      002 A1 신규가입 : PROFILE 1건 + SERVICE 2건(DATA_USAGE_LEVEL / _2) — 모두 1
 ...      003 1X HFC가입  : SERVICE(SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X) 1건 이상
 ...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (구 TC-UPM-301)
+...                        + **PCF SBI Noti 2건 수신** (가입자 Noti / Cell List)
 ...      004 1Y HFC해지  : SERVICE(SVC_ID=ZONE_SVC_D) 0건
 ...      005 I2 부가신청 : SERVICE(YOUNG_HARM_INFO_BLOCK, N, I2, 56, LIMIT=Y) 1건 이상
 ...      006 I3 부가해지 : SERVICE(SVC_ID=YOUNG_HARM_INFO_BLOCK) 0건
@@ -77,6 +79,18 @@ Documentation
 ...      그래서 **CDS 슈트가 UPM 포트(${UPM_PG_PORT})에도 의존한다** — PDB 와 마찬가지로
 ...      Suite Setup 에서 붙으므로 UPM 이 안 뜨면 슈트 전체가 서지 않는다.
 ...      CDS 전문만 돌리려면: --variable CDS_UPM_VERIFY:False (UPM 접속 자체를 건너뛴다)
+...
+...    [PCF Noti 수신] TC-CDS-003(1X)만 해당한다. `noti` 태그.
+...      SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. 도구가 PCF 역할로
+...      ${CDS_NOTI_PORT} 를 Listen 해 두 건을 받는다 — SNOTI→PCF 가입자 Noti,
+...      BSUBS→PCF Cell List(UPM 0x08 응답 뒤). 전문(SC)·PDB 로는 안 보이는 구간이다.
+...      · 프로토콜은 **HTTP/2 평문(h2c)** 이다 → `pip install h2` 필요.
+...        표준 http.server 로는 못 받는다(HttpNotiServer.py 가 처리).
+...      · **PG 가 이 주소로 보내도록 설정돼 있어야 한다.** 포트가 다르면 변수에서 맞출 것.
+...      · **LTE 가입자면 아무것도 안 온다** — SBI 가 아니라 RBUS 다.
+...      · 실 PG 의 :path 가 확인되지 않아 ${CDS_NOTI_PATH_*} 는 비어 있다(경로 무시).
+...        채우면 그때부터 종류별로 구분해 판정한다.
+...      끄려면: --variable CDS_NOTI_VERIFY:False (Listen 자체를 하지 않는다)
 ...
 ...    [TC 간 의존성] 슈트 전체가 002(A1 신규가입)로 만든 가입자 하나를 이어 쓴다.
 ...      002 A1 신규가입  : 이후 모든 TC 의 대상 가입자를 만든다
@@ -167,6 +181,8 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...      4) UPM    : PG.BSUBS → 0x07 수신 → 0x08(result-code=${UPM_RC_SUCCESS}) 응답
     ...                  (구 TC-UPM-301. UPM 슈트에는 1X 를 보낼 방법이 없어 트리거를
     ...                   쥔 이쪽으로 옮겼다 — 거기서는 주석 처리돼 있다)
+    ...      5) PCF    : 도구가 PCF 역할로 h2c Listen — SBI Noti 2건 수신
+    ...                  SNOTI→PCF 가입자 Noti / BSUBS→PCF Cell List
     ...
     ...    [성공 판단 기준]
     ...      · UPM 0x07 의 mdn / branch-name / event-timestamp 형식이 유효하고
@@ -175,14 +191,32 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...        SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...         WHERE MDN='${CDS_MDN}' AND SVC_ID='ZONE_SVC_D' AND SVC_TYPE='D' AND JOB_CODE='1X'
     ...
+    ...      · PCF Noti 2건이 ${CDS_NOTI_WAIT} 안에 도착하고 본문에 ${CDS_MDN} 이 있을 것
+    ...
     ...    ★ 0x08 응답을 보내는 것까지가 이 TC 의 일이다. 안 보내면 PG 가 UPM 응답을
     ...      기다리다 재시도로 넘어가 **뒤따르는 TC 의 PDB 판정이 흔들린다.**
-    ...    ※ UPM 구간은 ${CDS_UPM_VERIFY} 로 끌 수 있다(그때는 UPM 접속도 하지 않는다).
-    ...       --variable CDS_UPM_VERIFY:False
-    [Tags]    cds    command    validation    db    upm
+    ...    ★ Cell List 판정은 `since` 로 0x08 응답 **이후 도착분**만 본다. 경로 필터
+    ...      (${CDS_NOTI_PATH_CELL})가 비어 있으면 앞의 가입자 Noti 를 다시 집어
+    ...      그냥 통과해 버리기 때문이다. 실 PG 경로가 확인되면 그 변수를 채울 것.
+    ...    ★ 이 판정은 **SA(5G) 가입자 전제**다 — LTE 는 SBI 가 아니라 RBUS 라
+    ...      아무것도 안 들어온다(docs/nodes/CDS.md).
+    ...    ※ 구간별로 끌 수 있다(끄면 접속·Listen 자체를 하지 않는다).
+    ...       --variable CDS_UPM_VERIFY:False    --variable CDS_NOTI_VERIFY:False
+    [Tags]    cds    command    validation    db    upm    noti
+    Clear PCF Noti
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
     Verify Zone Service Subscribed In PDB    ${CDS_MDN}
+    # SNOTI → PCF 가입자 정보 변경 통보 (SDM 이 가입자 테이블을 고친 뒤 나간다)
+    Verify PCF Noti Received    label=가입자 Noti (SNOTI→PCF)
+    ...    path=${CDS_NOTI_PATH_SUBS}    body=${CDS_MDN}
+    # Cell List 는 아래 0x08 응답 **뒤에** 나가므로, 그 이후 도착분만 보도록
+    # 기준 시각을 먼저 뜬다 — 경로 필터가 비어 있으면 위 가입자 Noti 를 다시
+    # 집어 그냥 통과해 버린다.
+    ${since}=    Noti Timestamp
     Verify UPM Subs Info Notified    mdn=${CDS_MDN}
+    # BSUBS → PCF Cell List (0x08 로 준 Cell 정보가 PCF 로 나간다)
+    Verify PCF Noti Received    label=Cell List (BSUBS→PCF)
+    ...    path=${CDS_NOTI_PATH_CELL}    body=${CDS_MDN}    since=${since}
 
 
 TC-CDS-004 1Y (HFC해지)

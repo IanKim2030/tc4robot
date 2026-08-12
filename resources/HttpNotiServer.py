@@ -1,0 +1,300 @@
+# -*- coding: utf-8 -*-
+"""
+PG → 도구 방향 HTTP/2(h2c) 알림 수신 서버.
+
+PG 는 SA(5G) 가입자에 대해 PCF 로 **SBI Noti** 를 보낸다(docs/INTERFACES.md).
+도구가 PCF 역할로 이 서버를 띄워 두면, CDS 전문이 유발한 알림이 실제로 도착했는지
+전문·PDB 와 별개로 확인할 수 있다.
+
+  · SNOTI → PCF : 가입자 정보 변경 통보
+  · BSUBS → PCF : Cell List 전송 (1X 에서 UPM 0x08 응답 뒤에 나간다)
+
+★ 왜 표준 라이브러리를 안 쓰는가
+  3GPP SBI 는 HTTP/2 다. `http.server` 는 HTTP/1.1 전용이라 h2c 요청을 파싱조차
+  하지 못한다(첫 프리페이스 `PRI * HTTP/2.0` 에서 400 을 준다). 그래서 sans-IO
+  스택인 `h2` 패키지로 프레임을 직접 처리한다. 의존성: h2, hpack, hyperframe.
+
+★ h2c 는 두 가지 진입 방식이 있는데 **prior knowledge** 만 지원한다.
+  PG 가 HTTP/1.1 Upgrade(`Connection: Upgrade, HTTP2-Settings`)로 붙으면 여기서
+  받지 못한다 — 그 경우 로그에 남기고 무시하므로, 알림이 안 잡히면 이걸 의심할 것.
+
+수신한 요청은 메모리 큐에 쌓고, Robot 키워드가 꺼내 판정한다. 서버는 데몬 스레드로
+돌며 accept 루프를 유지한다(여러 연결 동시 수용).
+"""
+
+import json
+import socket
+import threading
+import time
+import traceback
+
+import h2.config
+import h2.connection
+import h2.events
+
+# HTTP/2 클라이언트 프리페이스. prior-knowledge h2c 는 이 24바이트로 시작한다.
+_PREFACE = b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'
+
+
+class _Request(dict):
+    """수신 요청 1건. dict 라 Robot 에서 ${req}[path] 로 바로 꺼내 쓴다."""
+
+
+class NotiServer(object):
+    def __init__(self, port, host='0.0.0.0', backlog=16):
+        self.host = host
+        self.port = int(port)
+        self.backlog = backlog
+        self._srv = None
+        self._thread = None
+        self._stop = threading.Event()
+        self._lock = threading.Lock()
+        self._requests = []          # 수신 순서대로 쌓인다
+        self._errors = []            # accept/파싱 중 난 예외 (진단용)
+
+    # ── 수명 관리 ────────────────────────────────────────────────
+    def start(self):
+        self._srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._srv.bind((self.host, self.port))
+        self._srv.listen(self.backlog)
+        self._srv.settimeout(0.5)    # stop 이벤트를 주기적으로 보게 한다
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._accept_loop, daemon=True)
+        self._thread.start()
+        return self
+
+    def stop(self):
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=3)
+        if self._srv is not None:
+            try:
+                self._srv.close()
+            except OSError:
+                pass
+        self._srv = None
+        self._thread = None
+
+    def is_running(self):
+        return self._thread is not None and self._thread.is_alive()
+
+    # ── 수신 루프 ────────────────────────────────────────────────
+    def _accept_loop(self):
+        while not self._stop.is_set():
+            try:
+                conn, addr = self._srv.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            threading.Thread(target=self._serve, args=(conn, addr),
+                             daemon=True).start()
+
+    def _serve(self, conn, addr):
+        try:
+            conn.settimeout(30)
+            first = self._recv_exact(conn, len(_PREFACE))
+            if first != _PREFACE:
+                # HTTP/1.1 Upgrade 나 평문 HTTP/1.1 요청. 지원하지 않는다.
+                self._note_error(
+                    'h2c prior-knowledge 가 아닌 접속 (%s) — 앞 24바이트=%r'
+                    % (addr[0], first[:24]))
+                return
+            c = h2.connection.H2Connection(
+                config=h2.config.H2Configuration(client_side=False))
+            c.initiate_connection()
+            conn.sendall(c.data_to_send())
+            streams = {}
+            # ★ 위에서 프리페이스를 직접 읽어 버렸으므로 h2 에 **되돌려 줘야** 한다.
+            #   h2 는 클라이언트 프리페이스를 자기가 receive_data 로 봐야 상태가 열린다.
+            #   이걸 빠뜨리면 첫 SETTINGS 프레임에서 ProtocolError 로 끊긴다.
+            for ev in c.receive_data(first):
+                self._on_event(c, ev, streams, addr)
+            out = c.data_to_send()
+            if out:
+                conn.sendall(out)
+            while not self._stop.is_set():
+                data = conn.recv(65535)
+                if not data:
+                    break
+                for ev in c.receive_data(data):
+                    self._on_event(c, ev, streams, addr)
+                out = c.data_to_send()
+                if out:
+                    conn.sendall(out)
+        except Exception:
+            self._note_error(traceback.format_exc())
+        finally:
+            try:
+                conn.close()
+            except OSError:
+                pass
+
+    def _recv_exact(self, conn, n):
+        buf = b''
+        while len(buf) < n:
+            chunk = conn.recv(n - len(buf))
+            if not chunk:
+                break
+            buf += chunk
+        return buf
+
+    def _on_event(self, c, ev, streams, addr):
+        if isinstance(ev, h2.events.RequestReceived):
+            streams[ev.stream_id] = {
+                'headers': {k.decode('utf-8', 'replace'): v.decode('utf-8', 'replace')
+                            for k, v in ev.headers},
+                'body': b'',
+                'peer': addr[0],
+            }
+        elif isinstance(ev, h2.events.DataReceived):
+            st = streams.get(ev.stream_id)
+            if st is not None:
+                st['body'] += ev.data
+            c.acknowledge_received_data(ev.flow_controlled_length, ev.stream_id)
+        elif isinstance(ev, h2.events.StreamEnded):
+            st = streams.pop(ev.stream_id, None)
+            if st is not None:
+                self._complete(c, ev.stream_id, st)
+
+    def _complete(self, c, stream_id, st):
+        hdrs = st['headers']
+        body = st['body']
+        text = body.decode('utf-8', 'replace')
+        try:
+            parsed = json.loads(text) if text.strip() else None
+        except ValueError:
+            parsed = None
+        req = _Request({
+            'method': hdrs.get(':method', ''),
+            'path': hdrs.get(':path', ''),
+            'authority': hdrs.get(':authority', ''),
+            'headers': hdrs,
+            'body': text,
+            'json': parsed,
+            'peer': st['peer'],
+            'received_at': time.time(),
+        })
+        with self._lock:
+            self._requests.append(req)
+        # 3GPP SBI 알림은 204 No Content 로 답하는 것이 일반적이다.
+        # 본문을 주지 않으므로 END_STREAM 을 헤더에 실어 바로 닫는다.
+        c.send_headers(stream_id,
+                       [(':status', '204'), ('server', 'tc4robot-noti')],
+                       end_stream=True)
+
+    def _note_error(self, msg):
+        with self._lock:
+            self._errors.append(msg)
+
+    # ── 조회 ─────────────────────────────────────────────────────
+    def requests(self):
+        with self._lock:
+            return list(self._requests)
+
+    def errors(self):
+        with self._lock:
+            return list(self._errors)
+
+    def clear(self):
+        with self._lock:
+            self._requests = []
+            self._errors = []
+
+
+# ══════════════════════════════════════════════════════════════════
+# Robot 이 직접 부르는 함수들 (라이브러리 인터페이스)
+# ══════════════════════════════════════════════════════════════════
+
+def noti_server_start(port, host='0.0.0.0'):
+    """h2c 수신 서버 기동 → 서버 핸들 반환. 핸들은 Suite Variable 로 들고 다닌다."""
+    return NotiServer(port, host).start()
+
+
+def noti_server_stop(server):
+    """서버 종료. None 이면 아무것도 하지 않는다."""
+    if server is not None:
+        server.stop()
+
+
+def noti_server_is_running(server):
+    return bool(server is not None and server.is_running())
+
+
+def noti_clear(server):
+    """쌓인 요청·오류를 비운다. TC 시작 전에 불러 이전 TC 의 알림과 섞이지 않게 한다."""
+    if server is not None:
+        server.clear()
+
+
+def noti_count(server, path_contains=None, since=None):
+    """수신 건수. path_contains / since 로 거를 수 있다."""
+    return len(noti_list(server, path_contains, since))
+
+
+def noti_list(server, path_contains=None, since=None):
+    """
+    수신 요청 목록(dict 리스트).
+
+    path_contains : :path 부분 일치 필터
+    since         : 이 epoch 시각 **이후**에 받은 것만. 경로를 모르는 상태에서
+                    "이 동작 뒤에 온 알림"만 보고 싶을 때 쓴다. noti_now() 로 뜬다.
+    """
+    if server is None:
+        return []
+    reqs = server.requests()
+    if path_contains:
+        reqs = [r for r in reqs if path_contains in r['path']]
+    if since is not None:
+        s = float(since)
+        reqs = [r for r in reqs if r['received_at'] >= s]
+    return reqs
+
+
+def noti_now():
+    """현재 epoch 시각. noti_wait/noti_list 의 since 기준점으로 쓴다."""
+    return time.time()
+
+
+def noti_errors(server):
+    """accept/파싱 중 난 오류 문자열 목록. 알림이 안 잡힐 때 여기부터 볼 것."""
+    return server.errors() if server is not None else []
+
+
+def noti_wait(server, timeout=30, path_contains=None, body_contains=None,
+              since=None, poll=0.2):
+    """
+    조건에 맞는 요청이 **1건 이상** 들어올 때까지 기다렸다가 그 목록을 반환한다.
+    시간 안에 안 오면 빈 리스트를 준다(실패 판정은 호출한 키워드가 한다).
+
+    since 를 주면 그 시각 이후 도착분만 본다 — 경로를 모르는 상태에서 앞선
+    알림을 다시 집어 "통과"해 버리는 것을 막는 유일한 수단이다.
+
+    timeout/poll 은 초. Robot 이 '30s' 같은 문자열을 넘길 수 있어 숫자로 강제한다.
+    """
+    deadline = time.time() + _seconds(timeout)
+    step = _seconds(poll)
+    while True:
+        found = noti_list(server, path_contains, since)
+        if body_contains:
+            found = [r for r in found if body_contains in r['body']]
+        if found:
+            return found
+        if time.time() >= deadline:
+            return []
+        time.sleep(step)
+
+
+def _seconds(v):
+    """'30s' / '1.5' / 30 을 초(float)로."""
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = str(v).strip().lower()
+    if s.endswith('ms'):
+        return float(s[:-2]) / 1000.0
+    if s.endswith('s'):
+        return float(s[:-1])
+    if s.endswith('m'):
+        return float(s[:-1]) * 60.0
+    return float(s)
