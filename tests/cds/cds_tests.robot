@@ -9,7 +9,8 @@ Documentation
 ...    [Suite 소켓 정책]
 ...    Suite Setup    : Suite CDS Connect — 연결 → ConnectionRequest(0001/0003) + ACK 검증
 ...                     → 두 소켓 생존 확인 → PDB 접속 → UPM 접속
-...                     → PCF Noti 수신 서버 Listen (접속은 TC 가 아니다)
+...                     → PCF Noti 수신 서버 Listen + **PG 의 h2c 접속 대기**
+...                       (접속은 TC 가 아니다)
 ...    Test Setup     : Check CDS Sockets (하나라도 닫히면 Suite 중단)
 ...    Suite Teardown : Suite CDS Disconnect — Release(0005/0007) + ACK(0006/0008) 검증 후 종료
 ...                     (해제도 TC 가 아니다. 슈트가 끝나면 반드시 수행돼야 한다)
@@ -90,7 +91,11 @@ Documentation
 ...      · **LTE 가입자면 아무것도 안 온다** — SBI 가 아니라 RBUS 다.
 ...      · 실 PG 의 :path 가 확인되지 않아 ${CDS_NOTI_PATH_*} 는 비어 있다(경로 무시).
 ...        채우면 그때부터 종류별로 구분해 판정한다.
-...      끄려면: --variable CDS_NOTI_VERIFY:False (Listen 자체를 하지 않는다)
+...      · **Suite Setup 이 PG 의 h2c 접속을 기다린 뒤 TC 를 시작한다**
+...        (${CDS_NOTI_ACCEPT_TIMEOUT}). 접속 전에 전문을 보내면 PG 가 알림을 보낼
+...        상대가 없어 그냥 흘러가고, 003 이 "안 왔다"로 실패한다 — 원인이 전문이
+...        아니라 시작 타이밍인데 로그로는 구분이 안 되므로 시작 조건으로 못 박았다.
+...      끄려면: --variable CDS_NOTI_VERIFY:False (Listen·접속 대기 모두 하지 않는다)
 ...
 ...    [TC 간 의존성] 슈트 전체가 002(A1 신규가입)로 만든 가입자 하나를 이어 쓴다.
 ...      002 A1 신규가입  : 이후 모든 TC 의 대상 가입자를 만든다

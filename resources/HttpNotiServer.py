@@ -77,6 +77,10 @@ class NotiServer(object):
         self._lock = threading.Lock()
         self._requests = []          # 수신 순서대로 쌓인다
         self._errors = []            # accept/파싱 중 난 예외 (진단용)
+        # h2c 핸드셰이크까지 성공한 접속 이력. **요청과 별개로** 센다 —
+        # PG 는 붙어만 두고 알림은 나중에 보내므로, "붙었는가" 와 "보냈는가" 는
+        # 다른 사건이다. CDS 슈트는 전자를 기다렸다 시작한다.
+        self._conns = []
 
     # ── 수명 관리 ────────────────────────────────────────────────
     def start(self):
@@ -133,6 +137,10 @@ class NotiServer(object):
                 config=h2config.H2Configuration(client_side=False))
             c.initiate_connection()
             conn.sendall(c.data_to_send())
+            # 프리페이스가 맞고 서버 SETTINGS 까지 나갔다 = h2c 접속 성립.
+            with self._lock:
+                self._conns.append({'peer': addr[0], 'port': addr[1],
+                                    'at': time.time()})
             streams = {}
             # ★ 위에서 프리페이스를 직접 읽어 버렸으므로 h2 에 **되돌려 줘야** 한다.
             #   h2 는 클라이언트 프리페이스를 자기가 receive_data 로 봐야 상태가 열린다.
@@ -226,7 +234,12 @@ class NotiServer(object):
         with self._lock:
             return list(self._errors)
 
+    def connections(self):
+        return list(self._conns)
+
     def clear(self):
+        """요청·오류만 비운다. **접속 이력은 남긴다** — TC 마다 초기화하면
+        'PG 가 붙어 있다' 는 사실까지 지워지기 때문이다."""
         with self._lock:
             self._requests = []
             self._errors = []
@@ -284,6 +297,35 @@ def noti_list(server, path_contains=None, since=None):
 def noti_now():
     """현재 epoch 시각. noti_wait/noti_list 의 since 기준점으로 쓴다."""
     return time.time()
+
+
+def noti_connection_count(server):
+    """지금까지 성립한 h2c 접속 수. 요청 건수와 별개다."""
+    return len(server.connections()) if server is not None else 0
+
+
+def noti_connections(server):
+    """h2c 접속 이력 목록 — dict(peer, port, at)."""
+    return server.connections() if server is not None else []
+
+
+def noti_wait_connection(server, timeout=60, poll=0.5):
+    """
+    PG 가 h2c 로 **붙을 때까지** 기다린다. 성립하면 접속 이력 목록을, 시간 안에
+    안 붙으면 빈 리스트를 반환한다(실패 판정은 호출한 키워드가 한다).
+
+    CDS 슈트가 Suite Setup 에서 이걸 기다렸다 시작한다 — 접속 전에 전문을 보내면
+    PG 가 알림을 보낼 상대가 없어 그냥 흘러가기 때문이다.
+    """
+    deadline = time.time() + _seconds(timeout)
+    step = _seconds(poll)
+    while True:
+        conns = noti_connections(server)
+        if conns:
+            return conns
+        if time.time() >= deadline:
+            return []
+        time.sleep(step)
 
 
 def noti_errors(server):

@@ -116,6 +116,7 @@ Suite CDS Connect
         Log    [Suite] PCF Noti 수신 서버 시작 → ${CDS_NOTI_HOST}:${CDS_NOTI_PORT} (h2c)    console=True
         ${srv}=    Noti.Noti Server Start    ${CDS_NOTI_PORT}    ${CDS_NOTI_HOST}
         Set Suite Variable    ${CDS_NOTI_SRV}    ${srv}
+        Wait For PCF Noti Connection
     ELSE
         Log    [Suite] PCF Noti 검증 꺼짐 (CDS_NOTI_VERIFY=${CDS_NOTI_VERIFY})    console=True
     END
@@ -719,6 +720,31 @@ Verify UPM Subs Info Notified
 #   본다. 경로가 확인되면 변수만 채우면 그때부터 종류별로 구분된다.
 #
 # ★ LTE 가입자는 SBI 가 아니라 RBUS 라 아무것도 안 들어온다 — 이 판정은 SA 전제다.
+
+Wait For PCF Noti Connection
+    [Documentation]
+    ...    PG 가 h2c 로 **붙을 때까지** 기다린다. Suite Setup 이 부르며,
+    ...    이게 성립해야 TC 를 시작한다.
+    ...
+    ...    왜 기다리는가 — 접속 전에 CDS 전문을 보내면 PG 는 알림을 보낼 상대가
+    ...    없어 그냥 흘려보낸다. 그러면 TC-CDS-003 이 "Noti 안 옴"으로 실패하는데,
+    ...    원인은 전문이 아니라 **시작 타이밍**이다. 로그만으로는 구분이 안 되므로
+    ...    아예 시작 조건으로 못 박는다.
+    ...
+    ...    ${CDS_NOTI_ACCEPT_TIMEOUT} 안에 안 붙으면 실패한다 — 그때는 PG 가 이
+    ...    주소로 보내도록 설정됐는지, 포트(${CDS_NOTI_PORT})가 맞는지부터 볼 것.
+    ...    HTTP/1.1 로 붙어 온 경우도 접속으로 치지 않으므로 오류 목록에 남는다.
+    [Arguments]    ${timeout}=${CDS_NOTI_ACCEPT_TIMEOUT}
+    IF    not ${CDS_NOTI_VERIFY}
+        RETURN
+    END
+    Log    [Suite] PG 의 h2c 접속 대기 (최대 ${timeout}) — 포트 ${CDS_NOTI_PORT}    console=True
+    ${conns}=    Noti.Noti Wait Connection    ${CDS_NOTI_SRV}    timeout=${timeout}
+    ${n}=        Get Length    ${conns}
+    ${errs}=     Noti.Noti Errors    ${CDS_NOTI_SRV}
+    Should Be True    ${n} > 0
+    ...    msg=PG 가 ${timeout} 안에 h2c 로 접속하지 않았습니다 (포트 ${CDS_NOTI_PORT}). PG 가 이 주소로 보내도록 설정됐는지, 포트가 맞는지 확인하세요. 서버 오류=${errs}
+    Log    [Suite] h2c 접속 확인 ${n}건 — ${conns}[0][peer]    console=True
 
 Clear PCF Noti
     [Documentation]
