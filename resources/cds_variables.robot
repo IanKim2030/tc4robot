@@ -59,7 +59,7 @@ ${CDS_UPM_VERIFY}         ${TRUE}          # 1X → UPM Subs-Info(0x07/0x08) 검
 # ★ PG 가 이 주소로 보내도록 설정돼 있어야 한다. 포트가 다르면 여기서 맞출 것.
 #   LTE 가입자는 SBI 가 아니라 RBUS 라 아무것도 안 들어온다(docs/nodes/CDS.md).
 ${CDS_NOTI_VERIFY}        ${TRUE}          # PCF Noti 수신 검증 여부
-${CDS_NOTI_PORT}          16102            # 도구가 Listen 할 포트 (PG 설정과 일치해야 함)
+${CDS_NOTI_PORT}          16101            # 도구가 Listen 할 포트 (PG 설정과 일치해야 함)
 ${CDS_NOTI_HOST}          0.0.0.0          # 모든 인터페이스 Listen
 ${CDS_NOTI_WAIT}          30s              # Noti 도착 대기 시간
 
