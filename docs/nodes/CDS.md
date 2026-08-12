@@ -498,6 +498,13 @@ SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. `1X` 흐름에서
 
 **프로토콜이 HTTP/2 평문(h2c)이다.** 3GPP SBI 라 표준 `http.server` 로는 첫 프리페이스에서
 막힌다 — `h2` 패키지(sans-IO 스택)로 프레임을 직접 처리한다. `pip install h2`.
+
+> **`No keyword with name 'Noti.Noti Server Start' found`** 가 뜬다면 `h2` 미설치다.
+> 예전에는 `HttpNotiServer.py` 가 최상단에서 `import h2` 를 해서, 패키지가 없으면
+> **라이브러리 자체가 안 올라오고** Robot 이 저 메시지로 보고했다 — 진짜 원인이 전혀
+> 드러나지 않았다. 지금은 지연 임포트라 서버를 띄울 때 `pip install h2` 안내와 함께
+> 실패하고, `${CDS_NOTI_VERIFY}=False` 면 `h2` 없이도 슈트가 그대로 돈다.
+> 시험 장비가 개발 PC 와 다르면 **그 장비에** 설치해야 한다.
 지원하는 건 **prior-knowledge** 방식뿐이라, PG 가 HTTP/1.1 Upgrade 로 붙으면 받지 못하고
 `noti_errors()` 에 "h2c prior-knowledge 가 아닌 접속" 이 남는다 — 알림이 안 잡히면 여기부터 볼 것.
 

@@ -28,12 +28,38 @@ import threading
 import time
 import traceback
 
-import h2.config
-import h2.connection
-import h2.events
-
 # HTTP/2 클라이언트 프리페이스. prior-knowledge h2c 는 이 24바이트로 시작한다.
 _PREFACE = b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'
+
+# ── h2 는 지연 임포트한다 ──────────────────────────────────────────
+# 최상단에서 import 하면 h2 가 없는 환경에서 **라이브러리 자체가 안 올라오고**,
+# Robot 은 그 결과를 "No keyword with name 'Noti.Noti Server Start' found" 로
+# 보고한다 — 진짜 원인(미설치)이 메시지에 전혀 안 드러난다. 실제로 그렇게 헤맨
+# 전례가 있다(2026-08-12).
+#
+# 그래서 h2 는 **서버를 실제로 띄울 때만** 부른다. 덕분에
+#   · ${CDS_NOTI_VERIFY}=False 면 h2 없이도 슈트가 그대로 돈다
+#   · 켠 채로 h2 가 없으면 "pip install h2" 라고 정확히 알려주고 실패한다
+# CdsDbHelper 가 pyodbc 를 지연 임포트하는 것과 같은 이유·같은 방식이다.
+_h2 = None
+
+
+def _load_h2():
+    """h2 모듈 3종을 한 번만 임포트해 캐시한다. 없으면 안내 메시지로 실패."""
+    global _h2
+    if _h2 is None:
+        try:
+            import h2.config
+            import h2.connection
+            import h2.events
+        except ImportError as e:
+            raise RuntimeError(
+                'PCF Noti 수신 서버에는 h2 패키지가 필요합니다 — pip install h2 '
+                '(또는 pip install -r requirements.txt). '
+                'Noti 검증이 필요 없으면 CDS_NOTI_VERIFY 를 False 로 두면 됩니다. '
+                '원본 오류: %s' % e)
+        _h2 = (h2.config, h2.connection, h2.events)
+    return _h2
 
 
 class _Request(dict):
@@ -54,6 +80,7 @@ class NotiServer(object):
 
     # ── 수명 관리 ────────────────────────────────────────────────
     def start(self):
+        _load_h2()      # 없으면 여기서 "pip install h2" 안내와 함께 실패한다
         self._srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._srv.bind((self.host, self.port))
@@ -101,8 +128,9 @@ class NotiServer(object):
                     'h2c prior-knowledge 가 아닌 접속 (%s) — 앞 24바이트=%r'
                     % (addr[0], first[:24]))
                 return
-            c = h2.connection.H2Connection(
-                config=h2.config.H2Configuration(client_side=False))
+            h2config, h2conn, _ = _load_h2()
+            c = h2conn.H2Connection(
+                config=h2config.H2Configuration(client_side=False))
             c.initiate_connection()
             conn.sendall(c.data_to_send())
             streams = {}
@@ -141,19 +169,20 @@ class NotiServer(object):
         return buf
 
     def _on_event(self, c, ev, streams, addr):
-        if isinstance(ev, h2.events.RequestReceived):
+        _, _, h2events = _load_h2()
+        if isinstance(ev, h2events.RequestReceived):
             streams[ev.stream_id] = {
                 'headers': {k.decode('utf-8', 'replace'): v.decode('utf-8', 'replace')
                             for k, v in ev.headers},
                 'body': b'',
                 'peer': addr[0],
             }
-        elif isinstance(ev, h2.events.DataReceived):
+        elif isinstance(ev, h2events.DataReceived):
             st = streams.get(ev.stream_id)
             if st is not None:
                 st['body'] += ev.data
             c.acknowledge_received_data(ev.flow_controlled_length, ev.stream_id)
-        elif isinstance(ev, h2.events.StreamEnded):
+        elif isinstance(ev, h2events.StreamEnded):
             st = streams.pop(ev.stream_id, None)
             if st is not None:
                 self._complete(c, ev.stream_id, st)
