@@ -8,7 +8,7 @@ Documentation
 ...
 ...    [Suite 소켓 정책]
 ...    Suite Setup    : Suite CDS Connect — 연결 → ConnectionRequest(0001/0003) + ACK 검증
-...                     → 두 소켓 생존 확인 → PDB 접속 (접속은 TC 가 아니다)
+...                     → 두 소켓 생존 확인 → PDB 접속 → UPM 접속 (접속은 TC 가 아니다)
 ...    Test Setup     : Check CDS Sockets (하나라도 닫히면 Suite 중단)
 ...    Suite Teardown : Suite CDS Disconnect — Release(0005/0007) + ACK(0006/0008) 검증 후 종료
 ...                     (해제도 TC 가 아니다. 슈트가 끝나면 반드시 수행돼야 한다)
@@ -28,6 +28,7 @@ Documentation
 ...    예약 큐(T_5G_RESERVED_JOB) 적재를 **한 건 더** 본다.
 ...      002 A1 신규가입 : PROFILE 1건 + SERVICE 2건(DATA_USAGE_LEVEL / _2) — 모두 1
 ...      003 1X HFC가입  : SERVICE(SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X) 1건 이상
+...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (구 TC-UPM-301)
 ...      004 1Y HFC해지  : SERVICE(SVC_ID=ZONE_SVC_D) 0건
 ...      005 I2 부가신청 : SERVICE(YOUNG_HARM_INFO_BLOCK, N, I2, 56, LIMIT=Y) 1건 이상
 ...      006 I3 부가해지 : SERVICE(SVC_ID=YOUNG_HARM_INFO_BLOCK) 0건
@@ -68,6 +69,14 @@ Documentation
 ...      (TC별 접속 없음). autocommit 은 꺼져 있다(${CDS_DB_AUTOCOMMIT}=${FALSE}).
 ...      ★ 접속 정보가 틀리면 이 TC 뿐 아니라 **슈트 전체가 서지 않는다** — Suite Setup
 ...        이 실패하기 때문이다. --exclude db 로도 피할 수 없다.
+...
+...    [UPM 연동] TC-CDS-003(1X)만 해당한다.
+...      1X 는 CDS 에서 끝나지 않는다 — PG.BSUBS 가 UPM 으로 Subs-Info(0x07)를 밀고
+...      UPM 이 0x08 로 답해야 완결된다. UPM 슈트의 TC-UPM-301 이 그 구간인데 1X 를
+...      보낼 방법이 없어 주석 처리돼 있었고, 트리거를 쥔 이 슈트로 옮겨 왔다.
+...      그래서 **CDS 슈트가 UPM 포트(${UPM_PG_PORT})에도 의존한다** — PDB 와 마찬가지로
+...      Suite Setup 에서 붙으므로 UPM 이 안 뜨면 슈트 전체가 서지 않는다.
+...      CDS 전문만 돌리려면: --variable CDS_UPM_VERIFY:False (UPM 접속 자체를 건너뛴다)
 ...
 ...    [TC 간 의존성] 슈트 전체가 002(A1 신규가입)로 만든 가입자 하나를 이어 쓴다.
 ...      002 A1 신규가입  : 이후 모든 TC 의 대상 가입자를 만든다
@@ -144,16 +153,38 @@ TC-CDS-002 A1 (신규가입)
     Command Download Flow    ${CDS_CODE_A1}
     Verify Subscriber Provisioned In PDB    ${CDS_MDN}
 
-TC-CDS-003 1X (HFC가입)
+TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     [Documentation]
     ...    0015(1X HFC 서비스 가입) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...
-    ...    [성공 판단 기준] PDB 에 존 서비스 행이 **1건 이상** 생겨야 성공이다.
-    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='ZONE_SVC_D' AND SVC_TYPE='D' AND JOB_CODE='1X'
-    [Tags]    cds    command    validation    db
+    ...    **1X 는 CDS 에서 끝나지 않는다.** PG.BSUBS 가 이어서 UPM 으로
+    ...    Subs-Info-Request(0x07)를 밀고, UPM 이 Cell 정보를 담아 0x08 로 답해야
+    ...    흐름이 완결된다. 그래서 이 TC 는 **세 구간을 한 번에** 본다.
+    ...
+    ...      1) CDS  : 0015 → 0016(SC) → 0017 → 0018
+    ...      2) UPM  : PG.BSUBS → 0x07 수신 → 0x08(result-code=${UPM_RC_SUCCESS}) 응답
+    ...                (구 TC-UPM-301. UPM 슈트에는 1X 를 보낼 방법이 없어 트리거를
+    ...                 쥔 이쪽으로 옮겼다 — 거기서는 주석 처리돼 있다)
+    ...      3) PDB  : 존 서비스 반영 확인
+    ...
+    ...    [성공 판단 기준]
+    ...      · UPM 0x07 의 mdn / branch-name / event-timestamp 형식이 유효하고
+    ...        tid·service-id 가 있으며, mdn 이 1X 를 보낸 가입자(${CDS_MDN})와 같을 것
+    ...      · PDB 에 존 서비스 행이 **1건 이상** 있을 것
+    ...        SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...         WHERE MDN='${CDS_MDN}' AND SVC_ID='ZONE_SVC_D' AND SVC_TYPE='D' AND JOB_CODE='1X'
+    ...
+    ...    ★ 0x08 응답을 보내는 것까지가 이 TC 의 일이다. 안 보내면 PG 가 UPM 응답을
+    ...      기다리다 재시도로 넘어가 **뒤따르는 TC 의 PDB 판정이 흔들린다.**
+    ...    ※ UPM 구간은 ${CDS_UPM_VERIFY} 로 끌 수 있다(그때는 UPM 접속도 하지 않는다).
+    ...       --variable CDS_UPM_VERIFY:False
+    [Tags]    cds    command    validation    db    upm
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
+    Verify UPM Subs Info Notified    mdn=${CDS_MDN}
     Verify Zone Service Subscribed In PDB    ${CDS_MDN}
+
+    
+
 
 TC-CDS-004 1Y (HFC해지)
     [Documentation]
@@ -406,8 +437,6 @@ TC-CDS-015 Y9 (Data(Zone) 부가서비스 쿠폰 사용시점 알림)
     ...    coupon_type=${CDS_COUPON_TYPE}      coupon_pin=${CDS_COUPON_PIN_Y9}
     Verify Zone Coupon Service Subscribed In PDB    ${CDS_MDN}
     Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_Y9}    ${CDS_COUPON_PIN_Y9}
-
-
 
 TC-CDS-016 SS (0플랜 옵션 3시간프리 가입)
     [Documentation]

@@ -105,21 +105,18 @@ TC-UPM-004 Subs-Sync - 전체 동기화 요청 (code-type=05)
 # 0x07/0x08  Subs-Info (PG.BSUBS → UPM)  HFC 가입자 Cell Info 요청
 # ════════════════════════════════════════════════════════════════
 
-# TC-UPM-301 Subs-Info - HFC 서비스 가입(code-type=01)
-#     [Documentation]
-#     ...    CDS.1X (HFC 서비스 가입)
-#     ...    PG.BSUBS → UPM Subs-Info-Request(0x07) 수신 
-#     ...    → UPM → PG.BSUBS Subs-Info-Response(0x08) result-code=SC0000 송신
-#     [Tags]    upm    subs-info    smoke
-#     ${hdr}    ${body}=    Receive Subs Info Request
-#     UPM MDN Should Be Valid              ${body}
-#     UPM Branch Name Should Be Valid      ${body}
-#     UPM Event Timestamp Should Be Valid  ${body}
-#     Dictionary Should Contain Key    ${body}    tid
-#     Dictionary Should Contain Key    ${body}    service-id
-#     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
-#     ${cells}=   Create List    ${cell}
-#     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}    result_code=${UPM_RC_SUCCESS}
+# TC-UPM-301 은 **CDS 슈트로 옮겼다** → tests/cds/cds_tests.robot 의 TC-CDS-003.
+#
+# 이 구간(PG.BSUBS → UPM 0x07 → 0x08)은 CDS.1X(HFC 서비스 가입)가 트리거한다.
+# 그런데 UPM 슈트에는 1X 를 보낼 방법이 없어 여기 두면 영원히 수신 대기만 하다
+# 타임아웃한다 — 그래서 주석 처리돼 있었다. 트리거를 쥔 CDS 슈트로 옮기고 나서야
+# 실제로 도는 TC 가 됐다.
+#
+# 검증 내용은 그대로다(mdn / branch-name / event-timestamp / tid / service-id
+# → 0x08 result-code=SC0000 응답). 지금은 cds_keywords.robot 의
+# `Verify UPM Subs Info Notified` 키워드가 갖고 있다.
+#
+# ★ 여기에 되살리지 말 것. 되살리려면 이 슈트에서 1X 를 보낼 수단이 먼저 필요하다.
 
 
 # ════════════════════════════════════════════════════════════════

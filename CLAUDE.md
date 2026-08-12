@@ -32,7 +32,7 @@ bash run_tests.sh nag                       # NAG   (→ PG:8012)
 bash run_tests.sh pcf                       # PCF   (→ PG:8011, NAG 세션 선등록)
 bash run_tests.sh lrs                       # LRS   (→ PG.LRS:10204 + 8890 Listen)
 bash run_tests.sh upm                       # UPM   (→ PG:10506)
-bash run_tests.sh cds                       # CDS   (듀얼 → 9201 → 9200)
+bash run_tests.sh cds                       # CDS   (듀얼 → 9201 → 9200, + PDB, + UPM:10506)
 bash run_tests.sh nwdaf                     # NWDAF (→ PG:10305)
 bash run_tests.sh all                       # 전체
 bash run_tests.sh smoke                     # --include smoke

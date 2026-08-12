@@ -29,6 +29,9 @@ Library    BuiltIn
 Library    ${CURDIR}/CdsHelper.py    WITH NAME    Cds
 Library    ${CURDIR}/CdsDbHelper.py    WITH NAME    CdsDb
 Resource   ${CURDIR}/common_keywords.robot
+# 1X(HFC 가입)가 PG.BSUBS→UPM Subs-Info(0x07)를 유발한다 → TC-CDS-003 이 UPM
+# 키워드를 쓴다. PCF 슈트가 nag_keywords 를 들여오는 것과 같은 구조.
+Resource   ${CURDIR}/upm_keywords.robot
 
 *** Variables ***
 ${CDS_SCH_SOCK}        ${NONE}
@@ -97,7 +100,14 @@ Suite CDS Connect
     Should Be True    ${ok_r}    msg=Rchannel 소켓이 닫혀 있음
     # 4) PDB 접속 — 소켓과 같이 슈트당 1회. Suite CDS Disconnect 가 닫는다.
     Ensure CDS DB Connection
-    Log    [Suite] CDS 접속 완료 (Rchannel→Schannel + PDB)    console=True
+    # 5) UPM 접속 — TC-CDS-003(1X)이 PG.BSUBS→UPM Subs-Info(0x07)를 받아야 한다.
+    #    ${CDS_UPM_VERIFY}=${FALSE} 면 통째로 건너뛴다(그러면 UPM 의존이 사라진다).
+    IF    ${CDS_UPM_VERIFY}
+        Suite UPM Connect
+    ELSE
+        Log    [Suite] UPM 연동 검증 꺼짐 (CDS_UPM_VERIFY=${CDS_UPM_VERIFY})    console=True
+    END
+    Log    [Suite] CDS 접속 완료 (Rchannel→Schannel + PDB, UPM=${CDS_UPM_VERIFY})    console=True
 
 Suite CDS Disconnect
     [Documentation]
@@ -121,6 +131,9 @@ Suite CDS Disconnect
     Run Keyword If    $CDS_SCH_SOCK is not None    Cds.Tcp Close    ${CDS_SCH_SOCK}
     Run Keyword If    $CDS_RCH_SOCK is not None    Cds.Tcp Close    ${CDS_RCH_SOCK}
     Close CDS DB Connection
+    # UPM 은 붙었을 때만 닫는다. Suite Setup 이 CDS 소켓 단계에서 실패했으면
+    # ${UPM_SOCK} 이 ${NONE} 이라 Suite UPM Disconnect 가 그냥 지나간다.
+    Run Keyword If    ${CDS_UPM_VERIFY}    Suite UPM Disconnect
     Log    [Suite] CDS 연결 종료    console=True
 
 Check CDS Sockets
@@ -624,6 +637,57 @@ Verify Subscriber Removed From PDB
 # 모든 `Verify ... In PDB` 는 재조회 루프에 들어가기 전에 `Settle Before PDB Query`
 # 로 ${CDS_DB_SETTLE} 만큼 쉰다(ResultAck 직후에는 아직 반영 전이다).
 # 특정 코드만 더 기다려야 하면 TC 에서 `settle=10s` 처럼 덮어쓴다.
+
+# ── 1X → UPM Subs-Info (0x07/0x08) ──────────────────────────────
+#
+# 1X(HFC 가입)는 CDS 쪽에서 끝나지 않는다. PG.BSUBS 가 이어서 **UPM 으로
+# Subs-Info-Request(0x07)** 를 밀고, UPM 이 Cell 정보를 담아 0x08 로 답해야
+# 흐름이 완결된다. UPM 슈트의 TC-UPM-301 이 바로 이 구간인데, 거기서는 트리거할
+# 방법이 없어(1X 를 보내는 쪽이 CDS 다) 주석 처리돼 있다.
+# → 그래서 이 검증은 **1X 를 보내는 TC-CDS-003 에 붙는 것이 맞다.**
+#
+# ★ 순서: PG 는 CDS CommandResult(0017)와 UPM 0x07 을 각각 다른 소켓으로 보낸다.
+#   둘의 도착 순서는 보장되지 않지만, 먼저 온 0x07 은 소켓 버퍼에 남아 있으므로
+#   `Command Download Flow` 를 끝낸 뒤 읽어도 문제없다.
+
+Verify UPM Subs Info Notified
+    [Documentation]
+    ...    1X 송신 뒤 PG.BSUBS → UPM Subs-Info-Request(0x07) 를 받아 검증하고
+    ...    Subs-Info-Response(0x08, result-code=${UPM_RC_SUCCESS}) 로 답한다.
+    ...    (UPM 슈트 TC-UPM-301 과 같은 내용 — 트리거가 있는 이쪽으로 옮겨 온 것이다)
+    ...
+    ...    검증 항목: mdn / branch-name / event-timestamp 형식 + tid·service-id 존재.
+    ...    ${mdn} 을 주면 요청의 mdn 이 그 번호인지까지 본다(1X 를 보낸 가입자와 일치).
+    ...
+    ...    ${CDS_UPM_VERIFY}=${FALSE} 면 아무것도 하지 않고 넘어간다 — 그때는 UPM 에
+    ...    접속조차 하지 않았으므로 읽을 소켓이 없다.
+    ...
+    ...    ★ 응답까지 보내는 것이 중요하다. 0x08 을 돌려주지 않으면 PG 가 UPM 응답을
+    ...      기다리다 타임아웃/재시도로 넘어가 **뒤따르는 TC 의 PDB 판정이 흔들린다.**
+    [Arguments]    ${mdn}=${NONE}
+    IF    not ${CDS_UPM_VERIFY}
+        Log    [UPM] 연동 검증 꺼짐 — 0x07 수신을 건너뜁니다    console=True
+        RETURN
+    END
+    ${ok}=    Tcp.Is Connected    ${UPM_SOCK}
+    Should Be True    ${ok}
+    ...    msg=UPM 소켓이 닫혀 있습니다 — 1X 의 Subs-Info(0x07)를 받을 수 없습니다
+    ${hdr}    ${body}=    Receive Subs Info Request
+    UPM MDN Should Be Valid              ${body}
+    UPM Branch Name Should Be Valid      ${body}
+    UPM Event Timestamp Should Be Valid  ${body}
+    Dictionary Should Contain Key    ${body}    tid
+    Dictionary Should Contain Key    ${body}    service-id
+    IF    $mdn is not None
+        Should Be Equal As Strings    ${body}[mdn]    ${mdn}
+        ...    msg=Subs-Info(0x07)의 mdn 이 1X 를 보낸 가입자와 다릅니다 (기대=${mdn}, 실제=${body}[mdn])
+    END
+    ${cell}=     Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+    ${cells}=    Create List    ${cell}
+    Send Subs Info Response    ${hdr}[txn_id]    ${body}
+    ...    cell_list=${cells}    result_code=${UPM_RC_SUCCESS}
+    Log    [UPM] Subs-Info 0x07 수신 → 0x08 응답 완료 (mdn=${body}[mdn])    console=True
+
 
 Zone Service Should Be Subscribed
     [Documentation]    1X 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
