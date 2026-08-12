@@ -161,11 +161,12 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...    Subs-Info-Request(0x07)를 밀고, UPM 이 Cell 정보를 담아 0x08 로 답해야
     ...    흐름이 완결된다. 그래서 이 TC 는 **세 구간을 한 번에** 본다.
     ...
-    ...      1) CDS  : 0015 → 0016(SC) → 0017 → 0018
-    ...      2) UPM  : PG.BSUBS → 0x07 수신 → 0x08(result-code=${UPM_RC_SUCCESS}) 응답
-    ...                (구 TC-UPM-301. UPM 슈트에는 1X 를 보낼 방법이 없어 트리거를
-    ...                 쥔 이쪽으로 옮겼다 — 거기서는 주석 처리돼 있다)
-    ...      3) PDB  : 존 서비스 반영 확인
+    ...      1) CDS    : 0015 → 0016(SC) → 0017 → 0018
+    ...      2) PG.SDM : T_CDS_ORDER_HIST → T_5G_SUBS_SERVICE
+    ...      3) PDB    : 존 서비스 반영 확인
+    ...      4) UPM    : PG.BSUBS → 0x07 수신 → 0x08(result-code=${UPM_RC_SUCCESS}) 응답
+    ...                  (구 TC-UPM-301. UPM 슈트에는 1X 를 보낼 방법이 없어 트리거를
+    ...                   쥔 이쪽으로 옮겼다 — 거기서는 주석 처리돼 있다)
     ...
     ...    [성공 판단 기준]
     ...      · UPM 0x07 의 mdn / branch-name / event-timestamp 형식이 유효하고
@@ -180,10 +181,8 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...       --variable CDS_UPM_VERIFY:False
     [Tags]    cds    command    validation    db    upm
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
-    Verify UPM Subs Info Notified    mdn=${CDS_MDN}
     Verify Zone Service Subscribed In PDB    ${CDS_MDN}
-
-    
+    Verify UPM Subs Info Notified    mdn=${CDS_MDN}
 
 
 TC-CDS-004 1Y (HFC해지)
