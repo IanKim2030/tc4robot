@@ -63,12 +63,24 @@ ${CDS_NOTI_PORT}          16101            # 도구가 Listen 할 포트 (PG 설
 ${CDS_NOTI_HOST}          0.0.0.0          # 모든 인터페이스 Listen
 ${CDS_NOTI_WAIT}          30s              # Noti 도착 대기 시간
 
-# ★ Suite Setup 은 **PG 가 h2c 로 붙을 때까지 기다린 뒤** TC 를 시작한다.
-#   접속 전에 전문을 보내면 PG 가 알림을 보낼 상대가 없어 그냥 흘러가고,
-#   TC-CDS-003 은 "안 왔다" 로 실패한다 — 원인이 전문이 아니라 타이밍인데
-#   로그만 봐서는 구분되지 않는다. 그래서 시작 자체를 접속에 맞춘다.
-#   이 시간 안에 안 붙으면 슈트가 서지 않는다(PG 설정·포트를 의심할 것).
-${CDS_NOTI_ACCEPT_TIMEOUT}    60s          # PG 의 h2c 접속을 기다리는 시간
+# ── PG 의 h2c 접속 대기 ──────────────────────────────────────────
+# 켜면 Suite Setup 이 **PG 가 h2c 로 붙을 때까지 기다린 뒤** TC 를 시작한다.
+# 접속 전에 전문을 보내면 PG 가 알림을 보낼 상대가 없어 그냥 흘러가고,
+# TC-CDS-003 은 "안 왔다" 로 실패한다 — 원인이 전문이 아니라 타이밍인데
+# 로그만 봐서는 구분되지 않는다. 그래서 시작 자체를 접속에 맞춘다.
+#
+# ${CDS_NOTI_VERIFY} 와 **별개 손잡이**다. 셋의 조합은 이렇다.
+#   VERIFY=True  + WAIT_CONNECT=True   Listen + 접속 대기 후 시작 (기본, 가장 안전)
+#   VERIFY=True  + WAIT_CONNECT=False  Listen 만 하고 바로 시작
+#                                      → PG 가 늦게 붙으면 003 의 Noti 판정이 샌다.
+#                                        PG 가 이미 상시 접속돼 있거나, 접속 시점을
+#                                        못 맞추는 환경에서 쓴다.
+#   VERIFY=False                       Listen 도 대기도 안 함 (WAIT_CONNECT 는 무시)
+#
+# 켠 채로 시간 안에 안 붙으면 슈트가 서지 않는다(PG 설정·포트를 의심할 것).
+#   python -m robot --variable CDS_NOTI_WAIT_CONNECT:False tests/cds/
+${CDS_NOTI_WAIT_CONNECT}      ${TRUE}      # PG 의 h2c 접속을 기다렸다 시작할지
+${CDS_NOTI_ACCEPT_TIMEOUT}    60s          # 기다린다면 최대 얼마나
 
 # 알림 종류를 :path 로 가른다. **기본은 빈 값 = 경로를 가리지 않음**이다 —
 # 실제 PG 가 쓰는 경로가 확인되지 않았기 때문이다. 확인되면 여기에 채워 넣으면

@@ -734,8 +734,18 @@ Wait For PCF Noti Connection
     ...    ${CDS_NOTI_ACCEPT_TIMEOUT} 안에 안 붙으면 실패한다 — 그때는 PG 가 이
     ...    주소로 보내도록 설정됐는지, 포트(${CDS_NOTI_PORT})가 맞는지부터 볼 것.
     ...    HTTP/1.1 로 붙어 온 경우도 접속으로 치지 않으므로 오류 목록에 남는다.
+    ...
+    ...    끄는 손잡이가 둘이고 층이 다르다.
+    ...      ${CDS_NOTI_VERIFY}=${FALSE}       Listen 자체를 안 한다 → 여기도 무의미
+    ...      ${CDS_NOTI_WAIT_CONNECT}=${FALSE} Listen 은 하되 **기다리지 않는다**
+    ...    후자는 PG 가 이미 상시 접속돼 있거나 접속 시점을 못 맞추는 환경용이다.
+    ...    끄면 PG 가 늦게 붙었을 때 TC-CDS-003 의 Noti 판정이 샌다.
     [Arguments]    ${timeout}=${CDS_NOTI_ACCEPT_TIMEOUT}
     IF    not ${CDS_NOTI_VERIFY}
+        RETURN
+    END
+    IF    not ${CDS_NOTI_WAIT_CONNECT}
+        Log    [Suite] h2c 접속 대기 꺼짐 (CDS_NOTI_WAIT_CONNECT=${CDS_NOTI_WAIT_CONNECT}) — Listen 만 하고 시작합니다    console=True
         RETURN
     END
     Log    [Suite] PG 의 h2c 접속 대기 (최대 ${timeout}) — 포트 ${CDS_NOTI_PORT}    console=True

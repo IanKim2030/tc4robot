@@ -95,7 +95,10 @@ Documentation
 ...        (${CDS_NOTI_ACCEPT_TIMEOUT}). 접속 전에 전문을 보내면 PG 가 알림을 보낼
 ...        상대가 없어 그냥 흘러가고, 003 이 "안 왔다"로 실패한다 — 원인이 전문이
 ...        아니라 시작 타이밍인데 로그로는 구분이 안 되므로 시작 조건으로 못 박았다.
-...      끄려면: --variable CDS_NOTI_VERIFY:False (Listen·접속 대기 모두 하지 않는다)
+...      끄는 손잡이가 둘이고 층이 다르다.
+...        --variable CDS_NOTI_VERIFY:False        Listen 도 접속 대기도 안 한다
+...        --variable CDS_NOTI_WAIT_CONNECT:False  Listen 은 하되 기다리지 않는다
+...        후자는 PG 가 이미 상시 접속돼 있거나 접속 시점을 못 맞추는 환경용이다.
 ...
 ...    [TC 간 의존성] 슈트 전체가 002(A1 신규가입)로 만든 가입자 하나를 이어 쓴다.
 ...      002 A1 신규가입  : 이후 모든 TC 의 대상 가입자를 만든다

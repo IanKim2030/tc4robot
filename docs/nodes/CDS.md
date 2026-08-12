@@ -515,11 +515,23 @@ SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. `1X` 흐름에서
 
 **PG 가 이 주소로 보내도록 설정돼 있어야 한다.** 도구가 붙는 게 아니라 PG 가 붙어 오는
 방향이라, 포트만 열어 둔다고 오지 않는다. 그래서 **Suite Setup 은 Listen 만 열고 넘어가지
-않고, PG 가 h2c 로 붙을 때까지 기다렸다 TC 를 시작한다**(`${CDS_NOTI_ACCEPT_TIMEOUT}`).
+않고, PG 가 h2c 로 붙을 때까지 기다렸다 TC 를 시작한다**(`${CDS_NOTI_WAIT_CONNECT}` /
+`${CDS_NOTI_ACCEPT_TIMEOUT}`).
 접속 전에 전문을 보내면 PG 는 알림을 보낼 상대가 없어 그냥 흘려보내고, `TC-CDS-003` 은
 "Noti 안 옴"으로 실패한다 — 원인이 전문이 아니라 **시작 타이밍**인데 로그로는 구분되지
 않는다. 접속 성립(프리페이스 + 서버 SETTINGS)은 요청 수신과 **따로 센다** — PG 가 붙어만
 두고 알림은 나중에 보내기 때문이다.
+
+끄는 손잡이가 둘이고 층이 다르다.
+
+| 조합 | 동작 |
+|---|---|
+| `CDS_NOTI_VERIFY=True` + `CDS_NOTI_WAIT_CONNECT=True` | Listen + 접속 대기 후 시작 (기본) |
+| `CDS_NOTI_VERIFY=True` + `CDS_NOTI_WAIT_CONNECT=False` | Listen 만 하고 바로 시작 |
+| `CDS_NOTI_VERIFY=False` | Listen 도 대기도 안 함 (`WAIT_CONNECT` 는 무시) |
+
+가운데는 **PG 가 이미 상시 접속돼 있거나 접속 시점을 못 맞추는 환경용**이다. 끄면 PG 가
+늦게 붙었을 때 `TC-CDS-003` 의 Noti 판정이 샌다.
 
 **실 PG 의 `:path` 가 확인되지 않아 경로 필터(`${CDS_NOTI_PATH_*}`)가 비어 있다.**
 비어 있으면 경로를 가리지 않으므로 두 알림이 구분되지 않는다 — 그래서 Cell List 판정은
