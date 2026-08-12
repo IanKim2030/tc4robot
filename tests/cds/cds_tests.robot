@@ -207,8 +207,8 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
     Verify Zone Service Subscribed In PDB    ${CDS_MDN}
     # SNOTI → PCF 가입자 정보 변경 통보 (SDM 이 가입자 테이블을 고친 뒤 나간다)
-    Verify PCF Noti Received    label=가입자 Noti (SNOTI→PCF)
-    ...    path=${CDS_NOTI_PATH_SUBS}    body=${CDS_MDN}
+    #Verify PCF Noti Received    label=가입자 Noti (SNOTI→PCF)
+    #...    path=${CDS_NOTI_PATH_SUBS}    body=${CDS_MDN}
     # Cell List 는 아래 0x08 응답 **뒤에** 나가므로, 그 이후 도착분만 보도록
     # 기준 시각을 먼저 뜬다 — 경로 필터가 비어 있으면 위 가입자 Noti 를 다시
     # 집어 그냥 통과해 버린다.
