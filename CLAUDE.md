@@ -41,10 +41,10 @@ bash run_tests.sh smoke                     # --include smoke
 bash run_tests.sh nag --log-msg             # PG_LOG_MSG=1 → REQ/RESP 추적 로그
 
 bash run_tests.sh cds --no-upm             # CDS 곁가지 연동 끄기 — UPM(10506) 생략
-bash run_tests.sh cds --no-http            # PCF h2c Listen(16101) 생략 (h2 불필요)
-bash run_tests.sh cds --no-upm --no-http   # CDS 전문 + PDB 만
-bash run_tests.sh cds --no-http-wait       # Listen 은 하되 PG 접속을 안 기다림
-                                           # --upm / --http 로 반대로 강제 ON
+bash run_tests.sh cds --no-sbi             # PCF SBI Listen(16101) 생략 (h2 불필요)
+bash run_tests.sh cds --no-upm --no-sbi    # CDS 전문 + PDB 만
+bash run_tests.sh cds --no-sbi-wait        # Listen 은 하되 PG 접속을 안 기다림
+                                           # --upm / --sbi 로 반대로 강제 ON
                                            # PDB 는 못 끈다 (Suite Setup 고정)
 
 bash run_tests.sh nag stg                   # 환경 지정 (dev 기본 / stg / prd)

@@ -9,7 +9,7 @@ Documentation
 ...    [Suite 소켓 정책]
 ...    Suite Setup    : Suite CDS Connect — 연결 → ConnectionRequest(0001/0003) + ACK 검증
 ...                     → 두 소켓 생존 확인 → PDB 접속 → UPM 접속
-...                     → PCF Noti 수신 서버 Listen + **PG 의 h2c 접속 대기**
+...                     → PCF SBI 수신 서버 Listen + **PG 의 SBI 접속 대기**
 ...                       (접속은 TC 가 아니다)
 ...    Test Setup     : Check CDS Sockets (하나라도 닫히면 Suite 중단)
 ...    Suite Teardown : Suite CDS Disconnect — Release(0005/0007) + ACK(0006/0008) 검증 후 종료
@@ -95,14 +95,14 @@ Documentation
 ...      · **LTE 가입자면 아무것도 안 온다** — SBI 가 아니라 RBUS 다.
 ...      · 실 PG 의 :path 가 확인되지 않아 ${CDS_NOTI_PATH_*} 는 비어 있다(경로 무시).
 ...        채우면 그때부터 종류별로 구분해 판정한다.
-...      · **Suite Setup 이 PG 의 h2c 접속을 기다린 뒤 TC 를 시작한다**
+...      · **Suite Setup 이 PG 의 PCF SBI 접속을 기다린 뒤 TC 를 시작한다**
 ...        (${CDS_NOTI_ACCEPT_TIMEOUT}). 접속 전에 전문을 보내면 PG 가 알림을 보낼
 ...        상대가 없어 그냥 흘러가고, 003 이 "안 왔다"로 실패한다 — 원인이 전문이
 ...        아니라 시작 타이밍인데 로그로는 구분이 안 되므로 시작 조건으로 못 박았다.
 ...      끄는 손잡이가 둘이고 층이 다르다.
-...        --no-http       (= --variable CDS_NOTI_VERIFY:False)
+...        --no-sbi        (= --variable CDS_NOTI_VERIFY:False)
 ...                        Listen 도 접속 대기도 안 한다. h2 패키지 없이도 돈다
-...        --no-http-wait  (= --variable CDS_NOTI_WAIT_CONNECT:False)
+...        --no-sbi-wait   (= --variable CDS_NOTI_WAIT_CONNECT:False)
 ...                        Listen 은 하되 기다리지 않는다
 ...        후자는 PG 가 이미 상시 접속돼 있거나 접속 시점을 못 맞추는 환경용이다.
 ...        플래그는 run_tests.sh 전용이다 — robot 을 직접 부르면 --variable 로 준다.
@@ -196,7 +196,7 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...      4) UPM    : PG.BSUBS → 0x07 수신 → 0x08(result-code=${UPM_RC_SUCCESS}) 응답
     ...                  (구 TC-UPM-301. UPM 슈트에는 1X 를 보낼 방법이 없어 트리거를
     ...                   쥔 이쪽으로 옮겼다 — 거기서는 주석 처리돼 있다)
-    ...      5) PCF    : 도구가 PCF 역할로 h2c Listen — BSUBS→PCF Cell List 1건 수신
+    ...      5) PCF    : 도구가 PCF 역할로 SBI Listen — BSUBS→PCF Cell List 1건 수신
     ...                  (SNOTI→PCF 가입자 Noti 는 1X/1Y 에서 나가지 않는다 — 아래 ★)
     ...
     ...    [성공 판단 기준]

@@ -22,11 +22,11 @@
 #
 # CDS 곁가지 연동 켜고 끄기 (기본은 둘 다 켜짐 — cds_variables.robot):
 #   bash run_tests.sh cds --no-upm          # UPM(10506) 접속·0x07 검증 생략
-#   bash run_tests.sh cds --no-http         # PCF h2c Listen(16101) 자체를 안 함
-#   bash run_tests.sh cds --no-upm --no-http    # CDS 전문 + PDB 만
-#   bash run_tests.sh cds --no-http-wait    # Listen 은 하되 PG 접속을 안 기다림
-#   --upm / --http / --http-wait 는 반대로 강제로 켠다(환경 파일이 꺼 뒀을 때).
-#   별칭: --no-noti = --no-http, --no-noti-wait = --no-http-wait
+#   bash run_tests.sh cds --no-sbi          # PCF SBI Listen(16101) 자체를 안 함
+#   bash run_tests.sh cds --no-upm --no-sbi     # CDS 전문 + PDB 만
+#   bash run_tests.sh cds --no-sbi-wait     # Listen 은 하되 PG 접속을 안 기다림
+#   --upm / --sbi / --sbi-wait 는 반대로 강제로 켠다(환경 파일이 꺼 뒀을 때).
+#   별칭: --no-http / --no-noti 도 --no-sbi 로 받는다(예전 이름).
 #
 #   ★ PDB 는 이 플래그로 못 끈다 — Suite Setup 이 무조건 붙는다.
 #     접속 문자열이 없으면 전문 TC 까지 포함해 슈트 전체가 서지 않는다.
@@ -60,15 +60,17 @@ for arg in "${@:2}"; do
         # 끄면 Suite Setup 이 UPM(${UPM_PG_PORT})에 접속조차 하지 않는다.
         --no-upm)       TOGGLE_VARS+=(--variable CDS_UPM_VERIFY:False) ;;
         --upm)          TOGGLE_VARS+=(--variable CDS_UPM_VERIFY:True) ;;
-        # HTTP — 도구가 PCF 역할로 여는 h2c 수신 서버(${CDS_NOTI_PORT}).
+        # PCF SBI — 도구가 PCF 역할로 여는 SBI Noti 수신 서버(${CDS_NOTI_PORT}).
         # 끄면 Listen 도 접속 대기도 안 한다 → h2 패키지 없이도 슈트가 돈다.
-        --no-http|--no-noti)
+        # (전송은 HTTP/2 평문이다. 프로토콜 얘기는 HttpNotiServer.py 를 볼 것)
+        --no-sbi|--no-http|--no-noti)
                         TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:False) ;;
-        --http|--noti)  TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:True) ;;
-        # HTTP 를 켜 두되 PG 가 붙기를 기다리지 않는다(Listen 만 하고 바로 시작).
-        --no-http-wait|--no-noti-wait)
+        --sbi|--http|--noti)
+                        TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:True) ;;
+        # PCF SBI 를 켜 두되 PG 가 붙기를 기다리지 않는다(Listen 만 하고 바로 시작).
+        --no-sbi-wait|--no-http-wait|--no-noti-wait)
                         TOGGLE_VARS+=(--variable CDS_NOTI_WAIT_CONNECT:False) ;;
-        --http-wait|--noti-wait)
+        --sbi-wait|--http-wait|--noti-wait)
                         TOGGLE_VARS+=(--variable CDS_NOTI_WAIT_CONNECT:True) ;;
         *)              EXTRA_ARGS+=("${arg}") ;;
     esac

@@ -110,10 +110,10 @@ Suite CDS Connect
     ELSE
         Log    [Suite] UPM 연동 검증 꺼짐 (CDS_UPM_VERIFY=${CDS_UPM_VERIFY})    console=True
     END
-    # 6) PCF Noti 수신 서버 — 도구가 PCF 역할로 h2c Listen.
+    # 6) PCF SBI Noti 수신 서버 — 도구가 PCF 역할로 Listen.
     #    소켓·DB 와 달리 **PG 가 붙어 오는 쪽**이라 여기서는 Listen 만 열어 둔다.
     IF    ${CDS_NOTI_VERIFY}
-        Log    [Suite] PCF Noti 수신 서버 시작 → ${CDS_NOTI_HOST}:${CDS_NOTI_PORT} (h2c)    console=True
+        Log    [Suite] PCF SBI 수신 서버 시작 → ${CDS_NOTI_HOST}:${CDS_NOTI_PORT}    console=True
         ${srv}=    Noti.Noti Server Start    ${CDS_NOTI_PORT}    ${CDS_NOTI_HOST}
         Set Suite Variable    ${CDS_NOTI_SRV}    ${srv}
         Wait For PCF Noti Connection
@@ -728,7 +728,7 @@ Verify UPM Subs Info Notified
 
 Wait For PCF Noti Connection
     [Documentation]
-    ...    PG 가 h2c 로 **붙을 때까지** 기다린다. Suite Setup 이 부르며,
+    ...    PG 가 PCF SBI 로 **붙을 때까지** 기다린다. Suite Setup 이 부르며,
     ...    이게 성립해야 TC 를 시작한다.
     ...
     ...    왜 기다리는가 — 접속 전에 CDS 전문을 보내면 PG 는 알림을 보낼 상대가
@@ -750,16 +750,16 @@ Wait For PCF Noti Connection
         RETURN
     END
     IF    not ${CDS_NOTI_WAIT_CONNECT}
-        Log    [Suite] h2c 접속 대기 꺼짐 (CDS_NOTI_WAIT_CONNECT=${CDS_NOTI_WAIT_CONNECT}) — Listen 만 하고 시작합니다    console=True
+        Log    [Suite] PCF SBI 접속 대기 꺼짐 (CDS_NOTI_WAIT_CONNECT=${CDS_NOTI_WAIT_CONNECT}) — Listen 만 하고 시작합니다    console=True
         RETURN
     END
-    Log    [Suite] PG 의 h2c 접속 대기 (최대 ${timeout}) — 포트 ${CDS_NOTI_PORT}    console=True
+    Log    [Suite] PG 의 PCF SBI 접속 대기 (최대 ${timeout}) — 포트 ${CDS_NOTI_PORT}    console=True
     ${conns}=    Noti.Noti Wait Connection    ${CDS_NOTI_SRV}    timeout=${timeout}
     ${n}=        Get Length    ${conns}
     ${errs}=     Noti.Noti Errors    ${CDS_NOTI_SRV}
     Should Be True    ${n} > 0
-    ...    msg=PG 가 ${timeout} 안에 h2c 로 접속하지 않았습니다 (포트 ${CDS_NOTI_PORT}). PG 가 이 주소로 보내도록 설정됐는지, 포트가 맞는지 확인하세요. 서버 오류=${errs}
-    Log    [Suite] h2c 접속 확인 ${n}건 — ${conns}[0][peer]    console=True
+    ...    msg=PG 가 ${timeout} 안에 PCF SBI 로 접속하지 않았습니다 (포트 ${CDS_NOTI_PORT}). PG 가 이 주소로 보내도록 설정됐는지, 포트가 맞는지 확인하세요. 서버 오류=${errs}
+    Log    [Suite] PCF SBI 접속 확인 ${n}건 — ${conns}[0][peer]    console=True
 
 Clear PCF Noti
     [Documentation]
