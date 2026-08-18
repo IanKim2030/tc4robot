@@ -113,9 +113,18 @@ Documentation
 ...        나머지 전 코드는 SBI Noti 가 나가므로 각 TC 가 `Verify SBI Noti Sent` 로
 ...        도착을 판정한다. 예외 목록은 @{CDS_NOTI_EXEMPT_CODES} 하나가 쥔다 —
 ...        목록이 바뀌면 **cds_variables.robot 의 그 변수만** 고치면 된다.
-...      · 1X 는 예외가 아니다. SNOTI→PCF 가입자 통보는 안 나가지만(PG.SDM 이 1X/1Y 에
-...        RBUS NOTI 를 안 보낸다) BSUBS→PCF Cell List 가 나가고, TC-CDS-003 이
-...        그 Cell List 를 직접 판정한다.
+...      · 1X 는 예외가 아니다. SDM 발 가입자 통보는 안 나가지만(PG.SDM 이 1X/1Y 에
+...        RBUS NOTI 를 안 보낸다) **SNOTI 를 BSUBS 가 깨운다** — TC-CDS-003 이 그
+...        Cell List 를 직접 판정한다.
+...      · **알림을 만드는 프로세스는 코드 + HFC 가입 상태로 갈린다**(2026-08-19).
+...          1) 1X / 1Y                  → 무조건 BSUBS
+...          2) HFC 가입 + D3/C1/G1/Z1   → BSUBS
+...          3) 그 외 전부                → SDM
+...        수신만으로는 경로를 구분할 수 없으므로(둘 다 SNOTI 에서 합류해 같은 SBI 로
+...        나간다) `Expected Noti Route` 가 예상 경로를 계산해 실패 메시지에 싣는다.
+...        상태는 ${CDS_HFC_SUBSCRIBED} 가 쥐고 003 이 켜고 004 가 끈다.
+...        ★ 지금 순서로는 **규칙 2 의 BSUBS 분기를 타는 TC 가 없다** — 004(1Y)가 먼저
+...          해지해 버려 007/008/018/019 가 전부 SDM 경유로 판정된다.
 ...      · 한 TC 가 전문을 두 번 보내면(011/012 의 K1 준비) 준비 전문도 알림을 유발한다
 ...        → `since=` 로 본 전문 이후 도착분만 보게 해야 한다.
 ...      · 프로토콜은 **HTTP/2 평문(h2c)** 이다 → `pip install h2` 필요.
@@ -262,6 +271,8 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     # 수신 상태 리셋은 Test Setup(`CDS Test Setup`)이 **모든 TC 에서** 한다.
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
     Verify Zone Service Subscribed In PDB    ${CDS_MDN}
+    # 이후 D3/C1/G1/Z1 의 알림 경로가 BSUBS 로 바뀐다(HFC 가입 상태)
+    Set HFC Subscribed    ${TRUE}
     # SNOTI → PCF 가입자 정보 변경 통보는 여기서 검증하지 않는다.
     # 1X/1Y 는 PG.SDM 이 RBUS NOTI 를 보내지 않아 SNOTI 가 깨지 않고, 따라서 그
     # 알림이 애초에 나가지 않는다(docs/callflow/CDS_X1.md). 다른 업무 코드에 대해
@@ -295,6 +306,8 @@ TC-CDS-004 1Y (HFC해지)
     [Tags]    cds    command    validation    db    upm
     Command Download Flow    ${CDS_CODE_1Y}
     Verify Zone Service Released In PDB    ${CDS_MDN}
+    # 이후 D3/C1/G1/Z1 의 알림 경로가 SDM 으로 돌아간다(HFC 미가입 상태)
+    Set HFC Subscribed    ${FALSE}
     # PG.BSUBS → UPM Subs-Info(0x07) 수신 → 0x08 응답 (1X 와 같은 구간)
     Verify UPM Subs Info Notified    mdn=${CDS_MDN}
 

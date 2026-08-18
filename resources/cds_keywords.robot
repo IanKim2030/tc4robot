@@ -897,6 +897,37 @@ Verify PCF Noti Received
     Log    [Noti] ${label} ${n}건 수신 — ${found}[0][method] ${found}[0][path]    console=True
     RETURN    ${found}
 
+Expected Noti Route
+    [Documentation]
+    ...    이 업무 코드의 알림을 **어느 프로세스가 만드는가** → 'BSUBS' 또는 'SDM'.
+    ...    (2026-08-19 지정) 세 규칙을 위에서부터 차례로 적용한다.
+    ...      1) 1X / 1Y                     → 무조건 BSUBS
+    ...      2) HFC 가입 + D3/C1/G1/Z1      → BSUBS
+    ...      3) 그 외 전부                   → SDM
+    ...
+    ...    같은 코드라도 **HFC 가입 여부에 따라 경로가 바뀐다** — 그래서 상태를
+    ...    ${CDS_HFC_SUBSCRIBED} 로 따라간다(1X 가 켜고 1Y 가 끈다).
+    ...    판정용이 아니라 진단용이다: 알림이 안 왔을 때 BSUBS 쪽(폴링·UPM 왕복)을
+    ...    볼지 SDM 쪽을 볼지 가려 준다.
+    [Arguments]    ${code}    ${hfc}=${CDS_HFC_SUBSCRIBED}
+    ${always}=    Evaluate    $code in $CDS_NOTI_BSUBS_ALWAYS
+    IF    ${always}
+        RETURN    BSUBS
+    END
+    ${if_hfc}=    Evaluate    $code in $CDS_NOTI_BSUBS_IF_HFC
+    IF    ${if_hfc} and ${hfc}
+        RETURN    BSUBS
+    END
+    RETURN    SDM
+
+Set HFC Subscribed
+    [Documentation]
+    ...    HFC 가입 상태를 바꾼다. 1X 성공 뒤 ${TRUE}, 1Y 성공 뒤 ${FALSE}.
+    ...    D3/C1/G1/Z1 의 알림 경로가 이 값으로 갈리므로 **전문이 성공한 뒤에** 부른다.
+    [Arguments]    ${state}
+    Set Suite Variable    ${CDS_HFC_SUBSCRIBED}    ${state}
+    Log    [HFC] 가입 상태 → ${state} (D3/C1/G1/Z1 의 알림 경로가 이 값으로 갈린다)    console=True
+
 Verify SBI Noti Sent
     [Documentation]
     ...    업무 코드 ${code} 가 유발한 **PCF SBI Noti 가 도착했는지** 판정한다.
@@ -923,7 +954,9 @@ Verify SBI Noti Sent
         Log    [Noti] ${code} 는 SBI Noti 가 나가지 않는 업무 코드입니다 — 건너뜁니다    console=True
         RETURN
     END
-    Verify PCF Noti Received    label=SBI Noti (${code})
+    # 예상 경로를 라벨에 실어 둔다 — 못 받았을 때 어느 쪽을 봐야 하는지 바로 나온다.
+    ${route}=    Expected Noti Route    ${code}
+    Verify PCF Noti Received    label=SBI Noti (${code}, ${route} 경유 / HFC=${CDS_HFC_SUBSCRIBED})
     ...    body=${body}    since=${since}    wait=${wait}
 
 Noti Timestamp

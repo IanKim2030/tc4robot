@@ -305,6 +305,26 @@ ${CDS_CODE_ST}      ST     # 0플랜 옵션(3시간 프리) 해지
 #   나간다(docs/callflow/CDS_X1.md). TC-CDS-003 이 그 Cell List 를 직접 판정한다.
 @{CDS_NOTI_EXEMPT_CODES}    ${CDS_CODE_A1}    ${CDS_CODE_1Y}    ${CDS_CODE_Z1}
 
+# ── 알림을 만드는 프로세스 — 업무 코드 + HFC 가입 상태로 갈린다 ──
+# (2026-08-19 지정) 세 규칙을 **위에서부터 차례로** 적용한다.
+#
+#   1) 1X / 1Y                        → 무조건 BSUBS 경유
+#   2) HFC 가입 상태 + D3/C1/G1/Z1    → BSUBS 경유
+#   3) 그 외 전부                      → SDM 경유
+#
+# 알림이 나가는지 여부가 아니라 **어느 프로세스가 만드는지**를 가르는 규칙이다.
+# 같은 업무 코드라도 HFC 가입 여부에 따라 경로가 바뀌는 것이 요점 —
+# 그래서 슈트는 ${CDS_HFC_SUBSCRIBED} 로 그 상태를 따라간다(1X 가 켜고 1Y 가 끈다).
+#
+# 진단에 쓴다. 알림이 안 오면 "어느 경로로 나갔어야 하는가" 가 실패 메시지에 찍히므로
+# BSUBS 쪽(폴링·UPM 왕복)을 볼지 SDM 쪽을 볼지 바로 갈린다.
+@{CDS_NOTI_BSUBS_ALWAYS}      ${CDS_CODE_1X}    ${CDS_CODE_1Y}
+@{CDS_NOTI_BSUBS_IF_HFC}      ${CDS_CODE_D3}    ${CDS_CODE_C1}    ${CDS_CODE_G1}    ${CDS_CODE_Z1}
+
+# HFC 가입 상태. 1X 가 ${TRUE} 로, 1Y 가 ${FALSE} 로 바꾼다(각 TC 가 Set Suite Variable).
+# 슈트 순서상 003(1X) 전까지는 미가입, 003~004 사이만 가입, 004 뒤로는 다시 미가입이다.
+${CDS_HFC_SUBSCRIBED}         ${FALSE}
+
 # ════════════════════════════════════════════
 # 테스트 데이터
 # TODO: 실환경 명령어/가입자 데이터 값으로 교체
