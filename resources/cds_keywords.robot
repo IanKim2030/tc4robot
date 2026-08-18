@@ -103,6 +103,9 @@ Suite CDS Connect
     Should Be True    ${ok_r}    msg=Rchannel 소켓이 닫혀 있음
     # 4) PDB 접속 — 소켓과 같이 슈트당 1회. Suite CDS Disconnect 가 닫는다.
     Ensure CDS DB Connection
+    # 4-1) 세션 사전 적재 — 전문을 보내기 전에 T_SMF_SESSION_INFO 에 세션이 있어야
+    #      PG.SNOTI 가 알림 상대를 찾는다. 멱등이라 이미 있으면 그냥 지나간다.
+    Ensure CDS Session In PDB
     # 5) UPM 접속 — TC-CDS-003(1X)이 PG.BSUBS→UPM Subs-Info(0x07)를 받아야 한다.
     #    ${CDS_UPM_VERIFY}=${FALSE} 면 통째로 건너뛴다(그러면 UPM 의존이 사라진다).
     IF    ${CDS_UPM_VERIFY}
@@ -511,6 +514,47 @@ Ensure CDS DB Connection
     ...    timeout=${CDS_DB_TIMEOUT}    autocommit=${CDS_DB_AUTOCOMMIT}
     Set Suite Variable    ${CDS_DB_CONN}    ${conn}
     Log    [Suite] PDB 접속 완료 (autocommit=${CDS_DB_AUTOCOMMIT})    console=True
+
+Ensure CDS Session In PDB
+    [Documentation]
+    ...    TC 수행 전에 대상 가입자의 5G 세션을 ${CDS_DB_TBL_SESSION} 에 심는다.
+    ...
+    ...    왜 필요한가 — PG.SNOTI 는 이 표를 보고 알림 상대를 정한다. 세션이 없으면
+    ...    CDS 전문이 정상 처리(SC)되고 가입자 테이블에도 반영되지만 **PCF 로는
+    ...    아무것도 나가지 않는다.** 그러면 TC-CDS-003 의 Noti 판정이 전문과 무관한
+    ...    이유로 실패하는데, 로그만 봐서는 구분되지 않는다.
+    ...
+    ...    ★ **이 슈트에서 유일하게 PDB 에 쓰는 자리다.** 나머지는 전부 SELECT 다.
+    ...      autocommit 이 꺼져 있고 조회 키워드가 조회 직전마다 rollback 하므로,
+    ...      commit 하지 않으면 넣은 행이 곧바로 사라진다 — `Db Execute` 가 commit 한다.
+    ...
+    ...    멱등이다: 같은 SM_POLICY_ID 가 이미 있으면 0행을 넣고 지나간다(기존 세션을
+    ...    덮거나 지우지 않는다). Teardown 에서 정리하지 않으므로 **행은 남는다.**
+    ...
+    ...    ${CDS_SESSION_CREATE}=${FALSE} 면 아무것도 하지 않는다
+    ...    (bash run_tests.sh cds --no-session).
+    IF    not ${CDS_SESSION_CREATE}
+        Log    [Suite] 세션 사전 적재 꺼짐 (CDS_SESSION_CREATE=${CDS_SESSION_CREATE})    console=True
+        RETURN
+    END
+    Ensure CDS DB Connection
+    ${supi}=    Set Variable    imsi-${CDS_SESSION_IMSI}
+    ${gpsi}=    Set Variable    msisdn-${CDS_SESSION_CC}${CDS_MIN}
+    ${sql}=     CdsDb.Session Insert Sql    ${CDS_DB_TBL_SESSION}
+    Log    [Suite] 세션 적재 시도 — MDN=${CDS_MDN} SUPI=${supi} IP=${CDS_SESSION_IP}    console=True
+    # 인자 순서는 CdsDbHelper.SESSION_PARAM_ORDER 와 같아야 한다. 바꾸면 양쪽을 같이 고칠 것.
+    ${n}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${sql}
+    ...    ${CDS_SESSION_SM_POLICY_ID}    ${supi}    ${gpsi}    ${CDS_MDN}    ${CDS_SESSION_IP}
+    ...    ${CDS_SESSION_RES_URI}    ${CDS_SESSION_NOTI_URI}    ${CDS_SESSION_UDR_NOTI_URI}
+    ...    ${CDS_SESSION_SM_POLICY_ID}
+    IF    ${n} > 0
+        Log    [Suite] 세션 적재 완료 ${n}건 (SM_POLICY_ID=${CDS_SESSION_SM_POLICY_ID})    console=True
+    ELSE
+        Log    [Suite] 세션이 이미 있어 넣지 않았습니다 (SM_POLICY_ID=${CDS_SESSION_SM_POLICY_ID})    console=True
+    END
+    # 넣었든 이미 있었든, 이 시점에 세션이 **반드시 있어야** 한다.
+    CDS DB Count Should Be At Least    ${CDS_DB_TBL_SESSION} (SM_POLICY_ID)
+    ...    ${1}    ${CDS_DB_SQL_SESSION}    ${CDS_SESSION_SM_POLICY_ID}
 
 Close CDS DB Connection
     [Documentation]    PDB connection 종료. 접속한 적이 없으면 아무것도 하지 않는다.

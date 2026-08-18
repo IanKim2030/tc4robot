@@ -8,7 +8,7 @@ Documentation
 ...
 ...    [Suite 소켓 정책]
 ...    Suite Setup    : Suite CDS Connect — 연결 → ConnectionRequest(0001/0003) + ACK 검증
-...                     → 두 소켓 생존 확인 → PDB 접속 → UPM 접속
+...                     → 두 소켓 생존 확인 → PDB 접속 → **세션 사전 적재** → UPM 접속
 ...                     → PCF SBI 수신 서버 Listen + **PG 의 SBI 접속 대기**
 ...                       (접속은 TC 가 아니다)
 ...    Test Setup     : Check CDS Sockets (하나라도 닫히면 Suite 중단)
@@ -72,6 +72,22 @@ Documentation
 ...      (TC별 접속 없음). autocommit 은 꺼져 있다(${CDS_DB_AUTOCOMMIT}=${FALSE}).
 ...      ★ 접속 정보가 틀리면 이 TC 뿐 아니라 **슈트 전체가 서지 않는다** — Suite Setup
 ...        이 실패하기 때문이다. --exclude db 로도 피할 수 없다.
+...
+...    [세션 사전 적재] Suite Setup 이 PDB 접속 직후 한 번 한다.
+...      CDS 전문을 보내기 전에 대상 가입자의 5G 세션이 T_SMF_SESSION_INFO 에 있어야
+...      한다 — PG.SNOTI 가 이 표를 보고 알림 상대를 정하기 때문이다. 세션이 없으면
+...      전문이 SC 로 처리되고 가입자 테이블에도 반영되지만 **PCF 로는 아무것도 나가지
+...      않아** TC-CDS-003 의 Noti 판정이 전문과 무관한 이유로 실패한다.
+...      · **이 슈트에서 유일하게 PDB 에 쓰는 자리다**(나머지는 전부 SELECT).
+...        autocommit 이 꺼져 있어 commit 하지 않으면 다음 조회의 rollback 이 지운다.
+...      · 멱등이다 — 같은 ${CDS_SESSION_SM_POLICY_ID} 가 있으면 넣지 않는다.
+...        Teardown 이 지우지 않으므로 **행은 남는다.**
+...      · 환경마다 갈리는 값은 변수로 뺐다: ${CDS_SESSION_IMSI} / ${CDS_SESSION_IP} /
+...        ${CDS_SESSION_SM_POLICY_ID} / ${CDS_SESSION_PCF_ADDR}. MDN·MIN 은 전문이
+...        쓰는 ${CDS_MDN}/${CDS_MIN} 을 그대로 써서 가입자가 어긋나지 않게 한다.
+...      · ★ RES_URI/UDR_NOTI_URI 의 주소(${CDS_SESSION_PCF_ADDR})가 **PG 가 붙어 올
+...        곳**이다. 틀리면 Suite Setup 의 PCF SBI 접속 대기가 그대로 타임아웃된다.
+...      끄려면: bash run_tests.sh cds --no-session
 ...
 ...    [UPM 연동] TC-CDS-003(1X)만 해당한다.
 ...      1X 는 CDS 에서 끝나지 않는다 — PG.BSUBS 가 UPM 으로 Subs-Info(0x07)를 밀고

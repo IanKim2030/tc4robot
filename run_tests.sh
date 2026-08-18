@@ -25,7 +25,8 @@
 #   bash run_tests.sh cds --no-sbi          # PCF SBI Listen(16101) 자체를 안 함
 #   bash run_tests.sh cds --no-upm --no-sbi     # CDS 전문 + PDB 만
 #   bash run_tests.sh cds --no-sbi-wait     # Listen 은 하되 PG 접속을 안 기다림
-#   --upm / --sbi / --sbi-wait 는 반대로 강제로 켠다(환경 파일이 꺼 뒀을 때).
+#   bash run_tests.sh cds --no-session      # 세션 사전 적재(INSERT) 생략
+#   --upm / --sbi / --sbi-wait / --session 은 반대로 강제로 켠다.
 #   별칭: --no-http / --no-noti 도 --no-sbi 로 받는다(예전 이름).
 #
 #   ★ PDB 는 이 플래그로 못 끈다 — Suite Setup 이 무조건 붙는다.
@@ -67,6 +68,10 @@ for arg in "${@:2}"; do
                         TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:False) ;;
         --sbi|--http|--noti)
                         TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:True) ;;
+        # 세션 사전 적재 — T_SMF_SESSION_INFO 에 5G 세션 1건을 넣는다(멱등).
+        # 이 슈트에서 유일하게 PDB 에 쓰는 자리다. 없으면 PG 가 알림 상대를 못 찾는다.
+        --no-session)   TOGGLE_VARS+=(--variable CDS_SESSION_CREATE:False) ;;
+        --session)      TOGGLE_VARS+=(--variable CDS_SESSION_CREATE:True) ;;
         # PCF SBI 를 켜 두되 PG 가 붙기를 기다리지 않는다(Listen 만 하고 바로 시작).
         --no-sbi-wait|--no-http-wait|--no-noti-wait)
                         TOGGLE_VARS+=(--variable CDS_NOTI_WAIT_CONNECT:False) ;;

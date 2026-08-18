@@ -94,6 +94,57 @@ ${CDS_NOTI_PATH_SUBS}     ${EMPTY}         # SNOTI→PCF 가입자 Noti 의 :pat
 ${CDS_NOTI_PATH_CELL}     ${EMPTY}         # BSUBS→PCF Cell List 의 :path 조각
 
 # ════════════════════════════════════════════
+# TC 수행 전 세션 사전 적재 (T_SMF_SESSION_INFO)
+#
+# CDS 전문을 보내기 전에 대상 가입자의 5G 세션이 PDB 에 있어야 한다. PG.SNOTI 가
+# 이 표를 보고 알림 상대를 정하므로, 세션이 없으면 전문이 정상 처리돼도 PCF 로
+# 아무것도 나가지 않는다 — 그러면 TC-CDS-003 의 Noti 판정이 이유 없이 실패한다.
+#
+# ★ 이 슈트에서 **유일하게 PDB 에 쓰는 경로**다(나머지는 전부 SELECT).
+#   SM_POLICY_ID 가 이미 있으면 넣지 않는다(멱등) — 기존 세션을 건드리지 않는다.
+#   지우지도 않는다. Suite Teardown 에서 정리하지 않으므로 행은 남는다.
+#
+# 끄려면: bash run_tests.sh cds --no-session
+${CDS_SESSION_CREATE}     ${TRUE}          # TC 수행 전 세션 적재 여부
+${CDS_DB_TBL_SESSION}     PDB.T_SMF_SESSION_INFO
+
+# ── 가입자 축 — 환경마다 갈리는 값 ──────────────────────────────
+# MDN/MIN 은 위 테스트 데이터 블록의 ${CDS_MDN}/${CDS_MIN} 을 그대로 쓴다.
+# 따로 두면 전문이 쓰는 가입자와 세션의 가입자가 어긋난다.
+#   SUPI = 'imsi-' + ${CDS_SESSION_IMSI}
+#   GPSI = 'msisdn-' + ${CDS_SESSION_CC} + ${CDS_MIN}
+#   MDN  = ${CDS_MDN}
+#
+# ※ IMSI 는 MCC+MNC(45005) + MIN 이다 — 45005 + 1090010001 = 450051090010001.
+#   MIN 을 바꾸면 여기도 같이 바꿔야 한다(자동 조립하지 않는다. 실환경 IMSI 가
+#   반드시 이 규칙을 따른다는 근거가 없어 값을 직접 쥐게 뒀다).
+${CDS_SESSION_IMSI}       450051090010001  # SUPI 의 imsi- 뒤
+${CDS_SESSION_CC}         82               # GPSI 의 msisdn- 뒤 국가번호
+
+# IP_ADDR — PG 가 세션을 IP 로 찾는다.
+# ※ 아래 기본값은 지정받은 값 그대로다. 공백 4칸이 들어 있어(고정폭 컬럼으로 보인다)
+#   Robot 의 셀 구분과 겹치므로 ${SPACE} 로 명시한다. 실환경 값이 다르면 반드시 덮을 것.
+${CDS_SESSION_IP}         50.13.1.worker${SPACE * 4}003
+
+# 정책 식별자 — RES_URI / UDR_NOTI_URI 와 멱등 판정(WHERE NOT EXISTS)에 함께 쓰인다.
+${CDS_SESSION_SM_POLICY_ID}    01010101000-02-173464740103330131003005350333033303
+
+# ── 알림 URI ────────────────────────────────────────────────────
+# ★ RES_URI / UDR_NOTI_URI 의 호스트·포트가 **도구가 PCF 역할로 Listen 하는 곳**이다
+#   (${CDS_NOTI_PORT}=16101). PG 는 이 URI 를 보고 붙으므로, 여기가 틀리면
+#   Suite Setup 의 PCF SBI 접속 대기가 그대로 타임아웃된다.
+#   ${CDS_NOTI_HOST}(0.0.0.0)는 bind 주소라 못 쓴다 — PG 에서 **닿는** 주소여야 한다.
+${CDS_SESSION_PCF_ADDR}   192.168.15.142:${CDS_NOTI_PORT}   # 도구(PCF 역할)가 보이는 주소
+${CDS_SESSION_SMF_ADDR}   192.168.15.142:80                 # NOTI_URI 쪽(SMF 상태 통보)
+
+${CDS_SESSION_RES_URI}
+...    http://${CDS_SESSION_PCF_ADDR}/npcf-smpolicycontrol/v1/sm-policies/${CDS_SESSION_SM_POLICY_ID}
+${CDS_SESSION_NOTI_URI}
+...    http://${CDS_SESSION_SMF_ADDR}/npcf-smpolicycontrol/v1/smpc-status/imsi-${CDS_SESSION_IMSI}/pdu-2
+${CDS_SESSION_UDR_NOTI_URI}
+...    http://${CDS_SESSION_PCF_ADDR}/npcf-event-exposure/v1/nudr-smf-notify/${CDS_SESSION_SM_POLICY_ID}
+
+# ════════════════════════════════════════════
 # 시스템 / Application 식별자 (헤더 char(6) 필드)
 # ${CDS_DST_SYS_ID} 는 PG.CDS 의 SYSTEM_ID 로, 헤더 Destination System ID 에 쓴다.
 # 환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.
@@ -392,6 +443,8 @@ ${CDS_DB_SQL_SERVICE}     SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN =
 # 해지(Z1) 판정용 — SVC_ID 를 가리지 않는다. 서비스 행이 **하나라도** 남아 있으면
 # 해지가 덜 된 것이므로, 특정 SVC_ID 두 개만 보는 위 SQL 로는 부족하다.
 ${CDS_DB_SQL_SERVICE_ANY}    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ?
+# 세션 사전 적재 확인용 — 넣었든 이미 있었든 1건 이상이어야 한다.
+${CDS_DB_SQL_SESSION}     SELECT COUNT(*) FROM ${CDS_DB_TBL_SESSION} WHERE SM_POLICY_ID = ?
 
 # 1X(HFC/ZONE 가입) — SVC_ID + SVC_TYPE + JOB_CODE 를 모두 만족하는 행이 1건 이상이어야 한다.
 # 해지(1Y) 판정은 위 ${CDS_DB_SQL_SERVICE}(MDN+SVC_ID) 를 그대로 쓰고 0 을 기대한다.

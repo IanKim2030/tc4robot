@@ -6,7 +6,8 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
 
   대상 DB : 골디락스(Goldilocks) 또는 알티베이스(Altibase) — 환경에 따라 다르다
   드라이버 : ODBC (pyodbc). 두 DB 모두 ODBC 드라이버를 제공한다
-  용도    : `SELECT COUNT(*)` 계열 조회만. **INSERT/UPDATE/DELETE 는 하지 않는다**
+  용도    : `SELECT COUNT(*)` 계열 조회가 대부분이다. 쓰기는 **세션 사전 적재
+             (`db_execute` / `session_insert_sql`) 하나뿐**이며 그것만 commit 한다
   트랜잭션 : autocommit **끔**(기본). 조회 직전마다 rollback 으로 트랜잭션을 끊어
              재조회가 새 스냅샷을 보게 한다 (`db_end_transaction`)
 
@@ -208,15 +209,19 @@ def masked_conn_str(conn_str='', **_ignored):
 #   ${CDS_DB_BIND} 로 골랐다. **지금은 `?` 바인딩 하나뿐이다** — 모드 선택과 리터럴
 #   경로를 함께 제거했다. 조회가 위 HY000 으로 죽으면 폴백 없이 그대로 실패한다.
 
-def _try_setinputsizes(cur, count):
+def _try_setinputsizes(cur, count, size=64):
     """파라미터 타입을 못 박아 SQLDescribeParam 호출을 피한다 (best-effort).
 
     pyodbc 전용 기능이라 **실패해도 무시한다** — 없으면 그냥 드라이버에 맡긴다.
     여기서 예외를 올리면 바인딩 자체가 안 되는 것처럼 오진된다.
+
+    ★ size 는 **넉넉해야 한다.** 조회 파라미터(MDN/SVC_ID 등)는 64로 충분하지만
+      세션 적재의 RES_URI 는 113자라 64로 못 박으면 잘리거나 거부된다.
+      그래서 db_execute 는 512를 준다.
     """
     try:
         import pyodbc
-        cur.setinputsizes([(pyodbc.SQL_VARCHAR, 64, 0)] * count)
+        cur.setinputsizes([(pyodbc.SQL_VARCHAR, int(size), 0)] * count)
     except Exception:
         pass
 
@@ -314,3 +319,107 @@ def db_group_counts(conn, sql, *params):
     공백으로 채워 돌려주는 경우가 있어, 그대로 두면 전후 비교가 어긋난다.
     """
     return _query(conn, sql, params, _fetch_group_counts, 'GROUP BY')
+
+
+# ── 세션 생성 (TC 수행 전 사전 적재) ───────────────────────────────
+#
+# CDS 전문을 보내기 전에 대상 가입자의 5G 세션이 PDB 에 있어야 한다. PG.SNOTI 는
+# T_SMF_SESSION_INFO 를 보고 알림 상대를 정하므로, 세션이 없으면 전문이 정상
+# 처리돼도 PCF 로 아무것도 나가지 않는다.
+#
+# ★ 이 슈트에서 **유일하게 PDB 에 쓰는 경로**다. 나머지는 전부 SELECT 다.
+#   autocommit 이 꺼져 있고 조회 키워드가 조회 직전마다 rollback 하므로
+#   (db_end_transaction), commit 하지 않으면 **다음 조회가 방금 넣은 행을 지운다.**
+#   그래서 db_execute 가 commit 까지 한다.
+#
+# SQL 은 Robot 변수가 아니라 여기 둔다 — IN_HTTP_PAYLOAD 의 JSON 이 1.5KB 짜리
+# 한 덩어리라 .robot 의 `...` 연속 줄로 옮기면 이어 붙일 때 공백이 끼어든다.
+# **바뀌는 값은 전부 ? 로 빼 놨다** — 값은 cds_variables.robot 이 쥔다.
+
+_SESSION_IN_PAYLOAD = (
+    '{"smfId":"550e8400-e29b-41d4-a716-446655440012","servNfId":{"servNfInstId":'
+    '"344ab7f0-0a8c-46f5-9525-d74415ff564c","guami":{"plmnId":{"mcc":"450","mnc":'
+    '"05"},"amfId":"800042"}},"qosFlowUsage":"GENERAL","pduSessionId":2,"dnn":'
+    '"5g.sktelecom.com","sliceInfo":{"sst":200,"sd":"000001"},"pduSessionType":'
+    '"IPV4","accessType":"3GPP_ACCESS","ratType":"NR","servingNetwork":{"mcc":'
+    '"450","mnc":"05"},"userLocationInfo":{"nrLocation":{"tai":{"plmnId":{"mcc":'
+    '"450","mnc":"05"},"tac":"000004"},"ncgi":{"plmnId":{"mcc":"450","mnc":"05"},'
+    '"nrCellId":"0012c039e"},"ageOfLocationInformation":0,"ueLocationTimestamp":'
+    '"2023-10-16T07:08:59Z","globalGnbId":{"plmnId":{"mcc":"450","mnc":"05"},'
+    '"gNbId":{"bitLength":22,"gNBValue":"0004b0"}}}}}'
+)
+_SESSION_OUT_PAYLOAD = (
+    '{"quotaNoti":0,"pccRules":{"NoQoS_NoGBR":{"pccRuleId":"NoQoS_NoGBR"}},'
+    '"zoneInfos":"0000000000"}'
+)
+
+# ? 순서 — session_insert_params() 가 이 순서로 만든다. 바꾸면 양쪽을 같이 고칠 것.
+SESSION_PARAM_ORDER = (
+    'sm_policy_id', 'supi', 'gpsi', 'mdn', 'ip_addr',
+    'res_uri', 'noti_uri', 'udr_noti_uri',
+    'sm_policy_id',          # WHERE NOT EXISTS 의 같은 값
+)
+
+
+def session_insert_sql(table='PDB.T_SMF_SESSION_INFO'):
+    """세션 1건을 넣는 INSERT ... SELECT ... WHERE NOT EXISTS 문을 만든다.
+
+    **멱등이다** — 같은 SM_POLICY_ID 가 이미 있으면 0행을 넣는다. 그래서 슈트를
+    몇 번 돌려도 중복되지 않고, 지우고 다시 넣지도 않는다(기존 세션을 존중한다).
+    """
+    return (
+        'INSERT INTO ' + table + ' ('
+        'SM_POLICY_ID, SUPI, PDU_SESSION_ID, GPSI, MDN, '
+        'IP_ADDR, DNN, S_NSSAI_SST, S_NSSAI_SD, LOC_ID, '
+        'MCC_MNC, RAT_TYPE, OCS_SUBS_STATUS, IN_HTTP_HEADER, IN_HTTP_PAYLOAD, '
+        'OUT_HTTP_HEADER, OUT_HTTP_PAYLOAD, RES_URI, NOTI_URI, UDR_NOTI_URI, '
+        'TM_NOTI_URI, STATUS, SUBSCRIBE, AF_SUBSCRIBE, NODE_ID, '
+        'PROC_ID, SMF_ID, CONN_ID, STREAM_ID, CREATE_TIME, '
+        'UPDATE_TIME, DESCRIPTION) '
+        'SELECT '
+        "?, ?, 2, ?, ?, "
+        "?, '5g.sktelecom.com', 200, '000001', '1200:926', "
+        "'45005', 'NR', '1', NULL, '" + _SESSION_IN_PAYLOAD + "', "
+        "NULL, '" + _SESSION_OUT_PAYLOAD + "', ?, ?, ?, "
+        "NULL, '3', NULL, NULL, 'ROBOT-mp01-app01', "
+        "'SMF.MGR.01', '550e8400-e29b-41d4-a716-446655440012', 0, 803831, SYSDATE, "
+        'SYSDATE, \'000004\' '
+        'FROM DUAL '
+        'WHERE NOT EXISTS (SELECT 1 FROM ' + table + ' WHERE SM_POLICY_ID = ?)'
+    )
+
+
+def db_execute(conn, sql, *params):
+    """INSERT/UPDATE 를 실행하고 **commit 까지** 한다. 영향 행 수를 반환한다.
+
+    ★ commit 이 핵심이다. 이 슈트는 autocommit 을 꺼 두고 조회 직전마다
+      rollback 하므로(db_end_transaction), commit 하지 않으면 넣은 행이
+      **다음 조회에서 사라진다.**
+    실패하면 rollback 하고 CdsDbError 를 올린다.
+    """
+    if conn is None:
+        raise CdsDbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
+    cur = conn.cursor()
+    try:
+        if params:
+            _try_setinputsizes(cur, len(params), size=512)
+            cur.execute(sql, tuple(params))
+        else:
+            cur.execute(sql)
+        affected = cur.rowcount
+    except Exception as exc:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise CdsDbError(
+            'PDB 실행 실패 — %s / params=%r\n'
+            "  ★ 진단이 없는 HY000 이면 접속 문자열에서 CHARSET= 을 빼고 확인할 것"
+            ' (docs/nodes/CDS.md 함정 절).\n'
+            '  sql=%s' % (exc, params, sql)
+        )
+    finally:
+        cur.close()
+    if not getattr(conn, 'autocommit', False):
+        conn.commit()
+    return int(affected) if affected is not None and affected >= 0 else 0
