@@ -47,9 +47,10 @@ ${CDS_UPM_VERIFY}         ${TRUE}          # 1X → UPM Subs-Info(0x07/0x08) 검
 # PCF Noti 수신 (도구가 PCF 역할로 HTTP/2 Listen)
 #
 # SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다(docs/INTERFACES.md).
-# 1X 흐름에서 PCF 방향 화살표가 둘이다.
-#   SNOTI → PCF : 가입자 정보 변경 통보 (SDM 반영 뒤)
-#   BSUBS → PCF : Cell List 전송 (UPM 0x08 응답 뒤)
+# 1X 흐름에서 PCF 방향 화살표는 규격상 둘이지만 **실제로 나가는 건 하나다.**
+#   SNOTI → PCF : 가입자 정보 변경 통보 → **1X/1Y 는 나가지 않는다**
+#                 (PG.SDM 이 이 두 코드에는 RBUS NOTI 를 안 보내 SNOTI 가 안 깬다)
+#   BSUBS → PCF : Cell List 전송 (UPM 0x08 응답 뒤) ← TC-CDS-003 이 보는 것
 # 도구가 이 포트로 Listen 하면 전문·PDB 와 별개로 "실제로 나갔는지"를 볼 수 있다.
 #
 # ★ 프로토콜은 **HTTP/2 평문(h2c)** 이다. 표준 http.server 로는 안 되고
@@ -87,7 +88,9 @@ ${CDS_NOTI_ACCEPT_TIMEOUT}    60s          # 기다린다면 최대 얼마나
 # 그때부터 종류별로 구분해 판정한다(SQL 이나 키워드는 손대지 않아도 된다).
 #   예) ${CDS_NOTI_PATH_SUBS}    /npcf-smpolicycontrol/v1/
 #       ${CDS_NOTI_PATH_CELL}    /cell-list
-${CDS_NOTI_PATH_SUBS}     ${EMPTY}         # SNOTI→PCF 가입자 Noti 의 :path 조각
+# ※ ${CDS_NOTI_PATH_SUBS} 는 현재 어느 TC 도 쓰지 않는다 — 1X/1Y 에서는 가입자 Noti 가
+#   나가지 않기 때문이다. 다른 업무 코드에서 그 구간을 보게 되면 그때 쓴다.
+${CDS_NOTI_PATH_SUBS}     ${EMPTY}         # SNOTI→PCF 가입자 Noti 의 :path 조각 (미사용)
 ${CDS_NOTI_PATH_CELL}     ${EMPTY}         # BSUBS→PCF Cell List 의 :path 조각
 
 # ════════════════════════════════════════════

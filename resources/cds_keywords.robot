@@ -710,10 +710,15 @@ Verify UPM Subs Info Notified
 # SA(5G) 가입자는 PG 가 PCF 로 SBI Noti 를 보낸다. 도구가 그 포트를 Listen 해
 # **알림이 실제로 나갔는지**를 본다 — 전문(SC)·PDB 로는 안 보이는 구간이다.
 #
-# 1X 흐름의 PCF 방향 화살표는 둘이고 나가는 시점이 다르다.
-#   SNOTI → PCF : 가입자 정보 변경 통보 (SDM 이 가입자 테이블을 고친 뒤)
+# 1X 흐름의 PCF 방향 화살표는 규격상 둘인데 **실제로 나가는 건 하나뿐이다.**
+#   SNOTI → PCF : 가입자 정보 변경 통보 → 1X/1Y 는 나가지 않는다
 #   BSUBS → PCF : Cell List 전송      (UPM 0x08 응답을 받은 뒤)
-# 둘 다 CommandResult(0017) 보다 **늦게** 오므로 대기가 필요하다(${CDS_NOTI_WAIT}).
+#
+# ★ PG.SDM 은 1X/1Y 에 대해 SNOTI 로 RBUS NOTI 를 보내지 않는다. SNOTI 가 깨지 않으니
+#   가입자 Noti 도 없다(docs/callflow/CDS_X1.md). 그 알림을 기다리게 만들면 전문이
+#   멀쩡해도 TC 가 실패한다 — TC-CDS-003 이 Cell List 한 건만 보는 이유다.
+#
+# Cell List 는 CommandResult(0017) 보다 **늦게** 오므로 대기가 필요하다(${CDS_NOTI_WAIT}).
 #
 # ★ 경로(:path)로 종류를 가르는데 ${CDS_NOTI_PATH_*} 기본값이 비어 있다 — 실 PG 의
 #   경로가 확인되지 않아서다. 비어 있으면 **경로를 가리지 않고** "무엇이든 왔는가"만

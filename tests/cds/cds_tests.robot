@@ -83,8 +83,11 @@ Documentation
 ...
 ...    [PCF Noti 수신] TC-CDS-003(1X)만 해당한다. `noti` 태그.
 ...      SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. 도구가 PCF 역할로
-...      ${CDS_NOTI_PORT} 를 Listen 해 두 건을 받는다 — SNOTI→PCF 가입자 Noti,
-...      BSUBS→PCF Cell List(UPM 0x08 응답 뒤). 전문(SC)·PDB 로는 안 보이는 구간이다.
+...      ${CDS_NOTI_PORT} 를 Listen 해 **BSUBS→PCF Cell List 한 건**을 받는다
+...      (UPM 0x08 응답 뒤). 전문(SC)·PDB 로는 안 보이는 구간이다.
+...      · **1X/1Y 는 SNOTI→PCF 가입자 Noti 가 나가지 않는다** — PG.SDM 이 이 두 코드에
+...        대해서는 RBUS NOTI 를 보내지 않아 SNOTI 가 깨지 않기 때문이다. 그래서 받을
+...        알림은 한 건뿐이고, 두 건을 기다리게 만들면 헛되이 실패한다.
 ...      · 프로토콜은 **HTTP/2 평문(h2c)** 이다 → `pip install h2` 필요.
 ...        표준 http.server 로는 못 받는다(HttpNotiServer.py 가 처리).
 ...      · **PG 가 이 주소로 보내도록 설정돼 있어야 한다.** 포트가 다르면 변수에서 맞출 것.
@@ -189,8 +192,8 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...      4) UPM    : PG.BSUBS → 0x07 수신 → 0x08(result-code=${UPM_RC_SUCCESS}) 응답
     ...                  (구 TC-UPM-301. UPM 슈트에는 1X 를 보낼 방법이 없어 트리거를
     ...                   쥔 이쪽으로 옮겼다 — 거기서는 주석 처리돼 있다)
-    ...      5) PCF    : 도구가 PCF 역할로 h2c Listen — SBI Noti 2건 수신
-    ...                  SNOTI→PCF 가입자 Noti / BSUBS→PCF Cell List
+    ...      5) PCF    : 도구가 PCF 역할로 h2c Listen — BSUBS→PCF Cell List 1건 수신
+    ...                  (SNOTI→PCF 가입자 Noti 는 1X/1Y 에서 나가지 않는다 — 아래 ★)
     ...
     ...    [성공 판단 기준]
     ...      · UPM 0x07 의 mdn / branch-name / event-timestamp 형식이 유효하고
@@ -199,13 +202,17 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...        SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...         WHERE MDN='${CDS_MDN}' AND SVC_ID='ZONE_SVC_D' AND SVC_TYPE='D' AND JOB_CODE='1X'
     ...
-    ...      · PCF Noti 2건이 ${CDS_NOTI_WAIT} 안에 도착하고 본문에 ${CDS_MDN} 이 있을 것
+    ...      · BSUBS→PCF Cell List Noti 가 ${CDS_NOTI_WAIT} 안에 도착하고 본문에 ${CDS_MDN} 이 있을 것
     ...
     ...    ★ 0x08 응답을 보내는 것까지가 이 TC 의 일이다. 안 보내면 PG 가 UPM 응답을
     ...      기다리다 재시도로 넘어가 **뒤따르는 TC 의 PDB 판정이 흔들린다.**
+    ...    ★ **SNOTI→PCF 가입자 Noti 는 기다리지 않는다** — PG.SDM 이 1X/1Y 에 대해서는
+    ...      RBUS NOTI 를 보내지 않아 SNOTI 가 깨지 않기 때문이다. 오지 않는 알림을
+    ...      기다리면 전문이 멀쩡해도 TC 가 실패한다. 근거는 docs/callflow/CDS_X1.md.
     ...    ★ Cell List 판정은 `since` 로 0x08 응답 **이후 도착분**만 본다. 경로 필터
-    ...      (${CDS_NOTI_PATH_CELL})가 비어 있으면 앞의 가입자 Noti 를 다시 집어
-    ...      그냥 통과해 버리기 때문이다. 실 PG 경로가 확인되면 그 변수를 채울 것.
+    ...      (${CDS_NOTI_PATH_CELL})가 비어 있어 "무엇이든 왔는가" 만 보는 상태라,
+    ...      0x08 보다 먼저 도착한 알림이 있으면 그걸 집어 통과해 버리기 때문이다.
+    ...      실 PG 경로가 확인되면 그 변수를 채울 것.
     ...    ★ 이 판정은 **SA(5G) 가입자 전제**다 — LTE 는 SBI 가 아니라 RBUS 라
     ...      아무것도 안 들어온다(docs/nodes/CDS.md).
     ...    ※ 구간별로 끌 수 있다(끄면 접속·Listen 자체를 하지 않는다).
@@ -214,12 +221,13 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     Clear PCF Noti
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
     Verify Zone Service Subscribed In PDB    ${CDS_MDN}
-    # SNOTI → PCF 가입자 정보 변경 통보 (SDM 이 가입자 테이블을 고친 뒤 나간다)
-    #Verify PCF Noti Received    label=가입자 Noti (SNOTI→PCF)
-    #...    path=${CDS_NOTI_PATH_SUBS}    body=${CDS_MDN}
+    # SNOTI → PCF 가입자 정보 변경 통보는 여기서 검증하지 않는다.
+    # 1X/1Y 는 PG.SDM 이 RBUS NOTI 를 보내지 않아 SNOTI 가 깨지 않고, 따라서 그
+    # 알림이 애초에 나가지 않는다(docs/callflow/CDS_X1.md). 다른 업무 코드에 대해
+    # 이 구간을 보게 되면 그때 ${CDS_NOTI_PATH_SUBS} 와 함께 살린다.
+    #
     # Cell List 는 아래 0x08 응답 **뒤에** 나가므로, 그 이후 도착분만 보도록
-    # 기준 시각을 먼저 뜬다 — 경로 필터가 비어 있으면 위 가입자 Noti 를 다시
-    # 집어 그냥 통과해 버린다.
+    # 기준 시각을 먼저 뜬다 — 경로 필터가 비어 있어 아무 알림이나 집기 때문이다.
     ${since}=    Noti Timestamp
     Verify UPM Subs Info Notified    mdn=${CDS_MDN}
     # BSUBS → PCF Cell List (0x08 로 준 Cell 정보가 PCF 로 나간다)

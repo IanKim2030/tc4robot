@@ -180,7 +180,10 @@ sequenceDiagram
 — SDM 이 쓰는 테이블(`T_SUBSCRIBER_INFO`)과 다르다.
 
 **☞ 일부 전문에 대해서는 PCF/PCRF 로 NOTI 하지 않는다.** 네 흐름 모두에 붙은 단서다.
-어떤 JOB Code 가 해당하는지는 자료에 없다 — TID 는 갱신되는데 PCF 반영이 없으면 이걸 먼저 의심할 것.
+전체 목록은 자료에 없지만 **`1X`/`1Y` 가 여기 해당한다는 것은 확인됐다** — 이 둘은
+`SDM → SNOTI` RBUS NOTI 자체가 나가지 않아 SNOTI 가 깨지 않는다. 즉 위 다이어그램의
+`SDM->>SNOTI` 아래 구간이 통째로 없다.
+TID 는 갱신되는데 PCF 반영이 없으면 이걸 먼저 의심할 것.
 
 ### 도구 관점에서의 함의
 
@@ -486,14 +489,18 @@ SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 
 ### PCF SBI Noti 수신 — 도구가 PCF 역할로 HTTP/2 Listen
 
 SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. `1X` 흐름에서 PCF 방향 화살표는
-둘이고 나가는 시점이 다르다.
+원래 둘인데, **그중 하나는 실제로 나가지 않는다.**
 
-| 보내는 쪽 | 내용 | 나가는 시점 |
-|---|---|---|
-| `PG.SNOTI` → PCF | 가입자 정보 변경 통보 | SDM 이 가입자 테이블을 고친 뒤 |
-| `PG.BSUBS` → PCF | Cell List 전송 | UPM `0x08` 응답을 받은 뒤 |
+| 보내는 쪽 | 내용 | 나가는 시점 | 1X/1Y |
+|---|---|---|---|
+| `PG.SNOTI` → PCF | 가입자 정보 변경 통보 | SDM 이 가입자 테이블을 고친 뒤 | **나가지 않는다** |
+| `PG.BSUBS` → PCF | Cell List 전송 | UPM `0x08` 응답을 받은 뒤 | 나간다 |
 
-둘 다 `CommandResult(0017)` 보다 늦게 오고, **전문(SC)·PDB 어느 쪽으로도 보이지 않는다.**
+`1X`/`1Y` 는 SDM 이 SNOTI 로 RBUS NOTI 를 보내지 않아 첫 줄이 성립하지 않는다(위 "선택적 NOTI" 절).
+**그래서 `TC-CDS-003` 이 기다리는 알림은 Cell List 한 건뿐이다** — 가입자 Noti 를 같이 기다리게
+만들면 오지 않는 쪽 때문에 TC 가 헛되이 실패한다.
+
+Cell List 는 `CommandResult(0017)` 보다 늦게 오고, **전문(SC)·PDB 어느 쪽으로도 보이지 않는다.**
 그래서 `HttpNotiServer.py` 가 `${CDS_NOTI_PORT}` 를 Listen 해 실제 도착을 판정한다.
 
 **프로토콜이 HTTP/2 평문(h2c)이다.** 3GPP SBI 라 표준 `http.server` 로는 첫 프리페이스에서
