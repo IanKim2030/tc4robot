@@ -41,6 +41,7 @@ ${CDS_RCH_SOCK}        ${NONE}
 ${CDS_DB_CONN}         ${NONE}     # PDB connection (Suite Setup 에서 접속)
 ${CDS_SYSTEM_ID}       ${NONE}
 ${CDS_NOTI_SRV}        ${NONE}     # PCF Noti 수신 서버 핸들 (Suite Setup 에서 기동)
+${CDS_NOTI_TEST_START}  ${NONE}    # 이번 TC 가 시작한 시각 (CDS Test Setup 이 찍는다)
 ${CDS_TID_SEQ}         ${0}        # 같은 초 안의 일련번호 (Next CDS TID 가 관리)
 ${CDS_TID_LAST_HMS}    ${EMPTY}    # 직전 TID 의 HHMMSS. 초가 바뀌면 위 일련번호를 리셋
 
@@ -118,6 +119,7 @@ Suite CDS Connect
     IF    ${CDS_NOTI_VERIFY}
         Log    [Suite] PCF SBI 수신 서버 시작 → ${CDS_NOTI_HOST}:${CDS_NOTI_PORT}    console=True
         ${srv}=    Noti.Noti Server Start    ${CDS_NOTI_PORT}    ${CDS_NOTI_HOST}
+        ...    monitor_interval=${CDS_NOTI_MONITOR_INTERVAL}
         Set Suite Variable    ${CDS_NOTI_SRV}    ${srv}
         Wait For PCF Noti Connection
     ELSE
@@ -155,8 +157,39 @@ Suite CDS Disconnect
     Run Keyword If    $CDS_NOTI_SRV is not None    Noti.Noti Server Stop    ${CDS_NOTI_SRV}
     Log    [Suite] CDS 연결 종료    console=True
 
+CDS Test Setup
+    [Documentation]
+    ...    **모든 TC 의 Test Setup.** 두 가지를 한다.
+    ...      1) Schannel/Rchannel 생존 확인 (`Check CDS Sockets`)
+    ...      2) PCF SBI 수신 상태 리셋 (`Reset PCF Noti For Test`)
+    ...
+    ...    2번을 **모든 TC 에서** 하는 것이 요점이다. 알림을 실제로 판정하는 TC 는
+    ...    일부뿐이지만(현재 TC-CDS-003), 리셋을 그 TC 안에서만 하면 그 전에 다른
+    ...    TC 가 유발한 알림이 큐에 남아 있다가 자기 결과로 오인된다.
+    Check CDS Sockets
+    Reset PCF Noti For Test
+
+Reset PCF Noti For Test
+    [Documentation]
+    ...    이번 TC 의 PCF SBI 수신 상태를 비운다 — 쌓인 요청·오류를 지우고,
+    ...    TC 시작 시각을 ${CDS_NOTI_TEST_START} 에 찍는다.
+    ...
+    ...    **접속 이력은 지우지 않는다**(`Noti Clear` 의 정책). 지우면 "PG 가 붙어
+    ...    있다" 는 사실까지 사라져 링크 진단이 불가능해진다.
+    ...
+    ...    시작 시각은 실패 진단용이다 — 알림이 안 오면 `Verify PCF Noti Received`
+    ...    가 **이 TC 동안의 링크 상태**를 붙여서 실패시킨다.
+    IF    not ${CDS_NOTI_VERIFY}
+        RETURN
+    END
+    Clear PCF Noti
+    ${ts}=      Noti.Noti Now
+    Set Suite Variable    ${CDS_NOTI_TEST_START}    ${ts}
+    ${live}=    Noti.Noti Live Count    ${CDS_NOTI_SRV}
+    Log    [TC] PCF SBI 수신 상태 리셋 — 현재 링크 ${live}건
+
 Check CDS Sockets
-    [Documentation]    CDS Test Setup 전용. Schannel/Rchannel 중 하나라도 닫히면 Fatal Error.
+    [Documentation]    Schannel/Rchannel 중 하나라도 닫히면 Fatal Error.
     ${ok_s}=    Cds.Is Connected    ${CDS_SCH_SOCK}
     ${ok_r}=    Cds.Is Connected    ${CDS_RCH_SOCK}
     Run Keyword If    not ${ok_s}
@@ -807,8 +840,9 @@ Wait For PCF Noti Connection
 
 Clear PCF Noti
     [Documentation]
-    ...    쌓인 수신 알림을 비운다. **전문을 보내기 직전에** 부를 것 —
-    ...    안 비우면 앞 TC 가 유발한 알림을 자기 결과로 착각한다.
+    ...    쌓인 수신 알림·오류를 비운다(접속 이력은 남긴다).
+    ...    **평소에는 직접 부를 일이 없다** — Test Setup 의 `Reset PCF Noti For Test`
+    ...    가 모든 TC 시작 때 부른다. 한 TC 안에서 구간을 나눠 보고 싶을 때만 쓴다.
     IF    not ${CDS_NOTI_VERIFY}
         RETURN
     END
@@ -841,13 +875,23 @@ Verify PCF Noti Received
     ${alive}=    Noti.Noti Server Is Running    ${CDS_NOTI_SRV}
     Should Be True    ${alive}
     ...    msg=PCF Noti 수신 서버가 떠 있지 않습니다 (포트 ${CDS_NOTI_PORT})
+    # 기다리기 전에 링크를 본다. 기본은 확인만 하고 넘어간다 —
+    # PG 가 알림마다 새로 붙는 구현이면 평소 연결 수가 0이라 막으면 안 된다.
+    ${linked}=    Noti.Noti Is Connected    ${CDS_NOTI_SRV}
+    IF    ${CDS_NOTI_REQUIRE_LINK}
+        Should Be True    ${linked}
+        ...    msg=${label} 을 기다리기 전에 PG 의 PCF SBI 링크가 끊겨 있습니다 (포트 ${CDS_NOTI_PORT}). 상시 접속 환경이 아니면 CDS_NOTI_REQUIRE_LINK 를 끄십시오.
+    END
     ${found}=    Noti.Noti Wait    ${CDS_NOTI_SRV}    timeout=${wait}
     ...          path_contains=${path}    body_contains=${body}    since=${since}
     ${n}=      Get Length    ${found}
     ${errs}=   Noti.Noti Errors    ${CDS_NOTI_SRV}
     ${all}=    Noti.Noti Count    ${CDS_NOTI_SRV}
+    # 실패했을 때 **이 TC 동안의 링크 상태**를 같이 보여 준다 — 전문이 문제였는지
+    # 링크가 끊겼던 것인지가 로그만으로는 구분되지 않기 때문이다.
+    ${link}=   Noti.Noti Link Report    ${CDS_NOTI_SRV}    since=${CDS_NOTI_TEST_START}
     Should Be True    ${n} > 0
-    ...    msg=${label} 알림이 ${wait} 안에 오지 않았습니다 (조건: path~'${path}', body~'${body}', since=${since} / 전체 수신 ${all}건 / 서버 오류 ${errs})
+    ...    msg=${label} 알림이 ${wait} 안에 오지 않았습니다 (조건: path~'${path}', body~'${body}', since=${since} / 전체 수신 ${all}건 / 서버 오류 ${errs} / 이 TC 동안의 링크 ${link})
     Log    [Noti] ${label} ${n}건 수신 — ${found}[0][method] ${found}[0][path]    console=True
     RETURN    ${found}
 

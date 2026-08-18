@@ -573,6 +573,29 @@ Cell List 는 `CommandResult(0017)` 보다 늦게 오고, **전문(SC)·PDB 어�
 **LTE 가입자면 아무것도 안 온다.** SBI 가 아니라 RBUS 로 나가기 때문이다(위 LTE/SA 대조표).
 이 판정은 SA 전제다.
 
+**링크는 별도 스레드가 감시한다.** accept 루프와 무관하게 도는 감시 스레드가
+`${CDS_NOTI_MONITOR_INTERVAL}`(기본 1s)마다 "지금 몇 개 붙어 있는지" 표본을 뜬다.
+누적 접속 이력만으로는 **슈트 중간에 PG 가 끊긴 것을 알 수 없기 때문**이다 — 이력은
+그대로 남아 "접속 있음" 으로 보인다. 알림이 안 오면 `Verify PCF Noti Received` 가
+**그 TC 동안의 링크 상태**를 실패 메시지에 붙인다.
+
+```
+{'live': 0, 'connected': False, 'total_connects': 1,
+ 'connects_since': 0, 'disconnects_since': 1, 'samples_with_no_link': 3, ...}
+```
+
+`disconnects_since` 가 0이 아니면 전문이 아니라 **링크가 끊겼던 것**이다.
+
+`${CDS_NOTI_REQUIRE_LINK}`(기본 `${FALSE}`)를 켜면 알림을 기다리기 전에 링크가
+살아 있는지부터 본다. 기본이 꺼짐인 이유는 **PG 가 알림마다 새로 붙는 구현일 수
+있어서**다 — 그러면 평소 연결 수가 0이라 켜 두면 멀쩡한 흐름을 막는다.
+
+**수신 상태는 TC 마다 리셋된다.** `Test Setup`(`CDS Test Setup`)이 소켓 생존 확인과
+함께 쌓인 알림·오류를 비우고 TC 시작 시각을 찍는다. **알림을 판정하는 TC 는 일부뿐
+이지만 리셋은 전 TC 에서 한다** — 판정 TC 안에서만 비우면 그 전에 다른 TC 가 유발한
+알림이 큐에 남아 자기 결과로 오인된다. 접속 이력은 지우지 않는다(지우면 링크 진단이
+불가능해진다).
+
 **PG 가 이 주소로 보내도록 설정돼 있어야 한다.** 도구가 붙는 게 아니라 PG 가 붙어 오는
 방향이라, 포트만 열어 둔다고 오지 않는다. 그래서 **Suite Setup 은 Listen 만 열고 넘어가지
 않고, PG 가 h2c 로 붙을 때까지 기다렸다 TC 를 시작한다**(`${CDS_NOTI_WAIT_CONNECT}` /

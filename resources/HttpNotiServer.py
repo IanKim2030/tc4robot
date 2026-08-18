@@ -81,6 +81,16 @@ class NotiServer(object):
         # PG 는 붙어만 두고 알림은 나중에 보내므로, "붙었는가" 와 "보냈는가" 는
         # 다른 사건이다. CDS 슈트는 전자를 기다렸다 시작한다.
         self._conns = []
+        # ── 링크 감시 ────────────────────────────────────────────
+        # 위 _conns 는 **누적 이력**이라 "지금 붙어 있는가" 를 답하지 못한다.
+        # 슈트 중간에 PG 가 끊으면 이후 TC 는 알림을 못 받는데, 이력만 보면
+        # "접속 1건 있음" 이라 멀쩡해 보인다 — 그래서 살아 있는 수를 따로 센다.
+        self._live = 0               # 지금 열려 있는 h2c 연결 수
+        self._events = []            # 상태 전이 (t, 'up'|'down', peer, live)
+        self._samples = []           # 감시 스레드가 뜬 표본 (t, live)
+        self._monitor = None
+        self._monitor_stop = threading.Event()
+        self._monitor_interval = 1.0
 
     # ── 수명 관리 ────────────────────────────────────────────────
     def start(self):
@@ -93,9 +103,39 @@ class NotiServer(object):
         self._stop.clear()
         self._thread = threading.Thread(target=self._accept_loop, daemon=True)
         self._thread.start()
+        self.start_monitor(self._monitor_interval)
         return self
 
+    def start_monitor(self, interval=1.0):
+        """링크 감시 스레드를 띄운다 (accept 루프와 **별개 스레드**).
+
+        하는 일은 표본을 뜨는 것뿐이다 — 상태 전이(up/down) 자체는 _serve 가
+        정확한 시점에 기록하므로, 이 스레드는 "그 사이에 계속 붙어 있었는가" 를
+        답할 수 있게 주기 표본을 남긴다. 알림 수신을 방해하지 않는다(읽기만 한다).
+        """
+        if self._monitor is not None and self._monitor.is_alive():
+            return self._monitor
+        self._monitor_interval = float(interval)
+        self._monitor_stop.clear()
+        self._monitor = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._monitor.start()
+        return self._monitor
+
+    def _monitor_loop(self):
+        # 표본은 무한정 쌓지 않는다 — 긴 슈트에서 메모리를 먹는다.
+        limit = 7200
+        while not self._monitor_stop.is_set():
+            with self._lock:
+                self._samples.append((time.time(), self._live))
+                if len(self._samples) > limit:
+                    del self._samples[:len(self._samples) - limit]
+            self._monitor_stop.wait(self._monitor_interval)
+
     def stop(self):
+        self._monitor_stop.set()
+        if self._monitor is not None:
+            self._monitor.join(timeout=3)
+            self._monitor = None
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=3)
@@ -123,6 +163,7 @@ class NotiServer(object):
                              daemon=True).start()
 
     def _serve(self, conn, addr):
+        counted = False          # 이 연결을 살아 있는 것으로 셌는가
         try:
             conn.settimeout(30)
             first = self._recv_exact(conn, len(_PREFACE))
@@ -141,6 +182,9 @@ class NotiServer(object):
             with self._lock:
                 self._conns.append({'peer': addr[0], 'port': addr[1],
                                     'at': time.time()})
+                self._live += 1
+                self._events.append((time.time(), 'up', addr[0], self._live))
+            counted = True
             streams = {}
             # ★ 위에서 프리페이스를 직접 읽어 버렸으므로 h2 에 **되돌려 줘야** 한다.
             #   h2 는 클라이언트 프리페이스를 자기가 receive_data 로 봐야 상태가 열린다.
@@ -162,6 +206,11 @@ class NotiServer(object):
         except Exception:
             self._note_error(traceback.format_exc())
         finally:
+            if counted:
+                with self._lock:
+                    self._live -= 1
+                    self._events.append(
+                        (time.time(), 'down', addr[0], self._live))
             try:
                 conn.close()
             except OSError:
@@ -237,6 +286,47 @@ class NotiServer(object):
     def connections(self):
         return list(self._conns)
 
+    def live(self):
+        """지금 열려 있는 h2c 연결 수. 누적 이력(connections)과 다르다."""
+        with self._lock:
+            return self._live
+
+    def events(self, since=None):
+        """상태 전이 이력 [(t, 'up'|'down', peer, live), ...]."""
+        with self._lock:
+            evs = list(self._events)
+        if since is not None:
+            s = float(since)
+            evs = [e for e in evs if e[0] >= s]
+        return evs
+
+    def link_report(self, since=None):
+        """링크가 어떠했는지 한 덩어리로 — 알림이 안 왔을 때 원인을 가른다.
+
+        since 를 주면 그 시각 이후만 본다(TC 시작 시각을 주면 "이 TC 동안" 이 된다).
+        """
+        with self._lock:
+            live = self._live
+            total = len(self._conns)
+            samples = [x for x in self._samples
+                       if since is None or x[0] >= float(since)]
+        evs = self.events(since)
+        downs = [e for e in evs if e[1] == 'down']
+        ups = [e for e in evs if e[1] == 'up']
+        # 표본 중 한 번이라도 0 이었으면 그 구간에 끊겨 있었다는 뜻이다.
+        zero = [x for x in samples if x[1] == 0]
+        return {
+            'live': live,
+            'connected': live > 0,
+            'total_connects': total,
+            'connects_since': len(ups),
+            'disconnects_since': len(downs),
+            'samples': len(samples),
+            'samples_with_no_link': len(zero),
+            'monitor_running': bool(self._monitor is not None
+                                    and self._monitor.is_alive()),
+        }
+
     def clear(self):
         """요청·오류만 비운다. **접속 이력은 남긴다** — TC 마다 초기화하면
         'PG 가 붙어 있다' 는 사실까지 지워지기 때문이다."""
@@ -249,9 +339,15 @@ class NotiServer(object):
 # Robot 이 직접 부르는 함수들 (라이브러리 인터페이스)
 # ══════════════════════════════════════════════════════════════════
 
-def noti_server_start(port, host='0.0.0.0'):
-    """h2c 수신 서버 기동 → 서버 핸들 반환. 핸들은 Suite Variable 로 들고 다닌다."""
-    return NotiServer(port, host).start()
+def noti_server_start(port, host='0.0.0.0', monitor_interval=1):
+    """h2c 수신 서버 기동 → 서버 핸들 반환. 핸들은 Suite Variable 로 들고 다닌다.
+
+    accept 루프 스레드와 **별개로** 링크 감시 스레드가 같이 뜬다
+    (monitor_interval 초마다 연결 수 표본을 뜬다).
+    """
+    srv = NotiServer(port, host)
+    srv._monitor_interval = _seconds(monitor_interval)
+    return srv.start()
 
 
 def noti_server_stop(server):
@@ -369,3 +465,42 @@ def _seconds(v):
     if s.endswith('m'):
         return float(s[:-1]) * 60.0
     return float(s)
+
+
+# ── 링크 감시 (Robot 인터페이스) ───────────────────────────────────
+#
+# accept 루프와 별개로 도는 감시 스레드가 주기 표본을 남긴다. 목적은 하나 —
+# **알림이 안 왔을 때 "전문이 문제였나, 링크가 끊겼었나" 를 가르는 것**이다.
+# 누적 접속 이력(noti_connection_count)만으로는 답이 안 나온다. 슈트 중간에
+# PG 가 끊어도 이력은 그대로 남아 "접속 있음" 으로 보이기 때문이다.
+
+def noti_is_connected(server):
+    """지금 PG 가 h2c 로 붙어 있는가 (열려 있는 연결 ≥ 1)."""
+    return bool(server is not None and server.live() > 0)
+
+
+def noti_live_count(server):
+    """지금 열려 있는 h2c 연결 수."""
+    return server.live() if server is not None else 0
+
+
+def noti_link_report(server, since=None):
+    """링크 상태 요약 dict. since 를 주면 그 시각 이후만 본다.
+
+    TC 시작 시각을 since 로 주면 **그 TC 동안** 링크가 어땠는지가 나온다.
+      connected            지금 붙어 있는가
+      connects_since       그 사이 새로 붙은 횟수
+      disconnects_since    그 사이 끊긴 횟수
+      samples_with_no_link 감시 표본 중 연결이 0이었던 횟수
+    """
+    if server is None:
+        return {'live': 0, 'connected': False, 'total_connects': 0,
+                'connects_since': 0, 'disconnects_since': 0,
+                'samples': 0, 'samples_with_no_link': 0,
+                'monitor_running': False}
+    return server.link_report(since)
+
+
+def noti_monitor_running(server):
+    """감시 스레드가 살아 있는가."""
+    return bool(server is not None and server.link_report()['monitor_running'])

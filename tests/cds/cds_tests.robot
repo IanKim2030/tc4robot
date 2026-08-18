@@ -11,7 +11,10 @@ Documentation
 ...                     → 두 소켓 생존 확인 → PDB 접속 → **세션 사전 적재** → UPM 접속
 ...                     → PCF SBI 수신 서버 Listen + **PG 의 SBI 접속 대기**
 ...                       (접속은 TC 가 아니다)
-...    Test Setup     : Check CDS Sockets (하나라도 닫히면 Suite 중단)
+...    Test Setup     : CDS Test Setup — 소켓 생존 확인(하나라도 닫히면 Suite 중단)
+...                     + **PCF SBI 수신 상태 리셋**(모든 TC). 알림을 판정하는 TC 는
+...                       일부지만, 리셋을 그 TC 안에서만 하면 앞선 TC 가 유발한
+...                       알림이 남아 자기 결과로 오인된다.
 ...    Suite Teardown : Suite CDS Disconnect — Release(0005/0007) + ACK(0006/0008) 검증 후 종료
 ...                     (해제도 TC 가 아니다. 슈트가 끝나면 반드시 수행돼야 한다)
 ...    각 TC          : ${CDS_SCH_SOCK}/${CDS_RCH_SOCK} 공유 사용 (TC별 연결/해제 없음)
@@ -147,7 +150,7 @@ Resource    ../../resources/cds_keywords.robot
 
 Suite Setup      Suite CDS Connect
 Suite Teardown   Suite CDS Disconnect
-Test Setup       Check CDS Sockets
+Test Setup       CDS Test Setup
 
 *** Test Cases ***
 
@@ -238,7 +241,7 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...    ※ 구간별로 끌 수 있다(끄면 접속·Listen 자체를 하지 않는다).
     ...       --variable CDS_UPM_VERIFY:False    --variable CDS_NOTI_VERIFY:False
     [Tags]    cds    command    validation    db    upm    noti
-    Clear PCF Noti
+    # 수신 상태 리셋은 Test Setup(`CDS Test Setup`)이 **모든 TC 에서** 한다.
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}
     Verify Zone Service Subscribed In PDB    ${CDS_MDN}
     # SNOTI → PCF 가입자 정보 변경 통보는 여기서 검증하지 않는다.
