@@ -26,6 +26,12 @@
 #   bash run_tests.sh cds --no-upm --no-sbi     # CDS 전문 + PDB 만
 #   bash run_tests.sh cds --sbi-wait         # PG 가 붙을 때까지 기다렸다 시작(기본은 안 기다림)
 #   bash run_tests.sh cds --no-session      # 세션 사전 적재(INSERT) 생략
+#
+# CDS 사전 확인 — 두 대상 번호에 앞선 실행의 행이 남아 있는지 본다(기본: 물어본다):
+#   bash run_tests.sh cds --precheck-warn   # 화면 없는 환경 — WARN 만 남기고 진행
+#   bash run_tests.sh cds --precheck-fail   # 잔존 데이터면 무조건 중단
+#   bash run_tests.sh cds --no-precheck     # 확인 자체를 생략
+#   ★ 기본(ask)은 Tkinter 창을 띄운다 — SSH 등 화면이 없으면 중단되고 안내가 나온다.
 #   --upm / --sbi / --sbi-wait / --session 은 반대로 강제로 켠다.
 #   별칭: --no-http / --no-noti 도 --no-sbi 로 받는다(예전 이름).
 #
@@ -68,6 +74,12 @@ for arg in "${@:2}"; do
                         TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:False) ;;
         --sbi|--http|--noti)
                         TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:True) ;;
+        # 사전 확인 — 잔존 데이터가 있을 때의 처리 방식.
+        # 기본은 ask(대화창). 화면이 없는 환경에서는 --precheck-warn 을 줘야 한다.
+        --no-precheck)     TOGGLE_VARS+=(--variable CDS_PRECHECK:False) ;;
+        --precheck-warn)   TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:warn) ;;
+        --precheck-fail)   TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:fail) ;;
+        --precheck-ask)    TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:ask) ;;
         # 세션 사전 적재 — T_SMF_SESSION_INFO 에 5G 세션 1건을 넣는다(멱등).
         # 이 슈트에서 유일하게 PDB 에 쓰는 자리다. 없으면 PG 가 알림 상대를 못 찾는다.
         --no-session)   TOGGLE_VARS+=(--variable CDS_SESSION_CREATE:False) ;;

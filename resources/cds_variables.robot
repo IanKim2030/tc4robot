@@ -520,6 +520,35 @@ ${CDS_DB_SQL_SERVICE_ANY}    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MD
 # 세션 사전 적재 확인용 — 넣었든 이미 있었든 1건 이상이어야 한다.
 ${CDS_DB_SQL_SESSION}     SELECT COUNT(*) FROM ${CDS_DB_TBL_SESSION} WHERE SM_POLICY_ID = ?
 
+# ── 사전 확인 (Suite Setup) — 두 대상 번호의 잔존 데이터 ────────
+# 슈트는 002(A1)로 가입자를 새로 만드는 것을 전제로 돈다. 앞선 실행이 중간에
+# 끊겨 행이 남아 있으면 판정이 흔들린다.
+#   · "1건 이상" 판정(003/005/009…)은 잔존 행을 자기 결과로 착각한다
+#   · "0건" 판정(004/006/010…)은 잔존 행 때문에 실패한다
+#   · 쿠폰 계열은 핀이 겹치면 앞 실행이 넣은 행을 지운 것으로 오인한다
+# 그래서 들어가기 전에 세어 보고, 0이 아니면 어떻게 할지 정한다.
+#
+# ★ 세션 표는 **판단에 넣지 않는다** — Suite Setup 이 직접 심는 것이라 0이 아닌
+#   것이 정상이다. 상태를 같이 보여 주기 위해 세기만 한다.
+${CDS_DB_SQL_PRE_RESERVED}    SELECT COUNT(*) FROM ${CDS_DB_TBL_RESERVED} WHERE MDN IN (?, ?)
+${CDS_DB_SQL_PRE_SERVICE}     SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN IN (?, ?)
+${CDS_DB_SQL_PRE_PROFILE}     SELECT COUNT(*) FROM ${CDS_DB_TBL_PROFILE} WHERE MDN IN (?, ?)
+${CDS_DB_SQL_PRE_SESSION}     SELECT COUNT(*) FROM ${CDS_DB_TBL_SESSION} WHERE MDN IN (?, ?)
+
+${CDS_PRECHECK}           ${TRUE}          # 사전 확인 수행 여부
+
+# 잔존 행이 있을 때 무엇을 할지.
+#   ask   대화창으로 묻는다 (기본). 계속/중단을 고른다.
+#         ★ Dialogs 는 Tkinter 창을 띄운다 — **화면이 없는 환경(SSH 등)에서는 못 쓴다.**
+#           그 경우 자동으로 fail 로 떨어지고, 어떤 플래그를 쓰라고 알려 준다.
+#   fail  Fatal Error 로 슈트를 세운다 (사람이 없는 자동 실행용)
+#   warn  WARN 만 남기고 그대로 진행한다 (잔존 데이터를 감수하겠다는 뜻)
+#
+#   bash run_tests.sh cds --precheck-warn    # 화면 없는 환경에서 그냥 진행
+#   bash run_tests.sh cds --precheck-fail    # 잔존 데이터면 무조건 중단
+#   bash run_tests.sh cds --no-precheck      # 확인 자체를 생략
+${CDS_PRECHECK_MODE}      ask
+
 # 1X(HFC/ZONE 가입) — SVC_ID + SVC_TYPE + JOB_CODE 를 모두 만족하는 행이 1건 이상이어야 한다.
 # 해지(1Y) 판정은 위 ${CDS_DB_SQL_SERVICE}(MDN+SVC_ID) 를 그대로 쓰고 0 을 기대한다.
 ${CDS_DB_SQL_SERVICE_1X}

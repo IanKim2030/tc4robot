@@ -43,6 +43,7 @@ ${CDS_DB_CONN}         ${NONE}     # PDB connection (Suite Setup 에서 접속)
 ${CDS_SYSTEM_ID}       ${NONE}
 ${CDS_NOTI_SRV}        ${NONE}     # PCF Noti 수신 서버 핸들 (Suite Setup 에서 기동)
 ${CDS_NOTI_TEST_START}  ${NONE}    # 이번 TC 가 시작한 시각 (CDS Test Setup 이 찍는다)
+${CDS_PRECHECK_REPORT}  ${EMPTY}   # 사전 확인 결과 표 (Precheck Existing Subscriber Rows)
 ${CDS_TID_SEQ}         ${0}        # 같은 초 안의 일련번호 (Next CDS TID 가 관리)
 ${CDS_TID_LAST_HMS}    ${EMPTY}    # 직전 TID 의 HHMMSS. 초가 바뀌면 위 일련번호를 리셋
 
@@ -105,7 +106,10 @@ Suite CDS Connect
     Should Be True    ${ok_r}    msg=Rchannel 소켓이 닫혀 있음
     # 4) PDB 접속 — 소켓과 같이 슈트당 1회. Suite CDS Disconnect 가 닫는다.
     Ensure CDS DB Connection
-    # 4-1) 세션 사전 적재 — 전문을 보내기 전에 T_SMF_SESSION_INFO 에 세션이 있어야
+    # 4-1) 사전 확인 — 두 대상 번호에 앞선 실행의 행이 남아 있는지 본다.
+    #      **세션 적재보다 먼저** 해야 한다. 뒤에 두면 우리가 심은 세션이 잔존으로 보인다.
+    Precheck Existing Subscriber Rows
+    # 4-2) 세션 사전 적재 — 전문을 보내기 전에 T_SMF_SESSION_INFO 에 세션이 있어야
     #      PG.SNOTI 가 알림 상대를 찾는다. 멱등이라 이미 있으면 그냥 지나간다.
     #      **두 건**이다: 기본 번호 + D3(번호변경) 이후 번호.
     Ensure CDS Sessions In PDB
@@ -550,6 +554,88 @@ Ensure CDS DB Connection
     Set Suite Variable    ${CDS_DB_CONN}    ${conn}
     Log    [Suite] PDB 접속 완료 (autocommit=${CDS_DB_AUTOCOMMIT})    console=True
 
+Precheck Existing Subscriber Rows
+    [Documentation]
+    ...    **Suite Setup 전용.** 두 대상 번호(${CDS_MDN} / ${CDS_NEW_MDN})에 남아 있는
+    ...    행을 세어 보고, 0이 아니면 ${CDS_PRECHECK_MODE} 에 따라 처리한다.
+    ...
+    ...    왜 — 슈트는 002(A1)로 가입자를 **새로 만드는 것**을 전제로 돈다. 앞선 실행이
+    ...    중간에 끊겨 행이 남아 있으면 판정이 조용히 흔들린다.
+    ...      · "1건 이상" 판정(003/005/009…)은 잔존 행을 자기 결과로 착각한다
+    ...      · "0건" 판정(004/006/010…)은 잔존 행 때문에 실패한다
+    ...      · 쿠폰 계열은 핀이 겹치면 앞 실행이 넣은 행을 지운 것으로 오인한다
+    ...
+    ...    ★ 세션 표(${CDS_DB_TBL_SESSION})는 **판단에 넣지 않는다** — Suite Setup 이
+    ...      직접 심는 것이라 0이 아닌 것이 정상이다. 상태를 같이 보여 주려고 센다.
+    ...
+    ...    ${CDS_PRECHECK}=${FALSE}(--no-precheck) 면 아무것도 하지 않는다.
+    IF    not ${CDS_PRECHECK}
+        Log    [Suite] 사전 확인 꺼짐 (CDS_PRECHECK=${CDS_PRECHECK})    console=True
+        RETURN
+    END
+    Ensure CDS DB Connection
+    ${NL}=    Evaluate    chr(10)
+    ${rsv}=    CDS DB Count    ${CDS_DB_SQL_PRE_RESERVED}    ${CDS_MDN}    ${CDS_NEW_MDN}
+    ${svc}=    CDS DB Count    ${CDS_DB_SQL_PRE_SERVICE}     ${CDS_MDN}    ${CDS_NEW_MDN}
+    ${prf}=    CDS DB Count    ${CDS_DB_SQL_PRE_PROFILE}     ${CDS_MDN}    ${CDS_NEW_MDN}
+    ${ses}=    CDS DB Count    ${CDS_DB_SQL_PRE_SESSION}     ${CDS_MDN}    ${CDS_NEW_MDN}
+    ${total}=    Evaluate    ${rsv} + ${svc} + ${prf}
+    ${report}=    Catenate    SEPARATOR=${NL}
+    ...    ══ 사전 확인 — MDN IN ('${CDS_MDN}', '${CDS_NEW_MDN}') ══
+    ...    ${CDS_DB_TBL_RESERVED} : ${rsv}
+    ...    ${CDS_DB_TBL_SERVICE} : ${svc}
+    ...    ${CDS_DB_TBL_PROFILE} : ${prf}
+    ...    └ 판단 대상 합계 : ${total}
+    ...    ${CDS_DB_TBL_SESSION} : ${ses}  (참고 — Suite Setup 이 심는다. 판단 제외)
+    Log    ${NL}${report}    console=True
+    Set Suite Variable    ${CDS_PRECHECK_REPORT}    ${report}
+    IF    ${total} == 0
+        Log    [Suite] 잔존 데이터 없음 — 깨끗한 상태에서 시작합니다    console=True
+        RETURN
+    END
+    Handle Precheck Leftovers    ${total}    ${rsv}    ${svc}    ${prf}
+
+Handle Precheck Leftovers
+    [Documentation]
+    ...    잔존 행이 있을 때 ${CDS_PRECHECK_MODE} 에 따라 처리한다.
+    ...      ask   대화창으로 계속/중단을 묻는다 (기본)
+    ...      fail  Fatal Error 로 슈트를 세운다
+    ...      warn  WARN 만 남기고 진행한다
+    ...
+    ...    ★ ask 는 Tkinter 창을 띄우므로 **화면이 없는 환경에서는 쓸 수 없다.**
+    ...      Dialogs 임포트나 대화창 자체가 실패하면 **중단하고** 어떤 플래그를 쓰면
+    ...      되는지 알려 준다 — 조용히 진행하지 않는다(그게 더 위험하다).
+    ...
+    ...    ★ 선택지를 **'중단' 먼저** 놓은 것은 의도다. 대화창이 사람의 선택 없이
+    ...      기본값을 돌려주는 환경이 있어(실제로 관측됐다), 그때 첫 항목이 '계속 진행'
+    ...      이면 잔존 데이터를 안고 조용히 들어가 버린다. 순서를 뒤집어 두면 같은
+    ...      상황에서 안전한 쪽(중단)으로 떨어진다.
+    [Arguments]    ${total}    ${rsv}    ${svc}    ${prf}
+    ${NL}=    Evaluate    chr(10)
+    ${detail}=    Set Variable    RESERVED_JOB=${rsv} SUBS_SERVICE=${svc} SUBS_PROFILE=${prf} (합계 ${total})
+    ${mode}=      Convert To Lower Case    ${CDS_PRECHECK_MODE}
+    IF    '${mode}' == 'warn'
+        Log    잔존 데이터가 있는 상태로 진행합니다 — ${detail}. 판정이 흔들릴 수 있습니다 (CDS_PRECHECK_MODE=warn).    level=WARN
+        RETURN
+    END
+    IF    '${mode}' == 'fail'
+        Fatal Error    잔존 데이터가 있어 중단합니다 — ${detail}. 정리한 뒤 다시 실행하거나, 감수하고 진행하려면 --precheck-warn 을 주십시오.
+    END
+    ${imported}=    Run Keyword And Return Status    Import Library    Dialogs
+    IF    not ${imported}
+        Fatal Error    잔존 데이터가 있는데 대화창을 띄울 수 없습니다 (Dialogs 임포트 실패 — 화면이 없는 환경입니다) — ${detail}. --precheck-warn (진행) 또는 --precheck-fail (중단) 으로 모드를 정해 주십시오.
+    END
+    ${status}    ${answer}=    Run Keyword And Ignore Error    Get Selection From User
+    ...    ${CDS_PRECHECK_REPORT}${NL}${NL}판단 대상 합계 ${total}건이 남아 있습니다. 계속하시겠습니까?
+    ...    중단    계속 진행
+    IF    '${status}' == 'FAIL'
+        Fatal Error    잔존 데이터가 있는데 대화창을 띄울 수 없습니다 (화면이 없는 환경으로 보입니다: ${answer}) — ${detail}. --precheck-warn (진행) 또는 --precheck-fail (중단) 으로 모드를 정해 주십시오.
+    END
+    IF    '${answer}' != '계속 진행'
+        Fatal Error    사용자가 중단을 선택했습니다 — ${detail}
+    END
+    Log    [Suite] 사용자가 계속 진행을 선택했습니다 — ${detail}    console=True
+
 Ensure CDS Sessions In PDB
     [Documentation]
     ...    TC 수행 전에 필요한 5G 세션을 **두 건** 심는다.
@@ -852,7 +938,7 @@ Wait For PCF Noti Connection
         RETURN
     END
     IF    not ${CDS_NOTI_WAIT_CONNECT}
-        Log    [Suite] PCF SBI 는 Listen 만 하고 시작합니다 — 알림 도착은 TC-CDS-003 이 판정합니다    console=True
+        Log    [Suite] PCF SBI 는 Listen 만 하고 시작합니다 — 알림 도착은 각 TC에서 판정합니다    console=True
         RETURN
     END
     Log    [Suite] PG 의 PCF SBI 접속 대기 (최대 ${timeout}) — 포트 ${CDS_NOTI_PORT}    console=True

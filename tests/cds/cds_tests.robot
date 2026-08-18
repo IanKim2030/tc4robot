@@ -8,7 +8,8 @@ Documentation
 ...
 ...    [Suite 소켓 정책]
 ...    Suite Setup    : Suite CDS Connect — 연결 → ConnectionRequest(0001/0003) + ACK 검증
-...                     → 두 소켓 생존 확인 → PDB 접속 → **세션 2건 사전 적재** → UPM 접속
+...                     → 두 소켓 생존 확인 → PDB 접속 → **잔존 데이터 사전 확인**
+...                     → **세션 2건 사전 적재** → UPM 접속
 ...                     → PCF SBI 수신 서버 Listen (**접속은 기다리지 않는다**)
 ...                       (접속은 TC 가 아니다)
 ...    Test Setup     : CDS Test Setup — 소켓 생존 확인(하나라도 닫히면 Suite 중단)
@@ -79,7 +80,27 @@ Documentation
 ...      ★ 접속 정보가 틀리면 이 TC 뿐 아니라 **슈트 전체가 서지 않는다** — Suite Setup
 ...        이 실패하기 때문이다. --exclude db 로도 피할 수 없다.
 ...
-...    [세션 사전 적재] Suite Setup 이 PDB 접속 직후 한 번 한다.
+...    [사전 확인] Suite Setup 이 PDB 접속 직후, 세션 적재보다 **먼저** 한다.
+...      두 대상 번호(${CDS_MDN} / ${CDS_NEW_MDN})에 앞선 실행의 행이 남아 있는지 센다.
+...        SELECT COUNT(*) FROM T_5G_RESERVED_JOB  WHERE MDN IN (기본, D3후)
+...        SELECT COUNT(*) FROM T_5G_SUBS_SERVICE  WHERE MDN IN (기본, D3후)
+...        SELECT COUNT(*) FROM T_5G_SUBS_PROFILE  WHERE MDN IN (기본, D3후)
+...      슈트는 002(A1)로 가입자를 **새로 만드는 것**을 전제로 돈다. 행이 남아 있으면
+...      "1건 이상" 판정은 잔존 행을 자기 결과로 착각하고, "0건" 판정은 그 때문에
+...      실패하며, 쿠폰 계열은 핀이 겹쳐 앞 실행의 행을 지운 것으로 오인한다.
+...      · 합계가 0이 아니면 ${CDS_PRECHECK_MODE} 에 따른다 —
+...          ask(기본) 대화창으로 계속/중단을 묻는다
+...          warn      WARN 만 남기고 진행 (--precheck-warn)
+...          fail      Fatal Error 로 중단 (--precheck-fail)
+...        ★ ask 는 Tkinter 창이라 **화면이 없으면 못 쓴다.** 그때는 중단하고 어떤
+...          플래그를 쓰라고 알려 준다 — 조용히 진행하지 않는다.
+...        ★ 대화창 선택지는 '중단' 이 먼저다. 사람 선택 없이 기본값을 돌려주는
+...          환경에서 안전한 쪽으로 떨어지게 하려는 것이다.
+...      · **세션 표는 세기만 하고 판단에 넣지 않는다** — Suite Setup 이 직접 심는
+...        것이라 0이 아닌 것이 정상이다. 상태를 같이 보여 준다.
+...      · 끄려면: bash run_tests.sh cds --no-precheck
+...
+...    [세션 사전 적재] Suite Setup 이 사전 확인 직후 한 번 한다.
 ...      CDS 전문을 보내기 전에 대상 가입자의 5G 세션이 T_SMF_SESSION_INFO 에 있어야
 ...      한다 — PG.SNOTI 가 이 표를 보고 알림 상대를 정하기 때문이다. 세션이 없으면
 ...      전문이 SC 로 처리되고 가입자 테이블에도 반영되지만 **PCF 로는 아무것도 나가지
