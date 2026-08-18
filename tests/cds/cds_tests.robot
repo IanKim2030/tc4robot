@@ -31,7 +31,7 @@ Documentation
 ...      002 A1 신규가입 : PROFILE 1건 + SERVICE 2건(DATA_USAGE_LEVEL / _2) — 모두 1
 ...      003 1X HFC가입  : SERVICE(SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X) 1건 이상
 ...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (구 TC-UPM-301)
-...                        + **PCF SBI Noti 2건 수신** (가입자 Noti / Cell List)
+...                        + **PCF SBI Noti 1건 수신** (Cell List — 가입자 Noti 는 안 나온다)
 ...      004 1Y HFC해지  : SERVICE(SVC_ID=ZONE_SVC_D) 0건
 ...      005 I2 부가신청 : SERVICE(YOUNG_HARM_INFO_BLOCK, N, I2, 56, LIMIT=Y) 1건 이상
 ...      006 I3 부가해지 : SERVICE(SVC_ID=YOUNG_HARM_INFO_BLOCK) 0건
