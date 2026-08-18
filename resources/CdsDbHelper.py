@@ -274,10 +274,17 @@ def _query(conn, sql, params, fetch, what):
     except Exception as exc:
         raise CdsDbError(
             'PDB %s 조회 실패 — %s / sql=%s params=%r\n'
-            '  진단이 없는 HY000 이면 드라이버가 ? 바인딩(SQLDescribeParam)을 지원하지'
-            ' 않거나, 접속 문자열의 CHARSET 이 서버와 안 맞을 수 있습니다.\n'
-            '  테이블·컬럼이 안 보이거나 계정 권한이 없을 때도 같은 자리에서 실패합니다.\n'
-            '  예약어와 겹치는 컬럼명(LIMIT 등)은 큰따옴표로 감싸야 할 수 있습니다.'
+            "  ★ ('HY000', 'The driver did not supply an error!') 처럼 진단이 없으면\n"
+            '    **접속 문자열에서 CHARSET= 를 빼고 한 번 돌려 보십시오.** 골디락스는\n'
+            '    CHARSET 이 있으면 진짜 오류 메시지를 삼킵니다 — 빼면 그대로 나옵니다.\n'
+            '    (2026-08-18 확인. 이 함정 때문에 원인 없는 HY000 으로 두 번 헤맸습니다)\n'
+            '  자주 나오는 원인 세 가지:\n'
+            '    1) 문자셋 변환 라이브러리(libgoldilockscvt<CHARSET>_64.so)를 못 연다\n'
+            '       → LD_LIBRARY_PATH 에 $GOLDILOCKS_HOME/lib 이 없다. run_tests.sh 가\n'
+            '         넣어 주지만, robot 을 직접 부르면 셸에서 먼저 export 해야 합니다.\n'
+            '         이 경우 **접속은 성공하고 SELECT 만 전부 실패**합니다.\n'
+            '    2) 테이블·컬럼이 안 보이거나 계정 권한이 없다\n'
+            '    3) 예약어와 겹치는 컬럼명(LIMIT 등)을 큰따옴표로 안 감쌌다'
             % (what, exc, sql, params)
         )
     finally:

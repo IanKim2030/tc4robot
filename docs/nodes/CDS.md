@@ -381,6 +381,59 @@ conn.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
 
 (PG 참조 샘플은 두 DB 모두에 이 설정을 무조건 적용한다.)
 
+#### 함정 — 같은 HY000 인데 원인이 다르다 (2026-08-18)
+
+위 증상이 **글자 하나 다르지 않게** 재발했다. 그런데 원인은 바인딩도 인코딩도 아니었다.
+**`?` 를 쓰지 않는 `SELECT 1` 조차 같은 에러로 죽었다** — 즉 문장이 하나도 실행되지 않는
+상태였고, 바인딩을 아무리 손봐도 고쳐지지 않았을 것이다.
+
+진짜 메시지는 접속 문자열에서 **`CHARSET=` 을 빼자** 나왔다.
+
+```
+('HY000', '[SUNJESOFT][ODBC][GOLDILOCKS]failed to open library
+          (libgoldilockscvtUHC_64.so)\n (11087) (SQLExecDirectW)')
+```
+
+★ **`CHARSET=` 이 있으면 골디락스가 진단 레코드를 삼킨다.** 이게 이 함정의 핵심이다 —
+"진단 없는 HY000" 을 만나면 **가장 먼저 `CHARSET=` 을 빼고 한 번 돌려 볼 것.** 그러면
+드라이버가 진짜 원인을 말해 준다. 2026-08-06 건도 같은 이유로 원인이 안 보였을 수 있다.
+
+원인은 환경이었다. 드라이버 본체는 `DRIVER=` 의 절대경로로 로드되지만,
+**문자셋 변환 라이브러리는 런타임에 이름만으로 `dlopen`** 되므로 탐색 경로에 있어야 한다.
+
+```
+LD_LIBRARY_PATH = /opt/gcc-8.3.0/lib64:/lib:      ← $GOLDILOCKS_HOME/lib 이 없다
+GOLDILOCKS_HOME = (설정 안 됨)
+```
+
+그래서 **접속(`pyodbc.connect`)과 `getinfo` 는 성공하는데 SELECT 만 전부 실패한다.**
+접속이 됐다고 조회가 되는 것이 아니다 — 진단할 때 이 둘을 나눠 볼 것.
+
+조치:
+
+```bash
+export GOLDILOCKS_HOME=/PG/goldilocks_home
+export LD_LIBRARY_PATH=$GOLDILOCKS_HOME/lib:$LD_LIBRARY_PATH
+```
+
+`run_tests.sh` 가 이미 넣어 준다(이미 설정돼 있으면 건드리지 않는다).
+**`robot` 을 직접 부르면 셸에서 먼저 export 해야 한다.**
+Python 안에서 `os.environ` 으로 넣는 것은 소용없다 — glibc 가 프로세스 시작 시점에
+`LD_LIBRARY_PATH` 를 읽어 두기 때문에 **robot 을 띄우기 전**이어야 한다.
+
+##### 원인을 가르는 순서
+
+| 검사 | 실패하면 |
+|---|---|
+| `pyodbc.connect` | 호스트·포트·계정·드라이버 파일 경로 |
+| `getinfo(SQL_DBMS_NAME)` | 위와 같음 (여기까지 되면 접속은 정상이다) |
+| `SELECT 1 FROM DUAL` | **환경** — 변환 라이브러리, `LD_LIBRARY_PATH` |
+| `SELECT COUNT(*) FROM <표>` (파라미터 없이) | 테이블·권한·스키마 |
+| `... WHERE MDN = ?` | 비로소 **바인딩** (`SQLDescribeParam`) |
+
+위에서부터 하나씩 좁히면 바인딩을 의심할 자리가 마지막이라는 것이 드러난다.
+`CHARSET=` 을 뺀 접속을 한 벌 더 두고 비교하는 것도 잊지 말 것.
+
 #### 함정 — `autocommit=False` 는 재조회를 무력화할 수 있다
 
 `autocommit` 은 **꺼져 있다**(`${CDS_DB_AUTOCOMMIT}` 기본 `${FALSE}`, PG 참조 샘플과 동일).
