@@ -21,6 +21,8 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 | [docs/nodes/UPM.md](docs/nodes/UPM.md) | UPM 노드 스펙 |
 | [docs/nodes/CDS.md](docs/nodes/CDS.md) | CDS 노드 스펙 |
 | [docs/nodes/NWDAF.md](docs/nodes/NWDAF.md) | NWDAF 노드 스펙 |
+| [docs/callflow/README.md](docs/callflow/README.md) | **업무 코드별 콜플로우 인덱스** — 알림 경로 규칙(BSUBS/SDM), 18개 코드 |
+| [docs/callflow/CDS_&lt;코드&gt;.md](docs/callflow/README.md) | 업무 코드별 시트 — 콜플로우·Body 필드·판정 기준 (A1 1X 1Y I2 I3 C1 G1 K1~K6 Y9 SS ST D3 Z1) |
 | [docs/callflow/CDS_X1.md](docs/callflow/CDS_X1.md) | 1X 전문 End-to-End Call Flow (PG 내부) |
 
 스킬 `pg-tc-authoring`(TC 작성) / `pg-wire-encoding`(전문 인코딩 대조)이 해당 작업에서 자동으로 걸린다.
