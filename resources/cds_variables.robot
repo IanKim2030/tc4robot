@@ -6,8 +6,8 @@ Documentation
 ...    로봇(CDS) 이 PG.CDS 로 능동 접속(Schannel/Rchannel 듀얼 소켓).
 ...    포트/SYSTEM_ID 기본값은 아래 값이며, 환경별로 다르면 config/env/<env>.py 에서 오버라이드한다.
 ...
-...    ※ upm_variables.robot 을 함께 들여온다 — 1X(HFC 가입)가 PG.BSUBS→UPM
-...      Subs-Info(0x07)를 유발해 TC-CDS-003 이 UPM 쪽 값을 쓰기 때문이다.
+...    ※ upm_variables.robot 을 함께 들여온다 — HFC 전문(1X 가입 / 1Y 해지)이
+...      PG.BSUBS→UPM Subs-Info(0x07)를 유발해 TC-CDS-003/004 가 UPM 쪽 값을 쓴다.
 ...      (PCF 슈트가 nag_variables 를 들여오는 것과 같은 구조)
 
 Resource   ${CURDIR}/upm_variables.robot
@@ -30,18 +30,18 @@ ${CDS_UP_SCH_PORT}        6100
 ${CDS_UP_RCH_PORT}        6101
 
 # ════════════════════════════════════════════
-# UPM 연동 (TC-CDS-003 1X 전용)
+# UPM 연동 (TC-CDS-003 1X / TC-CDS-004 1Y)
 #
-# 1X(HFC 서비스 가입)를 받으면 PG.BSUBS 가 **UPM 으로 Subs-Info-Request(0x07)를
-# 밀어준다.** 그래서 TC-CDS-003 은 CDS 전문·PDB 만으로는 절반만 보는 셈이고,
+# HFC 전문(1X 가입 / 1Y 해지)을 받으면 PG.BSUBS 가 **UPM 으로 Subs-Info-Request
+# (0x07)를 밀어준다.** 그래서 두 TC 는 CDS 전문·PDB 만으로는 절반만 보는 셈이고,
 # UPM 쪽 0x07 수신 + 0x08 응답까지 해야 흐름 전체가 검증된다
 # (UPM 슈트의 TC-UPM-301 은 트리거가 없어 주석 처리돼 있다).
 #
 # ★ 켜면 **CDS 슈트가 UPM 포트(${UPM_PG_PORT})에도 의존한다.** Suite Setup 에서
 #   붙으므로 UPM 이 안 뜨면 PDB 와 마찬가지로 슈트 전체가 서지 않는다.
-#   CDS 전문만 돌리려면 ${FALSE} 로 끄면 된다 — TC-CDS-003 의 UPM 단계만 건너뛴다.
+#   CDS 전문만 돌리려면 ${FALSE} 로 끄면 된다 — 003/004 의 UPM 단계만 건너뛴다.
 #     python -m robot --variable CDS_UPM_VERIFY:False tests/cds/
-${CDS_UPM_VERIFY}         ${TRUE}          # 1X → UPM Subs-Info(0x07/0x08) 검증 여부
+${CDS_UPM_VERIFY}         ${TRUE}          # 1X/1Y → UPM Subs-Info(0x07/0x08) 검증 여부
 
 # ════════════════════════════════════════════
 # PCF Noti 수신 (도구가 PCF 역할로 HTTP/2 Listen)

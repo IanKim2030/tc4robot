@@ -38,6 +38,7 @@ Documentation
 ...      ★ SBI Noti 판정은 **A1(002) / 1Y(004) / Z1(019)를 뺀 전 TC** 에 붙어 있다.
 ...        그 셋만 PG 가 PCF 로 알림을 보내지 않는다(@{CDS_NOTI_EXEMPT_CODES}).
 ...      004 1Y HFC해지  : SERVICE(SVC_ID=ZONE_SVC_D) 0건
+...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (1X 와 같은 구간)
 ...      005 I2 부가신청 : SERVICE(YOUNG_HARM_INFO_BLOCK, N, I2, 56, LIMIT=Y) 1건 이상
 ...      006 I3 부가해지 : SERVICE(SVC_ID=YOUNG_HARM_INFO_BLOCK) 0건
 ...      007 C1 기기변경 : 수행 전 SVC_ID 별 행 수 == 수행 후 JOB_CODE=C1 집계
@@ -94,16 +95,17 @@ Documentation
 ...        곳**이다. 틀리면 Suite Setup 의 PCF SBI 접속 대기가 그대로 타임아웃된다.
 ...      끄려면: bash run_tests.sh cds --no-session
 ...
-...    [UPM 연동] TC-CDS-003(1X)만 해당한다.
-...      1X 는 CDS 에서 끝나지 않는다 — PG.BSUBS 가 UPM 으로 Subs-Info(0x07)를 밀고
-...      UPM 이 0x08 로 답해야 완결된다. UPM 슈트의 TC-UPM-301 이 그 구간인데 1X 를
-...      보낼 방법이 없어 주석 처리돼 있었고, 트리거를 쥔 이 슈트로 옮겨 왔다.
+...    [UPM 연동] TC-CDS-003(1X) / TC-CDS-004(1Y) 두 TC 가 해당한다. `upm` 태그.
+...      HFC 전문은 CDS 에서 끝나지 않는다 — PG.BSUBS 가 UPM 으로 Subs-Info(0x07)를
+...      밀고 UPM 이 0x08 로 답해야 완결된다. **가입(1X)뿐 아니라 해지(1Y)도 탄다**
+...      (해지도 Cell 정보를 정리해야 한다). UPM 슈트의 TC-UPM-301 이 그 구간인데
+...      1X 를 보낼 방법이 없어 주석 처리돼 있었고, 트리거를 쥔 이 슈트로 옮겨 왔다.
 ...      그래서 **CDS 슈트가 UPM 포트(${UPM_PG_PORT})에도 의존한다** — PDB 와 마찬가지로
 ...      Suite Setup 에서 붙으므로 UPM 이 안 뜨면 슈트 전체가 서지 않는다.
 ...      CDS 전문만 돌리려면: bash run_tests.sh cds --no-upm
 ...      (robot 을 직접 부르면 --variable CDS_UPM_VERIFY:False — UPM 접속 자체를 건너뛴다)
 ...
-...    [PCF Noti 수신] TC-CDS-003(1X)만 해당한다. `noti` 태그.
+...    [PCF Noti 수신] A1(002) / 1Y(004) / Z1(019)를 뺀 전 TC 가 해당한다. `noti` 태그.
 ...      SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. 도구가 PCF 역할로
 ...      ${CDS_NOTI_PORT} 를 Listen 해 **BSUBS→PCF Cell List 한 건**을 받는다
 ...      (UPM 0x08 응답 뒤). 전문(SC)·PDB 로는 안 보이는 구간이다.
@@ -278,12 +280,23 @@ TC-CDS-004 1Y (HFC해지)
     [Documentation]
     ...    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...
-    ...    [성공 판단 기준] TC-CDS-003 이 넣은 존 서비스가 **0건**이어야 성공이다.
-    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='ZONE_SVC_D'
-    ...    SVC_TYPE·JOB_CODE 를 걸지 않는다 — 어떤 형태로든 남아 있으면 해지가 덜 된 것이다.
-    [Tags]    cds    command    validation    db
+    ...    [성공 판단 기준] 두 구간을 본다.
+    ...      1) PDB : TC-CDS-003 이 넣은 존 서비스가 **0건**이어야 한다.
+    ...         SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='ZONE_SVC_D'
+    ...         SVC_TYPE·JOB_CODE 를 걸지 않는다 — 어떤 형태로든 남아 있으면 해지가 덜 된 것이다.
+    ...      2) UPM : PG.BSUBS → Subs-Info-Request(0x07) 수신 → 0x08 응답.
+    ...         **1Y 도 1X 와 같이 UPM 을 탄다** — 해지도 Cell 정보를 정리해야 하기 때문이다.
+    ...
+    ...    ★ 0x08 응답을 보내는 것까지가 이 TC 의 일이다(003 과 같다). 안 보내면 PG 가
+    ...      UPM 응답을 기다리다 재시도로 넘어가 **뒤따르는 TC 의 PDB 판정이 흔들린다.**
+    ...    ※ SBI Noti 는 보지 않는다 — 1Y 는 알림이 나가지 않는 세 코드 중 하나다
+    ...      (@{CDS_NOTI_EXEMPT_CODES}).
+    ...    ※ --variable CDS_UPM_VERIFY:False (--no-upm) 면 2)를 건너뛴다.
+    [Tags]    cds    command    validation    db    upm
     Command Download Flow    ${CDS_CODE_1Y}
     Verify Zone Service Released In PDB    ${CDS_MDN}
+    # PG.BSUBS → UPM Subs-Info(0x07) 수신 → 0x08 응답 (1X 와 같은 구간)
+    Verify UPM Subs Info Notified    mdn=${CDS_MDN}
 
 TC-CDS-005 I2 (부가서비스신청)
     [Documentation]

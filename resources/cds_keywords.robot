@@ -31,8 +31,9 @@ Library    ${CURDIR}/CdsDbHelper.py    WITH NAME    CdsDb
 # 도구가 PCF 역할로 SBI Noti(HTTP/2 h2c)를 받는다 → 의존성: pip install h2
 Library    ${CURDIR}/HttpNotiServer.py    WITH NAME    Noti
 Resource   ${CURDIR}/common_keywords.robot
-# 1X(HFC 가입)가 PG.BSUBS→UPM Subs-Info(0x07)를 유발한다 → TC-CDS-003 이 UPM
-# 키워드를 쓴다. PCF 슈트가 nag_keywords 를 들여오는 것과 같은 구조.
+# HFC 전문(1X 가입 / 1Y 해지)이 PG.BSUBS→UPM Subs-Info(0x07)를 유발한다
+# → TC-CDS-003 / TC-CDS-004 가 UPM 키워드를 쓴다.
+# PCF 슈트가 nag_keywords 를 들여오는 것과 같은 구조.
 Resource   ${CURDIR}/upm_keywords.robot
 
 *** Variables ***
@@ -107,7 +108,7 @@ Suite CDS Connect
     # 4-1) 세션 사전 적재 — 전문을 보내기 전에 T_SMF_SESSION_INFO 에 세션이 있어야
     #      PG.SNOTI 가 알림 상대를 찾는다. 멱등이라 이미 있으면 그냥 지나간다.
     Ensure CDS Session In PDB
-    # 5) UPM 접속 — TC-CDS-003(1X)이 PG.BSUBS→UPM Subs-Info(0x07)를 받아야 한다.
+    # 5) UPM 접속 — TC-CDS-003(1X)/004(1Y)가 PG.BSUBS→UPM Subs-Info(0x07)를 받아야 한다.
     #    ${CDS_UPM_VERIFY}=${FALSE} 면 통째로 건너뛴다(그러면 UPM 의존이 사라진다).
     IF    ${CDS_UPM_VERIFY}
         Suite UPM Connect
@@ -731,13 +732,14 @@ Verify Subscriber Removed From PDB
 # 로 ${CDS_DB_SETTLE} 만큼 쉰다(ResultAck 직후에는 아직 반영 전이다).
 # 특정 코드만 더 기다려야 하면 TC 에서 `settle=10s` 처럼 덮어쓴다.
 
-# ── 1X → UPM Subs-Info (0x07/0x08) ──────────────────────────────
+# ── 1X / 1Y → UPM Subs-Info (0x07/0x08) ─────────────────────────
 #
-# 1X(HFC 가입)는 CDS 쪽에서 끝나지 않는다. PG.BSUBS 가 이어서 **UPM 으로
+# HFC 전문은 CDS 쪽에서 끝나지 않는다. PG.BSUBS 가 이어서 **UPM 으로
 # Subs-Info-Request(0x07)** 를 밀고, UPM 이 Cell 정보를 담아 0x08 로 답해야
-# 흐름이 완결된다. UPM 슈트의 TC-UPM-301 이 바로 이 구간인데, 거기서는 트리거할
-# 방법이 없어(1X 를 보내는 쪽이 CDS 다) 주석 처리돼 있다.
-# → 그래서 이 검증은 **1X 를 보내는 TC-CDS-003 에 붙는 것이 맞다.**
+# 흐름이 완결된다. **가입(1X)뿐 아니라 해지(1Y)도 탄다** — 해지도 Cell 정보를
+# 정리해야 하기 때문이다. UPM 슈트의 TC-UPM-301 이 바로 이 구간인데, 거기서는
+# 트리거할 방법이 없어(HFC 전문을 보내는 쪽이 CDS 다) 주석 처리돼 있다.
+# → 그래서 이 검증은 **전문을 보내는 TC-CDS-003 / TC-CDS-004 에 붙는 것이 맞다.**
 #
 # ★ 순서: PG 는 CDS CommandResult(0017)와 UPM 0x07 을 각각 다른 소켓으로 보낸다.
 #   둘의 도착 순서는 보장되지 않지만, 먼저 온 0x07 은 소켓 버퍼에 남아 있으므로
@@ -745,12 +747,12 @@ Verify Subscriber Removed From PDB
 
 Verify UPM Subs Info Notified
     [Documentation]
-    ...    1X 송신 뒤 PG.BSUBS → UPM Subs-Info-Request(0x07) 를 받아 검증하고
+    ...    HFC 전문(1X 가입 / 1Y 해지) 송신 뒤 PG.BSUBS → UPM Subs-Info-Request(0x07) 를 받아 검증하고
     ...    Subs-Info-Response(0x08, result-code=${UPM_RC_SUCCESS}) 로 답한다.
     ...    (UPM 슈트 TC-UPM-301 과 같은 내용 — 트리거가 있는 이쪽으로 옮겨 온 것이다)
     ...
     ...    검증 항목: mdn / branch-name / event-timestamp 형식 + tid·service-id 존재.
-    ...    ${mdn} 을 주면 요청의 mdn 이 그 번호인지까지 본다(1X 를 보낸 가입자와 일치).
+    ...    ${mdn} 을 주면 요청의 mdn 이 그 번호인지까지 본다(전문을 보낸 가입자와 일치).
     ...
     ...    ${CDS_UPM_VERIFY}=${FALSE} 면 아무것도 하지 않고 넘어간다 — 그때는 UPM 에
     ...    접속조차 하지 않았으므로 읽을 소켓이 없다.
@@ -764,7 +766,7 @@ Verify UPM Subs Info Notified
     END
     ${ok}=    Tcp.Is Connected    ${UPM_SOCK}
     Should Be True    ${ok}
-    ...    msg=UPM 소켓이 닫혀 있습니다 — 1X 의 Subs-Info(0x07)를 받을 수 없습니다
+    ...    msg=UPM 소켓이 닫혀 있습니다 — HFC 전문의 Subs-Info(0x07)를 받을 수 없습니다
     ${hdr}    ${body}=    Receive Subs Info Request
     UPM MDN Should Be Valid              ${body}
     UPM Branch Name Should Be Valid      ${body}
@@ -773,7 +775,7 @@ Verify UPM Subs Info Notified
     Dictionary Should Contain Key    ${body}    service-id
     IF    $mdn is not None
         Should Be Equal As Strings    ${body}[mdn]    ${mdn}
-        ...    msg=Subs-Info(0x07)의 mdn 이 1X 를 보낸 가입자와 다릅니다 (기대=${mdn}, 실제=${body}[mdn])
+        ...    msg=Subs-Info(0x07)의 mdn 이 HFC 전문을 보낸 가입자와 다릅니다 (기대=${mdn}, 실제=${body}[mdn])
     END
     ${cell}=     Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
     ${cells}=    Create List    ${cell}
