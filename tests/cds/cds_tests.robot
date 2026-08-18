@@ -35,6 +35,8 @@ Documentation
 ...      003 1X HFC가입  : SERVICE(SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X) 1건 이상
 ...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (구 TC-UPM-301)
 ...                        + **PCF SBI Noti 1건 수신** (Cell List — 가입자 Noti 는 안 나온다)
+...      ★ SBI Noti 판정은 **A1(002) / 1Y(004) / Z1(019)를 뺀 전 TC** 에 붙어 있다.
+...        그 셋만 PG 가 PCF 로 알림을 보내지 않는다(@{CDS_NOTI_EXEMPT_CODES}).
 ...      004 1Y HFC해지  : SERVICE(SVC_ID=ZONE_SVC_D) 0건
 ...      005 I2 부가신청 : SERVICE(YOUNG_HARM_INFO_BLOCK, N, I2, 56, LIMIT=Y) 1건 이상
 ...      006 I3 부가해지 : SERVICE(SVC_ID=YOUNG_HARM_INFO_BLOCK) 0건
@@ -105,9 +107,15 @@ Documentation
 ...      SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. 도구가 PCF 역할로
 ...      ${CDS_NOTI_PORT} 를 Listen 해 **BSUBS→PCF Cell List 한 건**을 받는다
 ...      (UPM 0x08 응답 뒤). 전문(SC)·PDB 로는 안 보이는 구간이다.
-...      · **1X/1Y 는 SNOTI→PCF 가입자 Noti 가 나가지 않는다** — PG.SDM 이 이 두 코드에
-...        대해서는 RBUS NOTI 를 보내지 않아 SNOTI 가 깨지 않기 때문이다. 그래서 받을
-...        알림은 한 건뿐이고, 두 건을 기다리게 만들면 헛되이 실패한다.
+...      · **알림이 안 나가는 업무 코드는 A1 / 1Y / Z1 셋뿐이다**(2026-08-19 확인).
+...        나머지 전 코드는 SBI Noti 가 나가므로 각 TC 가 `Verify SBI Noti Sent` 로
+...        도착을 판정한다. 예외 목록은 @{CDS_NOTI_EXEMPT_CODES} 하나가 쥔다 —
+...        목록이 바뀌면 **cds_variables.robot 의 그 변수만** 고치면 된다.
+...      · 1X 는 예외가 아니다. SNOTI→PCF 가입자 통보는 안 나가지만(PG.SDM 이 1X/1Y 에
+...        RBUS NOTI 를 안 보낸다) BSUBS→PCF Cell List 가 나가고, TC-CDS-003 이
+...        그 Cell List 를 직접 판정한다.
+...      · 한 TC 가 전문을 두 번 보내면(011/012 의 K1 준비) 준비 전문도 알림을 유발한다
+...        → `since=` 로 본 전문 이후 도착분만 보게 해야 한다.
 ...      · 프로토콜은 **HTTP/2 평문(h2c)** 이다 → `pip install h2` 필요.
 ...        표준 http.server 로는 못 받는다(HttpNotiServer.py 가 처리).
 ...      · **PG 가 이 주소로 보내도록 설정돼 있어야 한다.** 포트가 다르면 변수에서 맞출 것.
@@ -285,9 +293,10 @@ TC-CDS-005 I2 (부가서비스신청)
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN='${CDS_MDN}' AND SVC_TYPE='N' AND JOB_CODE='I2'
     ...             AND TIME_PERIOD_ID='56' AND "LIMIT"='Y' AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
-    [Tags]    cds    command    validation    db
+    [Tags]    cds    command    validation    db    noti
     Command Download Flow    ${CDS_CODE_I2}
     Verify Addon Service Subscribed In PDB    ${CDS_MDN}
+    Verify SBI Noti Sent    ${CDS_CODE_I2}
 
 TC-CDS-006 I3 (부가서비스해지)
     [Documentation]
@@ -296,9 +305,10 @@ TC-CDS-006 I3 (부가서비스해지)
     ...    [성공 판단 기준] TC-CDS-005 가 넣은 부가서비스가 **0건**이어야 성공이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
-    [Tags]    cds    command    validation    db
+    [Tags]    cds    command    validation    db    noti
     Command Download Flow    ${CDS_CODE_I3}
     Verify Addon Service Released In PDB    ${CDS_MDN}
+    Verify SBI Noti Sent    ${CDS_CODE_I3}
 
 TC-CDS-007 C1 (기기변경)
     [Documentation]
@@ -310,10 +320,11 @@ TC-CDS-007 C1 (기기변경)
     ...      수행 전: SELECT SVC_ID, COUNT(*) ... WHERE MDN=?                   GROUP BY SVC_ID
     ...      수행 후: SELECT SVC_ID, COUNT(*) ... WHERE MDN=? AND JOB_CODE='C1' GROUP BY SVC_ID
     ...    두 집계가 SVC_ID 별로 완전히 같아야 성공이다.
-    [Tags]    cds    command    validation    db
+    [Tags]    cds    command    validation    db    noti
     ${before}=    Capture Service Counts Per SVC_ID    ${CDS_MDN}
     Command Download Flow    ${CDS_CODE_C1}    new_min=${CDS_NEW_MIN}
     Verify Service Counts Preserved In PDB    ${CDS_MDN}    ${CDS_CODE_C1}    ${before}
+    Verify SBI Noti Sent    ${CDS_CODE_C1}
 
 TC-CDS-008 G1 (정보변경)
     [Documentation]
@@ -321,10 +332,11 @@ TC-CDS-008 G1 (정보변경)
     ...
     ...    [성공 판단 기준] TC-CDS-007(C1)과 같은 방식이다 — 수행 전 SVC_ID 별 행 수와
     ...    수행 후 JOB_CODE='G1' 집계가 같아야 성공이다.
-    [Tags]    cds    command    validation    db
+    [Tags]    cds    command    validation    db    noti
     ${before}=    Capture Service Counts Per SVC_ID    ${CDS_MDN}
     Command Download Flow    ${CDS_CODE_G1}
     Verify Service Counts Preserved In PDB    ${CDS_MDN}    ${CDS_CODE_G1}    ${before}
+    Verify SBI Noti Sent    ${CDS_CODE_G1}
 
 
 
@@ -365,13 +377,14 @@ TC-CDS-009 K1 (Data(Time) 쿠폰 가입)
     ...       넣지 않는다** — 전문 흐름은 SC 로 통과하고 조회 2번째에서만 실패한다.
     ...
     ...    이 쿠폰은 TC-CDS-010(K2)이 같은 핀으로 해지해 정리한다.
-    [Tags]    cds    command    validation    db    coupon
+    [Tags]    cds    command    validation    db    coupon    noti
     Command Download Flow    ${CDS_CODE_K1}
     ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
     ...    coupon_pin=${CDS_COUPON_PIN_K1}         coupon_category=${CDS_COUPON_CATEGORY}
     Verify Coupon Service Subscribed In PDB
     ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K1}
     Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_K1}    ${CDS_COUPON_PIN_K1}
+    Verify SBI Noti Sent    ${CDS_CODE_K1}
 
 TC-CDS-010 K2 (Data(Time) 쿠폰 해지)
     [Documentation]
@@ -384,9 +397,10 @@ TC-CDS-010 K2 (Data(Time) 쿠폰 해지)
     ...
     ...    ※ 0건은 "해지됐다"와 "원래 없었다"를 구분하지 못한다 — TC-CDS-009 가 같은 핀으로
     ...       먼저 도는 것을 전제로 한다. 단독 실행하면 그냥 통과한다.
-    [Tags]    cds    command    validation    db    coupon
+    [Tags]    cds    command    validation    db    coupon    noti
     Command Download Flow    ${CDS_CODE_K2}    coupon_pin=${CDS_COUPON_PIN_K1}
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K1}
+    Verify SBI Noti Sent    ${CDS_CODE_K2}
 
 
 TC-CDS-011 K4 (Data(Time) 쿠폰 취소)
@@ -403,7 +417,7 @@ TC-CDS-011 K4 (Data(Time) 쿠폰 취소)
     ...    [성공 판단 기준] 취소 후 그 핀의 쿠폰 행이 **0건**이어야 성공이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K4}'
-    [Tags]    cds    command    validation    db    coupon
+    [Tags]    cds    command    validation    db    coupon    noti
     # 준비: 취소 대상이 될 쿠폰을 K1 으로 가입시킨다
     Command Download Flow    ${CDS_CODE_K1}
     ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
@@ -411,8 +425,11 @@ TC-CDS-011 K4 (Data(Time) 쿠폰 취소)
     Verify Coupon Service Subscribed In PDB
     ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K4}
     # 검증: K4 로 취소
+    # 준비 전문(K1)도 SBI Noti 를 유발하므로, K4 판정은 그 이후 도착분만 봐야 한다.
+    ${since}=    Noti Timestamp
     Command Download Flow    ${CDS_CODE_K4}    coupon_pin=${CDS_COUPON_PIN_K4}
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K4}
+    Verify SBI Noti Sent    ${CDS_CODE_K4}    since=${since}
 
 TC-CDS-012 K3 (Data(Time) 쿠폰 만료)
     [Documentation]
@@ -441,7 +458,7 @@ TC-CDS-012 K3 (Data(Time) 쿠폰 만료)
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K3}'
     ...    K2(해지)·K4(취소)와 **판정 기준이 완전히 같다** — 세 코드를 서로 구분하지 못한다.
-    [Tags]    cds    command    validation    db    coupon
+    [Tags]    cds    command    validation    db    coupon    noti
     # 준비: 만료 대상이 될 쿠폰을 K1 으로 가입시킨다 (START_TIME = 현재 시각 ± 오프셋)
     ${start_time}    ${valid_time}=    Current CDS Start Time    ${CDS_K3_START_OFFSET_MIN}
     Log    [TC-012] K1 START_TIME=${start_time} → LIMIT_VALID_TIME=${valid_time}    console=True
@@ -452,8 +469,11 @@ TC-CDS-012 K3 (Data(Time) 쿠폰 만료)
     ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K3}
     ...    limit_valid_time=${valid_time}
     # 검증: K3 로 만료
+    # 준비 전문(K1)도 SBI Noti 를 유발하므로, K3 판정은 그 이후 도착분만 봐야 한다.
+    ${since}=    Noti Timestamp
     Command Download Flow    ${CDS_CODE_K3}    coupon_pin=${CDS_COUPON_PIN_K3}
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K3}
+    Verify SBI Noti Sent    ${CDS_CODE_K3}    since=${since}
 
 
 TC-CDS-013 K5 (Data(Time) 3Mbps 쿠폰 가입)
@@ -469,13 +489,14 @@ TC-CDS-013 K5 (Data(Time) 3Mbps 쿠폰 가입)
     ...
     ...    핀을 K1 과 달리 쓰는 이유는 해지 판정이 `MDN + R17 + CNUM` 으로만 걸려
     ...    핀을 공유하면 TC-CDS-010 이 지운 행을 이 TC 의 결과로 착각하기 때문이다.
-    [Tags]    cds    command    validation    db    coupon
+    [Tags]    cds    command    validation    db    coupon    noti
     Command Download Flow    ${CDS_CODE_K5}
     ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
     ...    coupon_pin=${CDS_COUPON_PIN_K5}         coupon_category=${CDS_COUPON_CATEGORY}
     Verify Coupon Service Subscribed In PDB
     ...    ${CDS_MDN}    ${CDS_CODE_K5}    ${CDS_DB_TPID_K5}    ${CDS_DB_LIMIT_K5}    ${CDS_COUPON_PIN_K5}
     Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_K5}    ${CDS_COUPON_PIN_K5}
+    Verify SBI Noti Sent    ${CDS_CODE_K5}
 
 TC-CDS-014 K6 (Data(Time) 3Mbps 쿠폰 해지)
     [Documentation]
@@ -486,9 +507,10 @@ TC-CDS-014 K6 (Data(Time) 3Mbps 쿠폰 해지)
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K5}'
     ...    K2(해지)와 판정 기준이 같다 — 3Mbps 쿠폰인지는 구분되지 않는다.
-    [Tags]    cds    command    validation    db    coupon
+    [Tags]    cds    command    validation    db    coupon    noti
     Command Download Flow    ${CDS_CODE_K6}    coupon_pin=${CDS_COUPON_PIN_K5}
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K5}
+    Verify SBI Noti Sent    ${CDS_CODE_K6}
 
 TC-CDS-015 Y9 (Data(Zone) 부가서비스 쿠폰 사용시점 알림)
     [Documentation]
@@ -511,12 +533,13 @@ TC-CDS-015 Y9 (Data(Zone) 부가서비스 쿠폰 사용시점 알림)
     ...    같이 바뀐다.
     ...
     ...    ※ 짝이 되는 해지 코드가 없어 이 TC 는 서비스 행과 예약 행을 **남긴다.**
-    [Tags]    cds    command    validation    db    coupon
+    [Tags]    cds    command    validation    db    coupon    noti
     Command Download Flow    ${CDS_CODE_Y9}
     ...    zone_code=${CDS_ZONE_CODE}          start_time=${CDS_START_TIME}
     ...    coupon_type=${CDS_COUPON_TYPE}      coupon_pin=${CDS_COUPON_PIN_Y9}
     Verify Zone Coupon Service Subscribed In PDB    ${CDS_MDN}
     Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_Y9}    ${CDS_COUPON_PIN_Y9}
+    Verify SBI Noti Sent    ${CDS_CODE_Y9}
 
 TC-CDS-016 SS (0플랜 옵션 3시간프리 가입)
     [Documentation]
@@ -537,10 +560,11 @@ TC-CDS-016 SS (0플랜 옵션 3시간프리 가입)
     ...    ★ K1/K5/Y9 의 LIMIT_VALID_TIME(14자리, 초 '00' 부가)과 **값이 다르다.**
     ...      기준표가 둘 다 $LIMIT_VALID_TIME 으로 적어 놔 같은 값으로 읽기 쉬운 자리다.
     ...      LIMIT_VALID_TIME 컬럼 자체는 이 테이블에 있지만 SS 판정 기준에는 없다.
-    [Tags]    cds    command    validation    db    coupon
+    [Tags]    cds    command    validation    db    coupon    noti
     Command Download Flow    ${CDS_CODE_SS}
     ...    start_time=${CDS_START_TIME}    coupon_type=${CDS_COUPON_TYPE}
     Verify Option Service Subscribed In PDB    ${CDS_MDN}
+    Verify SBI Noti Sent    ${CDS_CODE_SS}
 
 TC-CDS-017 ST (0플랜 옵션 3시간프리 해지)
     [Documentation]
@@ -551,10 +575,11 @@ TC-CDS-017 ST (0플랜 옵션 3시간프리 해지)
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_TIME_I}'
     ...    CNUM 을 걸지 않는다 — 판정 기준이 MDN + SVC_ID 뿐이다.
-    [Tags]    cds    command    validation    db    coupon
+    [Tags]    cds    command    validation    db    coupon    noti
     Command Download Flow    ${CDS_CODE_ST}
     ...    start_time=${CDS_START_TIME}    coupon_type=${CDS_COUPON_TYPE}
     Verify Option Service Released In PDB    ${CDS_MDN}
+    Verify SBI Noti Sent    ${CDS_CODE_ST}
 
 
 # ════════════════════════════════════════════════════════════════
@@ -571,11 +596,12 @@ TC-CDS-018 D3 (번호변경)
     ...      수행 전: MDN = 바뀌기 전 번호(${CDS_ACTIVE_MDN})
     ...      수행 후: MDN = 바뀐 번호(${CDS_NEW_MDN}) AND JOB_CODE='D3'
     ...    옛 번호의 서비스가 새 번호로 그대로 옮겨졌는지를 보는 셈이다.
-    [Tags]    cds    command    validation    db
+    [Tags]    cds    command    validation    db    noti
     ${before}=    Capture Service Counts Per SVC_ID    ${CDS_ACTIVE_MDN}
     Command Download Flow    ${CDS_CODE_D3}    new_mdn=${CDS_NEW_MDN}    new_min=${CDS_NEW_MIN}
     Set Suite Variable    ${CDS_ACTIVE_MDN}    ${CDS_NEW_MDN}
     Verify Service Counts Preserved In PDB    ${CDS_NEW_MDN}    ${CDS_CODE_D3}    ${before}
+    Verify SBI Noti Sent    ${CDS_CODE_D3}
 
 TC-CDS-019 Z1 (가입해지)
     [Documentation]

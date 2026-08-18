@@ -895,6 +895,35 @@ Verify PCF Noti Received
     Log    [Noti] ${label} ${n}건 수신 — ${found}[0][method] ${found}[0][path]    console=True
     RETURN    ${found}
 
+Verify SBI Noti Sent
+    [Documentation]
+    ...    업무 코드 ${code} 가 유발한 **PCF SBI Noti 가 도착했는지** 판정한다.
+    ...
+    ...    ★ 예외 목록(@{CDS_NOTI_EXEMPT_CODES} = A1 / 1Y / Z1)에 있으면 아무것도
+    ...      하지 않는다 — 그 셋은 PG 가 PCF 로 알림을 보내지 않기 때문이다.
+    ...      목록이 바뀌면 cds_variables.robot 의 그 변수만 고치면 된다.
+    ...
+    ...    ${since} : 이 시각 이후 도착분만 본다. **한 TC 안에서 전문을 두 번 보내는
+    ...               경우(011/012 의 K1 준비)에 반드시 줘야 한다** — 안 주면 준비
+    ...               전문이 유발한 알림을 본 판정으로 착각한다. `Noti Timestamp` 로 뜬다.
+    ...    ${body}  : 본문에 포함돼야 할 문자열. 기본은 빈 값(내용을 가리지 않는다) —
+    ...               실 PG 본문에 MDN 이 그대로 들어가는지 확인되지 않았다. 확인되면
+    ...               TC 에서 body=${CDS_MDN} 처럼 좁힐 수 있다.
+    ...
+    ...    ${CDS_NOTI_VERIFY}=${FALSE}(--no-sbi) 면 통째로 건너뛴다.
+    [Arguments]    ${code}    ${since}=${NONE}    ${body}=${EMPTY}    ${wait}=${CDS_NOTI_WAIT}
+    IF    not ${CDS_NOTI_VERIFY}
+        Log    [Noti] 수신 검증 꺼짐 — ${code} 의 SBI Noti 확인을 건너뜁니다    console=True
+        RETURN
+    END
+    ${exempt}=    Evaluate    $code in $CDS_NOTI_EXEMPT_CODES
+    IF    ${exempt}
+        Log    [Noti] ${code} 는 SBI Noti 가 나가지 않는 업무 코드입니다 — 건너뜁니다    console=True
+        RETURN
+    END
+    Verify PCF Noti Received    label=SBI Noti (${code})
+    ...    body=${body}    since=${since}    wait=${wait}
+
 Noti Timestamp
     [Documentation]
     ...    현재 시각(epoch)을 뜬다. `Verify PCF Noti Received` 의 since= 기준점이다.
