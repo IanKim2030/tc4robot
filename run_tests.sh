@@ -24,7 +24,7 @@
 #   bash run_tests.sh cds --no-upm          # UPM(10506) 접속·0x07 검증 생략
 #   bash run_tests.sh cds --no-sbi          # PCF SBI Listen(16101) 자체를 안 함
 #   bash run_tests.sh cds --no-upm --no-sbi     # CDS 전문 + PDB 만
-#   bash run_tests.sh cds --no-sbi-wait     # Listen 은 하되 PG 접속을 안 기다림
+#   bash run_tests.sh cds --sbi-wait         # PG 가 붙을 때까지 기다렸다 시작(기본은 안 기다림)
 #   bash run_tests.sh cds --no-session      # 세션 사전 적재(INSERT) 생략
 #   --upm / --sbi / --sbi-wait / --session 은 반대로 강제로 켠다.
 #   별칭: --no-http / --no-noti 도 --no-sbi 로 받는다(예전 이름).

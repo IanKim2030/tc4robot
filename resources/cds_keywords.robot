@@ -805,13 +805,15 @@ Verify UPM Subs Info Notified
 
 Wait For PCF Noti Connection
     [Documentation]
-    ...    PG 가 PCF SBI 로 **붙을 때까지** 기다린다. Suite Setup 이 부르며,
-    ...    이게 성립해야 TC 를 시작한다.
+    ...    PG 가 PCF SBI 로 **붙을 때까지** 기다린다. Suite Setup 이 부른다.
     ...
-    ...    왜 기다리는가 — 접속 전에 CDS 전문을 보내면 PG 는 알림을 보낼 상대가
-    ...    없어 그냥 흘려보낸다. 그러면 TC-CDS-003 이 "Noti 안 옴"으로 실패하는데,
-    ...    원인은 전문이 아니라 **시작 타이밍**이다. 로그만으로는 구분이 안 되므로
-    ...    아예 시작 조건으로 못 박는다.
+    ...    ★ **기본은 기다리지 않는다**(${CDS_NOTI_WAIT_CONNECT}=${FALSE}).
+    ...      PG 는 상시 붙어 있는 것이 아니라 보낼 알림이 생겼을 때 비로소 다이얼한다
+    ...      — 전문을 보내기 전에는 붙을 이유가 없으므로 기다려 봐야 타임아웃만 난다.
+    ...      알림이 실제로 왔는지는 1X 를 보낸 **TC-CDS-003 이 판정**한다.
+    ...
+    ...    켜는 경우는 하나다: PG 가 **상시 접속을 유지하는** 환경에서, "아예 붙지도
+    ...    않았다" 를 슈트 시작 시점에 잡고 싶을 때.
     ...
     ...    ${CDS_NOTI_ACCEPT_TIMEOUT} 안에 안 붙으면 실패한다 — 그때는 PG 가 이
     ...    주소로 보내도록 설정됐는지, 포트(${CDS_NOTI_PORT})가 맞는지부터 볼 것.
@@ -819,15 +821,13 @@ Wait For PCF Noti Connection
     ...
     ...    끄는 손잡이가 둘이고 층이 다르다.
     ...      ${CDS_NOTI_VERIFY}=${FALSE}       Listen 자체를 안 한다 → 여기도 무의미
-    ...      ${CDS_NOTI_WAIT_CONNECT}=${FALSE} Listen 은 하되 **기다리지 않는다**
-    ...    후자는 PG 가 이미 상시 접속돼 있거나 접속 시점을 못 맞추는 환경용이다.
-    ...    끄면 PG 가 늦게 붙었을 때 TC-CDS-003 의 Noti 판정이 샌다.
+    ...      ${CDS_NOTI_WAIT_CONNECT}=${FALSE} Listen 은 하되 기다리지 않는다 (기본)
     [Arguments]    ${timeout}=${CDS_NOTI_ACCEPT_TIMEOUT}
     IF    not ${CDS_NOTI_VERIFY}
         RETURN
     END
     IF    not ${CDS_NOTI_WAIT_CONNECT}
-        Log    [Suite] PCF SBI 접속 대기 꺼짐 (CDS_NOTI_WAIT_CONNECT=${CDS_NOTI_WAIT_CONNECT}) — Listen 만 하고 시작합니다    console=True
+        Log    [Suite] PCF SBI 는 Listen 만 하고 시작합니다 — 알림 도착은 TC-CDS-003 이 판정합니다    console=True
         RETURN
     END
     Log    [Suite] PG 의 PCF SBI 접속 대기 (최대 ${timeout}) — 포트 ${CDS_NOTI_PORT}    console=True

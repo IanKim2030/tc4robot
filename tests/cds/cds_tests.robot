@@ -9,7 +9,7 @@ Documentation
 ...    [Suite 소켓 정책]
 ...    Suite Setup    : Suite CDS Connect — 연결 → ConnectionRequest(0001/0003) + ACK 검증
 ...                     → 두 소켓 생존 확인 → PDB 접속 → **세션 사전 적재** → UPM 접속
-...                     → PCF SBI 수신 서버 Listen + **PG 의 SBI 접속 대기**
+...                     → PCF SBI 수신 서버 Listen (**접속은 기다리지 않는다**)
 ...                       (접속은 TC 가 아니다)
 ...    Test Setup     : CDS Test Setup — 소켓 생존 확인(하나라도 닫히면 Suite 중단)
 ...                     + **PCF SBI 수신 상태 리셋**(모든 TC). 알림을 판정하는 TC 는
@@ -114,16 +114,20 @@ Documentation
 ...      · **LTE 가입자면 아무것도 안 온다** — SBI 가 아니라 RBUS 다.
 ...      · 실 PG 의 :path 가 확인되지 않아 ${CDS_NOTI_PATH_*} 는 비어 있다(경로 무시).
 ...        채우면 그때부터 종류별로 구분해 판정한다.
-...      · **Suite Setup 이 PG 의 PCF SBI 접속을 기다린 뒤 TC 를 시작한다**
-...        (${CDS_NOTI_ACCEPT_TIMEOUT}). 접속 전에 전문을 보내면 PG 가 알림을 보낼
-...        상대가 없어 그냥 흘러가고, 003 이 "안 왔다"로 실패한다 — 원인이 전문이
-...        아니라 시작 타이밍인데 로그로는 구분이 안 되므로 시작 조건으로 못 박았다.
+...      · **Suite Setup 은 Listen 만 열고 바로 시작한다 — 접속을 기다리지 않는다.**
+...        PG 는 상시 붙어 있는 것이 아니라 보낼 알림이 생겼을 때 비로소 다이얼한다
+...        (세션의 RES_URI/UDR_NOTI_URI 를 보고 붙는다). 전문을 보내기 전에는 붙을
+...        이유가 없으므로 기다려 봐야 타임아웃만 난다.
+...        → **알림이 실제로 왔는지는 1X 를 보낸 TC-CDS-003 이 판정한다**
+...          (${CDS_NOTI_WAIT} 동안 대기).
+...      · 못 받으면 실패 메시지에 **그 TC 동안의 링크 상태**가 붙는다. 감시 스레드가
+...        따로 돌며 표본을 뜨기 때문이다 — disconnects_since 가 0이 아니면 전문이
+...        아니라 링크가 끊겼던 것이다.
 ...      끄는 손잡이가 둘이고 층이 다르다.
 ...        --no-sbi        (= --variable CDS_NOTI_VERIFY:False)
-...                        Listen 도 접속 대기도 안 한다. h2 패키지 없이도 돈다
-...        --no-sbi-wait   (= --variable CDS_NOTI_WAIT_CONNECT:False)
-...                        Listen 은 하되 기다리지 않는다
-...        후자는 PG 가 이미 상시 접속돼 있거나 접속 시점을 못 맞추는 환경용이다.
+...                        Listen 도 판정도 안 한다. h2 패키지 없이도 돈다
+...        --sbi-wait      (= --variable CDS_NOTI_WAIT_CONNECT:True)
+...                        예전처럼 접속까지 기다렸다 시작한다(상시 접속 환경용)
 ...        플래그는 run_tests.sh 전용이다 — robot 을 직접 부르면 --variable 로 준다.
 ...
 ...    [TC 간 의존성] 슈트 전체가 002(A1 신규가입)로 만든 가입자 하나를 이어 쓴다.
@@ -236,6 +240,10 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...      (${CDS_NOTI_PATH_CELL})가 비어 있어 "무엇이든 왔는가" 만 보는 상태라,
     ...      0x08 보다 먼저 도착한 알림이 있으면 그걸 집어 통과해 버리기 때문이다.
     ...      실 PG 경로가 확인되면 그 변수를 채울 것.
+    ...    ★ **PCF SBI 알림이 왔는지는 이 TC 가 판정한다.** Suite Setup 은 Listen 만
+    ...      열고 접속을 기다리지 않는다 — PG 는 보낼 알림이 생겼을 때 비로소 붙기
+    ...      때문이다. 여기서 ${CDS_NOTI_WAIT} 동안 기다려 도착으로 판정한다.
+    ...      ${CDS_NOTI_VERIFY}=${FALSE}(--no-sbi) 면 이 단계를 통째로 건너뛴다.
     ...    ★ 이 판정은 **SA(5G) 가입자 전제**다 — LTE 는 SBI 가 아니라 RBUS 라
     ...      아무것도 안 들어온다(docs/nodes/CDS.md).
     ...    ※ 구간별로 끌 수 있다(끄면 접속·Listen 자체를 하지 않는다).

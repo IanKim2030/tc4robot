@@ -64,23 +64,27 @@ ${CDS_NOTI_PORT}          16101            # 도구가 Listen 할 포트 (PG 설
 ${CDS_NOTI_HOST}          0.0.0.0          # 모든 인터페이스 Listen
 ${CDS_NOTI_WAIT}          30s              # Noti 도착 대기 시간
 
-# ── PG 의 PCF SBI 접속 대기 ──────────────────────────────────────
-# 켜면 Suite Setup 이 **PG 가 PCF SBI 로 붙을 때까지 기다린 뒤** TC 를 시작한다.
-# 접속 전에 전문을 보내면 PG 가 알림을 보낼 상대가 없어 그냥 흘러가고,
-# TC-CDS-003 은 "안 왔다" 로 실패한다 — 원인이 전문이 아니라 타이밍인데
-# 로그만 봐서는 구분되지 않는다. 그래서 시작 자체를 접속에 맞춘다.
+# ── PG 의 PCF SBI 접속 대기 (기본 꺼짐) ─────────────────────────
+# Suite Setup 은 **Listen 만 열고 바로 TC 를 시작한다.** 접속을 기다리지 않는다.
+#
+# 왜 안 기다리는가 — PG 는 상시 붙어 있는 것이 아니라 **보낼 알림이 생겼을 때
+# 비로소 다이얼한다**(세션의 RES_URI/UDR_NOTI_URI 를 보고 붙는다). 그러니 전문을
+# 보내기 전에는 붙을 이유가 없고, 그걸 기다리면 아무 일도 안 하고 타임아웃만 난다.
+# 판정은 **1X 를 보낸 TC-CDS-003 이 ${CDS_NOTI_WAIT} 동안 알림을 기다려서** 한다.
+#
+# 켜면(=${TRUE}) 예전처럼 Suite Setup 이 접속을 기다렸다 시작한다. PG 가 상시
+# 접속을 유지하는 환경에서 "붙지도 않았다" 를 슈트 시작 시점에 잡고 싶을 때만 쓴다.
+# 켠 채로 시간 안에 안 붙으면 슈트가 서지 않는다.
 #
 # ${CDS_NOTI_VERIFY} 와 **별개 손잡이**다. 셋의 조합은 이렇다.
-#   VERIFY=True  + WAIT_CONNECT=True   Listen + 접속 대기 후 시작 (기본, 가장 안전)
-#   VERIFY=True  + WAIT_CONNECT=False  Listen 만 하고 바로 시작
-#                                      → PG 가 늦게 붙으면 003 의 Noti 판정이 샌다.
-#                                        PG 가 이미 상시 접속돼 있거나, 접속 시점을
-#                                        못 맞추는 환경에서 쓴다.
-#   VERIFY=False                       Listen 도 대기도 안 함 (WAIT_CONNECT 는 무시)
+#   VERIFY=True  + WAIT_CONNECT=False  Listen 만 하고 바로 시작 (기본)
+#                                      → 003 이 알림 도착으로 판정한다
+#   VERIFY=True  + WAIT_CONNECT=True   접속까지 기다렸다 시작 (상시 접속 환경용)
+#   VERIFY=False                       Listen 도 판정도 안 함 (WAIT_CONNECT 는 무시)
 #
-# 켠 채로 시간 안에 안 붙으면 슈트가 서지 않는다(PG 설정·포트를 의심할 것).
-#   python -m robot --variable CDS_NOTI_WAIT_CONNECT:False tests/cds/
-${CDS_NOTI_WAIT_CONNECT}      ${TRUE}      # PG 의 PCF SBI 접속을 기다렸다 시작할지
+#   bash run_tests.sh cds --sbi-wait     # 기다리게 하기
+#   bash run_tests.sh cds --no-sbi       # 알림 판정 자체를 끄기
+${CDS_NOTI_WAIT_CONNECT}      ${FALSE}     # PG 의 PCF SBI 접속을 기다렸다 시작할지
 ${CDS_NOTI_ACCEPT_TIMEOUT}    60s          # 기다린다면 최대 얼마나
 
 # ── 링크 감시 (별도 스레드) ──────────────────────────────────────
@@ -91,8 +95,9 @@ ${CDS_NOTI_ACCEPT_TIMEOUT}    60s          # 기다린다면 최대 얼마나
 ${CDS_NOTI_MONITOR_INTERVAL}  1s           # 링크 표본 주기
 
 # 알림을 기다리기 **전에** 링크가 살아 있어야 하는가.
-# 기본은 ${FALSE} 다 — PG 가 알림마다 새로 붙는 구현일 수 있어(그러면 평소 연결 수가
-# 0이다) 켜 두면 멀쩡한 흐름을 막는다. 상시 접속이 확인된 환경에서만 켤 것.
+# 기본은 ${FALSE} 이고, 웬만하면 그대로 두는 것이 맞다 — PG 는 보낼 알림이 생겼을 때
+# 비로소 붙으므로 기다리기 시작하는 시점에는 **정상적으로 연결이 0이다.**
+# 켜면 그 정상 상태를 실패로 잡는다. 상시 접속이 확인된 환경에서만 켤 것.
 ${CDS_NOTI_REQUIRE_LINK}      ${FALSE}
 
 # 알림 종류를 :path 로 가른다. **기본은 빈 값 = 경로를 가리지 않음**이다 —
