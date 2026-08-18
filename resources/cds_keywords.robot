@@ -107,7 +107,8 @@ Suite CDS Connect
     Ensure CDS DB Connection
     # 4-1) 세션 사전 적재 — 전문을 보내기 전에 T_SMF_SESSION_INFO 에 세션이 있어야
     #      PG.SNOTI 가 알림 상대를 찾는다. 멱등이라 이미 있으면 그냥 지나간다.
-    Ensure CDS Session In PDB
+    #      **두 건**이다: 기본 번호 + D3(번호변경) 이후 번호.
+    Ensure CDS Sessions In PDB
     # 5) UPM 접속 — TC-CDS-003(1X)/004(1Y)가 PG.BSUBS→UPM Subs-Info(0x07)를 받아야 한다.
     #    ${CDS_UPM_VERIFY}=${FALSE} 면 통째로 건너뛴다(그러면 UPM 의존이 사라진다).
     IF    ${CDS_UPM_VERIFY}
@@ -549,14 +550,39 @@ Ensure CDS DB Connection
     Set Suite Variable    ${CDS_DB_CONN}    ${conn}
     Log    [Suite] PDB 접속 완료 (autocommit=${CDS_DB_AUTOCOMMIT})    console=True
 
+Ensure CDS Sessions In PDB
+    [Documentation]
+    ...    TC 수행 전에 필요한 5G 세션을 **두 건** 심는다.
+    ...      1) 기본 번호   ${CDS_MDN}     — 슈트 대부분이 쓰는 가입자
+    ...      2) D3 이후 번호 ${CDS_NEW_MDN} — TC-CDS-018 이 번호를 바꾸면 019(Z1)가
+    ...                                       그 번호로 해지 전문을 보낸다
+    ...
+    ...    왜 둘인가 — PG.SNOTI 는 세션 표를 보고 알림 상대를 정한다. D3 이후 번호에
+    ...    세션이 없으면 **D3·Z1 의 알림이 조용히 안 나간다.** 전문은 SC 로 처리되고
+    ...    PDB 에도 반영되므로 로그만 봐서는 구분되지 않는다.
+    ...
+    ...    ${CDS_SESSION_CREATE}=${FALSE}(--no-session) 면 둘 다 건너뛴다.
+    IF    not ${CDS_SESSION_CREATE}
+        Log    [Suite] 세션 사전 적재 꺼짐 (CDS_SESSION_CREATE=${CDS_SESSION_CREATE})    console=True
+        RETURN
+    END
+    Ensure CDS Session In PDB    label=기본
+    ...    mdn=${CDS_MDN}    min=${CDS_MIN}
+    ...    imsi=${CDS_SESSION_IMSI}    ip=${CDS_SESSION_IP}
+    ...    sm_policy_id=${CDS_SESSION_SM_POLICY_ID}
+    ...    res_uri=${CDS_SESSION_RES_URI}    noti_uri=${CDS_SESSION_NOTI_URI}
+    ...    udr_noti_uri=${CDS_SESSION_UDR_NOTI_URI}
+    Ensure CDS Session In PDB    label=D3 이후 번호
+    ...    mdn=${CDS_NEW_MDN}    min=${CDS_NEW_MIN}
+    ...    imsi=${CDS_SESSION_IMSI_NEW}    ip=${CDS_SESSION_IP_NEW}
+    ...    sm_policy_id=${CDS_SESSION_SM_POLICY_ID_NEW}
+    ...    res_uri=${CDS_SESSION_RES_URI_NEW}    noti_uri=${CDS_SESSION_NOTI_URI_NEW}
+    ...    udr_noti_uri=${CDS_SESSION_UDR_NOTI_URI_NEW}
+
 Ensure CDS Session In PDB
     [Documentation]
-    ...    TC 수행 전에 대상 가입자의 5G 세션을 ${CDS_DB_TBL_SESSION} 에 심는다.
-    ...
-    ...    왜 필요한가 — PG.SNOTI 는 이 표를 보고 알림 상대를 정한다. 세션이 없으면
-    ...    CDS 전문이 정상 처리(SC)되고 가입자 테이블에도 반영되지만 **PCF 로는
-    ...    아무것도 나가지 않는다.** 그러면 TC-CDS-003 의 Noti 판정이 전문과 무관한
-    ...    이유로 실패하는데, 로그만 봐서는 구분되지 않는다.
+    ...    세션 1건을 ${CDS_DB_TBL_SESSION} 에 심는다. 보통은 `Ensure CDS Sessions In PDB`
+    ...    가 두 번 부르고, 직접 부를 일은 없다.
     ...
     ...    ★ **이 슈트에서 유일하게 PDB 에 쓰는 자리다.** 나머지는 전부 SELECT 다.
     ...      autocommit 이 꺼져 있고 조회 키워드가 조회 직전마다 rollback 하므로,
@@ -564,31 +590,28 @@ Ensure CDS Session In PDB
     ...
     ...    멱등이다: 같은 SM_POLICY_ID 가 이미 있으면 0행을 넣고 지나간다(기존 세션을
     ...    덮거나 지우지 않는다). Teardown 에서 정리하지 않으므로 **행은 남는다.**
-    ...
-    ...    ${CDS_SESSION_CREATE}=${FALSE} 면 아무것도 하지 않는다
-    ...    (bash run_tests.sh cds --no-session).
-    IF    not ${CDS_SESSION_CREATE}
-        Log    [Suite] 세션 사전 적재 꺼짐 (CDS_SESSION_CREATE=${CDS_SESSION_CREATE})    console=True
-        RETURN
-    END
+    ...    → 그래서 두 세션은 **SM_POLICY_ID 가 서로 달라야 한다.** 같으면 둘째가
+    ...      "이미 있음" 으로 조용히 건너뛰어져 D3 이후 번호에 세션이 안 생긴다.
+    [Arguments]    ${mdn}    ${min}    ${imsi}    ${ip}    ${sm_policy_id}
+    ...            ${res_uri}    ${noti_uri}    ${udr_noti_uri}    ${label}=세션
     Ensure CDS DB Connection
-    ${supi}=    Set Variable    imsi-${CDS_SESSION_IMSI}
-    ${gpsi}=    Set Variable    msisdn-${CDS_SESSION_CC}${CDS_MIN}
+    ${supi}=    Set Variable    imsi-${imsi}
+    ${gpsi}=    Set Variable    msisdn-${CDS_SESSION_CC}${min}
     ${sql}=     CdsDb.Session Insert Sql    ${CDS_DB_TBL_SESSION}
-    Log    [Suite] 세션 적재 시도 — MDN=${CDS_MDN} SUPI=${supi} IP=${CDS_SESSION_IP}    console=True
+    Log    [Suite] 세션 적재 시도 (${label}) — MDN=${mdn} SUPI=${supi} IP=${ip}    console=True
     # 인자 순서는 CdsDbHelper.SESSION_PARAM_ORDER 와 같아야 한다. 바꾸면 양쪽을 같이 고칠 것.
     ${n}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${sql}
-    ...    ${CDS_SESSION_SM_POLICY_ID}    ${supi}    ${gpsi}    ${CDS_MDN}    ${CDS_SESSION_IP}
-    ...    ${CDS_SESSION_RES_URI}    ${CDS_SESSION_NOTI_URI}    ${CDS_SESSION_UDR_NOTI_URI}
-    ...    ${CDS_SESSION_SM_POLICY_ID}
+    ...    ${sm_policy_id}    ${supi}    ${gpsi}    ${mdn}    ${ip}
+    ...    ${res_uri}    ${noti_uri}    ${udr_noti_uri}
+    ...    ${sm_policy_id}
     IF    ${n} > 0
-        Log    [Suite] 세션 적재 완료 ${n}건 (SM_POLICY_ID=${CDS_SESSION_SM_POLICY_ID})    console=True
+        Log    [Suite] 세션 적재 완료 (${label}) ${n}건 — SM_POLICY_ID=${sm_policy_id}    console=True
     ELSE
-        Log    [Suite] 세션이 이미 있어 넣지 않았습니다 (SM_POLICY_ID=${CDS_SESSION_SM_POLICY_ID})    console=True
+        Log    [Suite] 세션이 이미 있어 넣지 않았습니다 (${label}) — SM_POLICY_ID=${sm_policy_id}    console=True
     END
     # 넣었든 이미 있었든, 이 시점에 세션이 **반드시 있어야** 한다.
-    CDS DB Count Should Be At Least    ${CDS_DB_TBL_SESSION} (SM_POLICY_ID)
-    ...    ${1}    ${CDS_DB_SQL_SESSION}    ${CDS_SESSION_SM_POLICY_ID}
+    CDS DB Count Should Be At Least    ${CDS_DB_TBL_SESSION} (${label}, SM_POLICY_ID)
+    ...    ${1}    ${CDS_DB_SQL_SESSION}    ${sm_policy_id}
 
 Close CDS DB Connection
     [Documentation]    PDB connection 종료. 접속한 적이 없으면 아무것도 하지 않는다.

@@ -8,7 +8,7 @@ Documentation
 ...
 ...    [Suite 소켓 정책]
 ...    Suite Setup    : Suite CDS Connect — 연결 → ConnectionRequest(0001/0003) + ACK 검증
-...                     → 두 소켓 생존 확인 → PDB 접속 → **세션 사전 적재** → UPM 접속
+...                     → 두 소켓 생존 확인 → PDB 접속 → **세션 2건 사전 적재** → UPM 접속
 ...                     → PCF SBI 수신 서버 Listen (**접속은 기다리지 않는다**)
 ...                       (접속은 TC 가 아니다)
 ...    Test Setup     : CDS Test Setup — 소켓 생존 확인(하나라도 닫히면 Suite 중단)
@@ -86,11 +86,20 @@ Documentation
 ...      않아** TC-CDS-003 의 Noti 판정이 전문과 무관한 이유로 실패한다.
 ...      · **이 슈트에서 유일하게 PDB 에 쓰는 자리다**(나머지는 전부 SELECT).
 ...        autocommit 이 꺼져 있어 commit 하지 않으면 다음 조회의 rollback 이 지운다.
-...      · 멱등이다 — 같은 ${CDS_SESSION_SM_POLICY_ID} 가 있으면 넣지 않는다.
+...      · **두 건을 심는다.** 기본 번호(${CDS_MDN})와 D3 이후 번호(${CDS_NEW_MDN}) 각각이다 —
+...        018(D3)이 번호를 바꾸면 019(Z1)가 새 번호로 전문을 보내므로, 그 번호에도
+...        세션이 없으면 D3·Z1 의 알림이 조용히 안 나간다.
+...      · 멱등이다 — 같은 SM_POLICY_ID 가 있으면 넣지 않는다. 그래서 두 세션은
+...        **SM_POLICY_ID 가 서로 달라야 한다**(같으면 둘째가 건너뛰어진다).
 ...        Teardown 이 지우지 않으므로 **행은 남는다.**
 ...      · 환경마다 갈리는 값은 변수로 뺐다: ${CDS_SESSION_IMSI} / ${CDS_SESSION_IP} /
 ...        ${CDS_SESSION_SM_POLICY_ID} / ${CDS_SESSION_PCF_ADDR}. MDN·MIN 은 전문이
 ...        쓰는 ${CDS_MDN}/${CDS_MIN} 을 그대로 써서 가입자가 어긋나지 않게 한다.
+...        2번 세션은 같은 이름에 _NEW 가 붙은 짝이 있고 MDN·MIN 은 ${CDS_NEW_MDN}/
+...        ${CDS_NEW_MIN} 을 쓴다.
+...      · ★ 2번 세션의 SM_POLICY_ID·IP_ADDR·IMSI 는 1번에서 **기계적으로 파생시킨
+...        자리 채우기**다(길이만 맞췄다). PG 가 세션을 찾는 키이므로 실환경 값으로
+...        반드시 덮을 것 — config/env/<env>.py.
 ...      · ★ RES_URI/UDR_NOTI_URI 의 주소(${CDS_SESSION_PCF_ADDR})가 **PG 가 붙어 올
 ...        곳**이다. 틀리면 Suite Setup 의 PCF SBI 접속 대기가 그대로 타임아웃된다.
 ...      끄려면: bash run_tests.sh cds --no-session

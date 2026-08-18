@@ -121,6 +121,9 @@ ${CDS_NOTI_PATH_CELL}     ${EMPTY}         # BSUBS→PCF Cell List 의 :path 조
 #   SM_POLICY_ID 가 이미 있으면 넣지 않는다(멱등) — 기존 세션을 건드리지 않는다.
 #   지우지도 않는다. Suite Teardown 에서 정리하지 않으므로 행은 남는다.
 #
+# ★ **두 건을 심는다.** 기본 번호(${CDS_MDN})와 D3 이후 번호(${CDS_NEW_MDN}) 각각이다 —
+#   아래 "2번 세션" 블록 참조.
+#
 # 끄려면: bash run_tests.sh cds --no-session
 ${CDS_SESSION_CREATE}     ${TRUE}          # TC 수행 전 세션 적재 여부
 ${CDS_DB_TBL_SESSION}     PDB.T_SMF_SESSION_INFO
@@ -160,6 +163,29 @@ ${CDS_SESSION_NOTI_URI}
 ...    http://${CDS_SESSION_SMF_ADDR}/npcf-smpolicycontrol/v1/smpc-status/imsi-${CDS_SESSION_IMSI}/pdu-2
 ${CDS_SESSION_UDR_NOTI_URI}
 ...    http://${CDS_SESSION_PCF_ADDR}/npcf-event-exposure/v1/nudr-smf-notify/${CDS_SESSION_SM_POLICY_ID}
+
+# ── 2번 세션 — D3(번호변경) 이후의 번호 ─────────────────────────
+# TC-CDS-018(D3)이 성공하면 가입자가 ${CDS_NEW_MDN} 로 바뀌고, TC-CDS-019(Z1)는
+# 그 번호로 해지 전문을 보낸다. **그 번호에도 세션이 있어야** PG.SNOTI 가 알림
+# 상대를 찾는다 — 없으면 D3·Z1 의 알림이 조용히 안 나간다.
+# 그래서 Suite Setup 이 세션을 **두 건** 심는다(둘 다 멱등).
+#
+# ★ 아래 세 값은 1번 세션에서 **기계적으로 파생시킨 자리 채우기**다. 길이만 맞춰 뒀고
+#   실환경에서 유효한 값인지는 확인되지 않았다 — 특히 SM_POLICY_ID 와 IP_ADDR 은
+#   PG 가 세션을 찾는 키이므로 **실환경 값으로 반드시 덮을 것**(config/env/<env>.py).
+#     SM_POLICY_ID : 1번 값의 마지막 2자리만 04 로 (길이 51 유지)
+#     IP_ADDR      : 1번 값의 마지막 3자리만 004 로 (길이 21 유지)
+#     IMSI         : 45005 + ${CDS_NEW_MIN}
+${CDS_SESSION_IMSI_NEW}   450051090010002  # SUPI 의 imsi- 뒤 (45005 + NEW_MIN)
+${CDS_SESSION_IP_NEW}     50.13.1.worker${SPACE * 4}004
+${CDS_SESSION_SM_POLICY_ID_NEW}    01010101000-02-173464740103330131003005350333033304
+
+${CDS_SESSION_RES_URI_NEW}
+...    http://${CDS_SESSION_PCF_ADDR}/npcf-smpolicycontrol/v1/sm-policies/${CDS_SESSION_SM_POLICY_ID_NEW}
+${CDS_SESSION_NOTI_URI_NEW}
+...    http://${CDS_SESSION_SMF_ADDR}/npcf-smpolicycontrol/v1/smpc-status/imsi-${CDS_SESSION_IMSI_NEW}/pdu-2
+${CDS_SESSION_UDR_NOTI_URI_NEW}
+...    http://${CDS_SESSION_PCF_ADDR}/npcf-event-exposure/v1/nudr-smf-notify/${CDS_SESSION_SM_POLICY_ID_NEW}
 
 # ════════════════════════════════════════════
 # 시스템 / Application 식별자 (헤더 char(6) 필드)
