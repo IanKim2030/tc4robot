@@ -46,7 +46,7 @@ bash run_tests.sh cds --no-upm             # CDS 곁가지 연동 끄기 — UPM
 bash run_tests.sh cds --no-sbi             # PCF SBI Listen(16101) 생략 (h2 불필요)
 bash run_tests.sh cds --no-upm --no-sbi    # CDS 전문 + PDB 만
 bash run_tests.sh cds --no-sbi-wait        # Listen 은 하되 PG 접속을 안 기다림
-bash run_tests.sh cds --precheck-warn      # 잔존 데이터 확인 — 물어보지 않고 진행
+bash run_tests.sh cds --precheck-fail      # 잔존 데이터가 있으면 중단 (기본은 리포트 후 진행)
 bash run_tests.sh cds --no-precheck        # 잔존 데이터 확인 생략
                                            # --upm / --sbi 로 반대로 강제 ON
                                            # PDB 는 못 끈다 (Suite Setup 고정)

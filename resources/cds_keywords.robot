@@ -598,9 +598,9 @@ Precheck Existing Subscriber Rows
 Handle Precheck Leftovers
     [Documentation]
     ...    잔존 행이 있을 때 ${CDS_PRECHECK_MODE} 에 따라 처리한다.
-    ...      ask   대화창으로 계속/중단을 묻는다 (기본)
-    ...      fail  Fatal Error 로 슈트를 세운다
-    ...      warn  WARN 만 남기고 진행한다
+    ...      report  건수를 찍고 **그대로 진행한다** (기본). `warn` 은 같은 뜻의 옛 이름.
+    ...      fail    Fatal Error 로 슈트를 세운다
+    ...      ask     대화창으로 계속/중단을 묻는다
     ...
     ...    ★ ask 는 Tkinter 창을 띄우므로 **화면이 없는 환경에서는 쓸 수 없다.**
     ...      Dialogs 임포트나 대화창 자체가 실패하면 **중단하고** 어떤 플래그를 쓰면
@@ -614,22 +614,27 @@ Handle Precheck Leftovers
     ${NL}=    Evaluate    chr(10)
     ${detail}=    Set Variable    RESERVED_JOB=${rsv} SUBS_SERVICE=${svc} SUBS_PROFILE=${prf} (합계 ${total})
     ${mode}=      Convert To Lower Case    ${CDS_PRECHECK_MODE}
-    IF    '${mode}' == 'warn'
-        Log    잔존 데이터가 있는 상태로 진행합니다 — ${detail}. 판정이 흔들릴 수 있습니다 (CDS_PRECHECK_MODE=warn).    level=WARN
+    IF    '${mode}' in ['report', 'warn']
+        Log    잔존 데이터가 있는 상태로 진행합니다 — ${detail}. "1건 이상" 판정은 잔존 행을 자기 결과로 볼 수 있고 "0건" 판정은 그 때문에 실패할 수 있습니다.    level=WARN
+        Log    [Suite] 잔존 데이터가 있지만 그대로 진행합니다 (CDS_PRECHECK_MODE=${mode}) — ${detail}    console=True
         RETURN
     END
     IF    '${mode}' == 'fail'
-        Fatal Error    잔존 데이터가 있어 중단합니다 — ${detail}. 정리한 뒤 다시 실행하거나, 감수하고 진행하려면 --precheck-warn 을 주십시오.
+        Fatal Error    잔존 데이터가 있어 중단합니다 — ${detail}. 정리한 뒤 다시 실행하거나, 감수하고 진행하려면 기본값(report)으로 두십시오.
+    END
+    IF    '${mode}' != 'ask'
+        Log    알 수 없는 CDS_PRECHECK_MODE='${CDS_PRECHECK_MODE}' — report 로 간주하고 진행합니다 (쓸 수 있는 값: report / fail / ask).    level=WARN
+        RETURN
     END
     ${imported}=    Run Keyword And Return Status    Import Library    Dialogs
     IF    not ${imported}
-        Fatal Error    잔존 데이터가 있는데 대화창을 띄울 수 없습니다 (Dialogs 임포트 실패 — 화면이 없는 환경입니다) — ${detail}. --precheck-warn (진행) 또는 --precheck-fail (중단) 으로 모드를 정해 주십시오.
+        Fatal Error    잔존 데이터가 있는데 대화창을 띄울 수 없습니다 (Dialogs 임포트 실패 — 화면이 없는 환경입니다) — ${detail}. 기본값 report 로 두면 리포트만 하고 진행합니다.
     END
     ${status}    ${answer}=    Run Keyword And Ignore Error    Get Selection From User
     ...    ${CDS_PRECHECK_REPORT}${NL}${NL}판단 대상 합계 ${total}건이 남아 있습니다. 계속하시겠습니까?
     ...    중단    계속 진행
     IF    '${status}' == 'FAIL'
-        Fatal Error    잔존 데이터가 있는데 대화창을 띄울 수 없습니다 (화면이 없는 환경으로 보입니다: ${answer}) — ${detail}. --precheck-warn (진행) 또는 --precheck-fail (중단) 으로 모드를 정해 주십시오.
+        Fatal Error    잔존 데이터가 있는데 대화창을 띄울 수 없습니다 (화면이 없는 환경으로 보입니다: ${answer}) — ${detail}. 기본값 report 로 두면 리포트만 하고 진행합니다.
     END
     IF    '${answer}' != '계속 진행'
         Fatal Error    사용자가 중단을 선택했습니다 — ${detail}

@@ -537,17 +537,18 @@ ${CDS_DB_SQL_PRE_SESSION}     SELECT COUNT(*) FROM ${CDS_DB_TBL_SESSION} WHERE M
 
 ${CDS_PRECHECK}           ${TRUE}          # 사전 확인 수행 여부
 
-# 잔존 행이 있을 때 무엇을 할지.
-#   ask   대화창으로 묻는다 (기본). 계속/중단을 고른다.
-#         ★ Dialogs 는 Tkinter 창을 띄운다 — **화면이 없는 환경(SSH 등)에서는 못 쓴다.**
-#           그 경우 자동으로 fail 로 떨어지고, 어떤 플래그를 쓰라고 알려 준다.
-#   fail  Fatal Error 로 슈트를 세운다 (사람이 없는 자동 실행용)
-#   warn  WARN 만 남기고 그대로 진행한다 (잔존 데이터를 감수하겠다는 뜻)
+# 잔존 행이 있을 때 무엇을 할지. **기본은 리포트만 하고 그대로 진행한다.**
+#   report  네 표의 건수를 찍고 진행한다 (기본). 잔존 행이 있으면 WARN 을 한 줄 남긴다.
+#           `warn` 은 같은 뜻의 옛 이름이다.
+#   fail    Fatal Error 로 슈트를 세운다 (깨끗한 상태를 강제하고 싶을 때)
+#   ask     대화창으로 계속/중단을 묻는다
+#           ★ Tkinter 창이라 **화면이 없는 환경(SSH 등)에서는 못 쓴다.** 그 경우
+#             중단되며 어떤 플래그를 쓰라고 알려 준다.
 #
-#   bash run_tests.sh cds --precheck-warn    # 화면 없는 환경에서 그냥 진행
-#   bash run_tests.sh cds --precheck-fail    # 잔존 데이터면 무조건 중단
+#   bash run_tests.sh cds --precheck-fail    # 잔존 데이터면 중단
+#   bash run_tests.sh cds --precheck-ask     # 물어보게 하기 (화면이 있을 때)
 #   bash run_tests.sh cds --no-precheck      # 확인 자체를 생략
-${CDS_PRECHECK_MODE}      ask
+${CDS_PRECHECK_MODE}      report
 
 # 1X(HFC/ZONE 가입) — SVC_ID + SVC_TYPE + JOB_CODE 를 모두 만족하는 행이 1건 이상이어야 한다.
 # 해지(1Y) 판정은 위 ${CDS_DB_SQL_SERVICE}(MDN+SVC_ID) 를 그대로 쓰고 0 을 기대한다.
