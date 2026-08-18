@@ -20,6 +20,17 @@
 #   bash run_tests.sh smoke            # smoke 태그만
 #   bash run_tests.sh nag --log-msg    # REQ/RESP 시각 출력 ON
 #
+# CDS 곁가지 연동 켜고 끄기 (기본은 둘 다 켜짐 — cds_variables.robot):
+#   bash run_tests.sh cds --no-upm          # UPM(10506) 접속·0x07 검증 생략
+#   bash run_tests.sh cds --no-http         # PCF h2c Listen(16101) 자체를 안 함
+#   bash run_tests.sh cds --no-upm --no-http    # CDS 전문 + PDB 만
+#   bash run_tests.sh cds --no-http-wait    # Listen 은 하되 PG 접속을 안 기다림
+#   --upm / --http / --http-wait 는 반대로 강제로 켠다(환경 파일이 꺼 뒀을 때).
+#   별칭: --no-noti = --no-http, --no-noti-wait = --no-http-wait
+#
+#   ★ PDB 는 이 플래그로 못 끈다 — Suite Setup 이 무조건 붙는다.
+#     접속 문자열이 없으면 전문 TC 까지 포함해 슈트 전체가 서지 않는다.
+#
 # 환경 지정 (2번째 인자):
 #   bash run_tests.sh nag              # dev (기본)
 #   bash run_tests.sh nag stg          # config/env/stg.py 적용
@@ -38,12 +49,29 @@
 TARGET=${1:-smoke}
 EXTRA_ARGS=()
 
+# CDS 슈트의 곁가지 연동을 켜고 끄는 플래그 → --variable 로 변환한다.
+# 기본값은 cds_variables.robot 이 쥔다(둘 다 ${TRUE}). 여기서는 **준 것만** 덮는다.
+TOGGLE_VARS=()
+
 for arg in "${@:2}"; do
-    if [ "${arg}" = "--log-msg" ]; then
-        export PG_LOG_MSG=1
-    else
-        EXTRA_ARGS+=("${arg}")
-    fi
+    case "${arg}" in
+        --log-msg)      export PG_LOG_MSG=1 ;;
+        # UPM — TC-CDS-003(1X)의 Subs-Info(0x07/0x08) 구간.
+        # 끄면 Suite Setup 이 UPM(${UPM_PG_PORT})에 접속조차 하지 않는다.
+        --no-upm)       TOGGLE_VARS+=(--variable CDS_UPM_VERIFY:False) ;;
+        --upm)          TOGGLE_VARS+=(--variable CDS_UPM_VERIFY:True) ;;
+        # HTTP — 도구가 PCF 역할로 여는 h2c 수신 서버(${CDS_NOTI_PORT}).
+        # 끄면 Listen 도 접속 대기도 안 한다 → h2 패키지 없이도 슈트가 돈다.
+        --no-http|--no-noti)
+                        TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:False) ;;
+        --http|--noti)  TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:True) ;;
+        # HTTP 를 켜 두되 PG 가 붙기를 기다리지 않는다(Listen 만 하고 바로 시작).
+        --no-http-wait|--no-noti-wait)
+                        TOGGLE_VARS+=(--variable CDS_NOTI_WAIT_CONNECT:False) ;;
+        --http-wait|--noti-wait)
+                        TOGGLE_VARS+=(--variable CDS_NOTI_WAIT_CONNECT:True) ;;
+        *)              EXTRA_ARGS+=("${arg}") ;;
+    esac
 done
 
 TS=$(date +%Y%m%d_%H%M%S)
@@ -79,12 +107,36 @@ echo " TARGET : ${TARGET}"
 echo " ENV    : ${ENV_NAME}"
 echo " OUTPUT : ${OUT}"
 echo " LOG_MSG: ${PG_LOG_MSG:-0}"
+if [ ${#TOGGLE_VARS[@]} -gt 0 ]; then
+    echo " TOGGLE : ${TOGGLE_VARS[*]}"
+fi
 echo "══════════════════════════════════════"
+
+# ── 골디락스 ODBC 드라이버 탐색 경로 ──────────────────────────────
+# CDS 슈트의 PDB 조회가 여기 걸린다. 드라이버 본체는 접속 문자열의 DRIVER= 절대경로로
+# 로드되지만, **문자셋 변환 라이브러리(libgoldilockscvtUHC_64.so)는 런타임에 이름만으로
+# dlopen** 되므로 탐색 경로에 없으면 못 연다. 그러면 접속은 성립하는데 SELECT 가 전부
+# 실패한다 — 증상은 ('HY000', 'The driver did not supply an error!') 다.
+#
+# ★ Python 안에서 os.environ 으로 넣어 봐야 소용없다. glibc 가 프로세스 시작 시점에
+#   LD_LIBRARY_PATH 를 읽어 두므로 **robot 을 띄우기 전에** 설정돼 있어야 한다.
+#   그래서 여기다.
+#
+# 이미 설정돼 있으면 건드리지 않는다. 경로가 다르면 GOLDILOCKS_HOME 을 먼저 export 할 것.
+: "${GOLDILOCKS_HOME:=/PG/goldilocks_home}"
+if [ -d "${GOLDILOCKS_HOME}/lib" ]; then
+    export GOLDILOCKS_HOME
+    case ":${LD_LIBRARY_PATH}:" in
+        *":${GOLDILOCKS_HOME}/lib:"*) ;;
+        *) export LD_LIBRARY_PATH="${GOLDILOCKS_HOME}/lib:${LD_LIBRARY_PATH}" ;;
+    esac
+fi
 
 BASE_CMD=(python3 -m robot
     --outputdir "${OUT}"
     --loglevel DEBUG
     "${VAR_OVERRIDE[@]}"
+    "${TOGGLE_VARS[@]}"
     "${EXTRA_ARGS[@]}"
 )
 

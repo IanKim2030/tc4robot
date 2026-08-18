@@ -79,7 +79,8 @@ Documentation
 ...      보낼 방법이 없어 주석 처리돼 있었고, 트리거를 쥔 이 슈트로 옮겨 왔다.
 ...      그래서 **CDS 슈트가 UPM 포트(${UPM_PG_PORT})에도 의존한다** — PDB 와 마찬가지로
 ...      Suite Setup 에서 붙으므로 UPM 이 안 뜨면 슈트 전체가 서지 않는다.
-...      CDS 전문만 돌리려면: --variable CDS_UPM_VERIFY:False (UPM 접속 자체를 건너뛴다)
+...      CDS 전문만 돌리려면: bash run_tests.sh cds --no-upm
+...      (robot 을 직접 부르면 --variable CDS_UPM_VERIFY:False — UPM 접속 자체를 건너뛴다)
 ...
 ...    [PCF Noti 수신] TC-CDS-003(1X)만 해당한다. `noti` 태그.
 ...      SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. 도구가 PCF 역할로
@@ -99,9 +100,12 @@ Documentation
 ...        상대가 없어 그냥 흘러가고, 003 이 "안 왔다"로 실패한다 — 원인이 전문이
 ...        아니라 시작 타이밍인데 로그로는 구분이 안 되므로 시작 조건으로 못 박았다.
 ...      끄는 손잡이가 둘이고 층이 다르다.
-...        --variable CDS_NOTI_VERIFY:False        Listen 도 접속 대기도 안 한다
-...        --variable CDS_NOTI_WAIT_CONNECT:False  Listen 은 하되 기다리지 않는다
+...        --no-http       (= --variable CDS_NOTI_VERIFY:False)
+...                        Listen 도 접속 대기도 안 한다. h2 패키지 없이도 돈다
+...        --no-http-wait  (= --variable CDS_NOTI_WAIT_CONNECT:False)
+...                        Listen 은 하되 기다리지 않는다
 ...        후자는 PG 가 이미 상시 접속돼 있거나 접속 시점을 못 맞추는 환경용이다.
+...        플래그는 run_tests.sh 전용이다 — robot 을 직접 부르면 --variable 로 준다.
 ...
 ...    [TC 간 의존성] 슈트 전체가 002(A1 신규가입)로 만든 가입자 하나를 이어 쓴다.
 ...      002 A1 신규가입  : 이후 모든 TC 의 대상 가입자를 만든다
