@@ -21,9 +21,6 @@
 > `1Y`(004)가 HFC 를 해지한 뒤에 `C1`(007) · `G1`(008) · `D3`(018) · `Z1`(019)이
 > 돌기 때문에 넷 다 SDM 경유로 판정된다.
 
-> 표의 TC 번호는 **식별자**이지 실행 순서가 아니다. 슈트 파일에서 `TC-CDS-013`(K5) /
-> `TC-CDS-014`(K6)이 `TC-CDS-009`(K1) 앞에 놓여 있어 그 순서로 실행된다.
-
 ## 업무 코드
 
 | 업무 코드 | 내용 | TC | 경로 | 알림 판정 |
@@ -35,12 +32,12 @@
 | [`I3`](CDS_I3.md) | 부가서비스해지 | `TC-CDS-006` | SDM | 확인 |
 | [`C1`](CDS_C1.md) | 기기변경 | `TC-CDS-007` | BSUBS / SDM (HFC 상태) | 확인 |
 | [`G1`](CDS_G1.md) | 정보변경 | `TC-CDS-008` | BSUBS / SDM (HFC 상태) | 확인 |
-| [`K1`](CDS_K1.md) | Data(Time) 쿠폰 가입 | `TC-CDS-009` | SDM | 확인 |
-| [`K2`](CDS_K2.md) | Data(Time) 쿠폰 해지 | `TC-CDS-010` | SDM | 확인 |
-| [`K4`](CDS_K4.md) | Data(Time) 쿠폰 취소 | `TC-CDS-011` | SDM | 확인 |
-| [`K3`](CDS_K3.md) | Data(Time) 쿠폰 만료 | `TC-CDS-012` | SDM | 확인 |
-| [`K5`](CDS_K5.md) | Data(Time) 3Mbps 쿠폰 가입 | `TC-CDS-013` | SDM | 확인 |
-| [`K6`](CDS_K6.md) | Data(Time) 3Mbps 쿠폰 해지 | `TC-CDS-014` | SDM | 확인 |
+| [`K5`](CDS_K5.md) | Data(Time) 3Mbps 쿠폰 가입 | `TC-CDS-009` | SDM | 확인 |
+| [`K6`](CDS_K6.md) | Data(Time) 3Mbps 쿠폰 해지 | `TC-CDS-010` | SDM | 확인 |
+| [`K1`](CDS_K1.md) | Data(Time) 쿠폰 가입 | `TC-CDS-011` | SDM | 확인 |
+| [`K2`](CDS_K2.md) | Data(Time) 쿠폰 해지 | `TC-CDS-012` | SDM | 확인 |
+| [`K4`](CDS_K4.md) | Data(Time) 쿠폰 취소 | `TC-CDS-013` | SDM | 확인 |
+| [`K3`](CDS_K3.md) | Data(Time) 쿠폰 만료 | `TC-CDS-014` | SDM | 확인 |
 | [`Y9`](CDS_Y9.md) | Data(Zone) 쿠폰 사용시점 알림 | `TC-CDS-015` | SDM | 확인 |
 | [`SS`](CDS_SS.md) | 0플랜 옵션(3시간 프리) 가입 | `TC-CDS-016` | SDM | 확인 |
 | [`ST`](CDS_ST.md) | 0플랜 옵션(3시간 프리) 해지 | `TC-CDS-017` | SDM | 확인 |

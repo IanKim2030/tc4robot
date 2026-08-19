@@ -52,30 +52,30 @@ T = {
  'G1': ('정보변경', 'TC-CDS-008', 'BSUBS-if-hfc',
         ['수행 **전** `SVC_ID` 별 행 수 == 수행 **후** `JOB_CODE=G1` 로 적재된 행의 집계'],
         '필드 집합이 A1 과 완전히 같다(2026-08-03 확인).'),
- 'K1': ('Data(Time) 쿠폰 가입', 'TC-CDS-009', 'SDM',
+ 'K1': ('Data(Time) 쿠폰 가입', 'TC-CDS-011', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `SVC_TYPE=N`, `JOB_CODE=K1`, '
          '`TIME_PERIOD_ID=113`, `"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=핀`) = **1건 이상**',
          '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K3`, 핀) = **1건 이상**'],
         '가입과 동시에 만료 예약이 걸린다. **인입 코드(K1)와 예약 코드(K3)가 다르다.** '
         '`START_TIME` 은 반드시 미래여야 한다 — 과거면 가입 직후 만료돼 판정이 실패한다.'),
- 'K2': ('Data(Time) 쿠폰 해지', 'TC-CDS-010', 'SDM',
+ 'K2': ('Data(Time) 쿠폰 해지', 'TC-CDS-012', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K1 의 핀`) = **0건**'],
         'K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다** — 서로 구분되지 않으므로 '
         '핀을 업무별로 나눠 쓴다.'),
- 'K4': ('Data(Time) 쿠폰 취소', 'TC-CDS-011', 'SDM',
+ 'K4': ('Data(Time) 쿠폰 취소', 'TC-CDS-013', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K4 전용 핀`) = **0건**'],
         'TC 안에서 K1 으로 먼저 가입시킨 뒤 취소한다 — "0건" 이 "지워졌다" 인지 '
         '"원래 없었다" 인지 구분되지 않기 때문이다.'),
- 'K3': ('Data(Time) 쿠폰 만료', 'TC-CDS-012', 'SDM',
+ 'K3': ('Data(Time) 쿠폰 만료', 'TC-CDS-014', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K3 전용 핀`) = **0건**'],
         'K4 와 같은 구조. 다만 준비용 K1 의 `START_TIME` 이 **현재 시각**이다 — '
         '유효기간이 찬 쿠폰이 필요하기 때문이다.'),
- 'K5': ('Data(Time) 3Mbps 쿠폰 가입', 'TC-CDS-013', 'SDM',
+ 'K5': ('Data(Time) 3Mbps 쿠폰 가입', 'TC-CDS-009', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `SVC_TYPE=N`, `JOB_CODE=K5`, '
          '`TIME_PERIOD_ID=0`, `"LIMIT"=2`, `LIMIT_VALID_TIME`, `CNUM=핀`) = **1건 이상**',
          '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K7`, 핀) = **1건 이상**'],
         'K1 과 같은 구조. 예약 큐 코드는 K7 이다.'),
- 'K6': ('Data(Time) 3Mbps 쿠폰 해지', 'TC-CDS-014', 'SDM',
+ 'K6': ('Data(Time) 3Mbps 쿠폰 해지', 'TC-CDS-010', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K5 의 핀`) = **0건**'], ''),
  'Y9': ('Data(Zone) 쿠폰 사용시점 알림', 'TC-CDS-015', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `ZONE_SVC_B`, `SVC_TYPE=Z`, `JOB_CODE=Y9`, '
@@ -236,8 +236,9 @@ def render(code):
     return '\n'.join(L)
 
 
+# TC 번호 순 = 슈트 실행 순서. 바꾸면 인덱스 표의 순서도 같이 바뀐다.
 order = ['A1', '1X', '1Y', 'I2', 'I3', 'C1', 'G1',
-         'K1', 'K2', 'K4', 'K3', 'K5', 'K6', 'Y9', 'SS', 'ST', 'D3', 'Z1']
+         'K5', 'K6', 'K1', 'K2', 'K4', 'K3', 'Y9', 'SS', 'ST', 'D3', 'Z1']
 for code in order:
     path = os.path.join(OUT, 'CDS_%s.md' % code)
     io.open(path, 'w', encoding='utf-8', newline='').write(render(code))

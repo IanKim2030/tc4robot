@@ -389,7 +389,7 @@ ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (0
 # ★ START_TIME 은 반드시 **미래**여야 한다.
 #   K1/K5 가입은 서비스 행을 넣는 동시에 예약 큐에 만료(K3/K7) 예약을 건다. PG.RDS 가
 #   START_TIME 이 지난 예약을 집어 실행하므로, 과거 시각을 넣으면 **가입하자마자 만료가
-#   실행돼** 서비스 행이 사라진다 → 가입 판정(TC-CDS-010/014)이 이유 없이 실패한다.
+#   실행돼** 서비스 행이 사라진다 → 가입 판정(TC-CDS-012/014)이 이유 없이 실패한다.
 #   이 값이 과거가 되면 여기를 먼저 볼 것.
 ${CDS_START_TIME}              203712312359             # 예약 시작 시각 YYYYMMDDHH24MI (미래여야 함)
 
@@ -402,14 +402,14 @@ ${CDS_START_TIME}              203712312359             # 예약 시작 시각 Y
 #
 # ★ **오프셋은 반드시 양수여야 한다.** K1/K5 가입은 서비스 행을 넣는 동시에 예약 큐에
 #   만료(K3/K7)를 건다. PG.RDS 는 START_TIME 이 지난 예약을 집어 실행하므로, 0이나
-#   음수면 **가입하자마자 만료돼** 009/013/015 의 가입 판정이 이유 없이 실패한다.
+#   음수면 **가입하자마자 만료돼** 009/011/015 의 가입 판정이 이유 없이 실패한다.
 #   전문 형식이 분까지만 담아(초 자리가 없다) 0 이면 이번 분이 이미 시작돼 있다.
 #   그래서 기본을 넉넉히 60분 뒤로 둔다.
 #
 #   bash run_tests.sh cds --start-now        # 실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분
 #   python -m robot --variable CDS_START_TIME_MODE:now #                   --variable CDS_START_TIME_OFFSET_MIN:120 tests/cds/
 #
-# ※ 만료(K3)를 보는 TC-CDS-012 는 이 설정과 무관하다 — 그 TC 는 자기가
+# ※ 만료(K3)를 보는 TC-CDS-014 는 이 설정과 무관하다 — 그 TC 는 자기가
 #   `Current CDS Start Time ${CDS_K3_START_OFFSET_MIN}` 으로 따로 만든다.
 ${CDS_START_TIME_MODE}         fixed                    # fixed(위 고정값) | now(실행 시각 기준)
 ${CDS_START_TIME_OFFSET_MIN}   ${60}                    # now 일 때 더할 분. **양수여야 한다**

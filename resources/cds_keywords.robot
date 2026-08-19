@@ -755,7 +755,10 @@ Settle Before PDB Query
     ...    0 이나 0s 를 주면 쉬지 않고 바로 조회한다.
     [Arguments]    ${settle}=${CDS_DB_SETTLE}
     IF    not ${{ str($settle).strip() in ('', '0', '0s', 'None') }}
-        Log    [PDB] ResultAck 수신 → ${settle} 대기 후 조회    console=True
+        # 매번 한 줄씩 찍으면 콘솔이 이 메시지로 뒤덮인다(TC 마다, 재조회마다 나온다).
+        # 무슨 일이 일어나는지는 log.html 에 남기고, 콘솔에는 진행 표시로 점 하나만 찍는다.
+        Log    [PDB] ResultAck 수신 → ${settle} 대기 후 조회
+        Log To Console    .    no_newline=${TRUE}
         Sleep    ${settle}
     END
 
@@ -1054,7 +1057,7 @@ Verify SBI Noti Sent
     ...      목록이 바뀌면 cds_variables.robot 의 그 변수만 고치면 된다.
     ...
     ...    ${since} : 이 시각 이후 도착분만 본다. **한 TC 안에서 전문을 두 번 보내는
-    ...               경우(011/012 의 K1 준비)에 반드시 줘야 한다** — 안 주면 준비
+    ...               경우(013/014 의 K1 준비)에 반드시 줘야 한다** — 안 주면 준비
     ...               전문이 유발한 알림을 본 판정으로 착각한다. `Noti Timestamp` 로 뜬다.
     ...    ${body}  : 본문에 포함돼야 할 문자열. 기본은 빈 값(내용을 가리지 않는다) —
     ...               실 PG 본문에 MDN 이 그대로 들어가는지 확인되지 않았다. 확인되면
@@ -1237,7 +1240,7 @@ Resolve CDS Start Time
     ...
     ...    ★ 오프셋이 양수가 아니면 **거부한다.** K1/K5 가입은 예약 큐에 만료를 걸고
     ...      PG.RDS 는 START_TIME 이 지난 예약을 집어 실행하므로, 0이나 음수면
-    ...      가입하자마자 만료돼 009/013/015 가 이유 없이 실패한다. 전문이 분까지만
+    ...      가입하자마자 만료돼 009/011/015 가 이유 없이 실패한다. 전문이 분까지만
     ...      담아 0 이면 이번 분이 **이미 시작돼 있다** — 0 도 과거다.
     ${mode}=    Convert To Lower Case    ${CDS_START_TIME_MODE}
     IF    '${mode}' != 'now'
@@ -1245,7 +1248,7 @@ Resolve CDS Start Time
         RETURN
     END
     IF    ${CDS_START_TIME_OFFSET_MIN} <= 0
-        Fatal Error    CDS_START_TIME_OFFSET_MIN 은 양수여야 합니다 (지금=${CDS_START_TIME_OFFSET_MIN}). 0이나 음수면 K1/K5 가입 직후 만료 예약이 실행돼 009/013/015 의 가입 판정이 실패합니다.
+        Fatal Error    CDS_START_TIME_OFFSET_MIN 은 양수여야 합니다 (지금=${CDS_START_TIME_OFFSET_MIN}). 0이나 음수면 K1/K5 가입 직후 만료 예약이 실행돼 009/011/015 의 가입 판정이 실패합니다.
     END
     ${st}    ${lvt}=    Current CDS Start Time    ${CDS_START_TIME_OFFSET_MIN}
     Set Suite Variable    ${CDS_START_TIME}         ${st}
