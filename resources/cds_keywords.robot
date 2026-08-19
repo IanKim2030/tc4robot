@@ -1014,7 +1014,9 @@ Verify PCF Noti Received
     ${link}=   Noti.Noti Link Report    ${CDS_NOTI_SRV}    since=${CDS_NOTI_TEST_START}
     Should Be True    ${n} > 0
     ...    msg=${label} 알림이 ${wait} 안에 오지 않았습니다 (조건: path~'${path}', body~'${body}', since=${since} / 전체 수신 ${all}건 / 서버 오류 ${errs} / 이 TC 동안의 링크 ${link})
-    Log    [Noti] ${label} ${n}건 수신 — ${found}[0][method] ${found}[0][path]    console=True
+    # 콘솔에는 안 찍는다 — TC 마다 나와 출력을 뒤덮는다. log.html 에는 그대로 남으므로
+    # 어떤 :path 로 무엇이 왔는지는 거기서 확인한다(경로 필터를 채울 때 필요한 정보다).
+    Log    [Noti] ${label} ${n}건 수신 — ${found}[0][method] ${found}[0][path]
     RETURN    ${found}
 
 Expected Noti Route
