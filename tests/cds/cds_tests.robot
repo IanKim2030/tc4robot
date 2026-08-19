@@ -563,7 +563,7 @@ TC-CDS-014 K3 (Data(Time) 쿠폰 만료)
     [Tags]    cds    command    validation    db    coupon    noti
     # 준비: 만료 대상이 될 쿠폰을 K1 으로 가입시킨다 (START_TIME = 현재 시각 ± 오프셋)
     ${start_time}    ${valid_time}=    Current CDS Start Time    ${CDS_K3_START_OFFSET_MIN}
-    Log    [TC-012] K1 START_TIME=${start_time} → LIMIT_VALID_TIME=${valid_time}    console=True
+    Log    [TC-014] K1 START_TIME=${start_time} → LIMIT_VALID_TIME=${valid_time}
     Command Download Flow    ${CDS_CODE_K1}
     ...    start_time=${start_time}                coupon_type=${CDS_COUPON_TYPE}
     ...    coupon_pin=${CDS_COUPON_PIN_K3}         coupon_category=${CDS_COUPON_CATEGORY}

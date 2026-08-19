@@ -1048,7 +1048,8 @@ Set HFC Subscribed
     ...    D3/C1/G1/Z1 의 알림 경로가 이 값으로 갈리므로 **전문이 성공한 뒤에** 부른다.
     [Arguments]    ${state}
     Set Suite Variable    ${CDS_HFC_SUBSCRIBED}    ${state}
-    Log    [HFC] 가입 상태 → ${state} (D3/C1/G1/Z1 의 알림 경로가 이 값으로 갈린다)    console=True
+    # 콘솔에는 안 찍는다 — 003/004 에서만 나오지만 실행 로그를 읽는 데 방해된다.
+    Log    [HFC] 가입 상태 → ${state} (D3/C1/G1/Z1 의 알림 경로가 이 값으로 갈린다)
 
 Verify SBI Noti Sent
     [Documentation]
@@ -1173,7 +1174,9 @@ Capture Service Counts Per SVC_ID
     ...      SELECT SVC_ID, COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? GROUP BY SVC_ID
     [Arguments]    ${mdn}=${CDS_MDN}
     ${counts}=    CDS DB Group Counts    ${CDS_DB_SQL_SERVICE_GROUP}    ${mdn}
-    Log    [PDB] 수행 전 SVC_ID 별 행 수 (MDN=${mdn}): ${counts}    console=True
+    # 콘솔에는 안 찍는다. 전후 비교가 어긋나면 log.html 에서 이 줄과 수행 후 집계를
+    # 나란히 놓고 봐야 하므로 기록 자체는 남긴다.
+    Log    [PDB] 수행 전 SVC_ID 별 행 수 (MDN=${mdn}): ${counts}
     RETURN    ${counts}
 
 Service Counts Should Match Baseline
