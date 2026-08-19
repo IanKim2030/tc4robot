@@ -901,7 +901,9 @@ Verify UPM Subs Info Notified
     ${cells}=    Create List    ${cell}
     Send Subs Info Response    ${hdr}[txn_id]    ${body}
     ...    cell_list=${cells}    result_code=${UPM_RC_SUCCESS}
-    Log    [UPM] Subs-Info 0x07 수신 → 0x08 응답 완료 (mdn=${body}[mdn])    console=True
+    # 콘솔에는 안 찍는다. 어느 mdn 으로 왕복했는지는 log.html 에서 본다 —
+    # 0x08 을 안 보내면 뒤따르는 TC 의 PDB 판정이 흔들려서 기록은 남겨야 한다.
+    Log    [UPM] Subs-Info 0x07 수신 → 0x08 응답 완료 (mdn=${body}[mdn])
 
 
 # ── PCF Noti 수신 (도구가 PCF 역할, HTTP/2 h2c) ──────────────────
