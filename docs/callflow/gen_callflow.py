@@ -119,9 +119,10 @@ PDB_PRE = {
  'D3': ['수행 전 SVC_ID 별 행 수 집계 (옛 MDN)'],
 }
 PDB_POST = {
+ # 같은 표를 SVC_ID 만 바꿔 두 번 보므로 화살표는 하나로 합친다.
+ # (슈트는 실제로 두 번 조회한다 — 아래 "판정 기준" 절에 각각 적혀 있다)
  'A1': ['T_5G_SUBS_PROFILE 저장 확인 (MDN)',
-        'T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID=DATA_USAGE_LEVEL)',
-        'T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID=DATA_USAGE_LEVEL_2)'],
+        'T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID=DATA_USAGE_LEVEL, DATA_USAGE_LEVEL_2)'],
  '1X': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + ZONE_SVC_D + SVC_TYPE=D + JOB_CODE=1X)'],
  '1Y': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + ZONE_SVC_D) — 0건'],
  'I2': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + YOUNG_HARM_INFO_BLOCK + N + I2 + TPID=56 + LIMIT=Y)'],

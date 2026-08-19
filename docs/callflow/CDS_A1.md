@@ -42,8 +42,7 @@ sequenceDiagram
     SNOTI->>PCF: SBI Noti (h2c)
     Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
     TOOL->>PDB: T_5G_SUBS_PROFILE 저장 확인 (MDN)
-    TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID=DATA_USAGE_LEVEL)
-    TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID=DATA_USAGE_LEVEL_2)
+    TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID=DATA_USAGE_LEVEL, DATA_USAGE_LEVEL_2)
 ```
 
 ## 전문 Body 필드
