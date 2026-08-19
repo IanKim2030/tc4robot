@@ -168,17 +168,20 @@ def mermaid(code, route):
     if code in PDB_PRE:
         L.append('    Note over TOOL,PDB: 기준선은 전문을 보내기 전에 떠야 한다')
     L.append('    TOOL->>PCDS: 0015 CommandRequest (%s) — Body 327B' % code)
+    # 0016 은 **받았다는 확인**이라 처리보다 먼저 나간다. 결과는 0017 이 나른다.
+    L.append('    PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, 접수 확인')
     L.append('    PCDS->>PDB: INSERT T_CDS_ORDER_HIST')
     if code in ('1X', '1Y'):
         L.append('    PCDS->>PDB: INSERT T_BAROD_ORDER_HIST (주소 암호화)')
-    # 전문 이력 INSERT 가 **성공했을 때만** TID 를 갱신한다. ACK 보다 먼저다.
-    L.append('    opt INSERT 성공 시')
+    # 이력 적재의 성패가 0017 의 SC/FA 를 가른다.
+    L.append('    alt INSERT 성공')
     L.append('        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?')
+    L.append('        PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel')
+    L.append('    else INSERT 실패')
+    L.append('        PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel')
     L.append('    end')
-    L.append('    PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel')
-    L.append('    PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel')
     L.append('    TOOL->>PCDS: 0018 CommandResultACK (TID 에코)')
-    L.append('    Note over TOOL,PCDS: 0017 의 SC 는 접수 결과다 — 반영은 PDB 로만 판정된다')
+    L.append('    Note over TOOL,PCDS: 0017 의 SC 는 이력 적재까지의 결과다 — 가입자 반영은 아래 PDB 판정으로만 확인된다')
     L.append('')
     if route == 'BSUBS-always':
         L.append('    BSUBS->>PDB: T_BAROD_ORDER_HIST 주기 폴링')
@@ -251,7 +254,11 @@ def render(code):
     L.append('')
     L.append('## 판정 기준')
     L.append('')
-    L.append('`CommandResult(0017)` 는 Body 내용과 무관하게 `SC` 를 준다. 실제 반영은 PDB 로만 판정된다.')
+    L.append('`0016 CommandRequestACK` 는 **받았다는 확인**이라 처리 전에 나간다 — 판정에 쓸 수 없다.')
+    L.append('')
+    L.append('`0017 CommandResult` 가 나르는 것은 **전문 이력 적재의 성패**다. '
+             'INSERT 가 실패하면 `FA`, 성공하면 Body 내용이 업무적으로 맞든 틀리든 `SC` 다.')
+    L.append('가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 로만 판정된다.**')
     L.append('')
     for c in checks:
         L.append('- %s' % c)

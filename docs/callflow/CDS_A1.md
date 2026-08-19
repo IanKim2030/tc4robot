@@ -25,14 +25,16 @@ sequenceDiagram
     participant PCF as 도구 (PCF 역할)
 
     TOOL->>PCDS: 0015 CommandRequest (A1) — Body 327B
+    PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, 접수 확인
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
-    opt INSERT 성공 시
+    alt INSERT 성공
         PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?
+        PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel
+    else INSERT 실패
+        PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel
     end
-    PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel
-    PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel
     TOOL->>PCDS: 0018 CommandResultACK (TID 에코)
-    Note over TOOL,PCDS: 0017 의 SC 는 접수 결과다 — 반영은 PDB 로만 판정된다
+    Note over TOOL,PCDS: 0017 의 SC 는 이력 적재까지의 결과다 — 가입자 반영은 아래 PDB 판정으로만 확인된다
 
     SDM->>PDB: T_CDS_ORDER_HIST 조회 (폴링)
     SDM->>PDB: T_5G_SUBS_* 반영
@@ -74,7 +76,10 @@ Body 는 업무 코드와 무관하게 **항상 327B** 다. 아래 필드만 채
 
 ## 판정 기준
 
-`CommandResult(0017)` 는 Body 내용과 무관하게 `SC` 를 준다. 실제 반영은 PDB 로만 판정된다.
+`0016 CommandRequestACK` 는 **받았다는 확인**이라 처리 전에 나간다 — 판정에 쓸 수 없다.
+
+`0017 CommandResult` 가 나르는 것은 **전문 이력 적재의 성패**다. INSERT 가 실패하면 `FA`, 성공하면 Body 내용이 업무적으로 맞든 틀리든 `SC` 다.
+가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 로만 판정된다.**
 
 - `T_5G_SUBS_PROFILE` (MDN) = **1건**
 - `T_5G_SUBS_SERVICE` (MDN, `DATA_USAGE_LEVEL`) = **1건**
