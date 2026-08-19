@@ -50,13 +50,15 @@ sequenceDiagram
     CDS->>PCDS: HFC 전문 (1X) / 전문 (JOB Code, MDN)
     PCDS->>PDB: 전문저장 : 주소 부분 Masking (T_CDS_ORDER_HIST)
     PCDS->>PDB: 전문저장 : 주소 부분 암호화 저장 (T_BAROD_ORDER_HIST)
+    opt INSERT 성공 시
+        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?
+    end
 
     rect rgba(128, 128, 128, 0.12)
     Note over SDM, PCF: ① 가입자 정보 처리 (SDM) — 1X/1Y 는 SNOTI 로 넘어가지 않는다
     SDM->>PDB: SQL – 전문 정보 조회 (T_CDS_ORDER_HIST)
     SDM->>PDB: SQL – 가입자 정보 SELECT/INSERT/UPDATE/DELETE (T_5G_SUBS_SERVICE)
     SDM->>PDB: SQL – 가입자 정보 SELECT/INSERT/UPDATE/DELETE (T_5G_SUBS_PROFILE)
-    PCDS->>PDB: SQL – TID 정보 UPDATE (T_CDS_ORDER_TID)
     SDM->>PDB: SQL – TID 정보 UPDATE (T_CDS_ORDER_TID)
     SDM--xSNOTI: RBUS NOTI 없음
     Note over SDM, PCF: ★ 1X/1Y 는 SDM 이 RBUS NOTI 를 보내지 않는다<br/>→ SNOTI 가 깨지 않고, SNOTI→PCF 가입자 통보도 나가지 않는다
@@ -98,11 +100,13 @@ sequenceDiagram
     SDM->>PDB: SQL – SDM 기동 시 전문 별 처리 권리 조회 (T_CDS_JOB_CFG)
     CDS->>PCDS: 전문 (JOB Code, MDN)
     PCDS->>PDB: SQL – 전문 수신 후 전문 정보 INSERT (T_CDS_ORDER_HIST)
+    opt INSERT 성공 시
+        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?
+    end
     SDM->>PDB: SQL – 전문 정보 조회 (T_CDS_ORDER_HIST)
     SDM->>PDB: SQL – 가입자 정보 SELECT/INSERT/UPDATE/DELETE (T_5G_SUBS_SERVICE)
     SDM->>PDB: SQL – 가입자 정보 SELECT/INSERT/UPDATE/DELETE (T_5G_SUBS_PROFILE)
     SDM->>SNOTI: RBUS NOTI
-    PCDS->>PDB: SQL – TID 정보 UPDATE (T_CDS_ORDER_TID)
     SDM->>PDB: SQL – TID 정보 UPDATE (T_CDS_ORDER_TID)
     SNOTI->>PDB: SQL – 가입자 정보 조회 (T_5G_SUBS_SERVICE)
     SNOTI->>PDB: SQL – 가입자 정보 조회 (T_5G_SUBS_PROFILE)
@@ -117,16 +121,19 @@ sequenceDiagram
 | 1 | PG.SDM ← PDB | SDM 기동 시 전문 별 처리 권리 조회 | T_CDS_JOB_CFG |
 | 2 | CDS → PG.CDS | 전문 수신 (JOB Code, MDN) | - |
 | 3 | PG.CDS → PDB | 전문 수신 후 전문 정보 INSERT | T_CDS_ORDER_HIST |
-| 4 | PG.SDM ← PDB | 전문 정보 조회 | T_CDS_ORDER_HIST |
-| 5 | PG.SDM ↔ PDB | 가입자 정보 SELECT/INSERT/UPDATE/DELETE | T_5G_SUBS_SERVICE |
-| 6 | PG.SDM ↔ PDB | 가입자 정보 SELECT/INSERT/UPDATE/DELETE | T_5G_SUBS_PROFILE |
-| 7 | PG.SDM → PG.SNOTI | RBUS NOTI | - |
-| 8 | PG.CDS → PDB | TID 정보 UPDATE | T_CDS_ORDER_TID |
+| 4 | PG.CDS → PDB | **3 이 성공했을 때만** TID 정보 UPDATE<br>`SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?` | T_CDS_ORDER_TID |
+| 5 | PG.SDM ← PDB | 전문 정보 조회 | T_CDS_ORDER_HIST |
+| 6 | PG.SDM ↔ PDB | 가입자 정보 SELECT/INSERT/UPDATE/DELETE | T_5G_SUBS_SERVICE |
+| 7 | PG.SDM ↔ PDB | 가입자 정보 SELECT/INSERT/UPDATE/DELETE | T_5G_SUBS_PROFILE |
+| 8 | PG.SDM → PG.SNOTI | RBUS NOTI | - |
 | 9 | PG.SDM → PDB | TID 정보 UPDATE | T_CDS_ORDER_TID |
 | 10 | PG.SNOTI ← PDB | 가입자 정보 조회 | T_5G_SUBS_SERVICE |
 | 11 | PG.SNOTI ← PDB | 가입자 정보 조회 | T_5G_SUBS_PROFILE |
 | 12 | PG.SNOTI ← PDB | 가입자 세션 정보 조회 | T_SMF_SESSION_INFO |
 | 13 | PG.SNOTI → PCRF/PCF | SBI NOTI | - |
+
+> **TID 갱신이 두 번**이다(4 · 9). PG.CDS 가 전문을 받아 넣은 직후 한 번,
+> PG.SDM 이 처리를 끝낸 뒤 한 번. 앞의 것은 **INSERT 가 성공했을 때만** 나간다.
 
 > ⚠️ **일부 전문에 대해서는 PCF/PCRF로 NOTI 하지 않음**
 
@@ -162,6 +169,7 @@ sequenceDiagram
 | 1 | CDS → PG.CDS | HFC 전문(1X) 수신 | - |
 | 2 | PG.CDS → PDB | 전문저장, **DATA에서 주소 부분 Masking** | T_CDS_ORDER_HIST |
 | 3 | PG.CDS → PDB | 전문저장, **DATA에서 주소 부분 암호화 저장** | T_BAROD_ORDER_HIST |
+| — | PG.CDS → PDB | **2·3 이 성공했을 때만** TID 정보 UPDATE<br>`SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?` | T_CDS_ORDER_TID |
 | 4 | PG.BSUBS ← PDB | 주기적으로 전문 조회 | T_BAROD_ORDER_HIST |
 | 5 | PG.BSUBS → UPM | Subs Info Request — 주소 필드는 암호화 데이터(+prefix)를 **Base64 Encoding** | - |
 | 6 | UPM → PG.BSUBS | Subs Info Response | - |

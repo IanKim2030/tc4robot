@@ -171,6 +171,10 @@ def mermaid(code, route):
     L.append('    PCDS->>PDB: INSERT T_CDS_ORDER_HIST')
     if code in ('1X', '1Y'):
         L.append('    PCDS->>PDB: INSERT T_BAROD_ORDER_HIST (주소 암호화)')
+    # 전문 이력 INSERT 가 **성공했을 때만** TID 를 갱신한다. ACK 보다 먼저다.
+    L.append('    opt INSERT 성공 시')
+    L.append('        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?')
+    L.append('    end')
     L.append('    PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel')
     L.append('    PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel')
     L.append('    TOOL->>PCDS: 0018 CommandResultACK (TID 에코)')

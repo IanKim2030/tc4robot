@@ -29,6 +29,9 @@ sequenceDiagram
     Note over TOOL,PDB: 기준선은 전문을 보내기 전에 떠야 한다
     TOOL->>PCDS: 0015 CommandRequest (G1) — Body 327B
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
+    opt INSERT 성공 시
+        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?
+    end
     PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel
     PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel
     TOOL->>PCDS: 0018 CommandResultACK (TID 에코)

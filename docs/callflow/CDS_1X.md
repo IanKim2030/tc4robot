@@ -28,6 +28,9 @@ sequenceDiagram
     TOOL->>PCDS: 0015 CommandRequest (1X) — Body 327B
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
     PCDS->>PDB: INSERT T_BAROD_ORDER_HIST (주소 암호화)
+    opt INSERT 성공 시
+        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?
+    end
     PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel
     PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel
     TOOL->>PCDS: 0018 CommandResultACK (TID 에코)
