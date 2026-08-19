@@ -175,7 +175,7 @@ def mermaid(code, route):
         L.append('    PCDS->>PDB: INSERT T_BAROD_ORDER_HIST (주소 암호화)')
     # 이력 적재의 성패가 0017 의 SC/FA 를 가른다.
     L.append('    alt INSERT 성공')
-    L.append('        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?')
+    L.append('        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
     L.append('        PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel')
     L.append('    else INSERT 실패')
     L.append('        PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel')

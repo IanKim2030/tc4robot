@@ -30,7 +30,7 @@ sequenceDiagram
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
     PCDS->>PDB: INSERT T_BAROD_ORDER_HIST (주소 암호화)
     alt INSERT 성공
-        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?
+        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
         PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel
     else INSERT 실패
         PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel

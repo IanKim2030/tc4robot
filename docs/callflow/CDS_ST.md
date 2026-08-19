@@ -28,7 +28,7 @@ sequenceDiagram
     PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, 접수 확인
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
     alt INSERT 성공
-        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?
+        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
         PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel
     else INSERT 실패
         PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel

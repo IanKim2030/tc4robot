@@ -51,7 +51,7 @@ sequenceDiagram
     PCDS->>PDB: 전문저장 : 주소 부분 Masking (T_CDS_ORDER_HIST)
     PCDS->>PDB: 전문저장 : 주소 부분 암호화 저장 (T_BAROD_ORDER_HIST)
     opt INSERT 성공 시
-        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?
+        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     end
 
     rect rgba(128, 128, 128, 0.12)
@@ -101,7 +101,7 @@ sequenceDiagram
     CDS->>PCDS: 전문 (JOB Code, MDN)
     PCDS->>PDB: SQL – 전문 수신 후 전문 정보 INSERT (T_CDS_ORDER_HIST)
     opt INSERT 성공 시
-        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID = ?, UPDATE_TIME = SYSDATE WHERE NAME = ?
+        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     end
     SDM->>PDB: SQL – 전문 정보 조회 (T_CDS_ORDER_HIST)
     SDM->>PDB: SQL – 가입자 정보 SELECT/INSERT/UPDATE/DELETE (T_5G_SUBS_SERVICE)
