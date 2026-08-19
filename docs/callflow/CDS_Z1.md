@@ -35,7 +35,7 @@ sequenceDiagram
         PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel
     end
     TOOL->>PCDS: 0018 CommandResultACK (TID 에코)
-    Note over TOOL,PCDS: 0017 의 SC 는 이력 적재까지의 결과다 — 가입자 반영은 아래 PDB 판정으로만 확인된다
+    Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
     alt HFC 가입 상태
         BSUBS->>PDB: T_BAROD_ORDER_HIST 주기 폴링

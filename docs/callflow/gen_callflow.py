@@ -181,7 +181,7 @@ def mermaid(code, route):
     L.append('        PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel')
     L.append('    end')
     L.append('    TOOL->>PCDS: 0018 CommandResultACK (TID 에코)')
-    L.append('    Note over TOOL,PCDS: 0017 의 SC 는 이력 적재까지의 결과다 — 가입자 반영은 아래 PDB 판정으로만 확인된다')
+    L.append('    Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인')
     L.append('')
     if route == 'BSUBS-always':
         L.append('    BSUBS->>PDB: T_BAROD_ORDER_HIST 주기 폴링')
