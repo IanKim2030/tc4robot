@@ -25,6 +25,8 @@ sequenceDiagram
     participant SNOTI as PG.SNOTI
     participant PCF as 도구 (PCF 역할)
 
+    TOOL->>PDB: 수행 전 SVC_ID 별 행 수 집계 (MDN)
+    Note over TOOL,PDB: 기준선은 전문을 보내기 전에 떠야 한다
     TOOL->>PCDS: 0015 CommandRequest (G1) — Body 327B
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
     PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel
@@ -40,7 +42,9 @@ sequenceDiagram
         SDM->>SNOTI: RBUS NOTI
     end
     SNOTI->>PCF: SBI Noti (h2c)
-    TOOL->>PDB: SELECT COUNT(*) — 반영 판정 (재조회)
+    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
+    TOOL->>PDB: 수행 후 JOB_CODE=G1 로 적재된 행 집계 (MDN)
+    Note over TOOL,PDB: 두 집계가 같으면 성공
 ```
 
 ## 전문 Body 필드

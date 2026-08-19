@@ -35,7 +35,9 @@ sequenceDiagram
     SDM->>PDB: T_5G_SUBS_* 반영
     SDM->>SNOTI: RBUS NOTI
     SNOTI->>PCF: SBI Noti (h2c)
-    TOOL->>PDB: SELECT COUNT(*) — 반영 판정 (재조회)
+    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
+    TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + ZONE_SVC_B + Z + Y9 + TPID=25 + LIMIT=0 + LIMIT_VALID_TIME)
+    TOOL->>PDB: T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=Y6 + 핀)
 ```
 
 ## 전문 Body 필드

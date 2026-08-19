@@ -40,7 +40,9 @@ sequenceDiagram
         SDM->>SNOTI: RBUS NOTI
     end
     SNOTI->>PCF: SBI Noti (h2c)
-    TOOL->>PDB: SELECT COUNT(*) — 반영 판정 (재조회)
+    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
+    TOOL->>PDB: T_5G_SUBS_PROFILE 삭제 확인 (MDN) — 0건
+    TOOL->>PDB: T_5G_SUBS_SERVICE 삭제 확인 (MDN, SVC_ID 무관) — 0건
 ```
 
 ## 전문 Body 필드

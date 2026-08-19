@@ -40,7 +40,8 @@ sequenceDiagram
     BSUBS->>SNOTI: RBUS NOTI
     Note over BSUBS,SNOTI: SDM 은 1X/1Y 에 RBUS NOTI 를 보내지 않는다 — 깨우는 쪽은 BSUBS 다
     SNOTI->>PCF: SBI Noti (h2c)
-    TOOL->>PDB: SELECT COUNT(*) — 반영 판정 (재조회)
+    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
+    TOOL->>PDB: T_5G_SUBS_SERVICE 삭제 확인 (MDN + ZONE_SVC_D) — 0건
 ```
 
 ## 전문 Body 필드

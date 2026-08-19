@@ -110,6 +110,41 @@ ROUTE_LABEL = {
  'SDM': ('SDM 경유', '규칙 3'),
 }
 
+# ── 다이어그램에 그릴 PDB 판정 단계 ──────────────────────────────
+# 일반 문구("SELECT COUNT(*) — 반영 판정") 대신 **코드별 실제 조회**를 그린다.
+# PRE 는 전문보다 **먼저** 나가는 조회다(전후 비교형 C1/G1/D3 의 기준선).
+PDB_PRE = {
+ 'C1': ['수행 전 SVC_ID 별 행 수 집계 (MDN)'],
+ 'G1': ['수행 전 SVC_ID 별 행 수 집계 (MDN)'],
+ 'D3': ['수행 전 SVC_ID 별 행 수 집계 (옛 MDN)'],
+}
+PDB_POST = {
+ 'A1': ['T_5G_SUBS_PROFILE 저장 확인 (MDN)',
+        'T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID=DATA_USAGE_LEVEL)',
+        'T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID=DATA_USAGE_LEVEL_2)'],
+ '1X': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + ZONE_SVC_D + SVC_TYPE=D + JOB_CODE=1X)'],
+ '1Y': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + ZONE_SVC_D) — 0건'],
+ 'I2': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + YOUNG_HARM_INFO_BLOCK + N + I2 + TPID=56 + LIMIT=Y)'],
+ 'I3': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + YOUNG_HARM_INFO_BLOCK) — 0건'],
+ 'C1': ['수행 후 JOB_CODE=C1 로 적재된 행 집계 (MDN)'],
+ 'G1': ['수행 후 JOB_CODE=G1 로 적재된 행 집계 (MDN)'],
+ 'K1': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + R17 + N + K1 + TPID=113 + LIMIT=1 + LIMIT_VALID_TIME + CNUM)',
+        'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K3 + 핀)'],
+ 'K2': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
+ 'K3': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
+ 'K4': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
+ 'K5': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + R17 + N + K5 + TPID=0 + LIMIT=2 + LIMIT_VALID_TIME + CNUM)',
+        'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K7 + 핀)'],
+ 'K6': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
+ 'Y9': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + ZONE_SVC_B + Z + Y9 + TPID=25 + LIMIT=0 + LIMIT_VALID_TIME)',
+        'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=Y6 + 핀)'],
+ 'SS': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + TIME_SVC_I + T + SS + TPID=SS_+START_TIME + LIMIT=0 + CNUM=0)'],
+ 'ST': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + TIME_SVC_I) — 0건'],
+ 'D3': ['수행 후 JOB_CODE=D3 로 적재된 행 집계 (새 MDN)'],
+ 'Z1': ['T_5G_SUBS_PROFILE 삭제 확인 (MDN) — 0건',
+        'T_5G_SUBS_SERVICE 삭제 확인 (MDN, SVC_ID 무관) — 0건'],
+}
+
 HDR = """participant TOOL as 도구 (CDS 역할)
     participant PCDS as PG.CDS
     participant PDB as PDB"""
@@ -128,6 +163,10 @@ def mermaid(code, route):
     L.append('    participant SNOTI as PG.SNOTI')
     L.append('    participant PCF as 도구 (PCF 역할)')
     L.append('')
+    for step in PDB_PRE.get(code, []):
+        L.append('    TOOL->>PDB: %s' % step)
+    if code in PDB_PRE:
+        L.append('    Note over TOOL,PDB: 기준선은 전문을 보내기 전에 떠야 한다')
     L.append('    TOOL->>PCDS: 0015 CommandRequest (%s) — Body 327B' % code)
     L.append('    PCDS->>PDB: INSERT T_CDS_ORDER_HIST')
     if code in ('1X', '1Y'):
@@ -157,7 +196,11 @@ def mermaid(code, route):
         L.append('        SDM->>SNOTI: RBUS NOTI')
         L.append('    end')
     L.append('    SNOTI->>PCF: SBI Noti (h2c)')
-    L.append('    TOOL->>PDB: SELECT COUNT(*) — 반영 판정 (재조회)')
+    L.append('    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
+    for step in PDB_POST.get(code, ['SELECT COUNT(*) — 반영 판정']):
+        L.append('    TOOL->>PDB: %s' % step)
+    if code in PDB_PRE:
+        L.append('    Note over TOOL,PDB: 두 집계가 같으면 성공')
     L.append('```')
     return '\n'.join(L)
 

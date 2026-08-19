@@ -35,7 +35,8 @@ sequenceDiagram
     SDM->>PDB: T_5G_SUBS_* 반영
     SDM->>SNOTI: RBUS NOTI
     SNOTI->>PCF: SBI Noti (h2c)
-    TOOL->>PDB: SELECT COUNT(*) — 반영 판정 (재조회)
+    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
+    TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + YOUNG_HARM_INFO_BLOCK + N + I2 + TPID=56 + LIMIT=Y)
 ```
 
 ## 전문 Body 필드
