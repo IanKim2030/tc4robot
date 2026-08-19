@@ -27,6 +27,12 @@ Documentation
 ...      TC-CDS-001       : ProcessState 상태확인 (0013/0014)
 ...      TC-CDS-002 ~ 008 : Download Command (0015~0018) — 즉시 반영 업무 코드
 ...      TC-CDS-009 ~ 017 : Download Command — 쿠폰/옵션 계열 Y9 / K1~K6 / SS / ST
+...
+...    ★ **파일의 실행 순서가 번호 순이 아니다.** 013(K5) / 014(K6)이 009(K1) 앞에 있다.
+...      Robot 은 파일에 적힌 순서대로 돌리므로 실제 실행은 이렇다.
+...        … 008 → **013 → 014** → 009 → 010 → 011 → 012 → 015 …
+...      번호는 그대로 두었다 — 문서·콜플로우 시트가 번호로 TC 를 가리키고 있어
+...      다시 매기면 그쪽이 전부 어긋난다.
 ...      TC-CDS-018 ~ 019 : Download Command — 번호변경(D3) → 해지(Z1) 체인의 끝
 ...
 ...    [PDB 조회] `db` 태그가 붙은 TC 는 전문 흐름(SC)에 더해 PDB 반영까지 판정한다.
@@ -188,8 +194,10 @@ Documentation
 ...
 ...    [TC 간 의존성] 슈트 전체가 002(A1 신규가입)로 만든 가입자 하나를 이어 쓴다.
 ...      002 A1 신규가입  : 이후 모든 TC 의 대상 가입자를 만든다
-...      009 K1 → 010 K2  : 같은 핀(${CDS_COUPON_PIN_K1})의 쿠폰 가입 → 해지 쌍
 ...      013 K5 → 014 K6  : 같은 핀(${CDS_COUPON_PIN_K5})의 쿠폰 가입 → 해지 쌍
+...                         (실행 순서상 009 보다 **먼저** 돈다)
+...      009 K1 → 010 K2  : 같은 핀(${CDS_COUPON_PIN_K1})의 쿠폰 가입 → 해지 쌍
+...    쌍끼리는 붙어 있고 핀이 서로 달라, 두 쌍의 앞뒤가 바뀌어도 판정은 영향받지 않는다.
 ...      016 SS → 017 ST  : 옵션 가입 → 해지 쌍 (핀 없음, SVC_ID 로만 식별)
 ...      018 D3 번호변경  : 성공하면 ${CDS_ACTIVE_MDN} 을 ${CDS_NEW_MDN} 으로 갱신
 ...      019 Z1 해지      : 가입자 자체를 해지 (체인의 끝). PDB 에서 사라졌는지까지 본다
@@ -421,6 +429,43 @@ TC-CDS-008 G1 (정보변경)
 #   → 가입 판정(010/014)이 이유 없이 실패한다(cds_variables.robot 참조).
 # ════════════════════════════════════════════════════════════════
 
+TC-CDS-013 K5 (Data(Time) 3Mbps 쿠폰 가입)
+    [Documentation]
+    ...    0015(K5) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...    전문 필드 집합은 K1 과 같다(GenCds gen() 에서 K1 과 한 분기).
+    ...
+    ...    [성공 판단 기준] K1(TC-CDS-009)과 같은 2건 조회인데 **기대값이 다르다.**
+    ...      1. 서비스 저장 — JOB_CODE='${CDS_CODE_K5}', TIME_PERIOD_ID='${CDS_DB_TPID_K5}',
+    ...         "LIMIT"='${CDS_DB_LIMIT_K5}', LIMIT_VALID_TIME='${CDS_LIMIT_VALID_TIME}',
+    ...         CNUM='${CDS_COUPON_PIN_K5}' (K1 은 113/1)
+    ...      2. 예약 큐 적재 — JOB_CODE='${CDS_DB_RSV_JOB_K5}' (K1 은 K3)
+    ...
+    ...    핀을 K1 과 달리 쓰는 이유는 해지 판정이 `MDN + R17 + CNUM` 으로만 걸려
+    ...    핀을 공유하면 TC-CDS-010 이 지운 행을 이 TC 의 결과로 착각하기 때문이다.
+    [Tags]    cds    command    validation    db    coupon    noti
+    Command Download Flow    ${CDS_CODE_K5}
+    ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
+    ...    coupon_pin=${CDS_COUPON_PIN_K5}         coupon_category=${CDS_COUPON_CATEGORY}
+    Verify Coupon Service Subscribed In PDB
+    ...    ${CDS_MDN}    ${CDS_CODE_K5}    ${CDS_DB_TPID_K5}    ${CDS_DB_LIMIT_K5}    ${CDS_COUPON_PIN_K5}
+    Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_K5}    ${CDS_COUPON_PIN_K5}
+    Verify SBI Noti Sent    ${CDS_CODE_K5}
+
+TC-CDS-014 K6 (Data(Time) 3Mbps 쿠폰 해지)
+    [Documentation]
+    ...    0015(K6) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
+    ...    필드: mdn / limit / coupon_pin
+    ...
+    ...    [성공 판단 기준] TC-CDS-013(K5)이 넣은 쿠폰 행이 **0건**이어야 성공이다.
+    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
+    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K5}'
+    ...    K2(해지)와 판정 기준이 같다 — 3Mbps 쿠폰인지는 구분되지 않는다.
+    [Tags]    cds    command    validation    db    coupon    noti
+    Command Download Flow    ${CDS_CODE_K6}    coupon_pin=${CDS_COUPON_PIN_K5}
+    Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K5}
+    Verify SBI Noti Sent    ${CDS_CODE_K6}
+
+
 TC-CDS-009 K1 (Data(Time) 쿠폰 가입)
     [Documentation]
     ...    0015(K1) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
@@ -538,42 +583,6 @@ TC-CDS-012 K3 (Data(Time) 쿠폰 만료)
     Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K3}
     Verify SBI Noti Sent    ${CDS_CODE_K3}    since=${since}
 
-
-TC-CDS-013 K5 (Data(Time) 3Mbps 쿠폰 가입)
-    [Documentation]
-    ...    0015(K5) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    전문 필드 집합은 K1 과 같다(GenCds gen() 에서 K1 과 한 분기).
-    ...
-    ...    [성공 판단 기준] K1(TC-CDS-009)과 같은 2건 조회인데 **기대값이 다르다.**
-    ...      1. 서비스 저장 — JOB_CODE='${CDS_CODE_K5}', TIME_PERIOD_ID='${CDS_DB_TPID_K5}',
-    ...         "LIMIT"='${CDS_DB_LIMIT_K5}', LIMIT_VALID_TIME='${CDS_LIMIT_VALID_TIME}',
-    ...         CNUM='${CDS_COUPON_PIN_K5}' (K1 은 113/1)
-    ...      2. 예약 큐 적재 — JOB_CODE='${CDS_DB_RSV_JOB_K5}' (K1 은 K3)
-    ...
-    ...    핀을 K1 과 달리 쓰는 이유는 해지 판정이 `MDN + R17 + CNUM` 으로만 걸려
-    ...    핀을 공유하면 TC-CDS-010 이 지운 행을 이 TC 의 결과로 착각하기 때문이다.
-    [Tags]    cds    command    validation    db    coupon    noti
-    Command Download Flow    ${CDS_CODE_K5}
-    ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
-    ...    coupon_pin=${CDS_COUPON_PIN_K5}         coupon_category=${CDS_COUPON_CATEGORY}
-    Verify Coupon Service Subscribed In PDB
-    ...    ${CDS_MDN}    ${CDS_CODE_K5}    ${CDS_DB_TPID_K5}    ${CDS_DB_LIMIT_K5}    ${CDS_COUPON_PIN_K5}
-    Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_K5}    ${CDS_COUPON_PIN_K5}
-    Verify SBI Noti Sent    ${CDS_CODE_K5}
-
-TC-CDS-014 K6 (Data(Time) 3Mbps 쿠폰 해지)
-    [Documentation]
-    ...    0015(K6) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    필드: mdn / limit / coupon_pin
-    ...
-    ...    [성공 판단 기준] TC-CDS-013(K5)이 넣은 쿠폰 행이 **0건**이어야 성공이다.
-    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K5}'
-    ...    K2(해지)와 판정 기준이 같다 — 3Mbps 쿠폰인지는 구분되지 않는다.
-    [Tags]    cds    command    validation    db    coupon    noti
-    Command Download Flow    ${CDS_CODE_K6}    coupon_pin=${CDS_COUPON_PIN_K5}
-    Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K5}
-    Verify SBI Noti Sent    ${CDS_CODE_K6}
 
 TC-CDS-015 Y9 (Data(Zone) 부가서비스 쿠폰 사용시점 알림)
     [Documentation]
