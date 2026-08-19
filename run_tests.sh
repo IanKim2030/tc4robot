@@ -32,6 +32,11 @@
 #   bash run_tests.sh cds --precheck-fail   # 잔존 데이터면 중단
 #   bash run_tests.sh cds --precheck-ask    # 물어보게 하기 (화면이 있을 때만)
 #   bash run_tests.sh cds --no-precheck     # 확인 자체를 생략
+#
+# CDS 예약 시각(START_TIME) — 기본은 먼 미래 고정값(203712312359):
+#   bash run_tests.sh cds --start-now       # 실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분(기본 60)
+#   ★ 오프셋은 양수여야 한다. 0이나 음수면 K1/K5 가입 직후 만료 예약이 실행돼
+#     009/013/015 의 가입 판정이 실패한다 — 슈트가 거부한다.
 #   --upm / --sbi / --sbi-wait / --session 은 반대로 강제로 켠다.
 #   별칭: --no-http / --no-noti 도 --no-sbi 로 받는다(예전 이름).
 #
@@ -81,6 +86,9 @@ for arg in "${@:2}"; do
                            TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:report) ;;
         --precheck-fail)   TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:fail) ;;
         --precheck-ask)    TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:ask) ;;
+        # 예약 시각을 실행 시각 기준으로 (K1/K5/Y9/SS/ST). 오프셋은 변수로 조정한다.
+        --start-now)       TOGGLE_VARS+=(--variable CDS_START_TIME_MODE:now) ;;
+        --start-fixed)     TOGGLE_VARS+=(--variable CDS_START_TIME_MODE:fixed) ;;
         # 세션 사전 적재 — T_SMF_SESSION_INFO 에 5G 세션 1건을 넣는다(멱등).
         # 이 슈트에서 유일하게 PDB 에 쓰는 자리다. 없으면 PG 가 알림 상대를 못 찾는다.
         --no-session)   TOGGLE_VARS+=(--variable CDS_SESSION_CREATE:False) ;;

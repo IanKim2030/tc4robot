@@ -48,6 +48,7 @@ bash run_tests.sh cds --no-upm --no-sbi    # CDS 전문 + PDB 만
 bash run_tests.sh cds --no-sbi-wait        # Listen 은 하되 PG 접속을 안 기다림
 bash run_tests.sh cds --precheck-fail      # 잔존 데이터가 있으면 중단 (기본은 리포트 후 진행)
 bash run_tests.sh cds --no-precheck        # 잔존 데이터 확인 생략
+bash run_tests.sh cds --start-now          # 예약 START_TIME 을 실행 시각+60분으로 (기본: 먼 미래 고정)
                                            # --upm / --sbi 로 반대로 강제 ON
                                            # PDB 는 못 끈다 (Suite Setup 고정)
 

@@ -72,6 +72,10 @@ Documentation
 ...          016         : TIME_PERIOD_ID   = 'SS_' + START_TIME 접두+12 (${CDS_DB_TPID_SS})
 ...        형식이 또 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
 ...      ★ START_TIME 은 **012 만 현재 시각**이고 나머지는 먼 미래(${CDS_START_TIME})다.
+...        나머지도 실행 시각 기준으로 잡으려면 `--start-now`(= CDS_START_TIME_MODE:now).
+...        그러면 Suite Setup 이 **실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분**(기본 60)으로
+...        START_TIME·LIMIT_VALID_TIME·TIME_PERIOD_ID **셋을 한꺼번에** 다시 계산한다.
+...        오프셋이 0 이하면 거부한다 — 가입하자마자 만료돼 009/013/015 가 실패한다.
 ...        012 는 만료 업무라 유효기간이 찬 쿠폰이 필요하기 때문이다 — 그 TC 주석 참조.
 ...      접속 정보는 cds_variables.robot 의
 ...      ${CDS_DB_CONNSTR}(완성된 ODBC 문자열) 하나다 — 환경변수 PG_CDS_DB_CONNSTR 가 우선.

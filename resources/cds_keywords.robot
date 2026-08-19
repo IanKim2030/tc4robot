@@ -81,6 +81,9 @@ Suite CDS Connect
     ...            ${timeout}=${CDS_TIMEOUT}
     ${sid}=    Resolve CDS System Id
     Set Suite Variable    ${CDS_SYSTEM_ID}    ${sid}
+    # 예약 시각(START_TIME 계열)을 확정한다. 전문을 보내기 전이면 어디든 되지만,
+    # 판정 값까지 같이 바뀌므로 **가장 앞에서** 한 번에 정해 두는 편이 헷갈리지 않는다.
+    Resolve CDS Start Time
     Set Suite Variable    ${CDS_TID_SEQ}    ${0}
     Set Suite Variable    ${CDS_TID_LAST_HMS}    ${EMPTY}
     # 1) Rchannel 먼저: TCP 연결 → RchannelConnectionRequest(0003) → ACK(0004)
@@ -1218,6 +1221,37 @@ Verify Service Counts Preserved In PDB
 #     SS       : TIME_PERIOD_ID   = 'SS_' + START_TIME 접두+12 (${CDS_DB_TPID_SS})
 #   ★ 기준표가 둘 다 $LIMIT_VALID_TIME 으로 적어 놔서 같은 값으로 읽기 쉬운데 아니다.
 #     SS 만 초 '00' 이 붙지 않는다. 형식이 또 어긋나면 저 두 변수만 고치면 된다.
+
+Resolve CDS Start Time
+    [Documentation]
+    ...    **Suite Setup 전용.** ${CDS_START_TIME_MODE} 가 `now` 면 예약 시각 셋을
+    ...    실행 시각 기준으로 다시 계산한다. `fixed`(기본)면 아무것도 하지 않는다.
+    ...
+    ...    셋을 **한꺼번에** 바꾼다 — 하나라도 빠지면 판정이 어긋난다.
+    ...      ${CDS_START_TIME}        12자리 YYYYMMDDHH24MI  → 전문 필드
+    ...      ${CDS_LIMIT_VALID_TIME}  14자리 (+ 초 '00')      → K1/K5/Y9 의 PDB 판정
+    ...      ${CDS_DB_TPID_SS}        'SS_' + 12자리          → SS 의 PDB 판정
+    ...    뒤 둘은 cds_variables.robot 에서 ${CDS_START_TIME} 으로부터 파생되는데
+    ...    **임포트 시점에 한 번 계산된다.** START_TIME 만 바꾸면 판정은 옛 값으로
+    ...    조회해 전부 0건이 된다.
+    ...
+    ...    ★ 오프셋이 양수가 아니면 **거부한다.** K1/K5 가입은 예약 큐에 만료를 걸고
+    ...      PG.RDS 는 START_TIME 이 지난 예약을 집어 실행하므로, 0이나 음수면
+    ...      가입하자마자 만료돼 009/013/015 가 이유 없이 실패한다. 전문이 분까지만
+    ...      담아 0 이면 이번 분이 **이미 시작돼 있다** — 0 도 과거다.
+    ${mode}=    Convert To Lower Case    ${CDS_START_TIME_MODE}
+    IF    '${mode}' != 'now'
+        Log    [Suite] 예약 시각 고정값 사용 — START_TIME=${CDS_START_TIME}    console=True
+        RETURN
+    END
+    IF    ${CDS_START_TIME_OFFSET_MIN} <= 0
+        Fatal Error    CDS_START_TIME_OFFSET_MIN 은 양수여야 합니다 (지금=${CDS_START_TIME_OFFSET_MIN}). 0이나 음수면 K1/K5 가입 직후 만료 예약이 실행돼 009/013/015 의 가입 판정이 실패합니다.
+    END
+    ${st}    ${lvt}=    Current CDS Start Time    ${CDS_START_TIME_OFFSET_MIN}
+    Set Suite Variable    ${CDS_START_TIME}         ${st}
+    Set Suite Variable    ${CDS_LIMIT_VALID_TIME}   ${lvt}
+    Set Suite Variable    ${CDS_DB_TPID_SS}         SS_${st}
+    Log    [Suite] 예약 시각을 실행 시각 +${CDS_START_TIME_OFFSET_MIN}분으로 잡았습니다 — START_TIME=${st} / LIMIT_VALID_TIME=${lvt} / TIME_PERIOD_ID=SS_${st}    console=True
 
 Current CDS Start Time
     [Documentation]
