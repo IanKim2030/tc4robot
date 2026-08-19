@@ -27,7 +27,7 @@
 |---|---|---|---|---|
 | [`A1`](CDS_A1.md) | 신규가입 | `TC-CDS-002` | SDM | 건너뜀 ⚠️ |
 | [`1X`](CDS_1X.md) | HFC 서비스 가입 | `TC-CDS-003` | BSUBS (무조건) | 확인 |
-| [`1Y`](CDS_1Y.md) | HFC 서비스 해지 | `TC-CDS-004` | BSUBS (무조건) | 건너뜀 ⚠️ |
+| [`1Y`](CDS_1Y.md) | HFC 서비스 해지 | `TC-CDS-004` | BSUBS (무조건) | 확인 |
 | [`I2`](CDS_I2.md) | 부가서비스신청 | `TC-CDS-005` | SDM | 확인 |
 | [`I3`](CDS_I3.md) | 부가서비스해지 | `TC-CDS-006` | SDM | 확인 |
 | [`C1`](CDS_C1.md) | 기기변경 | `TC-CDS-007` | BSUBS / SDM (HFC 상태) | 확인 |

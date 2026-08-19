@@ -102,7 +102,7 @@ T = {
 }
 
 # 도구가 현재 알림 판정을 건너뛰는 코드 (@{CDS_NOTI_EXEMPT_CODES})
-EXEMPT = ('A1', '1Y', 'Z1')
+EXEMPT = ('A1', 'Z1')
 
 ROUTE_LABEL = {
  'BSUBS-always': ('BSUBS 경유 (**무조건**)', '규칙 1'),
@@ -270,7 +270,7 @@ def render(code):
     if code in EXEMPT:
         L.append('### ⚠️ 알림 판정은 현재 꺼져 있다')
         L.append('')
-        L.append('이 코드는 `@{CDS_NOTI_EXEMPT_CODES}`(A1 / 1Y / Z1)에 들어 있어 '
+        L.append('이 코드는 `@{CDS_NOTI_EXEMPT_CODES}`(A1 / Z1)에 들어 있어 '
                  '`Verify SBI Noti Sent` 가 **건너뛴다.**')
         L.append('')
         L.append('그런데 위 경로 규칙(2026-08-19)대로면 이 코드도 알림이 나간다 — '

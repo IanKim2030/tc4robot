@@ -1057,7 +1057,7 @@ Verify SBI Noti Sent
     [Documentation]
     ...    업무 코드 ${code} 가 유발한 **PCF SBI Noti 가 도착했는지** 판정한다.
     ...
-    ...    ★ 예외 목록(@{CDS_NOTI_EXEMPT_CODES} = A1 / 1Y / Z1)에 있으면 아무것도
+    ...    ★ 예외 목록(@{CDS_NOTI_EXEMPT_CODES} = A1 / Z1)에 있으면 아무것도
     ...      하지 않는다 — 그 셋은 PG 가 PCF 로 알림을 보내지 않기 때문이다.
     ...      목록이 바뀌면 cds_variables.robot 의 그 변수만 고치면 된다.
     ...

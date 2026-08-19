@@ -321,15 +321,17 @@ ${CDS_CODE_SS}      SS     # 0플랜 옵션(3시간 프리) 가입
 ${CDS_CODE_ST}      ST     # 0플랜 옵션(3시간 프리) 해지
 
 # ── SBI Noti 가 나가지 않는 업무 코드 ────────────────────────────
-# **A1 / 1Y / Z1 만 PCF 로 알림이 나가지 않는다. 나머지는 전부 나간다**(2026-08-19 확인).
+# **A1 / Z1 만 PCF 로 알림이 나가지 않는다. 나머지는 전부 나간다.**
+# (2026-08-19 최초 지정에는 1Y 도 있었으나, 1Y 는 알림이 나가는 것으로 정정됐다 —
+#  BSUBS 경유라 규칙 1 과도 맞는다)
 # docs/nodes/CDS.md 의 "일부 전문은 PCF/PCRF 로 NOTI 하지 않는다" 가 가리키던 그 목록이다.
 #
 # `Verify SBI Noti Sent` 가 이 목록을 보고 판정할지 건너뛸지 정한다 — 그래서 목록이
 # 바뀌면 **여기만 고치면 된다.** TC 는 자기 업무 코드를 넘기기만 한다.
 #
-# ※ 1X 는 여기 없다 — SNOTI→PCF 가입자 통보는 안 나가지만 BSUBS→PCF Cell List 가
-#   나간다(docs/callflow/CDS_X1.md). TC-CDS-003 이 그 Cell List 를 직접 판정한다.
-@{CDS_NOTI_EXEMPT_CODES}    ${CDS_CODE_A1}    ${CDS_CODE_1Y}    ${CDS_CODE_Z1}
+# ※ 1X·1Y 는 여기 없다 — SNOTI→PCF 가입자 통보는 안 나가지만 BSUBS 가 SNOTI 를
+#   깨워 알림이 나간다(docs/callflow/CDS_X1.md). 003/004 가 각각 판정한다.
+@{CDS_NOTI_EXEMPT_CODES}    ${CDS_CODE_A1}    ${CDS_CODE_Z1}
 
 # ── 알림을 만드는 프로세스 — 업무 코드 + HFC 가입 상태로 갈린다 ──
 # (2026-08-19 지정) 세 규칙을 **위에서부터 차례로** 적용한다.

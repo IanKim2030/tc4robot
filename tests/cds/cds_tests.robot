@@ -38,9 +38,10 @@ Documentation
 ...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (구 TC-UPM-301)
 ...                        + **PCF SBI Noti 1건 수신** (Cell List — 가입자 Noti 는 안 나온다)
 ...      ★ SBI Noti 판정은 **A1(002) / 1Y(004) / Z1(019)를 뺀 전 TC** 에 붙어 있다.
-...        그 셋만 PG 가 PCF 로 알림을 보내지 않는다(@{CDS_NOTI_EXEMPT_CODES}).
+...        그 둘만 PG 가 PCF 로 알림을 보내지 않는다(@{CDS_NOTI_EXEMPT_CODES}).
 ...      004 1Y HFC해지  : SERVICE(SVC_ID=ZONE_SVC_D) 0건
 ...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (1X 와 같은 구간)
+...                        + **PCF SBI Noti 1건 수신** (BSUBS→SNOTI→PCF)
 ...      005 I2 부가신청 : SERVICE(YOUNG_HARM_INFO_BLOCK, N, I2, 56, LIMIT=Y) 1건 이상
 ...      006 I3 부가해지 : SERVICE(SVC_ID=YOUNG_HARM_INFO_BLOCK) 0건
 ...      007 C1 기기변경 : 수행 전 SVC_ID 별 행 수 == 수행 후 JOB_CODE=C1 집계
@@ -147,7 +148,7 @@ Documentation
 ...      SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. 도구가 PCF 역할로
 ...      ${CDS_NOTI_PORT} 를 Listen 해 **BSUBS→PCF Cell List 한 건**을 받는다
 ...      (UPM 0x08 응답 뒤). 전문(SC)·PDB 로는 안 보이는 구간이다.
-...      · **알림이 안 나가는 업무 코드는 A1 / 1Y / Z1 셋뿐이다**(2026-08-19 확인).
+...      · **알림이 안 나가는 업무 코드는 A1 / Z1 둘뿐이다.**
 ...        나머지 전 코드는 SBI Noti 가 나가므로 각 TC 가 `Verify SBI Noti Sent` 로
 ...        도착을 판정한다. 예외 목록은 @{CDS_NOTI_EXEMPT_CODES} 하나가 쥔다 —
 ...        목록이 바뀌면 **cds_variables.robot 의 그 변수만** 고치면 된다.
@@ -330,7 +331,7 @@ TC-CDS-004 1Y (HFC해지)
     [Documentation]
     ...    0015(1Y HFC 서비스 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...
-    ...    [성공 판단 기준] 두 구간을 본다.
+    ...    [성공 판단 기준] 세 구간을 본다.
     ...      1) PDB : TC-CDS-003 이 넣은 존 서비스가 **0건**이어야 한다.
     ...         SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='ZONE_SVC_D'
     ...         SVC_TYPE·JOB_CODE 를 걸지 않는다 — 어떤 형태로든 남아 있으면 해지가 덜 된 것이다.
@@ -339,16 +340,22 @@ TC-CDS-004 1Y (HFC해지)
     ...
     ...    ★ 0x08 응답을 보내는 것까지가 이 TC 의 일이다(003 과 같다). 안 보내면 PG 가
     ...      UPM 응답을 기다리다 재시도로 넘어가 **뒤따르는 TC 의 PDB 판정이 흔들린다.**
-    ...    ※ SBI Noti 는 보지 않는다 — 1Y 는 알림이 나가지 않는 세 코드 중 하나다
-    ...      (@{CDS_NOTI_EXEMPT_CODES}).
+    ...      3) PCF : BSUBS → SNOTI → PCF SBI Noti 도착. 1Y 도 **알림이 나간다** —
+    ...         SDM 이 RBUS NOTI 를 보내지 않을 뿐 BSUBS 가 SNOTI 를 깨운다(규칙 1).
+    ...         0x08 응답 뒤에 나가므로 `since` 로 그 이후 도착분만 본다.
     ...    ※ --variable CDS_UPM_VERIFY:False (--no-upm) 면 2)를 건너뛴다.
-    [Tags]    cds    command    validation    db    upm
+    [Tags]    cds    command    validation    db    upm    noti
     Command Download Flow    ${CDS_CODE_1Y}
     Verify Zone Service Released In PDB    ${CDS_MDN}
     # 이후 D3/C1/G1/Z1 의 알림 경로가 SDM 으로 돌아간다(HFC 미가입 상태)
     Set HFC Subscribed    ${FALSE}
+    # 알림은 0x08 응답 **뒤에** 나가므로 그 이후 도착분만 보도록 기준 시각을 먼저 뜬다
+    # (003 과 같은 구조 — 경로 필터가 비어 있어 아무 알림이나 집기 때문이다).
+    ${since}=    Noti Timestamp
     # PG.BSUBS → UPM Subs-Info(0x07) 수신 → 0x08 응답 (1X 와 같은 구간)
     Verify UPM Subs Info Notified    mdn=${CDS_MDN}
+    # BSUBS → SNOTI → PCF SBI Noti
+    Verify SBI Noti Sent    ${CDS_CODE_1Y}    since=${since}
 
 TC-CDS-005 I2 (부가서비스신청)
     [Documentation]
