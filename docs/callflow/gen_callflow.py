@@ -145,7 +145,7 @@ PDB_POST = {
         'T_5G_SUBS_SERVICE 삭제 확인 (MDN, SVC_ID 무관) — 0건'],
 }
 
-HDR = """participant TOOL as 도구 (CDS 역할)
+HDR = """participant TOOL as ROBOT (CDS 역할)
     participant PCDS as PG.CDS
     participant PDB as PDB"""
 
@@ -156,12 +156,12 @@ def mermaid(code, route):
         L.append('    participant SDM as PG.SDM')
     elif route == 'BSUBS-always':
         L.append('    participant BSUBS as PG.BSUBS')
-        L.append('    participant UPM as 도구 (UPM 역할)')
+        L.append('    participant UPM as ROBOT (UPM 역할)')
     else:
         L.append('    participant SDM as PG.SDM')
         L.append('    participant BSUBS as PG.BSUBS')
     L.append('    participant SNOTI as PG.SNOTI')
-    L.append('    participant PCF as 도구 (PCF 역할)')
+    L.append('    participant PCF as ROBOT (PCF 역할)')
     L.append('')
     for step in PDB_PRE.get(code, []):
         L.append('    TOOL->>PDB: %s' % step)

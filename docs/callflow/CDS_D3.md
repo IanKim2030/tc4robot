@@ -17,13 +17,13 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as 도구 (CDS 역할)
+    participant TOOL as ROBOT (CDS 역할)
     participant PCDS as PG.CDS
     participant PDB as PDB
     participant SDM as PG.SDM
     participant BSUBS as PG.BSUBS
     participant SNOTI as PG.SNOTI
-    participant PCF as 도구 (PCF 역할)
+    participant PCF as ROBOT (PCF 역할)
 
     TOOL->>PDB: 수행 전 SVC_ID 별 행 수 집계 (옛 MDN)
     Note over TOOL,PDB: 기준선은 전문을 보내기 전에 떠야 한다

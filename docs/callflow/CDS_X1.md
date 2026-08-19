@@ -202,5 +202,5 @@ sequenceDiagram
 - **SA 전문의 선택적 NOTI**: 모든 전문이 PCF/PCRF로 NOTI되지는 않는다 (전문 종류별 T_CDS_JOB_CFG 설정에 따름).
 - **1X/1Y 는 RBUS NOTI 를 보내지 않는다**: 위 "선택적 NOTI" 의 확인된 실례다. SDM 이 가입자 테이블까지만 고치고
   SNOTI 를 깨우지 않으므로, `SNOTI → PCF` 가입자 정보 변경 통보가 없다.
-  **1X 에서 PCF 로 나가는 알림은 `BSUBS → PCF` Cell List 하나뿐이다** — 도구가 PCF 역할로 Listen 할 때
+  **1X 에서 PCF 로 나가는 알림은 `BSUBS → PCF` Cell List 하나뿐이다** — ROBOT 이 PCF 역할로 Listen 할 때
   2건을 기다리면 오지 않는 1건 때문에 헛되이 실패한다.

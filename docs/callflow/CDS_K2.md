@@ -17,12 +17,12 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as 도구 (CDS 역할)
+    participant TOOL as ROBOT (CDS 역할)
     participant PCDS as PG.CDS
     participant PDB as PDB
     participant SDM as PG.SDM
     participant SNOTI as PG.SNOTI
-    participant PCF as 도구 (PCF 역할)
+    participant PCF as ROBOT (PCF 역할)
 
     TOOL->>PCDS: 0015 CommandRequest (K2) — Body 327B
     PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, 접수 확인
