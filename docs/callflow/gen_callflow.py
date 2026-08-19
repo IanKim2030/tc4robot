@@ -194,6 +194,8 @@ def mermaid(code, route):
     elif route == 'SDM':
         L.append('    SDM->>PDB: T_CDS_ORDER_HIST 조회 (폴링)')
         L.append('    SDM->>PDB: T_5G_SUBS_* 반영')
+        # 가입자 반영을 끝낸 뒤 SDM 도 TID 를 갱신한다 — PG.CDS 것과 별개로 한 번 더다.
+        L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM->>SNOTI: RBUS NOTI')
     else:
         L.append('    alt HFC 가입 상태')
@@ -201,6 +203,7 @@ def mermaid(code, route):
         L.append('        BSUBS->>SNOTI: RBUS NOTI')
         L.append('    else HFC 미가입')
         L.append('        SDM->>PDB: T_5G_SUBS_* 반영')
+        L.append('        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('        SDM->>SNOTI: RBUS NOTI')
         L.append('    end')
     L.append('    SNOTI->>PCF: SBI Noti (h2c)')

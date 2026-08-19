@@ -42,6 +42,7 @@ sequenceDiagram
         BSUBS->>SNOTI: RBUS NOTI
     else HFC 미가입
         SDM->>PDB: T_5G_SUBS_* 반영
+        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
         SDM->>SNOTI: RBUS NOTI
     end
     SNOTI->>PCF: SBI Noti (h2c)

@@ -38,6 +38,7 @@ sequenceDiagram
 
     SDM->>PDB: T_CDS_ORDER_HIST 조회 (폴링)
     SDM->>PDB: T_5G_SUBS_* 반영
+    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     SDM->>SNOTI: RBUS NOTI
     SNOTI->>PCF: SBI Noti (h2c)
     Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회

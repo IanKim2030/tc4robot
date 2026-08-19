@@ -106,8 +106,8 @@ sequenceDiagram
     SDM->>PDB: SQL – 전문 정보 조회 (T_CDS_ORDER_HIST)
     SDM->>PDB: SQL – 가입자 정보 SELECT/INSERT/UPDATE/DELETE (T_5G_SUBS_SERVICE)
     SDM->>PDB: SQL – 가입자 정보 SELECT/INSERT/UPDATE/DELETE (T_5G_SUBS_PROFILE)
-    SDM->>SNOTI: RBUS NOTI
     SDM->>PDB: SQL – TID 정보 UPDATE (T_CDS_ORDER_TID)
+    SDM->>SNOTI: RBUS NOTI
     SNOTI->>PDB: SQL – 가입자 정보 조회 (T_5G_SUBS_SERVICE)
     SNOTI->>PDB: SQL – 가입자 정보 조회 (T_5G_SUBS_PROFILE)
     SNOTI->>PDB: SQL – 가입자 세션 정보 조회 (T_SMF_SESSION_INFO)
@@ -125,15 +125,16 @@ sequenceDiagram
 | 5 | PG.SDM ← PDB | 전문 정보 조회 | T_CDS_ORDER_HIST |
 | 6 | PG.SDM ↔ PDB | 가입자 정보 SELECT/INSERT/UPDATE/DELETE | T_5G_SUBS_SERVICE |
 | 7 | PG.SDM ↔ PDB | 가입자 정보 SELECT/INSERT/UPDATE/DELETE | T_5G_SUBS_PROFILE |
-| 8 | PG.SDM → PG.SNOTI | RBUS NOTI | - |
-| 9 | PG.SDM → PDB | TID 정보 UPDATE | T_CDS_ORDER_TID |
+| 8 | PG.SDM → PDB | TID 정보 UPDATE | T_CDS_ORDER_TID |
+| 9 | PG.SDM → PG.SNOTI | RBUS NOTI | - |
 | 10 | PG.SNOTI ← PDB | 가입자 정보 조회 | T_5G_SUBS_SERVICE |
 | 11 | PG.SNOTI ← PDB | 가입자 정보 조회 | T_5G_SUBS_PROFILE |
 | 12 | PG.SNOTI ← PDB | 가입자 세션 정보 조회 | T_SMF_SESSION_INFO |
 | 13 | PG.SNOTI → PCRF/PCF | SBI NOTI | - |
 
-> **TID 갱신이 두 번**이다(4 · 9). PG.CDS 가 전문을 받아 넣은 직후 한 번,
-> PG.SDM 이 처리를 끝낸 뒤 한 번. 앞의 것은 **INSERT 가 성공했을 때만** 나간다.
+> **TID 갱신이 두 번**이다(4 · 8). PG.CDS 가 전문을 받아 넣은 직후 한 번,
+> PG.SDM 이 가입자 반영을 끝낸 뒤 **RBUS NOTI 를 보내기 전에** 한 번.
+> 앞의 것은 **INSERT 가 성공했을 때만** 나간다.
 
 > ⚠️ **일부 전문에 대해서는 PCF/PCRF로 NOTI 하지 않음**
 
