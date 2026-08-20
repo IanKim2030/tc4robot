@@ -38,7 +38,7 @@ sequenceDiagram
     TOOL->>PCDS: 0018 CommandResultACK (TID 에코)
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
-    BSUBS->>PDB: T_BAROD_ORDER_HIST 주기 폴링
+    BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
     BSUBS->>UPM: 0x07 Subs-Info-Request
     UPM->>BSUBS: 0x08 Subs-Info-Response (Cell List)
     BSUBS->>PDB: T_BAROD_SUBS_CELLINFO 저장

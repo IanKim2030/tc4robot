@@ -36,7 +36,7 @@ sequenceDiagram
     TOOL->>PCDS: 0018 CommandResultACK (TID 에코)
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
-    SDM->>PDB: T_CDS_ORDER_HIST 조회 (폴링)
+    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
     SDM->>PDB: T_5G_SUBS_* 반영
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     SDM->>SNOTI: RBUS NOTI

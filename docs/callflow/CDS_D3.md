@@ -40,7 +40,7 @@ sequenceDiagram
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
     alt HFC 가입 상태
-        BSUBS->>PDB: T_BAROD_ORDER_HIST 주기 폴링
+        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
         BSUBS->>SNOTI: RBUS NOTI
     else HFC 미가입
         SDM->>PDB: T_5G_SUBS_* 반영
