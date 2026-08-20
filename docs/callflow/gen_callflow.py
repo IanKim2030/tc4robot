@@ -150,6 +150,15 @@ PDB_POST = {
 # 판정 구간 배경. 알파를 낮게 둬야 라이트/다크 양쪽에서 글자가 읽힌다.
 BAND = 'rgba(255, 176, 32, 0.14)'
 
+SDM_APPLY = {
+ '1X': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X)',
+}
+
+
+def apply_step(code):
+    return SDM_APPLY.get(code, 'T_5G_SUBS_* 반영')
+
+
 HDR = """participant TOOL as ROBOT (CDS 역할)
     participant PCDS as PG.CDS
     participant PDB as PDB"""
@@ -196,7 +205,7 @@ def mermaid(code, route):
         # 가입자 테이블 반영은 1X/1Y 도 SDM 이 한다. PDB 판정이 보는 행이
         # 여기서 생긴다 — 이 블록이 빠지면 판정 대상이 어디서 왔는지 사라진다.
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
-        L.append('    SDM->>PDB: T_5G_SUBS_* 반영')
+        L.append('    SDM->>PDB: %s' % apply_step(code))
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM--xSNOTI: RBUS NOTI 없음')
         L.append('    Note over SDM,SNOTI: SDM 은 1X/1Y 에 RBUS NOTI 를 보내지 않는다 — 깨우는 쪽은 BSUBS 다')
@@ -208,7 +217,7 @@ def mermaid(code, route):
         L.append('    BSUBS->>SNOTI: RBUS NOTI')
     elif route == 'SDM':
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
-        L.append('    SDM->>PDB: T_5G_SUBS_* 반영')
+        L.append('    SDM->>PDB: %s' % apply_step(code))
         # 가입자 반영을 끝낸 뒤 SDM 도 TID 를 갱신한다 — PG.CDS 것과 별개로 한 번 더다.
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM->>SNOTI: RBUS NOTI')
@@ -228,7 +237,7 @@ def mermaid(code, route):
         L.append('    end')
         L.append('')
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
-        L.append('    SDM->>PDB: T_5G_SUBS_* 반영')
+        L.append('    SDM->>PDB: %s' % apply_step(code))
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         # 보내는 쪽은 여전히 갈린다(규칙 2) — 여기는 진짜 alt 다.
         L.append('    alt HFC 가입')
@@ -241,7 +250,7 @@ def mermaid(code, route):
         L.append('        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
         L.append('        BSUBS->>SNOTI: RBUS NOTI')
         L.append('    else HFC 미가입')
-        L.append('        SDM->>PDB: T_5G_SUBS_* 반영')
+        L.append('        SDM->>PDB: %s' % apply_step(code))
         L.append('        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('        SDM->>SNOTI: RBUS NOTI')
         L.append('    end')
