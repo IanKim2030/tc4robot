@@ -41,8 +41,10 @@ sequenceDiagram
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
-    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
-    TOOL->>PDB: T_5G_SUBS_SERVICE 삭제 확인 (MDN + YOUNG_HARM_INFO_BLOCK) — 0건
+    rect rgba(255, 176, 32, 0.14)
+    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
+        TOOL->>PDB: T_5G_SUBS_SERVICE 삭제 확인 (MDN + YOUNG_HARM_INFO_BLOCK) — 0건
+    end
 ```
 
 ## 전문 Body 필드

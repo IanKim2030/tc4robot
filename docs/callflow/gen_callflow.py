@@ -146,6 +146,9 @@ PDB_POST = {
         'T_5G_SUBS_SERVICE 삭제 확인 (MDN, SVC_ID 무관) — 0건'],
 }
 
+# 판정 구간 배경. 알파를 낮게 둬야 라이트/다크 양쪽에서 글자가 읽힌다.
+BAND = 'rgba(255, 176, 32, 0.14)'
+
 HDR = """participant TOOL as ROBOT (CDS 역할)
     participant PCDS as PG.CDS
     participant PDB as PDB"""
@@ -164,10 +167,12 @@ def mermaid(code, route):
     L.append('    participant SNOTI as PG.SNOTI')
     L.append('    participant PCF as ROBOT (PCF 역할)')
     L.append('')
-    for step in PDB_PRE.get(code, []):
-        L.append('    TOOL->>PDB: %s' % step)
     if code in PDB_PRE:
-        L.append('    Note over TOOL,PDB: 기준선은 전문을 보내기 전에 떠야 한다')
+        L.append('    rect %s' % BAND)
+        L.append('    Note over TOOL,PDB: ★ 판정 기준선 — 전문을 보내기 전에 떠야 한다')
+        for step in PDB_PRE[code]:
+            L.append('        TOOL->>PDB: %s' % step)
+        L.append('    end')
     L.append('    TOOL->>PCDS: 0015 CommandRequest (%s) — Body 327B' % code)
     # 0016 은 **받았다는 확인**이라 처리보다 먼저 나간다. 결과는 0017 이 나른다.
     L.append('    PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, 접수 확인')
@@ -210,11 +215,14 @@ def mermaid(code, route):
     L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
     L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
     L.append('    SNOTI->>PCF: SBI Noti (h2c)')
-    L.append('    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
+    # TC 의 성패가 갈리는 자리. 위의 전문 왕복과 눈으로 구분되게 밴드로 감싼다.
+    L.append('    rect %s' % BAND)
+    L.append('    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
     for step in PDB_POST.get(code, ['SELECT COUNT(*) — 반영 판정']):
-        L.append('    TOOL->>PDB: %s' % step)
+        L.append('        TOOL->>PDB: %s' % step)
     if code in PDB_PRE:
-        L.append('    Note over TOOL,PDB: 두 집계가 같으면 성공')
+        L.append('        Note over TOOL,PDB: 두 집계가 같으면 성공')
+    L.append('    end')
     L.append('```')
     return '\n'.join(L)
 
@@ -323,6 +331,10 @@ idx = ['# CDS 업무 코드별 콜플로우', '',
        '> ⚠️ 지금 슈트 순서로는 **규칙 2 의 BSUBS 분기를 타는 TC 가 하나도 없다.**',
        '> `1Y`(004)가 HFC 를 해지한 뒤에 `C1`(007) · `G1`(008) · `D3`(018) · `Z1`(019)이',
        '> 돌기 때문에 넷 다 SDM 경유로 판정된다.', '',
+       '## 다이어그램 읽는 법', '',
+       '주황 밴드(`★ 판정`)로 감싼 구간이 **TC 의 성패를 가르는 자리**다. 그 위의 전문 왕복과',
+       'PG 내부 처리는 배경이 없다 — `0017 CommandResult` 가 `SC` 여도 밴드 안이 틀리면 실패다.',
+       '전후 비교형(`C1` `G1` `D3`)은 밴드가 둘이다 — 전문 앞의 **기준선**과 뒤의 **집계**.', '',
        '## 업무 코드', '',
        '| 업무 코드 | 내용 | TC | 경로 | 알림 판정 |', '|---|---|---|---|---|']
 for c in order:

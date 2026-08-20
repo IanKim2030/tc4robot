@@ -43,8 +43,10 @@ sequenceDiagram
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
-    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
-    TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + TIME_SVC_I + T + SS + TPID=SS_+START_TIME + LIMIT=0 + CNUM=0)
+    rect rgba(255, 176, 32, 0.14)
+    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
+        TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + TIME_SVC_I + T + SS + TPID=SS_+START_TIME + LIMIT=0 + CNUM=0)
+    end
 ```
 
 ## 전문 Body 필드

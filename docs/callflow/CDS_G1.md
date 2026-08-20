@@ -25,8 +25,10 @@ sequenceDiagram
     participant SNOTI as PG.SNOTI
     participant PCF as ROBOT (PCF 역할)
 
-    TOOL->>PDB: 수행 전 SVC_ID 별 행 수 집계 (MDN)
-    Note over TOOL,PDB: 기준선은 전문을 보내기 전에 떠야 한다
+    rect rgba(255, 176, 32, 0.14)
+    Note over TOOL,PDB: ★ 판정 기준선 — 전문을 보내기 전에 떠야 한다
+        TOOL->>PDB: 수행 전 SVC_ID 별 행 수 집계 (MDN)
+    end
     TOOL->>PCDS: 0015 CommandRequest (G1) — Body 327B
     PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, 접수 확인
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
@@ -50,9 +52,11 @@ sequenceDiagram
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
-    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
-    TOOL->>PDB: 수행 후 JOB_CODE=G1 로 적재된 행 집계 (MDN)
-    Note over TOOL,PDB: 두 집계가 같으면 성공
+    rect rgba(255, 176, 32, 0.14)
+    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
+        TOOL->>PDB: 수행 후 JOB_CODE=G1 로 적재된 행 집계 (MDN)
+        Note over TOOL,PDB: 두 집계가 같으면 성공
+    end
 ```
 
 ## 전문 Body 필드
