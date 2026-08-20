@@ -43,6 +43,7 @@ sequenceDiagram
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
+    Note over SNOTI,PCF: 슈트는 이 도착을 판정하지 않는다 — 예외 목록 (아래 ⚠️)
     rect rgba(255, 176, 32, 0.14)
     Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
         TOOL->>PDB: T_5G_SUBS_PROFILE 저장 확인 (MDN)
