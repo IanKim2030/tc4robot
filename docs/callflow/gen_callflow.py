@@ -214,18 +214,10 @@ def mermaid(code, route):
     # SNOTI 는 RBUS NOTI 를 받으면 세션을 먼저 찾는다 — 보낼 대상(PCF)이 세션에 붙어 있다.
     L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
     L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+    L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     # TC 의 성패가 갈리는 자리. 위의 전문 왕복과 눈으로 구분되게 밴드로 감싼다.
-    # 알림 도착도 판정이다 — 다만 예외 코드는 슈트가 보지 않으므로 밴드 밖에 둔다.
-    if code in EXEMPT:
-        L.append('    SNOTI->>PCF: SBI Noti (h2c)')
-        L.append('    Note over SNOTI,PCF: 슈트는 이 도착을 판정하지 않는다 — 예외 목록 (아래 ⚠️)')
-        L.append('    rect %s' % BAND)
-        L.append('    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
-    else:
-        L.append('    rect %s' % BAND)
-        L.append('    Note over TOOL,PCF: ★ 판정 — 알림 도착과 PDB 반영이 모두 맞아야 성공')
-        L.append('        SNOTI->>PCF: SBI Noti (h2c) — Verify SBI Noti Sent')
-        L.append('        Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
+    L.append('    rect %s' % BAND)
+    L.append('    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
     for step in PDB_POST.get(code, ['SELECT COUNT(*) — 반영 판정']):
         L.append('        TOOL->>PDB: %s' % step)
     if code in PDB_PRE:
@@ -281,16 +273,10 @@ def render(code):
     L.append('')
     L.append('`0017 CommandResult` 가 나르는 것은 **전문 이력 적재의 성패**다. '
              'INSERT 가 실패하면 `FA`, 성공하면 Body 내용이 업무적으로 맞든 틀리든 `SC` 다.')
-    if code in EXEMPT:
-        L.append('가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 로만 판정된다.**')
-    else:
-        L.append('가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 '
-                 '**PDB 조회와 SBI Noti 도착으로 판정된다** — 전문 응답이 아니다.')
+    L.append('가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 로만 판정된다.**')
     L.append('')
     for c in checks:
         L.append('- %s' % c)
-    if code not in EXEMPT:
-        L.append('- **SBI Noti 도착** — `Verify SBI Noti Sent %s` (위 PDB 판정과 함께 본다)' % code)
     L.append('')
     if code in EXEMPT:
         L.append('### ⚠️ 알림 판정은 현재 꺼져 있다')

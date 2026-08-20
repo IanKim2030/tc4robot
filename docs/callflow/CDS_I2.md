@@ -42,10 +42,9 @@ sequenceDiagram
     SDM->>SNOTI: RBUS NOTI
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
+    SNOTI->>PCF: SBI Noti (h2c)
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL,PCF: ★ 판정 — 알림 도착과 PDB 반영이 모두 맞아야 성공
-        SNOTI->>PCF: SBI Noti (h2c) — Verify SBI Noti Sent
-        Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
+    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
         TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + YOUNG_HARM_INFO_BLOCK + N + I2 + TPID=56 + LIMIT=Y)
     end
 ```
@@ -73,10 +72,9 @@ Body 는 업무 코드와 무관하게 **항상 327B** 다. 아래 필드만 채
 `0016 CommandRequestACK` 는 **받았다는 확인**이라 처리 전에 나간다 — 판정에 쓸 수 없다.
 
 `0017 CommandResult` 가 나르는 것은 **전문 이력 적재의 성패**다. INSERT 가 실패하면 `FA`, 성공하면 Body 내용이 업무적으로 맞든 틀리든 `SC` 다.
-가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 조회와 SBI Noti 도착으로 판정된다** — 전문 응답이 아니다.
+가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 로만 판정된다.**
 
 - `T_5G_SUBS_SERVICE` (MDN, `YOUNG_HARM_INFO_BLOCK`, `SVC_TYPE=N`, `JOB_CODE=I2`, `TIME_PERIOD_ID=56`, `"LIMIT"=Y`) = **1건 이상**
-- **SBI Noti 도착** — `Verify SBI Noti Sent I2` (위 PDB 판정과 함께 본다)
 
 알림은 `Verify SBI Noti Sent I2` 가 본다(도착 여부). 경로는 수신만으로 구분되지 않아 규칙으로 계산해 실패 메시지에 싣는다.
 
