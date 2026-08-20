@@ -44,6 +44,8 @@ sequenceDiagram
     BSUBS->>PDB: T_BAROD_SUBS_CELLINFO 저장
     BSUBS->>SNOTI: RBUS NOTI
     Note over BSUBS,SNOTI: SDM 은 1X/1Y 에 RBUS NOTI 를 보내지 않는다 — 깨우는 쪽은 BSUBS 다
+    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
+    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
     Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
     TOOL->>PDB: T_5G_SUBS_SERVICE 삭제 확인 (MDN + ZONE_SVC_D) — 0건

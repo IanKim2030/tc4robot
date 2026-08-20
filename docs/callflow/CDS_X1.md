@@ -16,7 +16,7 @@ PG(PCF Gateway)의 CDS 전문 처리 흐름을 두 갈래로 정리한다.
 | PG | SDM | 가입자 정보 처리 (SELECT/INSERT/UPDATE/DELETE) |
 | PG | SNOTI | 가입자·세션 정보 조회 후 PCRF/PCF NOTI — **1X/1Y 는 호출되지 않는다** |
 | PG | BSUBS | HFC(1X) 전문 처리, UPM 연동, Cell List 저장 |
-| DB | PDB | T_CDS_JOB_CFG, T_CDS_ORDER_HIST, T_CDS_ORDER_TID, T_5G_SUBS_SERVICE, T_5G_SUBS_PROFILE, T_SMF_SESSION_INFO, T_BAROD_ORDER_HIST, T_BAROD_SUBS_CELLINFO |
+| DB | PDB | T_CDS_JOB_CFG, T_CDS_ORDER_HIST, T_CDS_ORDER_TID, T_5G_SUBS_SERVICE, T_5G_SUBS_PROFILE, T_SESSION_INFO, T_SMF_SESSION_INFO, T_BAROD_ORDER_HIST, T_BAROD_SUBS_CELLINFO |
 | 외부 | PCRF/PCF | SBI NOTI 수신 |
 | 외부 | UPM | Subs Info 조회 |
 | 외부 | EMS | HFC 기지국 조회 |
@@ -110,6 +110,7 @@ sequenceDiagram
     SDM->>SNOTI: RBUS NOTI
     SNOTI->>PDB: SQL – 가입자 정보 조회 (T_5G_SUBS_SERVICE)
     SNOTI->>PDB: SQL – 가입자 정보 조회 (T_5G_SUBS_PROFILE)
+    SNOTI->>PDB: SQL – 세션 정보 조회 (T_SESSION_INFO)
     SNOTI->>PDB: SQL – 가입자 세션 정보 조회 (T_SMF_SESSION_INFO)
     SNOTI->>PCF: SBI NOTI
 ```
@@ -129,8 +130,9 @@ sequenceDiagram
 | 9 | PG.SDM → PG.SNOTI | RBUS NOTI | - |
 | 10 | PG.SNOTI ← PDB | 가입자 정보 조회 | T_5G_SUBS_SERVICE |
 | 11 | PG.SNOTI ← PDB | 가입자 정보 조회 | T_5G_SUBS_PROFILE |
-| 12 | PG.SNOTI ← PDB | 가입자 세션 정보 조회 | T_SMF_SESSION_INFO |
-| 13 | PG.SNOTI → PCRF/PCF | SBI NOTI | - |
+| 12 | PG.SNOTI ← PDB | 세션 정보 조회 | T_SESSION_INFO |
+| 13 | PG.SNOTI ← PDB | 가입자 세션 정보 조회 | T_SMF_SESSION_INFO |
+| 14 | PG.SNOTI → PCRF/PCF | SBI NOTI | - |
 
 > **TID 갱신이 두 번**이다(4 · 8). PG.CDS 가 전문을 받아 넣은 직후 한 번,
 > PG.SDM 이 가입자 반영을 끝낸 뒤 **RBUS NOTI 를 보내기 전에** 한 번.

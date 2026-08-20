@@ -47,6 +47,8 @@ sequenceDiagram
         SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
         SDM->>SNOTI: RBUS NOTI
     end
+    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
+    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
     Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
     TOOL->>PDB: 수행 후 JOB_CODE=C1 로 적재된 행 집계 (MDN)

@@ -206,6 +206,9 @@ def mermaid(code, route):
         L.append('        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('        SDM->>SNOTI: RBUS NOTI')
         L.append('    end')
+    # SNOTI 는 RBUS NOTI 를 받으면 세션을 먼저 찾는다 — 보낼 대상(PCF)이 세션에 붙어 있다.
+    L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
+    L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
     L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     L.append('    Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
     for step in PDB_POST.get(code, ['SELECT COUNT(*) — 반영 판정']):

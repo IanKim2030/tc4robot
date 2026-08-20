@@ -40,6 +40,8 @@ sequenceDiagram
     SDM->>PDB: T_5G_SUBS_* 반영
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     SDM->>SNOTI: RBUS NOTI
+    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
+    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
     Note over TOOL,PDB: ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
     TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + ZONE_SVC_B + Z + Y9 + TPID=25 + LIMIT=0 + LIMIT_VALID_TIME)
