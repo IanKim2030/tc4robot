@@ -160,6 +160,8 @@ def mermaid(code, route):
     if route == 'SDM':
         L.append('    participant SDM as PG.SDM')
     elif route == 'BSUBS-always':
+        # 1X/1Y 도 SDM 은 돈다 — 안 하는 것은 RBUS NOTI 뿐이다.
+        L.append('    participant SDM as PG.SDM')
         L.append('    participant BSUBS as PG.BSUBS')
         L.append('    participant UPM as ROBOT (UPM 역할)')
     else:
@@ -191,12 +193,19 @@ def mermaid(code, route):
     L.append('    Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인')
     L.append('')
     if route == 'BSUBS-always':
+        # 가입자 테이블 반영은 1X/1Y 도 SDM 이 한다. PDB 판정이 보는 행이
+        # 여기서 생긴다 — 이 블록이 빠지면 판정 대상이 어디서 왔는지 사라진다.
+        L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
+        L.append('    SDM->>PDB: T_5G_SUBS_* 반영')
+        L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
+        L.append('    SDM--xSNOTI: RBUS NOTI 없음')
+        L.append('    Note over SDM,SNOTI: SDM 은 1X/1Y 에 RBUS NOTI 를 보내지 않는다 — 깨우는 쪽은 BSUBS 다')
+        L.append('')
         L.append('    BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
         L.append('    BSUBS->>UPM: 0x07 Subs-Info-Request')
         L.append('    UPM->>BSUBS: 0x08 Subs-Info-Response (Cell List)')
         L.append('    BSUBS->>PDB: T_BAROD_SUBS_CELLINFO 저장')
         L.append('    BSUBS->>SNOTI: RBUS NOTI')
-        L.append('    Note over BSUBS,SNOTI: SDM 은 1X/1Y 에 RBUS NOTI 를 보내지 않는다 — 깨우는 쪽은 BSUBS 다')
     elif route == 'SDM':
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
         L.append('    SDM->>PDB: T_5G_SUBS_* 반영')

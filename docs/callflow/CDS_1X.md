@@ -20,6 +20,7 @@ sequenceDiagram
     participant TOOL as ROBOT (CDS 역할)
     participant PCDS as PG.CDS
     participant PDB as PDB
+    participant SDM as PG.SDM
     participant BSUBS as PG.BSUBS
     participant UPM as ROBOT (UPM 역할)
     participant SNOTI as PG.SNOTI
@@ -38,12 +39,17 @@ sequenceDiagram
     TOOL->>PCDS: 0018 CommandResultACK (TID 에코)
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
+    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
+    SDM->>PDB: T_5G_SUBS_* 반영
+    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+    SDM--xSNOTI: RBUS NOTI 없음
+    Note over SDM,SNOTI: SDM 은 1X/1Y 에 RBUS NOTI 를 보내지 않는다 — 깨우는 쪽은 BSUBS 다
+
     BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
     BSUBS->>UPM: 0x07 Subs-Info-Request
     UPM->>BSUBS: 0x08 Subs-Info-Response (Cell List)
     BSUBS->>PDB: T_BAROD_SUBS_CELLINFO 저장
     BSUBS->>SNOTI: RBUS NOTI
-    Note over BSUBS,SNOTI: SDM 은 1X/1Y 에 RBUS NOTI 를 보내지 않는다 — 깨우는 쪽은 BSUBS 다
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
