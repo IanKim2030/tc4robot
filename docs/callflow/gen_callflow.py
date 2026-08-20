@@ -207,21 +207,25 @@ def mermaid(code, route):
         # Z1 은 가입해지라 HFC 가 붙어 있으면 Cell 정보까지 지워야 끝난다.
         # 분기 판정 자체가 ZONE_SVC_D 조회다 — HFC 가입 여부를 여기서 본다.
         L.append('    SDM->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)')
-        L.append('    alt ZONE_SVC_D 없음 — HFC 미가입')
-        L.append('        SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
-        L.append('        SDM->>PDB: T_5G_SUBS_* 반영')
-        L.append('        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
-        L.append('        SDM->>SNOTI: RBUS NOTI')
-        L.append('    else ZONE_SVC_D 있음 — HFC 가입')
+        # 양쪽 분기가 SDM 3단계를 그대로 공유한다 — alt/else 로 쪼개면 같은
+        # 세 줄이 두 번 나와, 읽는 쪽이 "뭐가 다르지" 하고 대조하게 된다.
+        # 조건이 맞을 때만 끼어드는 블록이므로 opt 다(else 가 없다).
         # Cell 정리를 먼저 끝내고 가입자 테이블을 지운다. 순서가 뒤집히면
         # ZONE_SVC_D 가 먼저 사라져 BSUBS 가 지울 대상을 잃는다.
+        L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
         L.append('        SDM->>PDB: INSERT T_BAROD_ORDER_HIST (해지 지시)')
         L.append('        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
         L.append('        BSUBS->>PDB: DELETE T_BAROD_SUBS_CELLINFO (CellList 삭제)')
-        L.append('        SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
-        L.append('        SDM->>PDB: T_5G_SUBS_* 반영')
-        L.append('        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
+        L.append('    end')
+        L.append('')
+        L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
+        L.append('    SDM->>PDB: T_5G_SUBS_* 반영')
+        L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
+        # 보내는 쪽은 여전히 갈린다(규칙 2) — 여기는 진짜 alt 다.
+        L.append('    alt HFC 가입')
         L.append('        BSUBS->>SNOTI: RBUS NOTI')
+        L.append('    else HFC 미가입')
+        L.append('        SDM->>SNOTI: RBUS NOTI')
         L.append('    end')
     else:
         L.append('    alt HFC 가입 상태')
