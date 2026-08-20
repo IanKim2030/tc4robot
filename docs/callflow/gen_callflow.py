@@ -98,7 +98,8 @@ T = {
         ['`T_5G_SUBS_PROFILE` (MDN) = **0건**',
          '`T_5G_SUBS_SERVICE` (MDN, `SVC_ID` 무관) = **0건**'],
         '체인의 끝. **가입한 적이 없어도 통과한다** — 0건은 "지워졌다"와 "원래 없었다"를 '
-        '구분하지 못한다.'),
+        '구분하지 못한다. HFC(`ZONE_SVC_D`)가 붙어 있으면 **Cell 정리가 딸려 온다** — '
+        'BSUBS 가 CellList 를 지운 뒤에야 가입자 테이블이 정리된다.'),
 }
 
 # 도구가 현재 알림 판정을 건너뛰는 코드 (@{CDS_NOTI_EXEMPT_CODES})
@@ -202,6 +203,26 @@ def mermaid(code, route):
         # 가입자 반영을 끝낸 뒤 SDM 도 TID 를 갱신한다 — PG.CDS 것과 별개로 한 번 더다.
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM->>SNOTI: RBUS NOTI')
+    elif code == 'Z1':
+        # Z1 은 가입해지라 HFC 가 붙어 있으면 Cell 정보까지 지워야 끝난다.
+        # 분기 판정 자체가 ZONE_SVC_D 조회다 — HFC 가입 여부를 여기서 본다.
+        L.append('    SDM->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)')
+        L.append('    alt ZONE_SVC_D 없음 — HFC 미가입')
+        L.append('        SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
+        L.append('        SDM->>PDB: T_5G_SUBS_* 반영')
+        L.append('        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
+        L.append('        SDM->>SNOTI: RBUS NOTI')
+        L.append('    else ZONE_SVC_D 있음 — HFC 가입')
+        # Cell 정리를 먼저 끝내고 가입자 테이블을 지운다. 순서가 뒤집히면
+        # ZONE_SVC_D 가 먼저 사라져 BSUBS 가 지울 대상을 잃는다.
+        L.append('        SDM->>PDB: INSERT T_BAROD_ORDER_HIST (해지 지시)')
+        L.append('        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
+        L.append('        BSUBS->>PDB: DELETE T_BAROD_SUBS_CELLINFO (CellList 삭제)')
+        L.append('        SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
+        L.append('        SDM->>PDB: T_5G_SUBS_* 반영')
+        L.append('        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
+        L.append('        BSUBS->>SNOTI: RBUS NOTI')
+        L.append('    end')
     else:
         L.append('    alt HFC 가입 상태')
         L.append('        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')

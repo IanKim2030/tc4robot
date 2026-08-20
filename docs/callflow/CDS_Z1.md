@@ -10,7 +10,7 @@
 | 예약 큐 적재 | 없음 |
 | Body 필드 수 | 16개 / 총 327B (고정) |
 
-> 체인의 끝. **가입한 적이 없어도 통과한다** — 0건은 "지워졌다"와 "원래 없었다"를 구분하지 못한다.
+> 체인의 끝. **가입한 적이 없어도 통과한다** — 0건은 "지워졌다"와 "원래 없었다"를 구분하지 못한다. HFC(`ZONE_SVC_D`)가 붙어 있으면 **Cell 정리가 딸려 온다** — BSUBS 가 CellList 를 지운 뒤에야 가입자 테이블이 정리된다.
 
 ## 콜플로우
 
@@ -37,13 +37,20 @@ sequenceDiagram
     TOOL->>PCDS: 0018 CommandResultACK (TID 에코)
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
-    alt HFC 가입 상태
-        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
-        BSUBS->>SNOTI: RBUS NOTI
-    else HFC 미가입
+    SDM->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)
+    alt ZONE_SVC_D 없음 — HFC 미가입
+        SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
         SDM->>PDB: T_5G_SUBS_* 반영
         SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
         SDM->>SNOTI: RBUS NOTI
+    else ZONE_SVC_D 있음 — HFC 가입
+        SDM->>PDB: INSERT T_BAROD_ORDER_HIST (해지 지시)
+        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
+        BSUBS->>PDB: DELETE T_BAROD_SUBS_CELLINFO (CellList 삭제)
+        SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
+        SDM->>PDB: T_5G_SUBS_* 반영
+        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+        BSUBS->>SNOTI: RBUS NOTI
     end
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
