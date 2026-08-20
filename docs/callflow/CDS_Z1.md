@@ -38,20 +38,17 @@ sequenceDiagram
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
     SDM->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)
-    alt ZONE_SVC_D 없음 — HFC 미가입
-        SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
-        SDM->>PDB: T_5G_SUBS_* 반영
-        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
-        SDM->>SNOTI: RBUS NOTI
-    else ZONE_SVC_D 있음 — HFC 가입
+    alt ZONE_SVC_D 있음 — HFC 가입
         SDM->>PDB: INSERT T_BAROD_ORDER_HIST (해지 지시)
         BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
         BSUBS->>PDB: DELETE T_BAROD_SUBS_CELLINFO (CellList 삭제)
-        SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
-        SDM->>PDB: T_5G_SUBS_* 반영
-        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
-        BSUBS->>SNOTI: RBUS NOTI
     end
+
+    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
+    SDM->>PDB: T_5G_SUBS_* 반영
+    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+    BSUBS->>SNOTI: RBUS NOTI
+
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
