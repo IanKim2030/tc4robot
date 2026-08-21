@@ -256,11 +256,14 @@ def mermaid(code, route):
     else:
         # C1/G1/D3/Z1 공통. HFC 지시는 위(PG.CDS)에서 이미 나갔고, 여기는
         # BSUBS 가 그것을 집어 처리하는 자리다.
-        L.append('    BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
+        # 위 opt 에서 지시가 들어갔을 때만 BSUBS 가 집을 것이 생긴다.
+        L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
+        L.append('        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
         if code in BSUBS_EXTRA:
             # Cell 정리를 먼저 끝내고 가입자 테이블을 지운다. 순서가 뒤집히면
             # ZONE_SVC_D 가 먼저 사라져 BSUBS 가 지울 대상을 잃는다.
-            L.append('    BSUBS->>PDB: %s' % BSUBS_EXTRA[code])
+            L.append('        BSUBS->>PDB: %s' % BSUBS_EXTRA[code])
+        L.append('    end')
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
         L.append('    SDM->>PDB: %s' % apply_step(code))
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
