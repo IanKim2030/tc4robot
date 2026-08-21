@@ -402,11 +402,13 @@ TC-CDS-008 G1 (정보변경)
     [Documentation]
     ...    0015(G1 정보변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...
+    ...    G1 은 바뀐 정보(OS 버전)를 실어 보낸다.
+    ...
     ...    [성공 판단 기준] TC-CDS-007(C1)과 같은 방식이다 — 수행 전 SVC_ID 별 행 수와
     ...    수행 후 JOB_CODE='G1' 집계가 같아야 성공이다.
     [Tags]    cds    command    validation    db    noti
     ${before}=    Capture Service Counts Per SVC_ID    ${CDS_MDN}
-    Command Download Flow    ${CDS_CODE_G1}
+    Command Download Flow    ${CDS_CODE_G1}    os_ver=${CDS_NEW_OS_VER}
     Verify Service Counts Preserved In PDB    ${CDS_MDN}    ${CDS_CODE_G1}    ${before}
     Verify SBI Noti Sent    ${CDS_CODE_G1}
 
