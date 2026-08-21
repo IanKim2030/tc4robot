@@ -258,8 +258,13 @@ _CMD_LAYOUT = [
     ('mvno',                           1),   # MVNO_COMPANY / mvnoCompa
     ('limit',                          1),   # LIMIT_SUBS_FG / limitSubsFlag — 한도형 가입자
     ('qos_param',                      1),   # ROAMING_QOS_PARAM
-    ('start_time',                    12),   # START_TIME — 쿠폰 종료 시간 / 시간프리 Start
-    ('coupon_type',                    2),   # COUPON_TYPE — 쿠폰 권종 / 시간프리 End
+    # ★ 이름이 START 지만 쿠폰 계열에서는 **couponStopTime(종료)** 이다. PG 소스로 확정:
+    #   SDM/SubsProcessing/SubsProcessing.cpp ValidationCheck() 이 START_TIME 을 _endT,
+    #   REAL_START_TIME 을 _startT 로 읽고 (시작 >= 종료)면 반영을 건너뛴다.
+    #   같은 필드가 SS/ST(시간프리)에서는 Start 다 — 그래서 키를 coupon_stop_time 으로
+    #   바꾸지 않았다. 코드별 의미는 아래 두 줄과 docs/nodes/CDS.md 함정 절을 볼 것.
+    ('start_time',                    12),   # START_TIME  — K*/Y9: couponStopTime(종료) / SS·ST: 시간프리 Start
+    ('coupon_type',                    2),   # COUPON_TYPE — K*/Y9: 쿠폰 권종          / SS·ST: 시간프리 End
     ('coupon_pin',                    11),   # COUPON_PIN
     ('ms_type',                        1),   # MS_TYPE / catMsType — Cat.M1 단말 타입
     ('category_lte',                   2),   # CATEGORY_LTE / lteCatgy — Default 10
