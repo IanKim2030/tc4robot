@@ -165,7 +165,7 @@ ${CDS_SESSION_UDR_NOTI_URI}
 ...    http://${CDS_SESSION_PCF_ADDR}/npcf-event-exposure/v1/nudr-smf-notify/${CDS_SESSION_SM_POLICY_ID}
 
 # ── 2번 세션 — D3(번호변경) 이후의 번호 ─────────────────────────
-# TC-CDS-011(D3)이 성공하면 가입자가 ${CDS_NEW_MDN} 로 바뀌고, TC-CDS-012(Z1)는
+# TC-CDS-012(D3)이 성공하면 가입자가 ${CDS_NEW_MDN} 로 바뀌고, TC-CDS-013(Z1)는
 # 그 번호로 해지 전문을 보낸다. **그 번호에도 세션이 있어야** PG.SNOTI 가 알림
 # 상대를 찾는다 — 없으면 D3·Z1 의 알림이 조용히 안 나간다.
 # 그래서 Suite Setup 이 세션을 **두 건** 심는다(둘 다 멱등).
@@ -374,7 +374,7 @@ ${CDS_NEW_MDN}                 01090010002              # new_mdn (D3 번호변�
 ${CDS_MIN}                     1090010001               # min     (10자, A1/D3 등)
 
 # D3(번호변경) 이후 가입자를 가리키는 번호. Z1(해지)처럼 "현재 번호"로 보내야 하는
-# 코드가 쓴다. 기본값은 원래 번호이고, TC-CDS-011(D3)이 성공하면 그 TC 가
+# 코드가 쓴다. 기본값은 원래 번호이고, TC-CDS-012(D3)이 성공하면 그 TC 가
 # Set Suite Variable 로 ${CDS_NEW_MDN} 을 덮어쓴다.
 # → D3 를 건너뛰거나 실패하면 기본값이 남아 **원래 번호로 해지**한다.
 ${CDS_ACTIVE_MDN}              ${CDS_MDN}               # 현재 유효 MDN (D3 성공 시 new_mdn 으로 교체)
@@ -413,18 +413,24 @@ ${CDS_START_TIME}              203712312359             # 예약 시작 시각 Y
 #   bash run_tests.sh cds --start-now        # 실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분
 #   python -m robot --variable CDS_START_TIME_MODE:now #                   --variable CDS_START_TIME_OFFSET_MIN:120 tests/cds/
 #
-# ※ 만료(K3)를 보는 TC 는 지금 없다 — 있었을 때는 이 설정과 무관했다. 그 TC 는 자기가
+# ※ 만료를 보는 TC(TC-CDS-011)는 이 설정과 무관하다 — 그 TC 는 자기가
 #   `Current CDS Start Time ${CDS_K3_START_OFFSET_MIN}` 으로 따로 만든다.
 ${CDS_START_TIME_MODE}         fixed                    # fixed(위 고정값) | now(실행 시각 기준)
 ${CDS_START_TIME_OFFSET_MIN}   ${60}                    # now 일 때 더할 분. **양수여야 한다**
 
-# 만료(K3) TC 는 위 고정값 대신 **현재 시각 기준**으로 보낸다 — 유효기간이 찬 쿠폰을
+# 만료 TC(TC-CDS-011)는 위 고정값 대신 **현재 시각 기준**으로 보낸다 — 유효기간이 찬 쿠폰을
 # 다뤄야 하기 때문이다. 그 시각을 현재에서 몇 분 옮길지가 이 값이다(`Current CDS Start Time`).
 #   0  = 지금. 이번 분이 이미 시작돼 있어 PG.RDS 가 곧 만료 예약을 집어간다.
 #   양수 = 그만큼 뒤. RDS 가 먼저 지워버려 가입 확인이 실패하면 1~2 로 올려 여유를 준다.
 #   음수 = 그만큼 전. 이미 지난 예약으로 만들고 싶을 때.
 # 전문 형식이 분까지만 담아서 단위가 분이다(초 자리가 없다).
-${CDS_K3_START_OFFSET_MIN}     ${0}                     # K3 만료 TC 의 START_TIME 오프셋(분)
+${CDS_K3_START_OFFSET_MIN}     ${0}                     # 만료 TC(011)의 START_TIME 오프셋(분)
+
+# 만료를 **기다리는** 시간. 만료는 도구가 시키는 것이 아니라 PG.RDS 가 예약 큐를
+# 폴링해서 하는 일이라, 전문 반영(${CDS_DB_WAIT}=10s)과는 시간 척도가 다르다.
+# RDS 폴링 주기보다 넉넉해야 한다 — 짧으면 만료가 정상인데도 TC 가 실패한다.
+${CDS_EXPIRE_WAIT}             3 min                    # 만료 대기 총 시간 (PG.RDS 폴링)
+${CDS_EXPIRE_WAIT_INTERVAL}    10s                      # 만료 재조회 간격
 
 # 판정 기준표의 $LIMIT_VALID_TIME — 서비스 테이블 LIMIT_VALID_TIME 컬럼의 기대값이다.
 # 전문의 START_TIME 에서 나오지만 **폭이 다르다.**
@@ -462,7 +468,7 @@ ${CDS_ZONE_CODE}               0002                     # zone_code(4) → 예�
 ${CDS_COUPON_PIN}              00000000020              # coupon_pin(11) 공용 기본값
 ${CDS_COUPON_PIN_Y9}           00000000091              # Y9 전용
 ${CDS_COUPON_PIN_K1}           00000000011              # K1 가입 → K2 해지 쌍 전용
-${CDS_COUPON_PIN_K3}           00000000031              # K3 만료 검증 전용 (TC 안에서 K1 로 먼저 가입)
+${CDS_COUPON_PIN_K3}           00000000031              # 만료 검증 전용 (011 이 K1 로 먼저 가입)
 ${CDS_COUPON_PIN_K4}           00000000041              # K4 취소 검증 전용 (TC 안에서 K1 로 먼저 가입)
 ${CDS_COUPON_PIN_K5}           00000000051              # K5 가입 → K6 해지 쌍 전용
 ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      # addr (1X HFC 가입 시, 170byte, cp949 인코딩, TODO: 실환경 값)

@@ -648,7 +648,7 @@ Ensure CDS Sessions In PDB
     [Documentation]
     ...    TC 수행 전에 필요한 5G 세션을 **두 건** 심는다.
     ...      1) 기본 번호   ${CDS_MDN}     — 슈트 대부분이 쓰는 가입자
-    ...      2) D3 이후 번호 ${CDS_NEW_MDN} — TC-CDS-011 이 번호를 바꾸면 012(Z1)가
+    ...      2) D3 이후 번호 ${CDS_NEW_MDN} — TC-CDS-012 가 번호를 바꾸면 013(Z1)가
     ...                                       그 번호로 해지 전문을 보낸다
     ...
     ...    왜 둘인가 — PG.SNOTI 는 세션 표를 보고 알림 상대를 정한다. D3 이후 번호에
@@ -1335,15 +1335,20 @@ Coupon Service Should Be Released
 
 Verify Coupon Service Released In PDB
     [Documentation]
-    ...    쿠폰 해지(K2/K6) · 만료(K3) · 취소(K4) 판정. **0건이어야 성공**이다.
+    ...    쿠폰 해지(K2/K6) · 만료 · 취소(K4) 판정. **0건이어야 성공**이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN=? AND SVC_ID='R17' AND CNUM=?
     ...
-    ...    네 코드의 판정 기준이 **완전히 같다** — 해지·만료·취소를 서로 구분하지 못한다.
+    ...    판정 기준이 **완전히 같다** — 해지·만료·취소를 서로 구분하지 못한다.
     ...    그래서 각 TC 는 자기 전용 핀으로 가입을 먼저 만들어야 판정이 의미를 갖는다.
+    ...
+    ...    ${wait} 는 **만료를 기다릴 때 늘려 준다.** 해지(K2)는 도구가 전문을 보내
+    ...    곧 반영되지만, 만료는 PG.RDS 가 예약 큐를 폴링해 하는 일이라 훨씬 늦다
+    ...    (TC-CDS-011 이 ${CDS_EXPIRE_WAIT} 로 부른다).
     [Arguments]    ${mdn}    ${coupon_pin}    ${settle}=${CDS_DB_SETTLE}
+    ...            ${wait}=${CDS_DB_WAIT}    ${interval}=${CDS_DB_WAIT_INTERVAL}
     Ensure CDS DB Connection
     Settle Before PDB Query    ${settle}
-    Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
+    Wait Until Keyword Succeeds    ${wait}    ${interval}
     ...    Coupon Service Should Be Released    ${mdn}    ${coupon_pin}
 
 Zone Coupon Service Should Be Subscribed

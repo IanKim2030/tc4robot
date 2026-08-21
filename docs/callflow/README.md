@@ -42,10 +42,10 @@ CDS 인입이 아니라 **PG.RDS 가 만료 시각에 예약 큐를 보고 스�
 | [`I3`](CDS_I3.md) | 부가서비스해지 | `TC-CDS-006` | SDM | 확인 |
 | [`C1`](CDS_C1.md) | 기기변경 | `TC-CDS-007` | BSUBS / SDM (HFC 상태) | 확인 |
 | [`G1`](CDS_G1.md) | 정보변경 | `TC-CDS-008` | BSUBS / SDM (HFC 상태) | 확인 |
-| [`K1`](CDS_K1.md) | Data(Time) 쿠폰 가입 | `TC-CDS-009` | SDM | 확인 |
+| [`K1`](CDS_K1.md) | Data(Time) 쿠폰 가입 | `TC-CDS-009 / 011` | SDM | 확인 |
 | [`K2`](CDS_K2.md) | Data(Time) 쿠폰 해지 | `TC-CDS-010` | SDM | 확인 |
-| [`D3`](CDS_D3.md) | 번호변경 | `TC-CDS-011` | BSUBS / SDM (HFC 상태) | 확인 |
-| [`Z1`](CDS_Z1.md) | 가입해지 | `TC-CDS-012` | BSUBS / SDM (HFC 상태) | 건너뜀 ⚠️ |
+| [`D3`](CDS_D3.md) | 번호변경 | `TC-CDS-012` | BSUBS / SDM (HFC 상태) | 확인 |
+| [`Z1`](CDS_Z1.md) | 가입해지 | `TC-CDS-013` | BSUBS / SDM (HFC 상태) | 건너뜀 ⚠️ |
 
 ⚠️ = `@{CDS_NOTI_EXEMPT_CODES}` 에 있어 판정을 건너뛴다. 위 경로 규칙과 어긋나는 지점이라 확인이 필요하다(각 문서의 해당 절 참조).
 

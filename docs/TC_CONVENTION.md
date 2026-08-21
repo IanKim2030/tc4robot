@@ -66,6 +66,10 @@ TC-NWDAF-006 PGW STATUS Normal (0)
 
 **공통** — `smoke` `negative` `validation` `lte` `5g`
 
+`slow` — 전문 반영이 아니라 **PG 쪽 폴링을 기다리는** TC 에 붙인다. 현재 `TC-CDS-011`
+(쿠폰 만료) 하나뿐이다. PG.RDS 가 예약 큐를 집어갈 때까지 최대 몇 분 걸리므로,
+빠르게 돌릴 때는 `--exclude slow` 로 뺀다.
+
 **노드별** — `nag` `pcf` `lrs` `upm` `cds` `nwdaf`
 
 **기능별**

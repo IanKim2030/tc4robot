@@ -271,7 +271,7 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'YOUNG_HARM_IN
 SELECT SVC_ID, COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?                  GROUP BY SVC_ID  -- 전
 SELECT SVC_ID, COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND JOB_CODE = ? GROUP BY SVC_ID  -- 후
 
--- 012 Z1 : 사라졌는지 (SVC_ID 를 가리지 않는다)
+-- 013 Z1 : 사라졌는지 (SVC_ID 를 가리지 않는다)
 SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?
 SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?
 ```
@@ -558,7 +558,8 @@ SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 
 
 형식이 또 어긋나면 저 두 변수만 고치면 된다 — 조회 SQL 과 키워드는 그대로다.
 
-슈트가 지금 다루는 것은 `TC-CDS-009`(K1 가입) · `010`(K2 해지) 한 쌍뿐이다.
+슈트가 지금 다루는 것은 `TC-CDS-009`(K1 가입) · `010`(K2 해지) 쌍과,
+`011`(K1 가입 → PG.RDS 만료) 하나다.
 3Mbps(`K5`/`K6`) · 취소(`K4`) · Zone(`Y9`) · 시간프리(`SS`/`ST`)는 TC 가 없다.
 
 `K3`(만료)은 **애초에 CDS 로 인입되지 않는다** — K1 가입 때 `T_5G_RESERVED_JOB` 에
@@ -968,7 +969,7 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 `cds_variables.robot` 에 값만 채우면 해당 필드를 선언한 모든 코드에 즉시 반영된다.
 채우지 않으면 그 필드들은 공백으로 나가고 **PG 는 그래도 `SC` 를 준다.**
 
-### TC 간 의존성 — `TC-CDS-011` ~ `012` 는 하나의 체인이다
+### TC 간 의존성 — `TC-CDS-012` ~ `013` 은 하나의 체인이다
 
 **이 슈트에서 유일하게 앞 TC 의 결과에 의존하는 구간이다.** 나머지 TC 는 서로 독립이다.
 
@@ -978,12 +979,12 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 
 | TC | 코드 | 하는 일 |
 |---|---|---|
-| 011 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
-| 012 | `Z1` 해지 | **바뀐 번호로** 가입자 자체를 해지 — **체인의 끝** |
+| 012 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
+| 013 | `Z1` 해지 | **바뀐 번호로** 가입자 자체를 해지 — **체인의 끝** |
 
 `${CDS_ACTIVE_MDN}`(`cds_variables.robot`) 이 "현재 유효 MDN" 을 들고 있다.
 
-| 상황 | `${CDS_ACTIVE_MDN}` | `012`(Z1) 의 대상 |
+| 상황 | `${CDS_ACTIVE_MDN}` | `013`(Z1) 의 대상 |
 |---|---|---|
 | D3 성공 | `Set Suite Variable` 로 `${CDS_NEW_MDN}` 교체 | **변경된 번호** |
 | D3 실패 | `Command Download Flow` 가 먼저 죽어 갱신 미실행 | 원래 번호 |
@@ -994,9 +995,9 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 
 ```bash
 # 체인 전체
-python -m robot --test "TC-CDS-011*" --test "TC-CDS-012*" tests/cds/
+python -m robot --test "TC-CDS-012*" --test "TC-CDS-013*" tests/cds/
 # 번호를 직접 지정 (D3 없이 특정 가입자로)
-python -m robot --test "TC-CDS-012*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
+python -m robot --test "TC-CDS-013*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
 ```
 
 `--variable` 은 최우선이라 `${CDS_ACTIVE_MDN}` 을 직접 덮는다. `CDS_MDN` 을 덮어도
