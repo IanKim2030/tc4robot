@@ -30,8 +30,8 @@ sequenceDiagram
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
     alt INSERT 성공
         PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+        PCDS->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)
         opt ZONE_SVC_D 있음 — HFC 가입
-            PCDS->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)
             PCDS->>PDB: INSERT T_BAROD_ORDER_HIST (해지 지시)
         end
         PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel
@@ -46,14 +46,6 @@ sequenceDiagram
     SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
     SDM->>PDB: T_5G_SUBS_* 반영
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
-    alt HFC 가입
-        BSUBS->>SNOTI: RBUS NOTI
-    else HFC 미가입
-        SDM->>SNOTI: RBUS NOTI
-    end
-    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
-    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
-    SNOTI->>PCF: SBI Noti (h2c)
     rect rgba(255, 176, 32, 0.14)
     Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
         TOOL->>PDB: T_5G_SUBS_PROFILE 삭제 확인 (MDN) — 0건
