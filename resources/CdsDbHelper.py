@@ -13,7 +13,7 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
 
 `CommandResult`(0017)는 Body 내용과 무관하게 `SC` 를 돌려주므로, 전문이 실제로
 가입자 테이블에 반영됐는지는 PDB 를 직접 보지 않으면 판정할 수 없다
-(docs/nodes/CDS.md "도구 관점에서의 함의", docs/callflow/CDS_X1.md).
+(docs/nodes/CDS.md "도구 관점에서의 함의").
 
 [pyodbc 는 지연 임포트한다]
   `import pyodbc` 를 모듈 최상단에 두면 pyodbc 가 없는 환경에서 CDS 슈트 자체가

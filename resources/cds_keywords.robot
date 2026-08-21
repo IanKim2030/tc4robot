@@ -916,7 +916,7 @@ Verify UPM Subs Info Notified
 #   BSUBS → PCF : Cell List 전송      (UPM 0x08 응답을 받은 뒤)
 #
 # ★ PG.SDM 은 1X/1Y 에 대해 SNOTI 로 RBUS NOTI 를 보내지 않는다. SNOTI 가 깨지 않으니
-#   가입자 Noti 도 없다(docs/callflow/CDS_X1.md). 그 알림을 기다리게 만들면 전문이
+#   가입자 Noti 도 없다(docs/callflow/CDS_1X.md). 그 알림을 기다리게 만들면 전문이
 #   멀쩡해도 TC 가 실패한다 — TC-CDS-003 이 Cell List 한 건만 보는 이유다.
 #
 # Cell List 는 CommandResult(0017) 보다 **늦게** 오므로 대기가 필요하다(${CDS_NOTI_WAIT}).

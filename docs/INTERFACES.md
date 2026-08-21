@@ -122,11 +122,15 @@ sequenceDiagram
 
 **~~미확인~~ `T_BAROD_ORDER_HIST` 를 읽고 쓰는 주체 — 확정됐다(2026-08-04).**
 **PG.CDS 가 쓰고 PG.BSUBS 가 주기적으로 읽는다.** 이전에 SDM 이 읽는 것으로 그렸던 것을
-바로잡았다. 근거와 상세는 [callflow/CDS_X1.md](callflow/CDS_X1.md).
+바로잡았다.
 
 **위 다이어그램은 요약이다.** 1X 전문의 실제 처리에는 위에 없는 요소가 더 있다 —
 주소 필드의 Masking/암호화 이중 저장, UPM 연동 시 Base64 인코딩, EMS 의 복호화 조회,
-BSUBS 의 DB 폴링 기반 비동기 처리. 전부 [callflow/CDS_X1.md](callflow/CDS_X1.md) 에 있다.
+BSUBS 의 DB 폴링 기반 비동기 처리.
+
+> 이 넷을 한자리에 그려 둔 `callflow/CDS_X1.md` 는 2026-08-21 에 삭제됐다.
+> 지금 문서에 남아 있는 것은 위 네 줄이 전부다 — PG 내부 상세가 다시 필요하면
+> PG 소스에서 다시 뜨거나 그 문서를 복원해야 한다.
 
 ## opcode 충돌 — 노드별 상수명을 그대로 써라
 

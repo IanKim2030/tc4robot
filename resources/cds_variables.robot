@@ -330,7 +330,7 @@ ${CDS_CODE_ST}      ST     # 0플랜 옵션(3시간 프리) 해지
 # 바뀌면 **여기만 고치면 된다.** TC 는 자기 업무 코드를 넘기기만 한다.
 #
 # ※ 1X·1Y 는 여기 없다 — SNOTI→PCF 가입자 통보는 안 나가지만 BSUBS 가 SNOTI 를
-#   깨워 알림이 나간다(docs/callflow/CDS_X1.md). 003/004 가 각각 판정한다.
+#   깨워 알림이 나간다(docs/callflow/CDS_1X.md). 003/004 가 각각 판정한다.
 @{CDS_NOTI_EXEMPT_CODES}    ${CDS_CODE_A1}    ${CDS_CODE_Z1}
 
 # ── 알림을 만드는 프로세스 — 업무 코드 + HFC 가입 상태로 갈린다 ──
