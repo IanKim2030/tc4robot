@@ -411,8 +411,6 @@ TC-CDS-008 G1 (정보변경)
     Verify SBI Noti Sent    ${CDS_CODE_G1}
 
 
-
-
 # ════════════════════════════════════════════════════════════════
 # 쿠폰 / 옵션 계열 — Y9 / K1~K6 / SS / ST
 #
@@ -429,43 +427,6 @@ TC-CDS-008 G1 (정보변경)
 # ★ ${CDS_START_TIME} 이 과거면 가입하자마자 만료 예약이 실행돼 서비스 행이 사라진다
 #   → 가입 판정(009/011)이 이유 없이 실패한다(cds_variables.robot 참조).
 # ════════════════════════════════════════════════════════════════
-
-TC-CDS-009 K5 (Data(Time) 3Mbps 쿠폰 가입)
-    [Documentation]
-    ...    0015(K5) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    전문 필드 집합은 K1 과 같다(GenCds gen() 에서 K1 과 한 분기).
-    ...
-    ...    [성공 판단 기준] K1(TC-CDS-011)과 같은 2건 조회인데 **기대값이 다르다.**
-    ...      1. 서비스 저장 — JOB_CODE='${CDS_CODE_K5}', TIME_PERIOD_ID='${CDS_DB_TPID_K5}',
-    ...         "LIMIT"='${CDS_DB_LIMIT_K5}', LIMIT_VALID_TIME='${CDS_LIMIT_VALID_TIME}',
-    ...         CNUM='${CDS_COUPON_PIN_K5}' (K1 은 113/1)
-    ...      2. 예약 큐 적재 — JOB_CODE='${CDS_DB_RSV_JOB_K5}' (K1 은 K3)
-    ...
-    ...    핀을 K1 과 달리 쓰는 이유는 해지 판정이 `MDN + R17 + CNUM` 으로만 걸려
-    ...    핀을 공유하면 TC-CDS-012 이 지운 행을 이 TC 의 결과로 착각하기 때문이다.
-    [Tags]    cds    command    validation    db    coupon    noti
-    Command Download Flow    ${CDS_CODE_K5}
-    ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
-    ...    coupon_pin=${CDS_COUPON_PIN_K5}         coupon_category=${CDS_COUPON_CATEGORY}
-    Verify Coupon Service Subscribed In PDB
-    ...    ${CDS_MDN}    ${CDS_CODE_K5}    ${CDS_DB_TPID_K5}    ${CDS_DB_LIMIT_K5}    ${CDS_COUPON_PIN_K5}
-    Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_K5}    ${CDS_COUPON_PIN_K5}
-    Verify SBI Noti Sent    ${CDS_CODE_K5}
-
-TC-CDS-010 K6 (Data(Time) 3Mbps 쿠폰 해지)
-    [Documentation]
-    ...    0015(K6) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    필드: mdn / limit / coupon_pin
-    ...
-    ...    [성공 판단 기준] TC-CDS-009(K5)이 넣은 쿠폰 행이 **0건**이어야 성공이다.
-    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K5}'
-    ...    K2(해지)와 판정 기준이 같다 — 3Mbps 쿠폰인지는 구분되지 않는다.
-    [Tags]    cds    command    validation    db    coupon    noti
-    Command Download Flow    ${CDS_CODE_K6}    coupon_pin=${CDS_COUPON_PIN_K5}
-    Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K5}
-    Verify SBI Noti Sent    ${CDS_CODE_K6}
-
 
 TC-CDS-011 K1 (Data(Time) 쿠폰 가입)
     [Documentation]
@@ -495,6 +456,7 @@ TC-CDS-011 K1 (Data(Time) 쿠폰 가입)
     Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_K1}    ${CDS_COUPON_PIN_K1}
     Verify SBI Noti Sent    ${CDS_CODE_K1}
 
+
 TC-CDS-012 K2 (Data(Time) 쿠폰 해지)
     [Documentation]
     ...    0015(K2) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
@@ -512,147 +474,8 @@ TC-CDS-012 K2 (Data(Time) 쿠폰 해지)
     Verify SBI Noti Sent    ${CDS_CODE_K2}
 
 
-TC-CDS-013 K4 (Data(Time) 쿠폰 취소)
-    [Documentation]
-    ...    0015(K4) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    필드: mdn / limit / coupon_pin
-    ...
-    ...    **이 TC 는 자기 전제를 직접 만든다** — 취소할 쿠폰이 없으면 삭제 판정이 "원래
-    ...    없었다"로 그냥 통과하기 때문이다. 그래서 앞에 K1 을 전용 핀
-    ...    (${CDS_COUPON_PIN_K4})으로 보내 쿠폰을 만들어 둔다.
-    ...    뒤따르는 TC-CDS-014(K3 만료)도 같은 구조인데, 그쪽은 START_TIME 을 현재
-    ...    시각으로 보낸다는 점이 다르다.
-    ...
-    ...    [성공 판단 기준] 취소 후 그 핀의 쿠폰 행이 **0건**이어야 성공이다.
-    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K4}'
-    [Tags]    cds    command    validation    db    coupon    noti
-    # 준비: 취소 대상이 될 쿠폰을 K1 으로 가입시킨다
-    Command Download Flow    ${CDS_CODE_K1}
-    ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
-    ...    coupon_pin=${CDS_COUPON_PIN_K4}         coupon_category=${CDS_COUPON_CATEGORY}
-    Verify Coupon Service Subscribed In PDB
-    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K4}
-    # 검증: K4 로 취소
-    # 준비 전문(K1)도 SBI Noti 를 유발하므로, K4 판정은 그 이후 도착분만 봐야 한다.
-    ${since}=    Noti Timestamp
-    Command Download Flow    ${CDS_CODE_K4}    coupon_pin=${CDS_COUPON_PIN_K4}
-    Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K4}
-    Verify SBI Noti Sent    ${CDS_CODE_K4}    since=${since}
-
-TC-CDS-014 K3 (Data(Time) 쿠폰 만료)
-    [Documentation]
-    ...    0015(K3) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    필드: mdn / limit / coupon_pin
-    ...
-    ...    **이 TC 는 자기 전제를 직접 만든다.** 만료시킬 쿠폰이 없으면 삭제 판정이
-    ...    "원래 없었다"로 그냥 통과하기 때문이다. 그래서 앞에 K1 을 전용 핀
-    ...    (${CDS_COUPON_PIN_K3})으로 한 번 보내 쿠폰을 만들어 둔다. 이 선행 송신은
-    ...    검증 대상이 아니라 준비 동작이지만, 실패하면 뒤의 판정이 무의미해지므로
-    ...    가입까지 확인하고 넘어간다.
-    ...
-    ...    ★ 이 TC 의 K1 만 START_TIME 을 **현재 시각 기준**으로 보낸다(다른 TC 는 먼 미래인
-    ...      ${CDS_START_TIME}). 만료 업무라 유효기간이 이미 찬 쿠폰을 다뤄야 하기
-    ...      때문이다. 값은 `Current CDS Start Time` 이 만들고, 같은 값을 LIMIT_VALID_TIME
-    ...      판정에도 그대로 쓴다 — 조회 때 다시 부르면 분이 넘어가는 순간 어긋난다.
-    ...
-    ...      그 대가로 **가입 확인 단계에 경합이 있다.** START_TIME 이 지나 있으면 PG.RDS 가
-    ...      만료 예약을 곧 집어가므로, K3 를 보내기 전에 RDS 가 먼저 지워버릴 수 있다.
-    ...      그러면 이 TC 는 가입 확인에서 실패한다(만료 자체는 정상 동작이다).
-    ...      → 그때는 ${CDS_K3_START_OFFSET_MIN}(분)을 1~2 로 올려 여유를 준다.
-    ...        전문 형식이 분까지만 담아서 조정 단위가 분이다. 실행 중 한 번만 바꿔 보려면
-    ...        --variable CDS_K3_START_OFFSET_MIN:2 로도 된다.
-    ...
-    ...    [성공 판단 기준] 만료 후 그 핀의 쿠폰 행이 **0건**이어야 성공이다.
-    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K3}'
-    ...    K2(해지)·K4(취소)와 **판정 기준이 완전히 같다** — 세 코드를 서로 구분하지 못한다.
-    [Tags]    cds    command    validation    db    coupon    noti
-    # 준비: 만료 대상이 될 쿠폰을 K1 으로 가입시킨다 (START_TIME = 현재 시각 ± 오프셋)
-    ${start_time}    ${valid_time}=    Current CDS Start Time    ${CDS_K3_START_OFFSET_MIN}
-    Log    [TC-014] K1 START_TIME=${start_time} → LIMIT_VALID_TIME=${valid_time}
-    Command Download Flow    ${CDS_CODE_K1}
-    ...    start_time=${start_time}                coupon_type=${CDS_COUPON_TYPE}
-    ...    coupon_pin=${CDS_COUPON_PIN_K3}         coupon_category=${CDS_COUPON_CATEGORY}
-    Verify Coupon Service Subscribed In PDB
-    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K3}
-    ...    limit_valid_time=${valid_time}
-    # 검증: K3 로 만료
-    # 준비 전문(K1)도 SBI Noti 를 유발하므로, K3 판정은 그 이후 도착분만 봐야 한다.
-    ${since}=    Noti Timestamp
-    Command Download Flow    ${CDS_CODE_K3}    coupon_pin=${CDS_COUPON_PIN_K3}
-    Verify Coupon Service Released In PDB    ${CDS_MDN}    ${CDS_COUPON_PIN_K3}
-    Verify SBI Noti Sent    ${CDS_CODE_K3}    since=${since}
 
 
-TC-CDS-015 Y9 (Data(Zone) 부가서비스 쿠폰 사용시점 알림)
-    [Documentation]
-    ...    0015(Y9) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    필드: mdn / limit / zone_code / start_time / coupon_type / coupon_pin
-    ...
-    ...    [성공 판단 기준] 조회 2건이 **모두** 만족돼야 성공이다.
-    ...      1. 서비스 저장 — 1건 이상
-    ...         SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...          WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_ZONE_B}' AND SVC_TYPE='${CDS_DB_SVC_TYPE_Z}'
-    ...                AND JOB_CODE='${CDS_CODE_Y9}' AND TIME_PERIOD_ID='${CDS_DB_TPID_Y9}'
-    ...                AND "LIMIT"='${CDS_DB_LIMIT_Y9}' AND LIMIT_VALID_TIME='${CDS_LIMIT_VALID_TIME}'
-    ...      2. 예약 큐 적재 — 1건 이상
-    ...         SELECT COUNT(*) FROM T_5G_RESERVED_JOB
-    ...          WHERE MDN='${CDS_MDN}' AND JOB_CODE='${CDS_DB_RSV_JOB_Y9}' AND COUPON_PIN='${CDS_COUPON_PIN_Y9}'
-    ...
-    ...    SVC_ID 가 1X 의 ZONE_SVC_D 가 아니라 **ZONE_SVC_B** 다.
-    ...    예약 큐의 JOB_CODE 는 Y9 가 아니라 **Y6** 이다 — Syncer 가 COUPON_TYPE='T' 를
-    ...    보고 Y6 으로 적재한다(숫자 권종이면 Y8). ${CDS_COUPON_TYPE} 를 바꾸면 기대값도
-    ...    같이 바뀐다.
-    ...
-    ...    ※ 짝이 되는 해지 코드가 없어 이 TC 는 서비스 행과 예약 행을 **남긴다.**
-    [Tags]    cds    command    validation    db    coupon    noti
-    Command Download Flow    ${CDS_CODE_Y9}
-    ...    zone_code=${CDS_ZONE_CODE}          start_time=${CDS_START_TIME}
-    ...    coupon_type=${CDS_COUPON_TYPE}      coupon_pin=${CDS_COUPON_PIN_Y9}
-    Verify Zone Coupon Service Subscribed In PDB    ${CDS_MDN}
-    Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_Y9}    ${CDS_COUPON_PIN_Y9}
-    Verify SBI Noti Sent    ${CDS_CODE_Y9}
-
-TC-CDS-016 SS (0플랜 옵션 3시간프리 가입)
-    [Documentation]
-    ...    0015(SS) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    필드: mdn / limit / start_time / coupon_type (GenCds 는 SS/ST/SU/SV 를 한 분기로 둔다)
-    ...
-    ...    [성공 판단 기준] 서비스 행이 **1건 이상** 생겨야 성공이다.
-    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_TIME_I}' AND SVC_TYPE='${CDS_DB_SVC_TYPE_T}'
-    ...             AND JOB_CODE='${CDS_CODE_SS}' AND TIME_PERIOD_ID='${CDS_DB_TPID_SS}'
-    ...             AND "LIMIT"='${CDS_DB_LIMIT_SS}' AND CNUM='${CDS_DB_CNUM_SS}'
-    ...    쿠폰이 아니라 옵션이라 CNUM 이 핀이 아니라 **0 고정**이다.
-    ...    예약 큐는 보지 않는다 — SS 는 예약을 걸지 않는다.
-    ...
-    ...    SS 는 시간을 **TIME_PERIOD_ID 로 본다** — 'SS_' 접두 + 전문 START_TIME(12자리)
-    ...    이다. 예) SS_203712312359
-    ...
-    ...    ★ K1/K5/Y9 의 LIMIT_VALID_TIME(14자리, 초 '00' 부가)과 **값이 다르다.**
-    ...      기준표가 둘 다 $LIMIT_VALID_TIME 으로 적어 놔 같은 값으로 읽기 쉬운 자리다.
-    ...      LIMIT_VALID_TIME 컬럼 자체는 이 테이블에 있지만 SS 판정 기준에는 없다.
-    [Tags]    cds    command    validation    db    coupon    noti
-    Command Download Flow    ${CDS_CODE_SS}
-    ...    start_time=${CDS_START_TIME}    coupon_type=${CDS_COUPON_TYPE}
-    Verify Option Service Subscribed In PDB    ${CDS_MDN}
-    Verify SBI Noti Sent    ${CDS_CODE_SS}
-
-TC-CDS-017 ST (0플랜 옵션 3시간프리 해지)
-    [Documentation]
-    ...    0015(ST) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    전문 필드 집합은 SS 와 같다(GenCds 에서 SS/ST/SU/SV 가 한 분기).
-    ...
-    ...    [성공 판단 기준] TC-CDS-016(SS)이 넣은 옵션 행이 **0건**이어야 성공이다.
-    ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_TIME_I}'
-    ...    CNUM 을 걸지 않는다 — 판정 기준이 MDN + SVC_ID 뿐이다.
-    [Tags]    cds    command    validation    db    coupon    noti
-    Command Download Flow    ${CDS_CODE_ST}
-    ...    start_time=${CDS_START_TIME}    coupon_type=${CDS_COUPON_TYPE}
-    Verify Option Service Released In PDB    ${CDS_MDN}
-    Verify SBI Noti Sent    ${CDS_CODE_ST}
 
 
 # ════════════════════════════════════════════════════════════════

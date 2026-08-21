@@ -49,7 +49,7 @@ sequenceDiagram
     rect rgba(255, 176, 32, 0.14)
     Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
         TOOL->>PDB: SELECT T_5G_SUBS_PROFILE (MDN) — 0건
-        TOOL->>PDB: SELECTT_5G_SUBS_SERVICE (MDN, SVC_ID 무관) — 0건
+        TOOL->>PDB: SELECT T_5G_SUBS_SERVICE (MDN, SVC_ID 무관) — 0건
     end
 ```
 
