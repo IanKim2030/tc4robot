@@ -56,16 +56,13 @@ T = {
          '`TIME_PERIOD_ID=113`, `"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=핀`) = **1건 이상**',
          '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K3`, 핀) = **1건 이상**'],
         '가입과 동시에 만료 예약이 걸린다. **인입 코드(K1)와 예약 코드(K3)가 다르다.** '
+        'K3 는 CDS 가 보내는 전문이 아니다 — 쿠폰 만료 시각이 되면 **PG.RDS 가 예약 '
+        '큐를 보고 스스로 만든다.** 그래서 K3 는 시트도 TC 도 없다. '
         '`START_TIME` 은 반드시 미래여야 한다 — 과거면 가입 직후 만료돼 판정이 실패한다.'),
  'K2': ('Data(Time) 쿠폰 해지', 'TC-CDS-010', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K1 의 핀`) = **0건**'],
         'K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다** — 서로 구분되지 않으므로 '
         '핀을 업무별로 나눠 쓴다.'),
- 'K3': ('Data(Time) 쿠폰 만료', None, 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K3 전용 핀`) = **0건**'],
-        '준비용 K1 의 `START_TIME` 이 **현재 시각**이어야 한다 — 유효기간이 찬 '
-        '쿠폰이 필요하기 때문이다. "0건" 이 "만료됐다" 인지 "원래 없었다" 인지 '
-        '구분되지 않으므로, TC 를 만들 때는 자기 핀으로 가입을 먼저 만들어야 한다.'),
  'D3': ('번호변경', 'TC-CDS-011', 'BSUBS-if-hfc',
         ['수행 **전**(옛 번호) `SVC_ID` 별 행 수 == 수행 **후**(새 번호, `JOB_CODE=D3`) 집계'],
         '성공하면 `${CDS_ACTIVE_MDN}` 을 새 번호로 갱신한다 → 뒤의 Z1 이 그 번호로 해지한다.'),
@@ -111,7 +108,6 @@ PDB_POST = {
  'K1': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + R17 + N + K1 + TPID=113 + LIMIT=1 + LIMIT_VALID_TIME + CNUM)',
         'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K3 + 핀)'],
  'K2': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
- 'K3': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
  'D3': ['수행 후 JOB_CODE=D3 로 적재된 행 집계 (새 MDN)'],
  'Z1': ['T_5G_SUBS_PROFILE 삭제 확인 (MDN) — 0건',
         'T_5G_SUBS_SERVICE 삭제 확인 (MDN, SVC_ID 무관) — 0건'],
@@ -127,6 +123,12 @@ HFC_ORDER = {
  'G1': 'INSERT T_BAROD_ORDER_HIST',
  'D3': 'INSERT T_BAROD_ORDER_HIST',
  'Z1': 'INSERT T_BAROD_ORDER_HIST (해지 지시)',
+}
+
+# 전문 처리가 끝난 **한참 뒤**에 PG.RDS 가 예약 큐를 보고 스스로 하는 일.
+# 슈트가 판정하는 구간이 아니라 그림에만 남긴다.
+RDS_FOLLOWUP = {
+ 'K1': 'K3(쿠폰 만료) 생성 — CDS 인입이 아니다',
 }
 
 # BSUBS 가 폴링한 뒤 추가로 하는 일. 모르는 코드는 비워 둔다 — 지어내지 않는다.
@@ -159,6 +161,8 @@ def mermaid(code, route):
     L = ['```mermaid', 'sequenceDiagram', '    autonumber', '    ' + HDR]
     if route == 'SDM':
         L.append('    participant SDM as PG.SDM')
+        if code in RDS_FOLLOWUP:
+            L.append('    participant RDS as PG.RDS')
     elif route == 'BSUBS-always':
         # 1X/1Y 도 SDM 은 돈다 — 안 하는 것은 RBUS NOTI 뿐이다.
         L.append('    participant SDM as PG.SDM')
@@ -254,6 +258,12 @@ def mermaid(code, route):
     if code in PDB_PRE:
         L.append('        Note over TOOL,PDB: 두 집계가 같으면 성공')
     L.append('    end')
+    if code in RDS_FOLLOWUP:
+        # 슈트가 보는 구간 밖이다 — 한참 뒤에 PG 혼자 하는 일이라 그림에만 남긴다.
+        L.append('')
+        L.append('    Note over PDB,RDS: ── 아래는 쿠폰 만료 시각에 일어난다 (슈트가 보지 않는다) ──')
+        L.append('    RDS->>PDB: SELECT T_5G_RESERVED_JOB(Polling)')
+        L.append('    RDS->>PDB: %s' % RDS_FOLLOWUP[code])
     L.append('```')
     return '\n'.join(L)
 
@@ -341,10 +351,9 @@ def render(code):
 
 
 # TC 번호 순 = 슈트 실행 순서. 바꾸면 인덱스 표의 순서도 같이 바뀐다.
-order = ['A1', '1X', '1Y', 'I2', 'I3', 'C1', 'G1', 'K1', 'K2', 'D3', 'Z1',
-         # K3 만 TC 없이 시트가 남아 있다. 나머지 코드(K4/K5/K6/Y9/SS/ST)의 시트는
-         # 2026-08-21 에 지웠다 — 되살리지 않으려면 이 목록과 위 T 표 둘 다 비어야 한다.
-         'K3']
+# 슈트 실행 순서 = 이 순서. **CDS 로 인입되는 코드만** 여기 있다.
+# K3(쿠폰 만료)는 PG.RDS 가 만료 시각에 스스로 만드는 것이라 시트가 없다(K1 참조).
+order = ['A1', '1X', '1Y', 'I2', 'I3', 'C1', 'G1', 'K1', 'K2', 'D3', 'Z1']
 for code in order:
     path = os.path.join(OUT, 'CDS_%s.md' % code)
     io.open(path, 'w', encoding='utf-8', newline='').write(render(code))
@@ -373,8 +382,9 @@ idx = ['# CDS 업무 코드별 콜플로우', '',
        'PG 내부 처리는 배경이 없다 — `0017 CommandResult` 가 `SC` 여도 밴드 안이 틀리면 실패다.',
        '전후 비교형(`C1` `G1` `D3`)은 밴드가 둘이다 — 전문 앞의 **기준선**과 뒤의 **집계**.', '',
        '## 업무 코드', '',
-       '위 11개가 슈트 실행 순서다. 마지막 `K3` 은 **전문·판정 기준만 정리해 둔 시트**로,',
-       '이 코드를 보내는 TC 가 아직 없다.', '',
+       '11개 전부 슈트가 실제로 보내는 코드다. `K3`(쿠폰 만료)은 여기 없다 —',
+       'CDS 인입이 아니라 **PG.RDS 가 만료 시각에 예약 큐를 보고 스스로 만든다**',
+       '([K1](CDS_K1.md) 시트의 마지막 두 단계).', '',
        '| 업무 코드 | 내용 | TC | 경로 | 알림 판정 |', '|---|---|---|---|---|']
 for c in order:
     name, tc, route, _, _ = T[c]

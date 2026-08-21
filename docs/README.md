@@ -38,7 +38,7 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 
 | 문서 | 내용 |
 |---|---|
-| [callflow/README.md](callflow/README.md) | **업무 코드별 콜플로우 인덱스** — 알림 경로 규칙(BSUBS/SDM) + 12개 코드 시트 |
+| [callflow/README.md](callflow/README.md) | **업무 코드별 콜플로우 인덱스** — 알림 경로 규칙(BSUBS/SDM) + 11개 코드 시트 |
 
 노드 간 요약 흐름은 [INTERFACES.md](INTERFACES.md#hfc-서비스-call-flow--세-노드가-어떻게-이어지는가),
 CDS 단일 노드의 즉시/예약 흐름은 [nodes/CDS.md](nodes/CDS.md#call-flow--pg-내부-처리) 에 있다.

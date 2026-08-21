@@ -10,7 +10,7 @@
 | 예약 큐 적재 | 있음 |
 | Body 필드 수 | 6개 / 총 327B (고정) |
 
-> 가입과 동시에 만료 예약이 걸린다. **인입 코드(K1)와 예약 코드(K3)가 다르다.** `START_TIME` 은 반드시 미래여야 한다 — 과거면 가입 직후 만료돼 판정이 실패한다.
+> 가입과 동시에 만료 예약이 걸린다. **인입 코드(K1)와 예약 코드(K3)가 다르다.** K3 는 CDS 가 보내는 전문이 아니다 — 쿠폰 만료 시각이 되면 **PG.RDS 가 예약 큐를 보고 스스로 만든다.** 그래서 K3 는 시트도 TC 도 없다. `START_TIME` 은 반드시 미래여야 한다 — 과거면 가입 직후 만료돼 판정이 실패한다.
 
 ## 콜플로우
 
@@ -21,6 +21,7 @@ sequenceDiagram
     participant PCDS as PG.CDS
     participant PDB as PDB
     participant SDM as PG.SDM
+    participant RDS as PG.RDS
     participant SNOTI as PG.SNOTI
     participant PCF as ROBOT (PCF 역할)
 
@@ -48,6 +49,10 @@ sequenceDiagram
         TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + R17 + N + K1 + TPID=113 + LIMIT=1 + LIMIT_VALID_TIME + CNUM)
         TOOL->>PDB: T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K3 + 핀)
     end
+
+    Note over PDB,RDS: ── 아래는 쿠폰 만료 시각에 일어난다 (슈트가 보지 않는다) ──
+    RDS->>PDB: SELECT T_5G_RESERVED_JOB(Polling)
+    RDS->>PDB: K3(쿠폰 만료) 생성 — CDS 인입이 아니다
 ```
 
 ## 전문 Body 필드
