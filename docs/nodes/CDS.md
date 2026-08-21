@@ -1017,14 +1017,27 @@ python -m robot --test "TC-CDS-013*" --variable CDS_ACTIVE_MDN:01090010002 tests
 - Release 시 PG 가 ACK 없이 끊는 경우가 정상 동작으로 취급된다
   (`Send Release And Validate` 가 `Run Keyword And Return Status` 로 처리).
 
-### `START_TIME` 은 쿠폰의 **종료** 시각이다
+### `START_TIME` 은 쿠폰의 **종료** 시각이다 — `REAL_START_TIME` 과 다른 필드다
 
-이름이 정반대다. offset 111 `START_TIME` 이 나르는 것은 **쿠폰 종료 시간**이고,
-쿠폰이 언제 시작하는지는 offset 143 `REAL_START_TIME` 이라는 **별도 필드**다.
+이름이 정반대다. **PG 소스로 확정**(2026-08-21).
 
-`K1`/`K5` 분기는 `REAL_START_TIME` 을 **선언하지 않는다**(`91`/`92` 만 쓴다).
-그래서 쿠폰 가입에서 우리가 정하는 시각은 "언제 끝나는가" 하나뿐이다 —
-시작 시각을 같이 보내려고 해도 값이 조용히 버려진다(바로 아래 함정).
+```c
+// SDM/SubsProcessing/SubsProcessing.cpp  ValidationCheck()
+const char* _startT = parser_->GetOrderDataByName("REAL_START_TIME");   // 시작
+const char* _endT   = parser_->GetOrderDataByName("START_TIME");        // 종료
+```
+
+| 규격 이름 | wire 필드 | offset | 폭 | 어느 코드가 보내나 |
+|---|---|---|---|---|
+| `couponStopTime` | `START_TIME` | 111 | 12 | `K1` `K5` `K2` `K3` `K4` `K6` `K7` `91` `92` `SS` `ST` |
+| `couponStartTime` | `REAL_START_TIME` | 143 | 12 | **`91` / `92` 뿐** |
+
+오프셋은 `CDS/CDS_SIM/CCDS2Define.hpp` 의 `*_OFFSET` 누적으로 대조했고, 코드별 필드
+집합은 같은 SIM 의 `CMain.cpp` 분기에서 뽑았다.
+
+**`K1` 은 시작 시각을 보내지 않는다.** 쿠폰 가입에서 우리가 정하는 시각은 "언제
+끝나는가" 하나뿐이다 — `real_start_time` 을 넘겨도 `K1` 분기가 선언하지 않아
+조용히 버려진다(바로 아래 함정).
 
 PDB 판정이 보는 `LIMIT_VALID_TIME`(= `START_TIME` + 초 `00`)이 **유효기간 만료
 시각**인 것도 그래서다. `TC-CDS-011`(쿠폰 만료)이 이 값을 현재 시각 근처로 보내는
@@ -1033,6 +1046,22 @@ PDB 판정이 보는 `LIMIT_VALID_TIME`(= `START_TIME` + 초 `00`)이 **유효�
 **`${CDS_START_TIME}` 을 "가입 시작 시각" 으로 읽으면 부호가 뒤집힌다** — 먼 미래
 기본값(`203712312359`)이 "아주 나중에 시작" 이 아니라 **"아주 나중에 끝난다"**,
 즉 사실상 만료되지 않는 쿠폰이라는 뜻이다.
+
+#### 검증에 걸리면 SDM 이 **조용히 건너뛴다** — 전문은 `SC` 다
+
+같은 `ValidationCheck()` 가 둘을 거른다.
+
+```c
+if(_endT==NULL || _endT[0]==0x00)            // START_TIME 이 비면
+    → "Not Found (START_TIME) Skip Procesing"
+if(_nStart && _nEnd && (_nStart >= _nEnd))   // 시작 >= 종료 면
+    → "Invaild Time (startT : %s, endT : %s) Skip Procesing"
+```
+
+**`false` 를 돌려주면 가입자 반영이 통째로 없다.** 그런데 CDS 는 이미 이력 적재에
+성공해 `0017 CommandResult` 를 `SC` 로 보낸 뒤다 — 전문 흐름만 보면 성공이고
+PDB 만 안 바뀐다. `db` 태그 판정이 이유 없이 0건으로 실패하면 여기를 볼 것.
+PG 로그의 `Skip Procesing`(오타 그대로)이 증거다.
 
 ### 코드 분기가 선언하지 않은 필드는 값을 넘겨도 버려진다
 

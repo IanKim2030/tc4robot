@@ -390,11 +390,15 @@ ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (0
 #   K2/K3/K4/K6 : mdn limit coupon_pin
 #   SS/ST    : mdn limit start_time coupon_type
 #
-# ★ 이름이 START 지만 **쿠폰 종료 시각(couponStopTime)**이다.
-#   offset 111 START_TIME 의 실제 의미가 "쿠폰 종료 시간" 이다(docs/nodes/CDS.md 필드 표).
+# ★ 이름이 START 지만 **쿠폰 종료 시각(couponStopTime)**이다. PG 소스로 확정했다.
+#     SDM/SubsProcessing/SubsProcessing.cpp  ValidationCheck()
+#       _startT = GetOrderDataByName("REAL_START_TIME")   // 시작
+#       _endT   = GetOrderDataByName("START_TIME")        // 종료
 #   쿠폰 시작 시각은 별도 필드 REAL_START_TIME(offset 143)이고, K1/K5 분기는 그것을
 #   **선언하지 않는다** — 넘겨도 버려진다(91/92 만 쓴다). 그래서 쿠폰 가입에서
 #   우리가 정하는 시각은 "언제 끝나는가" 하나뿐이다.
+#   ※ 비거나 (시작 >= 종료)면 SDM 이 **조용히 건너뛴다** — 전문은 SC 인데 PDB 만
+#     안 바뀐다. docs/nodes/CDS.md 함정 절 참조.
 #
 # ★ 그래서 이 값은 반드시 **미래**여야 한다.
 #   K1/K5 가입은 서비스 행을 넣는 동시에 예약 큐에 만료(K3/K7) 예약을 건다. PG.RDS 가
