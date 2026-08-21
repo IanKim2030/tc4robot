@@ -43,7 +43,7 @@ sequenceDiagram
     SDM->>PDB: INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X)
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     SDM--xSNOTI: RBUS NOTI 없음
-    Note over SDM,SNOTI: 1X/1Y 인 경우 PG.SDM에서 RBUS NOTI하지 않음 — PB.BSUBS가 RBUS NOTI한다
+    Note over SDM,SNOTI: 1X/1Y 인 경우 PG.SDM 에서 RBUS NOTI 하지 않음 — PG.BSUBS 가 RBUS NOTI 한다
 
     BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
     BSUBS->>UPM: 0x07 Subs-Info-Request

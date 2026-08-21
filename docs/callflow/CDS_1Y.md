@@ -43,7 +43,7 @@ sequenceDiagram
     SDM->>PDB: DELETE FROM T_5G_SUBS_SERVICE WHERE SVC_ID=ZONE_SVC_D
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     SDM--xSNOTI: RBUS NOTI 없음
-    Note over SDM,SNOTI: SDM 은 1X/1Y 에 RBUS NOTI 를 보내지 않는다 — 깨우는 쪽은 BSUBS 다
+    Note over SDM,SNOTI: 1X/1Y 인 경우 PG.SDM 에서 RBUS NOTI 하지 않음 — PG.BSUBS 가 RBUS NOTI 한다
 
     BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
     BSUBS->>UPM: 0x07 Subs-Info-Request

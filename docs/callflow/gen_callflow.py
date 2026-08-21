@@ -150,8 +150,29 @@ PDB_POST = {
 # 판정 구간 배경. 알파를 낮게 둬야 라이트/다크 양쪽에서 글자가 읽힌다.
 BAND = 'rgba(255, 176, 32, 0.14)'
 
+# HFC 가 붙어 있으면 PG.CDS 가 전문을 받은 자리에서 BAROD 쪽 지시를 하나 더 넣는다.
+# 판정(SELECT)과 지시(INSERT)가 한 덩어리라 opt 는 이 둘만 감싼다.
+HFC_ORDER = {
+ 'C1': 'INSERT T_BAROD_ORDER_HIST',
+ 'G1': 'INSERT T_BAROD_ORDER_HIST',
+ 'D3': 'INSERT T_BAROD_ORDER_HIST',
+ 'Z1': 'INSERT T_BAROD_ORDER_HIST (해지 지시)',
+}
+
+# BSUBS 가 폴링한 뒤 추가로 하는 일. 모르는 코드는 비워 둔다 — 지어내지 않는다.
+BSUBS_EXTRA = {
+ 'Z1': 'DELETE T_BAROD_SUBS_CELLINFO (CellList 삭제)',
+}
+
 SDM_APPLY = {
  '1X': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X)',
+ '1Y': 'DELETE FROM T_5G_SUBS_SERVICE WHERE SVC_ID=ZONE_SVC_D',
+}
+
+# BSUBS 가 Cell 정보에 하는 일. 가입(1X)은 저장, 해지(1Y)는 삭제다.
+CELL_STEP = {
+ '1X': 'T_BAROD_SUBS_CELLINFO 저장',
+ '1Y': 'DELETE FROM T_BAROD_SUBS_CELLINFO',
 }
 
 
@@ -194,6 +215,12 @@ def mermaid(code, route):
     # 이력 적재의 성패가 0017 의 SC/FA 를 가른다.
     L.append('    alt INSERT 성공')
     L.append('        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
+    if code in HFC_ORDER:
+        # PG.CDS 가 답하기 전에 끝내는 일이라 0017 보다 위다.
+        L.append('        opt ZONE_SVC_D 있음 — HFC 가입')
+        L.append('            PCDS->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)')
+        L.append('            PCDS->>PDB: %s' % HFC_ORDER[code])
+        L.append('        end')
     L.append('        PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel')
     L.append('    else INSERT 실패')
     L.append('        PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel')
@@ -208,12 +235,12 @@ def mermaid(code, route):
         L.append('    SDM->>PDB: %s' % apply_step(code))
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM--xSNOTI: RBUS NOTI 없음')
-        L.append('    Note over SDM,SNOTI: SDM 은 1X/1Y 에 RBUS NOTI 를 보내지 않는다 — 깨우는 쪽은 BSUBS 다')
+        L.append('    Note over SDM,SNOTI: 1X/1Y 인 경우 PG.SDM 에서 RBUS NOTI 하지 않음 — PG.BSUBS 가 RBUS NOTI 한다')
         L.append('')
         L.append('    BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
         L.append('    BSUBS->>UPM: 0x07 Subs-Info-Request')
         L.append('    UPM->>BSUBS: 0x08 Subs-Info-Response (Cell List)')
-        L.append('    BSUBS->>PDB: T_BAROD_SUBS_CELLINFO 저장')
+        L.append('    BSUBS->>PDB: %s' % CELL_STEP[code])
         L.append('    BSUBS->>SNOTI: RBUS NOTI')
     elif route == 'SDM':
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
@@ -221,37 +248,21 @@ def mermaid(code, route):
         # 가입자 반영을 끝낸 뒤 SDM 도 TID 를 갱신한다 — PG.CDS 것과 별개로 한 번 더다.
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM->>SNOTI: RBUS NOTI')
-    elif code == 'Z1':
-        # Z1 은 가입해지라 HFC 가 붙어 있으면 Cell 정보까지 지워야 끝난다.
-        # 분기 판정 자체가 ZONE_SVC_D 조회다 — HFC 가입 여부를 여기서 본다.
-        L.append('    SDM->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)')
-        # 양쪽 분기가 SDM 3단계를 그대로 공유한다 — alt/else 로 쪼개면 같은
-        # 세 줄이 두 번 나와, 읽는 쪽이 "뭐가 다르지" 하고 대조하게 된다.
-        # 조건이 맞을 때만 끼어드는 블록이므로 opt 다(else 가 없다).
-        # Cell 정리를 먼저 끝내고 가입자 테이블을 지운다. 순서가 뒤집히면
-        # ZONE_SVC_D 가 먼저 사라져 BSUBS 가 지울 대상을 잃는다.
-        L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
-        L.append('        SDM->>PDB: INSERT T_BAROD_ORDER_HIST (해지 지시)')
-        L.append('        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
-        L.append('        BSUBS->>PDB: DELETE T_BAROD_SUBS_CELLINFO (CellList 삭제)')
-        L.append('    end')
-        L.append('')
+    else:
+        # C1/G1/D3/Z1 공통. HFC 지시는 위(PG.CDS)에서 이미 나갔고, 여기는
+        # BSUBS 가 그것을 집어 처리하는 자리다.
+        L.append('    BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
+        if code in BSUBS_EXTRA:
+            # Cell 정리를 먼저 끝내고 가입자 테이블을 지운다. 순서가 뒤집히면
+            # ZONE_SVC_D 가 먼저 사라져 BSUBS 가 지울 대상을 잃는다.
+            L.append('    BSUBS->>PDB: %s' % BSUBS_EXTRA[code])
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
         L.append('    SDM->>PDB: %s' % apply_step(code))
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
-        # 보내는 쪽은 여전히 갈린다(규칙 2) — 여기는 진짜 alt 다.
+        # 보내는 쪽은 갈린다(규칙 2) — 여기는 진짜 alt 다.
         L.append('    alt HFC 가입')
         L.append('        BSUBS->>SNOTI: RBUS NOTI')
         L.append('    else HFC 미가입')
-        L.append('        SDM->>SNOTI: RBUS NOTI')
-        L.append('    end')
-    else:
-        L.append('    alt HFC 가입 상태')
-        L.append('        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
-        L.append('        BSUBS->>SNOTI: RBUS NOTI')
-        L.append('    else HFC 미가입')
-        L.append('        SDM->>PDB: %s' % apply_step(code))
-        L.append('        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('        SDM->>SNOTI: RBUS NOTI')
         L.append('    end')
     # SNOTI 는 RBUS NOTI 를 받으면 세션을 먼저 찾는다 — 보낼 대상(PCF)이 세션에 붙어 있다.

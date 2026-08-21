@@ -34,6 +34,10 @@ sequenceDiagram
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
     alt INSERT 성공
         PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+        opt ZONE_SVC_D 있음 — HFC 가입
+            PCDS->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)
+            PCDS->>PDB: INSERT T_BAROD_ORDER_HIST
+        end
         PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel
     else INSERT 실패
         PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel
@@ -41,12 +45,13 @@ sequenceDiagram
     TOOL->>PCDS: 0018 CommandResultACK (TID 에코)
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
-    alt HFC 가입 상태
-        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
+    BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
+    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
+    SDM->>PDB: T_5G_SUBS_* 반영
+    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+    alt HFC 가입
         BSUBS->>SNOTI: RBUS NOTI
     else HFC 미가입
-        SDM->>PDB: T_5G_SUBS_* 반영
-        SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
         SDM->>SNOTI: RBUS NOTI
     end
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
