@@ -34,8 +34,8 @@ sequenceDiagram
     PCDS->>PDB: INSERT T_CDS_ORDER_HIST
     alt INSERT 성공
         PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+        PCDS->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)
         opt ZONE_SVC_D 있음 — HFC 가입
-            PCDS->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)
             PCDS->>PDB: INSERT T_BAROD_ORDER_HIST
         end
         PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel

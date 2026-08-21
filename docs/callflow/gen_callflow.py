@@ -102,6 +102,9 @@ T = {
         'BSUBS 가 CellList 를 지운 뒤에야 가입자 테이블이 정리된다.'),
 }
 
+# 알림이 아예 나가지 않는 코드 — RBUS NOTI / SNOTI / SBI Noti 를 그리지 않는다.
+NO_NOTI = ('Z1',)
+
 # 도구가 현재 알림 판정을 건너뛰는 코드 (@{CDS_NOTI_EXEMPT_CODES})
 EXEMPT = ('A1', 'Z1')
 
@@ -197,8 +200,9 @@ def mermaid(code, route):
     else:
         L.append('    participant SDM as PG.SDM')
         L.append('    participant BSUBS as PG.BSUBS')
-    L.append('    participant SNOTI as PG.SNOTI')
-    L.append('    participant PCF as ROBOT (PCF 역할)')
+    if code not in NO_NOTI:
+        L.append('    participant SNOTI as PG.SNOTI')
+        L.append('    participant PCF as ROBOT (PCF 역할)')
     L.append('')
     if code in PDB_PRE:
         L.append('    rect %s' % BAND)
@@ -217,8 +221,9 @@ def mermaid(code, route):
     L.append('        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
     if code in HFC_ORDER:
         # PG.CDS 가 답하기 전에 끝내는 일이라 0017 보다 위다.
+        # 조회는 분기를 **가르는** 쪽이라 opt 밖이다 — 조건이 어긋나도 나간다.
+        L.append('        PCDS->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)')
         L.append('        opt ZONE_SVC_D 있음 — HFC 가입')
-        L.append('            PCDS->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)')
         L.append('            PCDS->>PDB: %s' % HFC_ORDER[code])
         L.append('        end')
     L.append('        PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel')
@@ -259,16 +264,18 @@ def mermaid(code, route):
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
         L.append('    SDM->>PDB: %s' % apply_step(code))
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
-        # 보내는 쪽은 갈린다(규칙 2) — 여기는 진짜 alt 다.
-        L.append('    alt HFC 가입')
-        L.append('        BSUBS->>SNOTI: RBUS NOTI')
-        L.append('    else HFC 미가입')
-        L.append('        SDM->>SNOTI: RBUS NOTI')
-        L.append('    end')
+        if code not in NO_NOTI:
+            # 보내는 쪽은 갈린다(규칙 2) — 여기는 진짜 alt 다.
+            L.append('    alt HFC 가입')
+            L.append('        BSUBS->>SNOTI: RBUS NOTI')
+            L.append('    else HFC 미가입')
+            L.append('        SDM->>SNOTI: RBUS NOTI')
+            L.append('    end')
     # SNOTI 는 RBUS NOTI 를 받으면 세션을 먼저 찾는다 — 보낼 대상(PCF)이 세션에 붙어 있다.
-    L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
-    L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
-    L.append('    SNOTI->>PCF: SBI Noti (h2c)')
+    if code not in NO_NOTI:
+        L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
+        L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+        L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     # TC 의 성패가 갈리는 자리. 위의 전문 왕복과 눈으로 구분되게 밴드로 감싼다.
     L.append('    rect %s' % BAND)
     L.append('    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')

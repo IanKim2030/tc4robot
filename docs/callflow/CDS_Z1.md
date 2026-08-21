@@ -22,8 +22,6 @@ sequenceDiagram
     participant PDB as PDB
     participant SDM as PG.SDM
     participant BSUBS as PG.BSUBS
-    participant SNOTI as PG.SNOTI
-    participant PCF as ROBOT (PCF 역할)
 
     TOOL->>PCDS: 0015 CommandRequest (Z1) — Body 327B
     PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, 접수 확인
