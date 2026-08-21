@@ -385,7 +385,7 @@ TC-CDS-006 I3 (부가서비스해지)
 TC-CDS-007 C1 (기기변경)
     [Documentation]
     ...    0015(C1 기기변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
-    ...    C1 은 MDN 이 바뀌지 않고 단말(MIN)만 바뀌므로 new_min 만 넘긴다.
+    ...    C1 은 MDN 이 바뀌지 않고 단말만 바뀌므로 new_min 과 단말 모델코드를 넘긴다.
     ...    C1 분기는 min ← mdn 을 강제하고 new_mdn 을 선언하지 않는다(CdsHelper).
     ...
     ...    [성공 판단 기준] 기존 서비스가 **하나도 빠짐없이 C1 으로 다시 쓰였는지**를 본다.
@@ -394,7 +394,7 @@ TC-CDS-007 C1 (기기변경)
     ...    두 집계가 SVC_ID 별로 완전히 같아야 성공이다.
     [Tags]    cds    command    validation    db    noti
     ${before}=    Capture Service Counts Per SVC_ID    ${CDS_MDN}
-    Command Download Flow    ${CDS_CODE_C1}    new_min=${CDS_NEW_MIN}
+    Command Download Flow    ${CDS_CODE_C1}    new_min=${CDS_NEW_MIN}    device_model=${CDS_NEW_DEVICE_MODEL}
     Verify Service Counts Preserved In PDB    ${CDS_MDN}    ${CDS_CODE_C1}    ${before}
     Verify SBI Noti Sent    ${CDS_CODE_C1}
 

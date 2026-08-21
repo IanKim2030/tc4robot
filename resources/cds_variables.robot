@@ -379,6 +379,7 @@ ${CDS_MIN}                     1090010001               # min     (10자, A1/D3 
 # → D3 를 건너뛰거나 실패하면 기본값이 남아 **원래 번호로 해지**한다.
 ${CDS_ACTIVE_MDN}              ${CDS_MDN}               # 현재 유효 MDN (D3 성공 시 new_mdn 으로 교체)
 ${CDS_NEW_MIN}                 1090010002               # new_min (C1 기기변경 시)
+${CDS_NEW_DEVICE_MODEL}        S928                     # termModelCode(4) — C1 기기변경 후 단말 모델코드
 ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (011+XXXX+YYYYY)
 
 # ── 예약(쿠폰) 계열 필드 — Y9 / K1~K6 / SS / ST ─────────────────
