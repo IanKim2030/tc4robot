@@ -165,7 +165,7 @@ ${CDS_SESSION_UDR_NOTI_URI}
 ...    http://${CDS_SESSION_PCF_ADDR}/npcf-event-exposure/v1/nudr-smf-notify/${CDS_SESSION_SM_POLICY_ID}
 
 # ── 2번 세션 — D3(번호변경) 이후의 번호 ─────────────────────────
-# TC-CDS-018(D3)이 성공하면 가입자가 ${CDS_NEW_MDN} 로 바뀌고, TC-CDS-019(Z1)는
+# TC-CDS-011(D3)이 성공하면 가입자가 ${CDS_NEW_MDN} 로 바뀌고, TC-CDS-012(Z1)는
 # 그 번호로 해지 전문을 보낸다. **그 번호에도 세션이 있어야** PG.SNOTI 가 알림
 # 상대를 찾는다 — 없으면 D3·Z1 의 알림이 조용히 안 나간다.
 # 그래서 Suite Setup 이 세션을 **두 건** 심는다(둘 다 멱등).
@@ -374,7 +374,7 @@ ${CDS_NEW_MDN}                 01090010002              # new_mdn (D3 번호변�
 ${CDS_MIN}                     1090010001               # min     (10자, A1/D3 등)
 
 # D3(번호변경) 이후 가입자를 가리키는 번호. Z1(해지)처럼 "현재 번호"로 보내야 하는
-# 코드가 쓴다. 기본값은 원래 번호이고, TC-CDS-018(D3)이 성공하면 그 TC 가
+# 코드가 쓴다. 기본값은 원래 번호이고, TC-CDS-011(D3)이 성공하면 그 TC 가
 # Set Suite Variable 로 ${CDS_NEW_MDN} 을 덮어쓴다.
 # → D3 를 건너뛰거나 실패하면 기본값이 남아 **원래 번호로 해지**한다.
 ${CDS_ACTIVE_MDN}              ${CDS_MDN}               # 현재 유효 MDN (D3 성공 시 new_mdn 으로 교체)
@@ -413,7 +413,7 @@ ${CDS_START_TIME}              203712312359             # 예약 시작 시각 Y
 #   bash run_tests.sh cds --start-now        # 실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분
 #   python -m robot --variable CDS_START_TIME_MODE:now #                   --variable CDS_START_TIME_OFFSET_MIN:120 tests/cds/
 #
-# ※ 만료(K3)를 보는 TC-CDS-014 는 이 설정과 무관하다 — 그 TC 는 자기가
+# ※ 만료(K3)를 보는 TC 는 지금 없다 — 있었을 때는 이 설정과 무관했다. 그 TC 는 자기가
 #   `Current CDS Start Time ${CDS_K3_START_OFFSET_MIN}` 으로 따로 만든다.
 ${CDS_START_TIME_MODE}         fixed                    # fixed(위 고정값) | now(실행 시각 기준)
 ${CDS_START_TIME_OFFSET_MIN}   ${60}                    # now 일 때 더할 분. **양수여야 한다**

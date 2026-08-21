@@ -648,7 +648,7 @@ Ensure CDS Sessions In PDB
     [Documentation]
     ...    TC 수행 전에 필요한 5G 세션을 **두 건** 심는다.
     ...      1) 기본 번호   ${CDS_MDN}     — 슈트 대부분이 쓰는 가입자
-    ...      2) D3 이후 번호 ${CDS_NEW_MDN} — TC-CDS-018 이 번호를 바꾸면 019(Z1)가
+    ...      2) D3 이후 번호 ${CDS_NEW_MDN} — TC-CDS-011 이 번호를 바꾸면 012(Z1)가
     ...                                       그 번호로 해지 전문을 보낸다
     ...
     ...    왜 둘인가 — PG.SNOTI 는 세션 표를 보고 알림 상대를 정한다. D3 이후 번호에

@@ -228,9 +228,9 @@ TID 는 갱신되는데 PCF 반영이 없으면 이 목록부터 의심할 것.
 | `전문 → PG.CDS` | `CommandResult`(`SC`/`FA`) — **Body 내용과 무관하게 `SC`** |
 | `PG.CDS → PDB` 이후 전부 | **없음.** PDB 조회 없이는 판정 불가 |
 
-그래서 **`db` 태그가 붙은 TC 는 PDB 를 직접 조회해 판정한다.** 현재 `TC-CDS-013`
-(SubsData, 주석 처리)을 뺀 **11개 TC 전부**가 여기 해당한다. `TC-CDS-001`
-(ProcessState)만 전문 흐름으로 완결된다.
+그래서 **`db` 태그가 붙은 TC 는 PDB 를 직접 조회해 판정한다.** 전문 12개 중
+`TC-CDS-001`(ProcessState)을 뺀 **11개 전부**가 여기 해당한다 — `001` 만 전문
+흐름으로 완결된다.
 
 ### PDB 판정 기준 (업무 코드별)
 
@@ -558,7 +558,8 @@ SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 
 
 형식이 또 어긋나면 저 두 변수만 고치면 된다 — 조회 SQL 과 키워드는 그대로다.
 
-슈트는 `TC-CDS-009 ~ 017` 에서 이 9개를 다룬다. 시간프리 계열(`91`/`92`)은 아직 TC 가 없다.
+슈트가 지금 다루는 것은 `TC-CDS-009`(K1 가입) · `010`(K2 해지) 한 쌍뿐이다.
+3Mbps(`K5`/`K6`) · 취소/만료(`K4`/`K3`) · Zone(`Y9`) · 시간프리(`SS`/`ST`)는 TC 가 없다.
 
 ### 1X 는 CDS 에서 끝나지 않는다 — UPM 까지 간다
 
@@ -963,7 +964,7 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 `cds_variables.robot` 에 값만 채우면 해당 필드를 선언한 모든 코드에 즉시 반영된다.
 채우지 않으면 그 필드들은 공백으로 나가고 **PG 는 그래도 `SC` 를 준다.**
 
-### TC 간 의존성 — `TC-CDS-009` ~ `012` 는 하나의 체인이다
+### TC 간 의존성 — `TC-CDS-011` ~ `012` 는 하나의 체인이다
 
 **이 슈트에서 유일하게 앞 TC 의 결과에 의존하는 구간이다.** 나머지 TC 는 서로 독립이다.
 
@@ -973,14 +974,12 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 
 | TC | 코드 | 하는 일 |
 |---|---|---|
-| 009 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
-| 010 | `1X` HFC가입 | **바뀐 번호로** HFC 가입 (`addr` 동봉) |
-| 011 | `1Y` HFC해제 | 010 이 가입한 번호를 해제 |
-| 012 | `Z1` 해지 | 가입자 자체를 해지 — **체인의 끝** |
+| 011 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
+| 012 | `Z1` 해지 | **바뀐 번호로** 가입자 자체를 해지 — **체인의 끝** |
 
 `${CDS_ACTIVE_MDN}`(`cds_variables.robot`) 이 "현재 유효 MDN" 을 들고 있다.
 
-| 상황 | `${CDS_ACTIVE_MDN}` | 010~012 의 대상 |
+| 상황 | `${CDS_ACTIVE_MDN}` | `012`(Z1) 의 대상 |
 |---|---|---|
 | D3 성공 | `Set Suite Variable` 로 `${CDS_NEW_MDN}` 교체 | **변경된 번호** |
 | D3 실패 | `Command Download Flow` 가 먼저 죽어 갱신 미실행 | 원래 번호 |
@@ -991,9 +990,9 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 
 ```bash
 # 체인 전체
-python -m robot --test "TC-CDS-009*" --test "TC-CDS-01[0-2]*" tests/cds/
+python -m robot --test "TC-CDS-011*" --test "TC-CDS-012*" tests/cds/
 # 번호를 직접 지정 (D3 없이 특정 가입자로)
-python -m robot --test "TC-CDS-010*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
+python -m robot --test "TC-CDS-012*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
 ```
 
 `--variable` 은 최우선이라 `${CDS_ACTIVE_MDN}` 을 직접 덮는다. `CDS_MDN` 을 덮어도
@@ -1003,8 +1002,8 @@ python -m robot --test "TC-CDS-010*" --variable CDS_ACTIVE_MDN:01090010002 tests
 **MIN 은 따라가지 않는다.** 규격 `Z1` 필드 집합에 `min` 이 없고(A1 − `min` − `addSvc`),
 `1X`/`1Y` 도 `min` 을 쓰지 않는다. 셋 다 MDN 만 보낸다.
 
-`TC-CDS-003`/`004` 는 **원래 번호로** 1X/1Y 를 검증하는 별개 TC 로 남아 있다.
-010/011 은 "번호가 바뀐 가입자에게 HFC 를 붙였다 떼는" 경로를 따로 본다.
+`TC-CDS-003`/`004` 는 **원래 번호로** 1X/1Y 를 검증한다 — D3 앞이라 번호 변경의
+영향을 받지 않는다. 바뀐 번호에 HFC 를 붙였다 떼는 경로는 지금 TC 가 없다.
 
 ## 함정
 

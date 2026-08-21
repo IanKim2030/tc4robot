@@ -10,7 +10,7 @@
 | 예약 큐 적재 | 없음 |
 | Body 필드 수 | 5개 / 총 327B (고정) |
 
-> UPM `0x07` 수신 → `0x08` 응답까지 해야 완결된다. PG 내부 상세는 [CDS_X1.md](CDS_X1.md).
+> UPM `0x07` 수신 → `0x08` 응답까지 해야 완결된다.
 
 ## 콜플로우
 
@@ -48,14 +48,14 @@ sequenceDiagram
     BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
     BSUBS->>UPM: 0x07 Subs-Info-Request
     UPM->>BSUBS: 0x08 Subs-Info-Response (Cell List)
-    BSUBS->>PDB: INSERT T_BAROD_SUBS_CELLINFO 
+    BSUBS->>PDB: T_BAROD_SUBS_CELLINFO 저장
     BSUBS->>SNOTI: RBUS NOTI
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
     rect rgba(255, 176, 32, 0.14)
     Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
-        TOOL->>PDB: SELECT T_5G_SUBS_SERVICE (MDN + ZONE_SVC_D + SVC_TYPE=D + JOB_CODE=1X) - 1 건
+        TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + ZONE_SVC_D + SVC_TYPE=D + JOB_CODE=1X)
     end
 ```
 
@@ -88,5 +88,4 @@ Body 는 업무 코드와 무관하게 **항상 327B** 다. 아래 필드만 채
 ## 관련 문서
 
 - [CDS 노드 스펙](../nodes/CDS.md) — 인코딩 표, 함정, LTE/SA 차이
-- [1X 전문 End-to-End](CDS_X1.md) — PG 내부 프로세스 상세
 - `tests/cds/cds_tests.robot` — `TC-CDS-003`

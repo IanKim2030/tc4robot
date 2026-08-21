@@ -29,6 +29,9 @@ PG 내부 처리는 배경이 없다 — `0017 CommandResult` 가 `SC` 여도 �
 
 ## 업무 코드
 
+위 11개가 슈트 실행 순서다. 마지막 `K3` 은 **전문·판정 기준만 정리해 둔 시트**로,
+이 코드를 보내는 TC 가 아직 없다.
+
 | 업무 코드 | 내용 | TC | 경로 | 알림 판정 |
 |---|---|---|---|---|
 | [`A1`](CDS_A1.md) | 신규가입 | `TC-CDS-002` | SDM | 건너뜀 ⚠️ |
@@ -38,21 +41,14 @@ PG 내부 처리는 배경이 없다 — `0017 CommandResult` 가 `SC` 여도 �
 | [`I3`](CDS_I3.md) | 부가서비스해지 | `TC-CDS-006` | SDM | 확인 |
 | [`C1`](CDS_C1.md) | 기기변경 | `TC-CDS-007` | BSUBS / SDM (HFC 상태) | 확인 |
 | [`G1`](CDS_G1.md) | 정보변경 | `TC-CDS-008` | BSUBS / SDM (HFC 상태) | 확인 |
-| [`K5`](CDS_K5.md) | Data(Time) 3Mbps 쿠폰 가입 | `TC-CDS-009` | SDM | 확인 |
-| [`K6`](CDS_K6.md) | Data(Time) 3Mbps 쿠폰 해지 | `TC-CDS-010` | SDM | 확인 |
-| [`K1`](CDS_K1.md) | Data(Time) 쿠폰 가입 | `TC-CDS-011` | SDM | 확인 |
-| [`K2`](CDS_K2.md) | Data(Time) 쿠폰 해지 | `TC-CDS-012` | SDM | 확인 |
-| [`K4`](CDS_K4.md) | Data(Time) 쿠폰 취소 | `TC-CDS-013` | SDM | 확인 |
-| [`K3`](CDS_K3.md) | Data(Time) 쿠폰 만료 | `TC-CDS-014` | SDM | 확인 |
-| [`Y9`](CDS_Y9.md) | Data(Zone) 쿠폰 사용시점 알림 | `TC-CDS-015` | SDM | 확인 |
-| [`SS`](CDS_SS.md) | 0플랜 옵션(3시간 프리) 가입 | `TC-CDS-016` | SDM | 확인 |
-| [`ST`](CDS_ST.md) | 0플랜 옵션(3시간 프리) 해지 | `TC-CDS-017` | SDM | 확인 |
-| [`D3`](CDS_D3.md) | 번호변경 | `TC-CDS-018` | BSUBS / SDM (HFC 상태) | 확인 |
-| [`Z1`](CDS_Z1.md) | 가입해지 | `TC-CDS-019` | BSUBS / SDM (HFC 상태) | 건너뜀 ⚠️ |
+| [`K1`](CDS_K1.md) | Data(Time) 쿠폰 가입 | `TC-CDS-009` | SDM | 확인 |
+| [`K2`](CDS_K2.md) | Data(Time) 쿠폰 해지 | `TC-CDS-010` | SDM | 확인 |
+| [`D3`](CDS_D3.md) | 번호변경 | `TC-CDS-011` | BSUBS / SDM (HFC 상태) | 확인 |
+| [`Z1`](CDS_Z1.md) | 가입해지 | `TC-CDS-012` | BSUBS / SDM (HFC 상태) | 건너뜀 ⚠️ |
+| [`K3`](CDS_K3.md) | Data(Time) 쿠폰 만료 | — (TC 없음) | SDM | 확인 |
 
 ⚠️ = `@{CDS_NOTI_EXEMPT_CODES}` 에 있어 판정을 건너뛴다. 위 경로 규칙과 어긋나는 지점이라 확인이 필요하다(각 문서의 해당 절 참조).
 
 ## 그 밖의 문서
 
-- [CDS_X1.md](CDS_X1.md) — 1X 전문의 PG 내부 End-to-End (SDM/SNOTI 계열 + BSUBS 계열 병행)
 - [../nodes/CDS.md](../nodes/CDS.md) — CDS 노드 스펙 (인코딩 표, 함정, LTE/SA 차이)

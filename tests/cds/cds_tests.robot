@@ -26,18 +26,17 @@ Documentation
 ...    [TC 번호 체계]
 ...      TC-CDS-001       : ProcessState 상태확인 (0013/0014)
 ...      TC-CDS-002 ~ 008 : Download Command (0015~0018) — 즉시 반영 업무 코드
-...      TC-CDS-009 ~ 017 : Download Command — 쿠폰/옵션 계열
-...                         3Mbps 쌍(K5·K6) → Data(Time) 계열(K1~K4) → Y9 / SS / ST
-...      TC-CDS-018 ~ 019 : Download Command — 번호변경(D3) → 해지(Z1) 체인의 끝
+...      TC-CDS-009 ~ 010 : Download Command — 쿠폰 계열 (K1 가입 → K2 해지 쌍)
+...      TC-CDS-011 ~ 012 : Download Command — 번호변경(D3) → 해지(Z1) 체인의 끝
 ...
 ...    [PDB 조회] `db` 태그가 붙은 TC 는 전문 흐름(SC)에 더해 PDB 반영까지 판정한다.
-...    판정 대상은 대부분 가입자 테이블(T_5G_SUBS_*)이고, 가입 계열 3개(009/011/015)만
+...    판정 대상은 대부분 가입자 테이블(T_5G_SUBS_*)이고, 쿠폰 가입(009)만
 ...    예약 큐(T_5G_RESERVED_JOB) 적재를 **한 건 더** 본다.
 ...      002 A1 신규가입 : PROFILE 1건 + SERVICE 2건(DATA_USAGE_LEVEL / _2) — 모두 1
 ...      003 1X HFC가입  : SERVICE(SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X) 1건 이상
 ...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (구 TC-UPM-301)
 ...                        + **PCF SBI Noti 1건 수신** (Cell List — 가입자 Noti 는 안 나온다)
-...      ★ SBI Noti 판정은 **A1(002) / 1Y(004) / Z1(019)를 뺀 전 TC** 에 붙어 있다.
+...      ★ SBI Noti 판정은 **A1(002) / Z1(012)를 뺀 전 TC** 에 붙어 있다.
 ...        그 둘만 PG 가 PCF 로 알림을 보내지 않는다(@{CDS_NOTI_EXEMPT_CODES}).
 ...      004 1Y HFC해지  : SERVICE(SVC_ID=ZONE_SVC_D) 0건
 ...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (1X 와 같은 구간)
@@ -46,45 +45,25 @@ Documentation
 ...      006 I3 부가해지 : SERVICE(SVC_ID=YOUNG_HARM_INFO_BLOCK) 0건
 ...      007 C1 기기변경 : 수행 전 SVC_ID 별 행 수 == 수행 후 JOB_CODE=C1 집계
 ...      008 G1 정보변경 : 위와 같음 (JOB_CODE=G1)
-...      009 K5 쿠폰가입  : SERVICE(R17, N, K5, 0, LIMIT=2, LIMIT_VALID_TIME, CNUM=핀) 1건 이상
-...                        + RESERVED_JOB(JOB_CODE=K7, 핀) 1건 이상
-...      010 K6 쿠폰해지  : 009 의 핀으로 SERVICE(R17, CNUM) 0건
-...      011 K1 쿠폰가입  : SERVICE(R17, N, K1, 113, LIMIT=1, LIMIT_VALID_TIME, CNUM=핀) 1건 이상
+...      009 K1 쿠폰가입 : SERVICE(R17, N, K1, 113, LIMIT=1, LIMIT_VALID_TIME, CNUM=핀) 1건 이상
 ...                        + RESERVED_JOB(JOB_CODE=K3, 핀) 1건 이상
-...      012 K2 쿠폰해지  : 011 의 핀으로 SERVICE(R17, CNUM) 0건
-...      013 K4 쿠폰취소  : TC 안에서 K1 로 가입시킨 뒤 취소 → 그 핀으로 0건
-...      014 K3 쿠폰만료  : 013 과 같은 구조 (핀이 다르고, K1 의 START_TIME 이 현재 시각)
-...      015 Y9 Zone쿠폰  : SERVICE(ZONE_SVC_B, Z, Y9, 25, LIMIT=0, LIMIT_VALID_TIME) 1건 이상
-...                        + RESERVED_JOB(JOB_CODE=Y6, 핀) 1건 이상
-...      016 SS 옵션가입  : SERVICE(TIME_SVC_I, T, SS, TIME_PERIOD_ID=SS_+START_TIME(12), LIMIT=0, CNUM=0) 1건 이상
-...      017 ST 옵션해지  : SERVICE(SVC_ID=TIME_SVC_I) 0건
-...      018 D3 번호변경 : 007 과 같은 전후 비교 (옛 번호 기준 → 새 번호 + JOB_CODE=D3)
-...      019 Z1 가입해지 : PROFILE / SERVICE(SVC_ID 무관) 모두 0건
+...      010 K2 쿠폰해지 : 009 의 핀으로 SERVICE(R17, CNUM) 0건
+...      011 D3 번호변경 : 007 과 같은 전후 비교 (옛 번호 기준 → 새 번호 + JOB_CODE=D3)
+...      012 Z1 가입해지 : PROFILE / SERVICE(SVC_ID 무관) 모두 0건
 ...      "1건 이상"은 건수를 못 박지 않는다는 뜻이다 — 존·부가 서비스가 여러 건일 수 있다.
-...      전후 비교형(007/008/018)은 `Command Download Flow` **앞**에서 기준선을 먼저 뜬다.
-...      ★ 예약 큐에 적재되는 JOB_CODE 는 인입 코드와 다르다 — K1→K3, K5→K7, Y9→Y6.
+...      전후 비교형(007/008/011)은 `Command Download Flow` **앞**에서 기준선을 먼저 뜬다.
+...      ★ 예약 큐에 적재되는 JOB_CODE 는 인입 코드와 다르다 — K1 이 K3 로 들어간다.
 ...        인입 코드로 조회하면 한 건도 나오지 않는다.
-...      ★ K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다**(MDN+R17+CNUM 삭제) — 해지·만료·
-...        취소가 서로 구분되지 않는다. 그래서 013/014 는 자기 핀으로 가입을 먼저 만든다.
-...      ★ 시간 컬럼은 전부 전문의 START_TIME 에서 나온다 — PDB 의 필드 정의 테이블
+...      ★ K2 의 판정은 `MDN + R17 + CNUM` 삭제다 — 해지·만료·취소가 서로 구분되지
+...        않으므로 **핀으로만 자기 결과를 가려낸다**(${CDS_COUPON_PIN_K1}).
+...      ★ 시간 컬럼은 전문의 START_TIME 에서 나온다 — PDB 의 필드 정의 테이블
 ...        T_5G_CDS_ORDER_CFG 에서 START_TIME 의 별칭(SUBTITLE)이 LIMIT_VALID_TIME 이다.
-...        다만 **컬럼마다 폭이 다르다.** 기준표가 둘 다 $LIMIT_VALID_TIME 으로 적어
-...        놔서 같은 값으로 읽기 쉬운데 아니다 — SS 만 초 '00' 이 붙지 않는다.
-...          009/011/015 : LIMIT_VALID_TIME = START_TIME+'00'   14자리  (${CDS_LIMIT_VALID_TIME})
-...          016         : TIME_PERIOD_ID   = 'SS_' + START_TIME 접두+12 (${CDS_DB_TPID_SS})
-...        형식이 또 어긋나면 저 두 변수만 고치면 된다 — SQL·키워드는 그대로다.
-...      ★ START_TIME 은 **014(K3 만료)만 현재 시각**이고 나머지는 먼 미래(${CDS_START_TIME})다.
-...        나머지도 실행 시각 기준으로 잡으려면 `--start-now`(= CDS_START_TIME_MODE:now).
-...        그러면 Suite Setup 이 **실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분**(기본 60)으로
-...        START_TIME·LIMIT_VALID_TIME·TIME_PERIOD_ID **셋을 한꺼번에** 다시 계산한다.
-...        오프셋이 0 이하면 거부한다 — 가입하자마자 만료돼 009/011/015 가 실패한다.
-...        012 는 만료 업무라 유효기간이 찬 쿠폰이 필요하기 때문이다 — 그 TC 주석 참조.
-...      접속 정보는 cds_variables.robot 의
-...      ${CDS_DB_CONNSTR}(완성된 ODBC 문자열) 하나다 — 환경변수 PG_CDS_DB_CONNSTR 가 우선.
-...      DB 접속은 **Suite Setup 에서 소켓과 함께 1회** 붙고 Suite Teardown 에서 끊는다
-...      (TC별 접속 없음). autocommit 은 꺼져 있다(${CDS_DB_AUTOCOMMIT}=${FALSE}).
-...      ★ 접속 정보가 틀리면 이 TC 뿐 아니라 **슈트 전체가 서지 않는다** — Suite Setup
-...        이 실패하기 때문이다. --exclude db 로도 피할 수 없다.
+...          009 : LIMIT_VALID_TIME = START_TIME + '00'   14자리 (${CDS_LIMIT_VALID_TIME})
+...      ★ START_TIME 은 먼 미래(${CDS_START_TIME})다. 실행 시각 기준으로 잡으려면
+...        `--start-now`(= CDS_START_TIME_MODE:now) — Suite Setup 이 **실행 시각 +
+...        ${CDS_START_TIME_OFFSET_MIN}분**(기본 60)으로 START_TIME·LIMIT_VALID_TIME 을
+...        **셋을 한꺼번에** 다시 계산한다.
+...        오프셋이 0 이하면 거부한다 — 가입하자마자 만료돼 009 가 실패한다.
 ...
 ...    [사전 확인] Suite Setup 이 PDB 접속 직후, 세션 적재보다 **먼저** 한다.
 ...      두 대상 번호(${CDS_MDN} / ${CDS_NEW_MDN})에 앞선 실행의 행이 남아 있는지 센다.
@@ -117,7 +96,7 @@ Documentation
 ...      · **이 슈트에서 유일하게 PDB 에 쓰는 자리다**(나머지는 전부 SELECT).
 ...        autocommit 이 꺼져 있어 commit 하지 않으면 다음 조회의 rollback 이 지운다.
 ...      · **두 건을 심는다.** 기본 번호(${CDS_MDN})와 D3 이후 번호(${CDS_NEW_MDN}) 각각이다 —
-...        018(D3)이 번호를 바꾸면 019(Z1)가 새 번호로 전문을 보내므로, 그 번호에도
+...        011(D3)이 번호를 바꾸면 012(Z1)가 새 번호로 전문을 보내므로, 그 번호에도
 ...        세션이 없으면 D3·Z1 의 알림이 조용히 안 나간다.
 ...      · 멱등이다 — 같은 SM_POLICY_ID 가 있으면 넣지 않는다. 그래서 두 세션은
 ...        **SM_POLICY_ID 가 서로 달라야 한다**(같으면 둘째가 건너뛰어진다).
@@ -144,7 +123,7 @@ Documentation
 ...      CDS 전문만 돌리려면: bash run_tests.sh cds --no-upm
 ...      (robot 을 직접 부르면 --variable CDS_UPM_VERIFY:False — UPM 접속 자체를 건너뛴다)
 ...
-...    [PCF Noti 수신] A1(002) / 1Y(004) / Z1(019)를 뺀 전 TC 가 해당한다. `noti` 태그.
+...    [PCF Noti 수신] A1(002) / Z1(012)를 뺀 전 TC 가 해당한다. `noti` 태그.
 ...      SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. 도구가 PCF 역할로
 ...      ${CDS_NOTI_PORT} 를 Listen 해 **BSUBS→PCF Cell List 한 건**을 받는다
 ...      (UPM 0x08 응답 뒤). 전문(SC)·PDB 로는 안 보이는 구간이다.
@@ -163,8 +142,8 @@ Documentation
 ...        나간다) `Expected Noti Route` 가 예상 경로를 계산해 실패 메시지에 싣는다.
 ...        상태는 ${CDS_HFC_SUBSCRIBED} 가 쥐고 003 이 켜고 004 가 끈다.
 ...        ★ 지금 순서로는 **규칙 2 의 BSUBS 분기를 타는 TC 가 없다** — 004(1Y)가 먼저
-...          해지해 버려 007/008/018/019 가 전부 SDM 경유로 판정된다.
-...      · 한 TC 가 전문을 두 번 보내면(013/014 의 K1 준비) 준비 전문도 알림을 유발한다
+...          해지해 버려 007/008/011/012 가 전부 SDM 경유로 판정된다.
+...      · 한 TC 가 전문을 두 번 보내면 준비 전문도 알림을 유발한다
 ...        → `since=` 로 본 전문 이후 도착분만 보게 해야 한다.
 ...      · 프로토콜은 **HTTP/2 평문(h2c)** 이다 → `pip install h2` 필요.
 ...        표준 http.server 로는 못 받는다(HttpNotiServer.py 가 처리).
@@ -190,19 +169,14 @@ Documentation
 ...
 ...    [TC 간 의존성] 슈트 전체가 002(A1 신규가입)로 만든 가입자 하나를 이어 쓴다.
 ...      002 A1 신규가입  : 이후 모든 TC 의 대상 가입자를 만든다
-...      009 K5 → 010 K6  : 같은 핀(${CDS_COUPON_PIN_K5})의 쿠폰 가입 → 해지 쌍
-...      011 K1 → 012 K2  : 같은 핀(${CDS_COUPON_PIN_K1})의 쿠폰 가입 → 해지 쌍
-...    쌍끼리는 붙어 있고 핀이 서로 달라, 두 쌍의 앞뒤가 바뀌어도 판정은 영향받지 않는다.
-...      016 SS → 017 ST  : 옵션 가입 → 해지 쌍 (핀 없음, SVC_ID 로만 식별)
-...      018 D3 번호변경  : 성공하면 ${CDS_ACTIVE_MDN} 을 ${CDS_NEW_MDN} 으로 갱신
-...      019 Z1 해지      : 가입자 자체를 해지 (체인의 끝). PDB 에서 사라졌는지까지 본다
-...    쿠폰 쌍은 핀이 서로 다르다 — 삭제 판정이 `MDN + R17 + CNUM` 으로만 걸려 핀을
-...    합치면 한 TC 가 지운 행을 다른 TC 가 자기 결과로 착각한다.
-...    해지 TC(010/012/017)를 단독 실행하면 짝이 되는 가입이 없어 "0건"으로 그냥 통과한다.
-...    013/014(K4 취소 / K3 만료)는 그 함정을 피하려고 **TC 안에서 K1 가입을 먼저** 돌린다.
+...      009 K1 → 010 K2  : 같은 핀(${CDS_COUPON_PIN_K1})의 쿠폰 가입 → 해지 쌍
+...      011 D3 번호변경  : 성공하면 ${CDS_ACTIVE_MDN} 을 ${CDS_NEW_MDN} 으로 갱신
+...      012 Z1 해지      : 가입자 자체를 해지 (체인의 끝). PDB 에서 사라졌는지까지 본다
+...    해지 TC(010)를 단독 실행하면 짝이 되는 가입이 없어 "0건"으로 그냥 통과한다 —
+...    삭제 판정이 `MDN + R17 + CNUM` 으로만 걸려, 원래 없었던 것과 구분되지 않는다.
 ...
 ...    D3 를 건너뛰거나 실패하면 ${CDS_ACTIVE_MDN} 이 기본값(${CDS_MDN})으로 남아
-...    019 가 원래 번호를 대상으로 동작한다 — 단독 실행도 그대로 된다.
+...    012 가 원래 번호를 대상으로 동작한다 — 단독 실행도 그대로 된다.
 ...    특정 번호를 지정하려면: --variable CDS_ACTIVE_MDN:01090010002
 
 Resource    ../../resources/variables.robot
@@ -420,17 +394,17 @@ TC-CDS-008 G1 (정보변경)
 # PDB 판정 기준은 같은 날 지정된 표를 따른다.
 #
 # 판정은 앞의 코드들과 같은 **가입자 서비스 테이블**(T_5G_SUBS_SERVICE)이 주다.
-# 다만 가입 계열 3개(K1/K5/Y9)는 가입과 동시에 만료·사용시점 예약이 걸리므로
-# **예약 큐**(T_5G_RESERVED_JOB) 적재를 한 건 더 본다.
+# 다만 K1 은 가입과 동시에 만료 예약이 걸리므로 **예약 큐**(T_5G_RESERVED_JOB)
+# 적재를 한 건 더 본다.
 #
-# ★ 예약 큐에 적재되는 JOB_CODE 는 인입 코드와 다르다 — K1→K3, K5→K7, Y9→Y6.
-# ★ K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다**(MDN+R17+CNUM 삭제). 서로 구분되지
-#   않으므로 각 TC 가 자기 전용 핀으로 가입을 먼저 만든 뒤 지워지는 것을 본다.
+# ★ 예약 큐에 적재되는 JOB_CODE 는 인입 코드와 다르다 — K1 이 K3 로 들어간다.
+# ★ K2 의 판정 기준은 MDN+R17+CNUM 삭제다. 해지·만료·취소가 서로 구분되지 않으므로
+#   핀(${CDS_COUPON_PIN_K1})으로만 자기 결과를 가려낸다.
 # ★ ${CDS_START_TIME} 이 과거면 가입하자마자 만료 예약이 실행돼 서비스 행이 사라진다
-#   → 가입 판정(009/011)이 이유 없이 실패한다(cds_variables.robot 참조).
+#   → 가입 판정(009)이 이유 없이 실패한다(cds_variables.robot 참조).
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-011 K1 (Data(Time) 쿠폰 가입)
+TC-CDS-009 K1 (Data(Time) 쿠폰 가입)
     [Documentation]
     ...    0015(K1) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    필드: mdn / limit / start_time / coupon_type / coupon_pin / coupon_category
@@ -448,7 +422,7 @@ TC-CDS-011 K1 (Data(Time) 쿠폰 가입)
     ...    ※ ${CDS_COUPON_CATEGORY} 가 T/P 가 아니면 Syncer 가 Invalid 로 걸러 **예약을
     ...       넣지 않는다** — 전문 흐름은 SC 로 통과하고 조회 2번째에서만 실패한다.
     ...
-    ...    이 쿠폰은 TC-CDS-012(K2)이 같은 핀으로 해지해 정리한다.
+    ...    이 쿠폰은 TC-CDS-010(K2)이 같은 핀으로 해지해 정리한다.
     [Tags]    cds    command    validation    db    coupon    noti
     Command Download Flow    ${CDS_CODE_K1}
     ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
@@ -459,16 +433,16 @@ TC-CDS-011 K1 (Data(Time) 쿠폰 가입)
     Verify SBI Noti Sent    ${CDS_CODE_K1}
 
 
-TC-CDS-012 K2 (Data(Time) 쿠폰 해지)
+TC-CDS-010 K2 (Data(Time) 쿠폰 해지)
     [Documentation]
     ...    0015(K2) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    필드: mdn / limit / coupon_pin
     ...
-    ...    [성공 판단 기준] TC-CDS-011(K1)가 넣은 쿠폰 행이 **0건**이어야 성공이다.
+    ...    [성공 판단 기준] TC-CDS-009(K1)가 넣은 쿠폰 행이 **0건**이어야 성공이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND CNUM='${CDS_COUPON_PIN_K1}'
     ...
-    ...    ※ 0건은 "해지됐다"와 "원래 없었다"를 구분하지 못한다 — TC-CDS-011 가 같은 핀으로
+    ...    ※ 0건은 "해지됐다"와 "원래 없었다"를 구분하지 못한다 — TC-CDS-009 가 같은 핀으로
     ...       먼저 도는 것을 전제로 한다. 단독 실행하면 그냥 통과한다.
     [Tags]    cds    command    validation    db    coupon    noti
     Command Download Flow    ${CDS_CODE_K2}    coupon_pin=${CDS_COUPON_PIN_K1}
@@ -484,11 +458,11 @@ TC-CDS-012 K2 (Data(Time) 쿠폰 해지)
 # 번호변경 → 해지 (체인의 끝)
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-018 D3 (번호변경)
+TC-CDS-011 D3 (번호변경)
     [Documentation]
     ...    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    성공하면 가입자의 현재 번호가 new_mdn 으로 바뀌므로 ${CDS_ACTIVE_MDN} 을 갱신한다.
-    ...    이후 TC-CDS-019(Z1)가 이 값을 대상으로 동작한다.
+    ...    이후 TC-CDS-012(Z1)가 이 값을 대상으로 동작한다.
     ...
     ...    [성공 판단 기준] C1/G1 과 같은 전후 비교인데 **번호가 바뀌는 것이 다르다.**
     ...      수행 전: MDN = 바뀌기 전 번호(${CDS_ACTIVE_MDN})
@@ -501,11 +475,11 @@ TC-CDS-018 D3 (번호변경)
     Verify Service Counts Preserved In PDB    ${CDS_NEW_MDN}    ${CDS_CODE_D3}    ${before}
     Verify SBI Noti Sent    ${CDS_CODE_D3}
 
-TC-CDS-019 Z1 (가입해지)
+TC-CDS-012 Z1 (가입해지)
     [Documentation]
     ...    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    규격 Z1 필드 15개(A1 에서 min·addSvc 를 뺀 집합)를 기본값으로 전달한다.
-    ...    ※ 해지 대상은 ${CDS_ACTIVE_MDN} — TC-CDS-018(D3)이 번호를 바꿨으면 바뀐 번호,
+    ...    ※ 해지 대상은 ${CDS_ACTIVE_MDN} — TC-CDS-011(D3)이 번호를 바꿨으면 바뀐 번호,
     ...       D3 를 건너뛰었거나 실패했으면 원래 번호(${CDS_MDN})다.
     ...    가입자 자체를 없애므로 이 체인의 마지막에 둔다.
     ...

@@ -33,8 +33,7 @@ T = {
         '슈트 전체가 쓰는 대상 가입자를 만든다 — 이 TC 가 실패하면 뒤가 전부 흔들린다.'),
  '1X': ('HFC 서비스 가입', 'TC-CDS-003', 'BSUBS-always',
         ['`T_5G_SUBS_SERVICE` (MDN, `ZONE_SVC_D`, `SVC_TYPE=D`, `JOB_CODE=1X`) = **1건 이상**'],
-        'UPM `0x07` 수신 → `0x08` 응답까지 해야 완결된다. PG 내부 상세는 '
-        '[CDS_X1.md](CDS_X1.md).'),
+        'UPM `0x07` 수신 → `0x08` 응답까지 해야 완결된다.'),
  '1Y': ('HFC 서비스 해지', 'TC-CDS-004', 'BSUBS-always',
         ['`T_5G_SUBS_SERVICE` (MDN, `ZONE_SVC_D`) = **0건** — `SVC_TYPE`/`JOB_CODE` 를 '
          '가리지 않는다(어떤 형태로든 남으면 해지가 덜 된 것)'],
@@ -52,49 +51,25 @@ T = {
  'G1': ('정보변경', 'TC-CDS-008', 'BSUBS-if-hfc',
         ['수행 **전** `SVC_ID` 별 행 수 == 수행 **후** `JOB_CODE=G1` 로 적재된 행의 집계'],
         '필드 집합이 A1 과 완전히 같다(2026-08-03 확인).'),
- 'K1': ('Data(Time) 쿠폰 가입', 'TC-CDS-011', 'SDM',
+ 'K1': ('Data(Time) 쿠폰 가입', 'TC-CDS-009', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `SVC_TYPE=N`, `JOB_CODE=K1`, '
          '`TIME_PERIOD_ID=113`, `"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=핀`) = **1건 이상**',
          '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K3`, 핀) = **1건 이상**'],
         '가입과 동시에 만료 예약이 걸린다. **인입 코드(K1)와 예약 코드(K3)가 다르다.** '
         '`START_TIME` 은 반드시 미래여야 한다 — 과거면 가입 직후 만료돼 판정이 실패한다.'),
- 'K2': ('Data(Time) 쿠폰 해지', 'TC-CDS-012', 'SDM',
+ 'K2': ('Data(Time) 쿠폰 해지', 'TC-CDS-010', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K1 의 핀`) = **0건**'],
         'K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다** — 서로 구분되지 않으므로 '
         '핀을 업무별로 나눠 쓴다.'),
- 'K4': ('Data(Time) 쿠폰 취소', 'TC-CDS-013', 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K4 전용 핀`) = **0건**'],
-        'TC 안에서 K1 으로 먼저 가입시킨 뒤 취소한다 — "0건" 이 "지워졌다" 인지 '
-        '"원래 없었다" 인지 구분되지 않기 때문이다.'),
- 'K3': ('Data(Time) 쿠폰 만료', 'TC-CDS-014', 'SDM',
+ 'K3': ('Data(Time) 쿠폰 만료', None, 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K3 전용 핀`) = **0건**'],
-        'K4 와 같은 구조. 다만 준비용 K1 의 `START_TIME` 이 **현재 시각**이다 — '
-        '유효기간이 찬 쿠폰이 필요하기 때문이다.'),
- 'K5': ('Data(Time) 3Mbps 쿠폰 가입', 'TC-CDS-009', 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `SVC_TYPE=N`, `JOB_CODE=K5`, '
-         '`TIME_PERIOD_ID=0`, `"LIMIT"=2`, `LIMIT_VALID_TIME`, `CNUM=핀`) = **1건 이상**',
-         '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K7`, 핀) = **1건 이상**'],
-        'K1 과 같은 구조. 예약 큐 코드는 K7 이다.'),
- 'K6': ('Data(Time) 3Mbps 쿠폰 해지', 'TC-CDS-010', 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K5 의 핀`) = **0건**'], ''),
- 'Y9': ('Data(Zone) 쿠폰 사용시점 알림', 'TC-CDS-015', 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `ZONE_SVC_B`, `SVC_TYPE=Z`, `JOB_CODE=Y9`, '
-         '`TIME_PERIOD_ID=25`, `"LIMIT"=0`, `LIMIT_VALID_TIME`) = **1건 이상**',
-         '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=Y6`, 핀) = **1건 이상**'],
-        '`SVC_ID` 가 1X 의 `ZONE_SVC_D` 와 다르다(`ZONE_SVC_B`). '
-        '`COUPON_TYPE=T` 여야 예약 큐에 Y6 이 들어간다 — 숫자면 Y8 이다.'),
- 'SS': ('0플랜 옵션(3시간 프리) 가입', 'TC-CDS-016', 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `TIME_SVC_I`, `SVC_TYPE=T`, `JOB_CODE=SS`, '
-         "`TIME_PERIOD_ID='SS_' + START_TIME(12자리)`, `\"LIMIT\"=0`, `CNUM=0`) = **1건 이상**"],
-        '시간을 `LIMIT_VALID_TIME` 이 아니라 **`TIME_PERIOD_ID` 로 본다.** '
-        'K1/K5/Y9 처럼 초 `00` 이 붙지 않는 12자리다 — 헷갈리는 자리다.'),
- 'ST': ('0플랜 옵션(3시간 프리) 해지', 'TC-CDS-017', 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `TIME_SVC_I`) = **0건**'],
-        'CNUM 이 없어 `MDN + SVC_ID` 로만 판정한다.'),
- 'D3': ('번호변경', 'TC-CDS-018', 'BSUBS-if-hfc',
+        '준비용 K1 의 `START_TIME` 이 **현재 시각**이어야 한다 — 유효기간이 찬 '
+        '쿠폰이 필요하기 때문이다. "0건" 이 "만료됐다" 인지 "원래 없었다" 인지 '
+        '구분되지 않으므로, TC 를 만들 때는 자기 핀으로 가입을 먼저 만들어야 한다.'),
+ 'D3': ('번호변경', 'TC-CDS-011', 'BSUBS-if-hfc',
         ['수행 **전**(옛 번호) `SVC_ID` 별 행 수 == 수행 **후**(새 번호, `JOB_CODE=D3`) 집계'],
         '성공하면 `${CDS_ACTIVE_MDN}` 을 새 번호로 갱신한다 → 뒤의 Z1 이 그 번호로 해지한다.'),
- 'Z1': ('가입해지', 'TC-CDS-019', 'BSUBS-if-hfc',
+ 'Z1': ('가입해지', 'TC-CDS-012', 'BSUBS-if-hfc',
         ['`T_5G_SUBS_PROFILE` (MDN) = **0건**',
          '`T_5G_SUBS_SERVICE` (MDN, `SVC_ID` 무관) = **0건**'],
         '체인의 끝. **가입한 적이 없어도 통과한다** — 0건은 "지워졌다"와 "원래 없었다"를 '
@@ -137,14 +112,6 @@ PDB_POST = {
         'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K3 + 핀)'],
  'K2': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
  'K3': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
- 'K4': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
- 'K5': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + R17 + N + K5 + TPID=0 + LIMIT=2 + LIMIT_VALID_TIME + CNUM)',
-        'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K7 + 핀)'],
- 'K6': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
- 'Y9': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + ZONE_SVC_B + Z + Y9 + TPID=25 + LIMIT=0 + LIMIT_VALID_TIME)',
-        'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=Y6 + 핀)'],
- 'SS': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + TIME_SVC_I + T + SS + TPID=SS_+START_TIME + LIMIT=0 + CNUM=0)'],
- 'ST': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + TIME_SVC_I) — 0건'],
  'D3': ['수행 후 JOB_CODE=D3 로 적재된 행 집계 (새 MDN)'],
  'Z1': ['T_5G_SUBS_PROFILE 삭제 확인 (MDN) — 0건',
         'T_5G_SUBS_SERVICE 삭제 확인 (MDN, SVC_ID 무관) — 0건'],
@@ -301,7 +268,8 @@ def render(code):
     L.append('| 항목 | 값 |')
     L.append('|---|---|')
     L.append('| 업무 코드 | `%s` |' % code)
-    L.append('| 테스트 케이스 | `%s` |' % tc)
+    L.append('| 테스트 케이스 | %s |' % (
+        '`%s`' % tc if tc else '**없음** — 이 코드를 보내는 TC 가 아직 없다'))
     L.append('| 알림 경로 | %s — %s |' % (label, rule))
     L.append('| 알림 판정 | %s |' % (
         '**건너뜀** — 예외 목록에 있음 (아래 ⚠️)' if code in EXEMPT
@@ -363,15 +331,20 @@ def render(code):
     L.append('## 관련 문서')
     L.append('')
     L.append('- [CDS 노드 스펙](../nodes/CDS.md) — 인코딩 표, 함정, LTE/SA 차이')
-    L.append('- [1X 전문 End-to-End](CDS_X1.md) — PG 내부 프로세스 상세')
-    L.append('- `tests/cds/cds_tests.robot` — `%s`' % tc)
+    if tc:
+        L.append('- `tests/cds/cds_tests.robot` — `%s`' % tc)
+    else:
+        L.append('- `tests/cds/cds_tests.robot` — **해당 TC 없음** '
+                 '(전문·판정 기준만 정리해 둔 시트다)')
     L.append('')
     return '\n'.join(L)
 
 
 # TC 번호 순 = 슈트 실행 순서. 바꾸면 인덱스 표의 순서도 같이 바뀐다.
-order = ['A1', '1X', '1Y', 'I2', 'I3', 'C1', 'G1',
-         'K5', 'K6', 'K1', 'K2', 'K4', 'K3', 'Y9', 'SS', 'ST', 'D3', 'Z1']
+order = ['A1', '1X', '1Y', 'I2', 'I3', 'C1', 'G1', 'K1', 'K2', 'D3', 'Z1',
+         # K3 만 TC 없이 시트가 남아 있다. 나머지 코드(K4/K5/K6/Y9/SS/ST)의 시트는
+         # 2026-08-21 에 지웠다 — 되살리지 않으려면 이 목록과 위 T 표 둘 다 비어야 한다.
+         'K3']
 for code in order:
     path = os.path.join(OUT, 'CDS_%s.md' % code)
     io.open(path, 'w', encoding='utf-8', newline='').write(render(code))
@@ -400,6 +373,8 @@ idx = ['# CDS 업무 코드별 콜플로우', '',
        'PG 내부 처리는 배경이 없다 — `0017 CommandResult` 가 `SC` 여도 밴드 안이 틀리면 실패다.',
        '전후 비교형(`C1` `G1` `D3`)은 밴드가 둘이다 — 전문 앞의 **기준선**과 뒤의 **집계**.', '',
        '## 업무 코드', '',
+       '위 11개가 슈트 실행 순서다. 마지막 `K3` 은 **전문·판정 기준만 정리해 둔 시트**로,',
+       '이 코드를 보내는 TC 가 아직 없다.', '',
        '| 업무 코드 | 내용 | TC | 경로 | 알림 판정 |', '|---|---|---|---|---|']
 for c in order:
     name, tc, route, _, _ = T[c]
@@ -407,11 +382,11 @@ for c in order:
            'BSUBS-if-hfc': 'BSUBS / SDM (HFC 상태)',
            'SDM': 'SDM'}[route]
     mark = '건너뜀 ⚠️' if c in EXEMPT else '확인'
-    idx.append('| [`%s`](CDS_%s.md) | %s | `%s` | %s | %s |' % (c, c, name, tc, lbl, mark))
+    idx.append('| [`%s`](CDS_%s.md) | %s | %s | %s | %s |' % (
+        c, c, name, '`%s`' % tc if tc else '— (TC 없음)', lbl, mark))
 idx += ['', '⚠️ = `@{CDS_NOTI_EXEMPT_CODES}` 에 있어 판정을 건너뛴다. '
         '위 경로 규칙과 어긋나는 지점이라 확인이 필요하다(각 문서의 해당 절 참조).', '',
         '## 그 밖의 문서', '',
-        '- [CDS_X1.md](CDS_X1.md) — 1X 전문의 PG 내부 End-to-End (SDM/SNOTI 계열 + BSUBS 계열 병행)',
         '- [../nodes/CDS.md](../nodes/CDS.md) — CDS 노드 스펙 (인코딩 표, 함정, LTE/SA 차이)', '']
 io.open('docs/callflow/README.md', 'w', encoding='utf-8', newline='').write(chr(10).join(idx))
 print('docs/callflow/README.md  (인덱스)')

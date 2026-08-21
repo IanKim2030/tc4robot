@@ -3,7 +3,7 @@
 | 항목 | 값 |
 |---|---|
 | 업무 코드 | `D3` |
-| 테스트 케이스 | `TC-CDS-018` |
+| 테스트 케이스 | `TC-CDS-011` |
 | 알림 경로 | HFC **가입** 상태 → BSUBS / **미가입** → SDM — 규칙 2 |
 | 알림 판정 | `Verify SBI Noti Sent` 가 도착을 확인 |
 | UPM 연동 | 없음 |
@@ -109,5 +109,4 @@ Body 는 업무 코드와 무관하게 **항상 327B** 다. 아래 필드만 채
 ## 관련 문서
 
 - [CDS 노드 스펙](../nodes/CDS.md) — 인코딩 표, 함정, LTE/SA 차이
-- [1X 전문 End-to-End](CDS_X1.md) — PG 내부 프로세스 상세
-- `tests/cds/cds_tests.robot` — `TC-CDS-018`
+- `tests/cds/cds_tests.robot` — `TC-CDS-011`
