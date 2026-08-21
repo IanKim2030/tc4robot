@@ -48,14 +48,14 @@ sequenceDiagram
     BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
     BSUBS->>UPM: 0x07 Subs-Info-Request
     UPM->>BSUBS: 0x08 Subs-Info-Response (Cell List)
-    BSUBS->>PDB: T_BAROD_SUBS_CELLINFO 저장
+    BSUBS->>PDB: INSERT T_BAROD_SUBS_CELLINFO 
     BSUBS->>SNOTI: RBUS NOTI
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
     SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
     rect rgba(255, 176, 32, 0.14)
     Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
-        TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + ZONE_SVC_D + SVC_TYPE=D + JOB_CODE=1X)
+        TOOL->>PDB: SELECT T_5G_SUBS_SERVICE (MDN + ZONE_SVC_D + SVC_TYPE=D + JOB_CODE=1X) - 1 건
     end
 ```
 
