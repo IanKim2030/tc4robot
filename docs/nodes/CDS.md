@@ -792,7 +792,7 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 | 108 | `mvno` | MVNO_COMPANY / mvnoCompa | 1 | | 공백 |
 | 109 | `limit` | LIMIT_SUBS_FG / limitSubsFlag | 1 | 한도형 가입자 | ● |
 | 110 | `qos_param` | ROAMING_QOS_PARAM | 1 | | |
-| 111 | `start_time` | START_TIME | 12 | 쿠폰 종료 시간 / 시간프리 Start | |
+| 111 | `start_time` | START_TIME | 12 | **쿠폰 종료 시간** / 시간프리 Start ★ | |
 | 123 | `coupon_type` | COUPON_TYPE | 2 | 쿠폰 권종 / 시간프리 End | |
 | 125 | `coupon_pin` | COUPON_PIN | 11 | | |
 | 136 | `ms_type` | MS_TYPE / catMsType | 1 | Cat.M1 단말 타입 | 공백 |
@@ -800,7 +800,7 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 | 139 | `category_5g` | CATEGORY_5G / 5gCatgy | 2 | Default 10 | 공백 |
 | 141 | `device_type` | DEVICE_TYPE / devceType | 1 | W=3G L=LTE N=NSA S=SA (Null=LTE) | ● |
 | 142 | `coupon_category` | COUPON_CATEGORY | 1 | T=Time P=Period | |
-| 143 | `real_start_time` | REAL_START_TIME | 12 | 쿠폰 시작 시간 | |
+| 143 | `real_start_time` | REAL_START_TIME | 12 | 쿠폰 **시작** 시간 (91/92 만 쓴다) ★ | |
 | 155 | `addr` | ADDR | 170 | 주소 (**cp949**) | |
 | 325 | `product_type` | PRODUCT_GEN_TYPE / produGenType | 2 | 01=3G 02=LTE 03=5G | ● |
 
@@ -1016,6 +1016,23 @@ python -m robot --test "TC-CDS-013*" --variable CDS_ACTIVE_MDN:01090010002 tests
   → `Send Upload Result` 순. 해당 TC 는 PG 이벤트가 필요해 주석 처리돼 있다.
 - Release 시 PG 가 ACK 없이 끊는 경우가 정상 동작으로 취급된다
   (`Send Release And Validate` 가 `Run Keyword And Return Status` 로 처리).
+
+### `START_TIME` 은 쿠폰의 **종료** 시각이다
+
+이름이 정반대다. offset 111 `START_TIME` 이 나르는 것은 **쿠폰 종료 시간**이고,
+쿠폰이 언제 시작하는지는 offset 143 `REAL_START_TIME` 이라는 **별도 필드**다.
+
+`K1`/`K5` 분기는 `REAL_START_TIME` 을 **선언하지 않는다**(`91`/`92` 만 쓴다).
+그래서 쿠폰 가입에서 우리가 정하는 시각은 "언제 끝나는가" 하나뿐이다 —
+시작 시각을 같이 보내려고 해도 값이 조용히 버려진다(바로 아래 함정).
+
+PDB 판정이 보는 `LIMIT_VALID_TIME`(= `START_TIME` + 초 `00`)이 **유효기간 만료
+시각**인 것도 그래서다. `TC-CDS-011`(쿠폰 만료)이 이 값을 현재 시각 근처로 보내는
+것은 "곧 끝나는 쿠폰" 을 만드는 것이고, PG.RDS 는 그 시각이 지난 예약을 집어 지운다.
+
+**`${CDS_START_TIME}` 을 "가입 시작 시각" 으로 읽으면 부호가 뒤집힌다** — 먼 미래
+기본값(`203712312359`)이 "아주 나중에 시작" 이 아니라 **"아주 나중에 끝난다"**,
+즉 사실상 만료되지 않는 쿠폰이라는 뜻이다.
 
 ### 코드 분기가 선언하지 않은 필드는 값을 넘겨도 버려진다
 

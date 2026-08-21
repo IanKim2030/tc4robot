@@ -390,12 +390,18 @@ ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (0
 #   K2/K3/K4/K6 : mdn limit coupon_pin
 #   SS/ST    : mdn limit start_time coupon_type
 #
-# ★ START_TIME 은 반드시 **미래**여야 한다.
+# ★ 이름이 START 지만 **쿠폰 종료 시각(couponStopTime)**이다.
+#   offset 111 START_TIME 의 실제 의미가 "쿠폰 종료 시간" 이다(docs/nodes/CDS.md 필드 표).
+#   쿠폰 시작 시각은 별도 필드 REAL_START_TIME(offset 143)이고, K1/K5 분기는 그것을
+#   **선언하지 않는다** — 넘겨도 버려진다(91/92 만 쓴다). 그래서 쿠폰 가입에서
+#   우리가 정하는 시각은 "언제 끝나는가" 하나뿐이다.
+#
+# ★ 그래서 이 값은 반드시 **미래**여야 한다.
 #   K1/K5 가입은 서비스 행을 넣는 동시에 예약 큐에 만료(K3/K7) 예약을 건다. PG.RDS 가
 #   START_TIME 이 지난 예약을 집어 실행하므로, 과거 시각을 넣으면 **가입하자마자 만료가
 #   실행돼** 서비스 행이 사라진다 → 가입 판정(TC-CDS-009)이 이유 없이 실패한다.
 #   이 값이 과거가 되면 여기를 먼저 볼 것.
-${CDS_START_TIME}              203712312359             # 예약 시작 시각 YYYYMMDDHH24MI (미래여야 함)
+${CDS_START_TIME}              203712312359             # 쿠폰 종료 시각 YYYYMMDDHH24MI (미래여야 함)
 
 # ── START_TIME 을 현재 시각 기준으로 잡고 싶을 때 ───────────────
 # 위 고정값 대신 **실행 시각 + N분**으로 잡는다. Suite Setup 의
