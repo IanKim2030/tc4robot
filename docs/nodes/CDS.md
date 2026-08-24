@@ -581,7 +581,31 @@ SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 
 `0x08` 응답을 반드시 보내야 한다 — 안 보내면 PG 가 UPM 응답을 기다리다 재시도로 넘어가
 **뒤따르는 TC 의 PDB 판정이 흔들린다.**
 
-### PCF SBI Noti 수신 — 도구가 PCF 역할로 HTTP/2 Listen
+### `C1`/`G1` 도 HFC 가입 상태면 UPM 을 탄다 — 코드 종류가 다르다
+
+**PG 소스로 확정(2026-08-24)** — `BSUBS/SIF.cpp` `processInfoChgReq`/`processInfoChgRes`,
+`BSUBS/BaroDSubDB.sc` `UpdateInfoChg()`. `1X`/`1Y` 와 **다른 메시지 종류**를 쓴다.
+
+| 코드 | UPM 메시지 | PDB (BSUBS → UPM 사이) |
+|---|---|---|
+| `1X`/`1Y` | `0x07` Subs-Info-Request / `0x08` Response | 없음 (UPM 응답 뒤 `T_BAROD_SUBS_CELLINFO` 저장·삭제) |
+| `C1`/`G1` | `0x0d` Info-Change-Request / `0x0e` Response | `UPDATE T_BAROD_SUBS_CELLINFO` (UPM 요청 **전**) |
+
+`C1`(기기변경)은 `MIN`·기종·상태를, `G1`(정보변경)은 기종·상태를 갱신한다 — `UpdateInfoChg()`
+안에서 `jobcode` 로 SQL 이 갈린다(`C1` 만 `MIN` 컬럼을 추가로 쓴다).
+
+이 경로는 **PG.CDS 가 `ZONE_SVC_D` 로 HFC 가입을 확인해 `T_BAROD_ORDER_HIST` 에 INSERT 했을
+때만** 열린다(규칙 2). 지금 슈트 순서로는 그 분기를 타는 TC 가 없다 — "선택적 NOTI" 절 참조.
+`TC-CDS-007`/`008` 은 항상 SDM 경유로만 검증된다.
+
+**⚠ RBUS NOTI 여부는 확인하지 못했다.** 같은 소스에서 `processInfoChgRes` 를 끝까지 읽었으나
+`sendnotiByRbus`/`sendnotiByHttp` 호출이 보이지 않는다 — `1X`/`1Y`(`processSubsInfoRes`)나
+`D3`(`processSubsChgReq`, 요청 직후 무조건 호출)와 다르다. `Z1`(`processSubsDelReq`)도 마찬가지로
+호출이 없다. 규칙 2 는 `C1`/`G1`/`D3`/`Z1` 넷을 묶어 "HFC 가입 시 BSUBS 가 NOTI" 라고 정했는데,
+소스상으로는 **`D3` 만 그 조건을 뚜렷이 만족한다.** 이 다이어그램의 `alt HFC 가입 → BSUBS→SNOTI`
+줄은 아직 그 업무 규칙을 그대로 따른 것이지, 이 소스 확인으로 검증된 것이 아니다.
+
+### PCF SBI Noti 수신 — 도구가 PCF 역할로 HTTP/2 Listen — 도구가 PCF 역할로 HTTP/2 Listen
 
 SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. `1X` 흐름에서 PCF 방향 화살표는
 원래 둘인데, **그중 하나는 실제로 나가지 않는다.**

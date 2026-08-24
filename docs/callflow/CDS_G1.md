@@ -22,6 +22,7 @@ sequenceDiagram
     participant PDB as PDB
     participant SDM as PG.SDM
     participant BSUBS as PG.BSUBS
+    participant UPM as ROBOT (UPM 역할)
     participant SNOTI as PG.SNOTI
     participant PCF as ROBOT (PCF 역할)
 
@@ -47,6 +48,9 @@ sequenceDiagram
 
     opt ZONE_SVC_D 있음 — HFC 가입
         BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
+        BSUBS->>PDB: UPDATE T_BAROD_SUBS_CELLINFO (기종/상태)
+        BSUBS->>UPM: 0x0d Info-Change-Request
+        UPM->>BSUBS: 0x0e Info-Change-Response
     end
     SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
     SDM->>PDB: T_5G_SUBS_* 반영

@@ -137,6 +137,16 @@ BSUBS_EXTRA = {
  'Z1': 'DELETE T_BAROD_SUBS_CELLINFO (CellList 삭제)',
 }
 
+# BSUBS 가 폴링 뒤 UPM 과 왕복하는 코드. PG 소스로 확정(2026-08-24) —
+# BSUBS/SIF.cpp processInfoChgReq/Res, BSUBS/BaroDSubDB.sc UpdateInfoChg().
+# (db_step, upm_req, upm_resp)
+UPM_ROUNDTRIP = {
+ 'C1': ('UPDATE T_BAROD_SUBS_CELLINFO (MIN/기종/상태)',
+        '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
+ 'G1': ('UPDATE T_BAROD_SUBS_CELLINFO (기종/상태)',
+        '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
+}
+
 SDM_APPLY = {
  '1X': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X)',
  '1Y': 'DELETE FROM T_5G_SUBS_SERVICE WHERE SVC_ID=ZONE_SVC_D',
@@ -172,6 +182,8 @@ def mermaid(code, route):
     else:
         L.append('    participant SDM as PG.SDM')
         L.append('    participant BSUBS as PG.BSUBS')
+        if code in UPM_ROUNDTRIP:
+            L.append('    participant UPM as ROBOT (UPM 역할)')
     if code not in NO_NOTI:
         L.append('    participant SNOTI as PG.SNOTI')
         L.append('    participant PCF as ROBOT (PCF 역할)')
@@ -235,6 +247,11 @@ def mermaid(code, route):
             # Cell 정리를 먼저 끝내고 가입자 테이블을 지운다. 순서가 뒤집히면
             # ZONE_SVC_D 가 먼저 사라져 BSUBS 가 지울 대상을 잃는다.
             L.append('        BSUBS->>PDB: %s' % BSUBS_EXTRA[code])
+        if code in UPM_ROUNDTRIP:
+            db_step, req, resp = UPM_ROUNDTRIP[code]
+            L.append('        BSUBS->>PDB: %s' % db_step)
+            L.append('        BSUBS->>UPM: %s' % req)
+            L.append('        UPM->>BSUBS: %s' % resp)
         L.append('    end')
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
         L.append('    SDM->>PDB: %s' % apply_step(code))
