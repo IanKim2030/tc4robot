@@ -40,7 +40,7 @@ sequenceDiagram
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
     SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
-    SDM->>PDB: INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X)
+    SDM->>PDB: INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     SDM--xSNOTI: RBUS NOTI 없음
     Note over SDM,SNOTI: 1X/1Y 인 경우 PG.SDM 에서 RBUS NOTI 하지 않음 — PG.BSUBS 가 RBUS NOTI 한다
