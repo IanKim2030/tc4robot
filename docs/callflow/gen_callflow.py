@@ -140,6 +140,12 @@ BSUBS_EXTRA = {
 # BSUBS 가 폴링 뒤 UPM 과 왕복하는 코드. PG 소스로 확정(2026-08-24) —
 # BSUBS/SIF.cpp processInfoChgReq/Res, BSUBS/BaroDSubDB.sc UpdateInfoChg().
 # (db_step, upm_req, upm_resp)
+# BSUBS 연동(UPM 왕복 포함)이 열릴 때만 알림도 나간다고 확인된 코드.
+# 미가입이면 이 코드는 RBUS NOTI 자체가 없다 — SDM 쪽 대체 알림도 없다.
+# (PG 소스 확인: BSUBS/SIF.cpp processInfoChgReq/Res 에 sendnotiByRbus 호출이 없다.
+#  D3/Z1 은 아직 같은 확인을 하지 않아 여기 넣지 않았다 — 기존 alt 구조 그대로다.)
+NOTI_HFC_ONLY = {'C1', 'G1'}
+
 UPM_ROUNDTRIP = {
  'C1': ('UPDATE T_BAROD_SUBS_CELLINFO (MIN/기종/상태)',
         '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
@@ -147,9 +153,13 @@ UPM_ROUNDTRIP = {
         '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
 }
 
+# 값이 리스트면 여러 줄로 나눠 그린다 — C1 은 PROFILE/SERVICE 를 따로 적재한다
+# (사용자가 2026-08-24 15:27 수동 커밋 4dab4d9 로 지정, 재생성 때 유실되어 복구).
 SDM_APPLY = {
  '1X': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X)',
  '1Y': 'DELETE FROM T_5G_SUBS_SERVICE WHERE SVC_ID=ZONE_SVC_D',
+ 'C1': ['INSERT INTO SELECT T_5G_SUBS_PROFILE', 'INSERT INTO SELECT T_5G_SUBS_SERVICE'],
+ 'G1': ['INSERT INTO SELECT T_5G_SUBS_PROFILE', 'INSERT INTO SELECT T_5G_SUBS_SERVICE', 'UPDATE T_5G_SUBS_SERVICE (SVC_ID=DATA_USAGE_LEVEL, DATA_USAGE_LEVEL_2)'],
 }
 
 # BSUBS 가 Cell 정보에 하는 일. 가입(1X)은 저장, 해지(1Y)는 삭제다.
@@ -159,8 +169,9 @@ CELL_STEP = {
 }
 
 
-def apply_step(code):
-    return SDM_APPLY.get(code, 'T_5G_SUBS_* 반영')
+def apply_steps(code):
+    v = SDM_APPLY.get(code, 'T_5G_SUBS_* 반영')
+    return v if isinstance(v, list) else [v]
 
 
 HDR = """participant TOOL as ROBOT (CDS 역할)
@@ -221,7 +232,7 @@ def mermaid(code, route):
         # 가입자 테이블 반영은 1X/1Y 도 SDM 이 한다. PDB 판정이 보는 행이
         # 여기서 생긴다 — 이 블록이 빠지면 판정 대상이 어디서 왔는지 사라진다.
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
-        L.append('    SDM->>PDB: %s' % apply_step(code))
+        [L.append('    SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM--xSNOTI: RBUS NOTI 없음')
         L.append('    Note over SDM,SNOTI: 1X/1Y 인 경우 PG.SDM 에서 RBUS NOTI 하지 않음 — PG.BSUBS 가 RBUS NOTI 한다')
@@ -231,43 +242,71 @@ def mermaid(code, route):
         L.append('    UPM->>BSUBS: 0x08 Subs-Info-Response (Cell List)')
         L.append('    BSUBS->>PDB: %s' % CELL_STEP[code])
         L.append('    BSUBS->>SNOTI: RBUS NOTI')
+        if code not in NO_NOTI:
+            L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
+            L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+            L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     elif route == 'SDM':
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
-        L.append('    SDM->>PDB: %s' % apply_step(code))
+        [L.append('    SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
         # 가입자 반영을 끝낸 뒤 SDM 도 TID 를 갱신한다 — PG.CDS 것과 별개로 한 번 더다.
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM->>SNOTI: RBUS NOTI')
+        if code not in NO_NOTI:
+            L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
+            L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+            L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     else:
         # C1/G1/D3/Z1 공통. HFC 지시는 위(PG.CDS)에서 이미 나갔고, 여기는
         # BSUBS 가 그것을 집어 처리하는 자리다.
-        # 위 opt 에서 지시가 들어갔을 때만 BSUBS 가 집을 것이 생긴다.
-        L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
-        L.append('        BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
-        if code in BSUBS_EXTRA:
-            # Cell 정리를 먼저 끝내고 가입자 테이블을 지운다. 순서가 뒤집히면
-            # ZONE_SVC_D 가 먼저 사라져 BSUBS 가 지울 대상을 잃는다.
-            L.append('        BSUBS->>PDB: %s' % BSUBS_EXTRA[code])
-        if code in UPM_ROUNDTRIP:
-            db_step, req, resp = UPM_ROUNDTRIP[code]
-            L.append('        BSUBS->>PDB: %s' % db_step)
-            L.append('        BSUBS->>UPM: %s' % req)
-            L.append('        UPM->>BSUBS: %s' % resp)
-        L.append('    end')
+        # SDM 은 HFC 여부와 무관하게 가입자 테이블을 갱신한다 — 먼저 그린다.
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
-        L.append('    SDM->>PDB: %s' % apply_step(code))
+        [L.append('    SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
-        if code not in NO_NOTI:
-            # 보내는 쪽은 갈린다(규칙 2) — 여기는 진짜 alt 다.
-            L.append('    alt HFC 가입')
+
+        def _bsubs_upm_lines(indent):
+            out = []
+            out.append('%sBSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)' % indent)
+            if code in BSUBS_EXTRA:
+                # Cell 정리를 먼저 끝내고 가입자 테이블을 지운다. 순서가 뒤집히면
+                # ZONE_SVC_D 가 먼저 사라져 BSUBS 가 지울 대상을 잃는다.
+                out.append('%sBSUBS->>PDB: %s' % (indent, BSUBS_EXTRA[code]))
+            if code in UPM_ROUNDTRIP:
+                db_step, req, resp = UPM_ROUNDTRIP[code]
+                out.append('%sBSUBS->>PDB: %s' % (indent, db_step))
+                out.append('%sBSUBS->>UPM: %s' % (indent, req))
+                out.append('%sUPM->>BSUBS: %s' % (indent, resp))
+            return out
+
+        if code in NOTI_HFC_ONLY:
+            # BSUBS 연동 자체가 HFC 가입 상태에서만 일어난다 — RBUS NOTI 이후 SNOTI
+            # 세션 조회·SBI Noti 까지 전부 이 조건 하나에 걸린다. 미가입이면 이
+            # 블록 전체가 통째로 일어나지 않는다 — SDM 쪽 대체 알림은 없다
+            # (PG 소스 확인: processInfoChgReq/Res 에 sendnotiByRbus 호출이 없다).
+            L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
+            L.extend(_bsubs_upm_lines('        '))
             L.append('        BSUBS->>SNOTI: RBUS NOTI')
-            L.append('    else HFC 미가입')
-            L.append('        SDM->>SNOTI: RBUS NOTI')
+            if code not in NO_NOTI:
+                L.append('        SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
+                L.append('        SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+                L.append('        SNOTI->>PCF: SBI Noti (h2c)')
             L.append('    end')
-    # SNOTI 는 RBUS NOTI 를 받으면 세션을 먼저 찾는다 — 보낼 대상(PCF)이 세션에 붙어 있다.
-    if code not in NO_NOTI:
-        L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
-        L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
-        L.append('    SNOTI->>PCF: SBI Noti (h2c)')
+        else:
+            # 위 opt 에서 지시가 들어갔을 때만 BSUBS 가 집을 것이 생긴다.
+            L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
+            L.extend(_bsubs_upm_lines('        '))
+            L.append('    end')
+            if code not in NO_NOTI:
+                # 보내는 쪽은 갈린다(규칙 2) — 여기는 진짜 alt 다.
+                L.append('    alt HFC 가입')
+                L.append('        BSUBS->>SNOTI: RBUS NOTI')
+                L.append('    else HFC 미가입')
+                L.append('        SDM->>SNOTI: RBUS NOTI')
+                L.append('    end')
+            if code not in NO_NOTI:
+                L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
+                L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+                L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     # TC 의 성패가 갈리는 자리. 위의 전문 왕복과 눈으로 구분되게 밴드로 감싼다.
     L.append('    rect %s' % BAND)
     L.append('    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
