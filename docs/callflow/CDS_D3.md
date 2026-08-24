@@ -22,6 +22,7 @@ sequenceDiagram
     participant PDB as PDB
     participant SDM as PG.SDM
     participant BSUBS as PG.BSUBS
+    participant UPM as ROBOT (UPM 역할)
     participant SNOTI as PG.SNOTI
     participant PCF as ROBOT (PCF 역할)
 
@@ -46,22 +47,23 @@ sequenceDiagram
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
     SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
-    SDM->>PDB: T_5G_SUBS_* 반영
+    SDM->>PDB: INSERT INTO SELECT T_5G_SUBS_PROFILE (MDN)
+    SDM->>PDB: INSERT INTO SELECT T_5G_SUBS_SERVICE (MDN)
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     opt ZONE_SVC_D 있음 — HFC 가입
         BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
-    end
-    alt HFC 가입
+        BSUBS->>PDB: SELECT T_BAROD_SUBS_CELLINFO (MDN)
+        BSUBS->>PDB: INSERT T_BAROD_SUBS_CELLINFO (NEW MDN)
+        BSUBS->>UPM: 0x05 Subs-Change-Request
         BSUBS->>SNOTI: RBUS NOTI
-    else HFC 미가입
-        SDM->>SNOTI: RBUS NOTI
+        UPM->>BSUBS: 0x06 Subs-Change-Response
+        SNOTI->>PDB: SELECT T_SESSION_INFO (NEW MDN)
+        SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (NEW MDN)
+        SNOTI->>PCF: SBI Noti (h2c)
     end
-    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
-    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
-    SNOTI->>PCF: SBI Noti (h2c)
     rect rgba(255, 176, 32, 0.14)
     Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회
-        TOOL->>PDB: 수행 후 JOB_CODE=D3 로 적재된 행 집계 (새 MDN)
+        TOOL->>PDB: 수행 후 JOB_CODE=D3 로 적재된 행 집계 (NEW MDN)
         Note over TOOL,PDB: 두 집계가 같으면 성공
     end
 ```

@@ -144,13 +144,20 @@ BSUBS_EXTRA = {
 # 미가입이면 이 코드는 RBUS NOTI 자체가 없다 — SDM 쪽 대체 알림도 없다.
 # (PG 소스 확인: BSUBS/SIF.cpp processInfoChgReq/Res 에 sendnotiByRbus 호출이 없다.
 #  D3/Z1 은 아직 같은 확인을 하지 않아 여기 넣지 않았다 — 기존 alt 구조 그대로다.)
-NOTI_HFC_ONLY = {'C1', 'G1'}
+NOTI_HFC_ONLY = {'C1', 'G1', 'D3'}
+
+# UPM 요청을 보낸 직후 RBUS NOTI 부터 쏘고, 응답은 그 뒤에 받는 코드.
+# (PG 소스 확인: BSUBS/SIF.cpp processSubsChgReq — sendnotiByRbus 가
+#  UPM Send() 성공 직후, 0x06 응답을 기다리지 않고 바로 불린다.)
+NOTIFY_BEFORE_RESPONSE = {'D3'}
 
 UPM_ROUNDTRIP = {
  'C1': ('UPDATE T_BAROD_SUBS_CELLINFO (MIN/기종/상태)',
         '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
  'G1': ('UPDATE T_BAROD_SUBS_CELLINFO (기종/상태)',
         '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
+ 'D3': (['SELECT T_BAROD_SUBS_CELLINFO (옛 MDN)', 'INSERT T_BAROD_SUBS_CELLINFO (새 MDN)'],
+        '0x05 Subs-Change-Request', '0x06 Subs-Change-Response'),
 }
 
 # 값이 리스트면 여러 줄로 나눠 그린다 — C1 은 PROFILE/SERVICE 를 따로 적재한다
@@ -160,6 +167,8 @@ SDM_APPLY = {
  '1Y': 'DELETE FROM T_5G_SUBS_SERVICE WHERE SVC_ID=ZONE_SVC_D',
  'C1': ['INSERT INTO SELECT T_5G_SUBS_PROFILE', 'INSERT INTO SELECT T_5G_SUBS_SERVICE'],
  'G1': ['INSERT INTO SELECT T_5G_SUBS_PROFILE', 'INSERT INTO SELECT T_5G_SUBS_SERVICE', 'UPDATE T_5G_SUBS_SERVICE (SVC_ID=DATA_USAGE_LEVEL, DATA_USAGE_LEVEL_2)'],
+ 'D3': ['INSERT INTO SELECT T_5G_SUBS_PROFILE (MDN)', 'INSERT INTO SELECT T_5G_SUBS_SERVICE (MDN)'],
+ 'Z1': 'DELETE T_5G_SUBS_*',
 }
 
 # BSUBS 가 Cell 정보에 하는 일. 가입(1X)은 저장, 해지(1Y)는 삭제다.
@@ -264,7 +273,8 @@ def mermaid(code, route):
         [L.append('    SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
 
-        def _bsubs_upm_lines(indent):
+        def _bsubs_pre_lines(indent):
+            # UPM 응답(0x_e/0x06) 은 코드마다 위치가 달라 여기서 뺀다 — 아래서 각자 넣는다.
             out = []
             out.append('%sBSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)' % indent)
             if code in BSUBS_EXTRA:
@@ -273,19 +283,33 @@ def mermaid(code, route):
                 out.append('%sBSUBS->>PDB: %s' % (indent, BSUBS_EXTRA[code]))
             if code in UPM_ROUNDTRIP:
                 db_step, req, resp = UPM_ROUNDTRIP[code]
-                out.append('%sBSUBS->>PDB: %s' % (indent, db_step))
+                for s in (db_step if isinstance(db_step, list) else [db_step]):
+                    out.append('%sBSUBS->>PDB: %s' % (indent, s))
                 out.append('%sBSUBS->>UPM: %s' % (indent, req))
-                out.append('%sUPM->>BSUBS: %s' % (indent, resp))
             return out
+
+        def _upm_resp_line(indent):
+            if code not in UPM_ROUNDTRIP:
+                return None
+            _, _, resp = UPM_ROUNDTRIP[code]
+            return '%sUPM->>BSUBS: %s' % (indent, resp)
 
         if code in NOTI_HFC_ONLY:
             # BSUBS 연동 자체가 HFC 가입 상태에서만 일어난다 — RBUS NOTI 이후 SNOTI
             # 세션 조회·SBI Noti 까지 전부 이 조건 하나에 걸린다. 미가입이면 이
-            # 블록 전체가 통째로 일어나지 않는다 — SDM 쪽 대체 알림은 없다
-            # (PG 소스 확인: processInfoChgReq/Res 에 sendnotiByRbus 호출이 없다).
+            # 블록 전체가 통째로 일어나지 않는다.
             L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
-            L.extend(_bsubs_upm_lines('        '))
-            L.append('        BSUBS->>SNOTI: RBUS NOTI')
+            L.extend(_bsubs_pre_lines('        '))
+            resp_line = _upm_resp_line('        ')
+            if code in NOTIFY_BEFORE_RESPONSE:
+                # UPM 요청을 보내자마자 알린다 — 0x06 응답을 기다리지 않는다.
+                L.append('        BSUBS->>SNOTI: RBUS NOTI')
+                if resp_line:
+                    L.append(resp_line)
+            else:
+                if resp_line:
+                    L.append(resp_line)
+                L.append('        BSUBS->>SNOTI: RBUS NOTI')
             if code not in NO_NOTI:
                 L.append('        SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
                 L.append('        SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
@@ -294,7 +318,10 @@ def mermaid(code, route):
         else:
             # 위 opt 에서 지시가 들어갔을 때만 BSUBS 가 집을 것이 생긴다.
             L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
-            L.extend(_bsubs_upm_lines('        '))
+            L.extend(_bsubs_pre_lines('        '))
+            resp_line = _upm_resp_line('        ')
+            if resp_line:
+                L.append(resp_line)
             L.append('    end')
             if code not in NO_NOTI:
                 # 보내는 쪽은 갈린다(규칙 2) — 여기는 진짜 alt 다.
