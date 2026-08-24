@@ -40,7 +40,7 @@ sequenceDiagram
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
     SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
-    SDM->>PDB: T_5G_SUBS_* 반영
+    SDM->>PDB: DELETE T_5G_SUBS_*
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     opt ZONE_SVC_D 있음 — HFC 가입
         BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
