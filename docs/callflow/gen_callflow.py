@@ -53,15 +53,15 @@ T = {
         '필드 집합이 A1 과 완전히 같다(2026-08-03 확인).'),
  'K1': ('Data(Time) 쿠폰 가입', 'TC-CDS-009 / 011', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `SVC_TYPE=N`, `JOB_CODE=K1`, '
-         '`TIME_PERIOD_ID=113`, `"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=핀`) = **1건 이상**',
-         '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K3`, 핀) = **1건 이상**'],
+         '`TIME_PERIOD_ID=113`, `"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=COUPON_PIN`) = **1건 이상**',
+         '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K3`, COUPON_PIN) = **1건 이상**'],
         '가입과 동시에 만료 예약이 걸린다. **인입 코드(K1)와 예약 코드(K3)가 다르다.** '
         'K3 는 CDS 가 보내는 전문이 아니다 — 쿠폰 만료 시각이 되면 **PG.RDS 가 예약 '
         '큐를 보고 스스로 만든다.** 그래서 K3 는 시트가 없다. 만료까지 보는 것이 '
         '`TC-CDS-011` 로, 전문을 보내지 않고 RDS 가 지울 때까지 기다린다. '
         '`START_TIME` 은 반드시 미래여야 한다 — 과거면 가입 직후 만료돼 판정이 실패한다.'),
  'K2': ('Data(Time) 쿠폰 해지', 'TC-CDS-010', 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K1 의 핀`) = **0건**'],
+        ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K1 의 COUPON_PIN`) = **0건**'],
         'K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다** — 서로 구분되지 않으므로 '
         '핀을 업무별로 나눠 쓴다.'),
  'D3': ('번호변경', 'TC-CDS-012', 'BSUBS-if-hfc',
@@ -107,7 +107,7 @@ PDB_POST = {
  'C1': ['수행 후 JOB_CODE=C1 로 적재된 행 집계 (MDN)'],
  'G1': ['수행 후 JOB_CODE=G1 로 적재된 행 집계 (MDN)'],
  'K1': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + R17 + N + K1 + TPID=113 + LIMIT=1 + LIMIT_VALID_TIME + CNUM)',
-        'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K3 + 핀)'],
+        'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K3 + COUPON_PIN)'],
  'K2': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
  'D3': ['수행 후 JOB_CODE=D3 로 적재된 행 집계 (NEW MDN)'],
  'Z1': ['T_5G_SUBS_PROFILE 삭제 확인 (MDN) — 0건',
@@ -171,6 +171,14 @@ def snoti_mdn(code):
     return SNOTI_MDN_LABEL.get(code, 'MDN')
 
 
+# SDM 이 삭제를 실행하기 전에 같은 MDN 의 다른 예약(다른 핀)이 아직
+# 대기 중인지 본다. 있으면 이번 삭제를 건너뛴다 — 남의 예약을 건드리지
+# 않기 위해서다.
+DELETE_GUARD = {
+ 'K2': "SELECT COUNT(*) FROM T_5G_RESERVED_JOB WHERE MDN=? AND COUPON_PIN!=? AND STATUS='N'",
+}
+
+
 SDM_APPLY = {
  '1X': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)',
  '1Y': 'DELETE FROM T_5G_SUBS_SERVICE WHERE SVC_ID=ZONE_SVC_D',
@@ -180,6 +188,9 @@ SDM_APPLY = {
  'Z1': 'DELETE T_5G_SUBS_*',
  'I2': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=YOUNG_HARM_INFO_BLOCK)',
  'I3': 'DELETE T_5G_SUBS_SERVICE (SVC_ID=YOUNG_HARM_INFO_BLOCK)',
+ 'K1': ['INSERT T_5G_SUBS_SERVICE (SVC_ID=R17, SVC_TYPE=N, JOB_CODE=K1, TPID=113, LIMIT=1, CNUM=COUPON_PIN)',
+        'INSERT T_5G_RESERVED_JOB (JOB_CODE=K3, CNUM=COUPON_PIN)'],
+ 'K2': 'DELETE T_5G_SUBS_SERVICE (SVC_ID=R17, CNUM=COUPON_PIN)',
 }
 
 # BSUBS 가 Cell 정보에 하는 일. 가입(1X)은 저장, 해지(1Y)는 삭제다.
@@ -268,7 +279,13 @@ def mermaid(code, route):
             L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     elif route == 'SDM':
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
-        [L.append('    SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
+        if code in DELETE_GUARD:
+            L.append('    SDM->>PDB: %s' % DELETE_GUARD[code])
+            L.append('    opt COUNT = 0 — 대기 중인 다른 예약 없음')
+            [L.append('        SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
+            L.append('    end')
+        else:
+            [L.append('    SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
         # 가입자 반영을 끝낸 뒤 SDM 도 TID 를 갱신한다 — PG.CDS 것과 별개로 한 번 더다.
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM->>SNOTI: RBUS NOTI')

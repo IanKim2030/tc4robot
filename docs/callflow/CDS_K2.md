@@ -37,7 +37,10 @@ sequenceDiagram
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
     SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
-    SDM->>PDB: T_5G_SUBS_* 반영
+    SDM->>PDB: SELECT COUNT(*) FROM T_5G_RESERVED_JOB WHERE MDN=? AND COUPON_PIN!=? AND STATUS='N'
+    opt COUNT = 0 — 대기 중인 다른 예약 없음
+        SDM->>PDB: DELETE T_5G_SUBS_SERVICE (SVC_ID=R17, CNUM=COUPON_PIN)
+    end
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     SDM->>SNOTI: RBUS NOTI
     SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
@@ -69,7 +72,7 @@ Body 는 업무 코드와 무관하게 **항상 327B** 다. 아래 필드만 채
 `0017 CommandResult` 가 나르는 것은 **전문 이력 적재의 성패**다. INSERT 가 실패하면 `FA`, 성공하면 Body 내용이 업무적으로 맞든 틀리든 `SC` 다.
 가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 로만 판정된다.**
 
-- `T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K1 의 핀`) = **0건**
+- `T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K1 의 COUPON_PIN`) = **0건**
 
 알림은 `Verify SBI Noti Sent K2` 가 본다(도착 여부). 경로는 수신만으로 구분되지 않아 규칙으로 계산해 실패 메시지에 싣는다.
 
