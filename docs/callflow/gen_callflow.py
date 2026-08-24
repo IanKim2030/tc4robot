@@ -93,7 +93,7 @@ ROUTE_LABEL = {
 PDB_PRE = {
  'C1': ['수행 전 SVC_ID 별 행 수 집계 (MDN)'],
  'G1': ['수행 전 SVC_ID 별 행 수 집계 (MDN)'],
- 'D3': ['수행 전 SVC_ID 별 행 수 집계 (옛 MDN)'],
+ 'D3': ['수행 전 SVC_ID 별 행 수 집계 (MDN)'],
 }
 PDB_POST = {
  # 같은 표를 SVC_ID 만 바꿔 두 번 보므로 화살표는 하나로 합친다.
@@ -109,7 +109,7 @@ PDB_POST = {
  'K1': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + R17 + N + K1 + TPID=113 + LIMIT=1 + LIMIT_VALID_TIME + CNUM)',
         'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K3 + 핀)'],
  'K2': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
- 'D3': ['수행 후 JOB_CODE=D3 로 적재된 행 집계 (새 MDN)'],
+ 'D3': ['수행 후 JOB_CODE=D3 로 적재된 행 집계 (NEW MDN)'],
  'Z1': ['T_5G_SUBS_PROFILE 삭제 확인 (MDN) — 0건',
         'T_5G_SUBS_SERVICE 삭제 확인 (MDN, SVC_ID 무관) — 0건'],
 }
@@ -156,19 +156,30 @@ UPM_ROUNDTRIP = {
         '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
  'G1': ('UPDATE T_BAROD_SUBS_CELLINFO (기종/상태)',
         '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
- 'D3': (['SELECT T_BAROD_SUBS_CELLINFO (옛 MDN)', 'INSERT T_BAROD_SUBS_CELLINFO (새 MDN)'],
+ 'D3': (['SELECT T_BAROD_SUBS_CELLINFO (MDN)', 'INSERT T_BAROD_SUBS_CELLINFO (NEW MDN)'],
         '0x05 Subs-Change-Request', '0x06 Subs-Change-Response'),
 }
 
 # 값이 리스트면 여러 줄로 나눠 그린다 — C1 은 PROFILE/SERVICE 를 따로 적재한다
 # (사용자가 2026-08-24 15:27 수동 커밋 4dab4d9 로 지정, 재생성 때 유실되어 복구).
+# SNOTI 가 세션을 조회할 때 붙는 MDN 라벨. 기본은 그냥 MDN — D3 는 번호가
+# 이미 바뀐 뒤라 새 번호로 찾는다는 것을 명시해야 한다.
+SNOTI_MDN_LABEL = {'D3': 'NEW MDN'}
+
+
+def snoti_mdn(code):
+    return SNOTI_MDN_LABEL.get(code, 'MDN')
+
+
 SDM_APPLY = {
- '1X': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X)',
+ '1X': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)',
  '1Y': 'DELETE FROM T_5G_SUBS_SERVICE WHERE SVC_ID=ZONE_SVC_D',
  'C1': ['INSERT INTO SELECT T_5G_SUBS_PROFILE', 'INSERT INTO SELECT T_5G_SUBS_SERVICE'],
  'G1': ['INSERT INTO SELECT T_5G_SUBS_PROFILE', 'INSERT INTO SELECT T_5G_SUBS_SERVICE', 'UPDATE T_5G_SUBS_SERVICE (SVC_ID=DATA_USAGE_LEVEL, DATA_USAGE_LEVEL_2)'],
  'D3': ['INSERT INTO SELECT T_5G_SUBS_PROFILE (MDN)', 'INSERT INTO SELECT T_5G_SUBS_SERVICE (MDN)'],
  'Z1': 'DELETE T_5G_SUBS_*',
+ 'I2': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=YOUNG_HARM_INFO_BLOCK)',
+ 'I3': 'DELETE T_5G_SUBS_SERVICE (SVC_ID=YOUNG_HARM_INFO_BLOCK)',
 }
 
 # BSUBS 가 Cell 정보에 하는 일. 가입(1X)은 저장, 해지(1Y)는 삭제다.
@@ -252,8 +263,8 @@ def mermaid(code, route):
         L.append('    BSUBS->>PDB: %s' % CELL_STEP[code])
         L.append('    BSUBS->>SNOTI: RBUS NOTI')
         if code not in NO_NOTI:
-            L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
-            L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+            L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
+            L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (%s)' % snoti_mdn(code))
             L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     elif route == 'SDM':
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
@@ -262,8 +273,8 @@ def mermaid(code, route):
         L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
         L.append('    SDM->>SNOTI: RBUS NOTI')
         if code not in NO_NOTI:
-            L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
-            L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+            L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
+            L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (%s)' % snoti_mdn(code))
             L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     else:
         # C1/G1/D3/Z1 공통. HFC 지시는 위(PG.CDS)에서 이미 나갔고, 여기는
@@ -311,8 +322,8 @@ def mermaid(code, route):
                     L.append(resp_line)
                 L.append('        BSUBS->>SNOTI: RBUS NOTI')
             if code not in NO_NOTI:
-                L.append('        SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
-                L.append('        SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+                L.append('        SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
+                L.append('        SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (%s)' % snoti_mdn(code))
                 L.append('        SNOTI->>PCF: SBI Noti (h2c)')
             L.append('    end')
         else:
@@ -331,8 +342,8 @@ def mermaid(code, route):
                 L.append('        SDM->>SNOTI: RBUS NOTI')
                 L.append('    end')
             if code not in NO_NOTI:
-                L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)')
-                L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)')
+                L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
+                L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (%s)' % snoti_mdn(code))
                 L.append('    SNOTI->>PCF: SBI Noti (h2c)')
     # TC 의 성패가 갈리는 자리. 위의 전문 왕복과 눈으로 구분되게 밴드로 감싼다.
     L.append('    rect %s' % BAND)

@@ -28,7 +28,7 @@ sequenceDiagram
 
     rect rgba(255, 176, 32, 0.14)
     Note over TOOL,PDB: ★ 판정 기준선 — 전문을 보내기 전에 떠야 한다
-        TOOL->>PDB: 수행 전 SVC_ID 별 행 수 집계 (옛 MDN)
+        TOOL->>PDB: 수행 전 SVC_ID 별 행 수 집계 (MDN)
     end
     TOOL->>PCDS: 0015 CommandRequest (D3) — Body 327B
     PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, 접수 확인
