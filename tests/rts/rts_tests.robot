@@ -66,8 +66,6 @@ TC-RTS-001 로밍 데이터 차단 L1 (SVC_ID=W_DATA_ROAMING_BLOCK) - PDB/Noti �
     ...    4) T_5G_SUBS_SERVICE(SVC_ID=W_DATA_ROAMING_BLOCK) 로 업무 계층 반영 확인(사용자 확인)
     ...    PDB/Noti 접속 정보가 없으면 해당 부분만 Skip — Noti 를 PDB 보다 먼저 확인해
     ...    PDB 접속 문제로 Skip 되더라도(Skip 은 TC 를 즉시 끝낸다) Noti 확인은 남게 한다.
-    ...    Noti 확인은 실패하면 **한 번 더 재시도**한다(각 시도가 ${RTS_NOTI_WAIT} 만큼
-    ...    이미 기다리므로, 지연 도착까지 감안해 최대 2회).
     [Tags]    rts    order    roaming    db    noti
     ${since}=    RTS Noti Timestamp
     ${tid_date}    ${tid_seq}=    Next RTS TID
@@ -75,8 +73,7 @@ TC-RTS-001 로밍 데이터 차단 L1 (SVC_ID=W_DATA_ROAMING_BLOCK) - PDB/Noti �
     ...    ${RTS_SVC_L1}    ${RTS_TEST_MDN}    ${RTS_ROAMING_BLOCK_ON}
     ...    ${tid_date}    ${tid_seq}
     RTS Order Should Succeed    ${ack}
-    Wait Until Keyword Succeeds    2x    0s
-    ...    Verify RTS SBI Noti Sent    ${RTS_SVC_L1}    since=${since}
+    Verify RTS SBI Noti Sent    ${RTS_SVC_L1}    since=${since}
     Verify RTS Order In PDB    ${tid_date}    ${tid_seq}    ${RTS_ROAMING_BLOCK_ON}
     Verify RTS Service Applied In PDB    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}
 
