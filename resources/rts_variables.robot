@@ -97,5 +97,5 @@ ${RTS_DB_WAIT_INTERVAL}   2s
 ${RTS_NOTI_VERIFY}            ${TRUE}
 ${RTS_NOTI_HOST}              0.0.0.0          # bind 주소 — PG 에서 닿는 주소가 아니다
 ${RTS_NOTI_PORT}              16101            # CDS 의 ${CDS_NOTI_PORT} 와 동일값
-${RTS_NOTI_WAIT}              30s              # Noti 도착 대기 시간
+${RTS_NOTI_WAIT}              12s              # Noti 도착 대기 시간
 ${RTS_NOTI_MONITOR_INTERVAL}  1s
