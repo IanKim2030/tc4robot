@@ -17,7 +17,7 @@ PG 내부 공식 명칭은 **RTS**다(PG 소스 `RTS/` 디렉토리, 클래스 `
 |---|---|
 | 도구 역할 | RTS (Client) |
 | 방향 | 도구 → PG (PG=Server, accept 후 Connect Req 를 기다림) |
-| 포트 | `${RTS_PG_PORT}` = 6003 — **★ 확인 필요.** `RTS/CEnv.cpp GetRTSPort()` 는 `PG_V2.cfg [RTS]` 런타임 설정값이라 소스에 하드코딩이 없다. 레거시 `rts_sim.py` 시뮬레이터의 예시값을 미검증 추정치로 씀 |
+| 포트 | `${RTS_PG_PORT}` = 6003 — **현재는 의도적으로 하드코딩.** PG 쪽은 `RTS/CEnv.cpp GetRTSPort()` 로 `PG_V2.cfg [RTS]` 런타임 설정값을 읽지만(소스 자체엔 하드코딩 없음), 도구 쪽은 레거시 `rts_sim.py` 시뮬레이터의 값(6003)을 그대로 쓴다. 설정 파일을 읽어오는 절차는 추후 도입 예정(TODO) |
 | 헤더 | **32B 고정** (`RTS/RtsDefine.hpp` `stNePacket`) |
 | Body | 고정폭 (메시지마다 폭 다름, 아래 표) |
 | 타임아웃 | `${RTS_TIMEOUT}` = 10초 |
@@ -121,14 +121,30 @@ SVC_CODE(0)/MDN(2) 만 두 레이어의 오프셋이 우연히 같다. **`RtsHel
 키워드는 그래도 `${CDS_DB_CONNSTR}` 폴백을 남겨 둔다 — 환경 오버라이드로 한쪽만 비게 되는
 경우를 대비한 방어선일 뿐, DSN 자체가 다를 수 있다는 의미는 아니다.
 
+## PCF SBI Noti
+
+**L1/L2 도 PCF SBI Noti 를 유발한다(사용자 확인)** — RTS 소스(`RecvCommandRequest`)만으로는
+notify 호출이 안 보여 애초엔 미확인이었던 부분이다. CDS 가 이미 쓰는 메커니즘을 그대로
+재사용한다: 도구가 PCF 역할로 `${RTS_NOTI_PORT}`(=`${CDS_NOTI_PORT}`=16101)를 h2c 로 Listen
+하고, `Suite RTS Connect`/`Suite RTS Disconnect` 가 서버를 열고/닫는다(`HttpNotiServer.py`,
+`pip install h2` 필요). `Verify RTS SBI Noti Sent` 가 판정 키워드다 — CDS 의
+`Verify SBI Noti Sent`/`Verify PCF Noti Received` 와 동형이나, RTS 는 업무 코드가 L1/L2
+둘뿐이라 CDS 의 예외 목록·라우팅 라벨(BSUBS/SDM) 계층은 두지 않았다.
+
+`${RTS_NOTI_VERIFY}=${FALSE}`(`run_tests.sh rts --no-sbi`, CDS 와 공용 플래그)면 Listen
+자체를 안 하고 판정도 건너뛴다 — h2 패키지 없이도 슈트가 돈다.
+
 ## TC
 
-현재 **2건** — L1, L2 각 1건. 둘 다 ACK 확인 + `T_5G_SUBS_SERVICE` 업무 계층 반영 확인(`db` 태그), L1 은 추가로 `T_RTS_ORDER_HIST` 프로토콜 계층 확인도 겸한다. 태그: `rts` `order` `roaming` `db`.
+현재 **2건** — L1, L2 각 1건. 각각 ACK 확인 + `T_5G_SUBS_SERVICE` 업무 계층 반영 확인(`db`) +
+PCF SBI Noti 도착 확인(`noti`), L1 은 추가로 `T_RTS_ORDER_HIST` 프로토콜 계층 확인도 겸한다.
+태그: `rts` `order` `roaming` `db` `noti`.
 
-판정 기준 — 3단계로 신뢰도가 올라간다:
+판정 기준 — 4단계로 신뢰도가 올라간다:
 1. **ACK RESULT="SC"+REASON=0**: `RecvCommandRequest` 는 `InsertOrder` 가 실제로 성공했을 때만 `SC`를 주므로 CDS `CommandResult`보다 신뢰도가 높다. 다만 Body 내용(SVC/로밍 플래그)이 잘못돼도 INSERT 자체는 성공하면 `SC`가 나온다는 점은 CDS 와 같다.
 2. **`T_RTS_ORDER_HIST` 조회(TC-RTS-001)**: `SUBSTR(ORDER_DATA, 86, 1)`(DB 오프셋 85, SQL 1-index)로 실제 반영된 로밍 플래그를 확인한다 — 와이어 인코딩 회귀를 잡는 계층.
 3. **`T_5G_SUBS_SERVICE` 조회(둘 다, 권장)**: `SELECT COUNT(*) ... WHERE MDN=? AND SVC_ID=?` 1건 이상 — "전문이 가입자에게 실제로 적용됐는가"의 가장 신뢰 가능한 근거. CDS 의 `Verify Zone Service Subscribed In PDB` 와 같은 패턴("1건 이상이면 성공", 정확한 건수는 안 박음).
+4. **PCF SBI Noti 조회(둘 다, 사용자 확인)**: `Verify RTS SBI Noti Sent` — 위 PCF SBI Noti 절 참조.
 
 ## 함정
 
@@ -139,6 +155,6 @@ SVC_CODE(0)/MDN(2) 만 두 레이어의 오프셋이 우연히 같다. **`RtsHel
 
 ## 확인 필요
 
-- **`${RTS_PG_PORT}` 실값** — 소스에 하드코딩 없음(`PG_V2.cfg [RTS]` 런타임 설정). 실환경 cfg 또는 PG 담당자 확인 필요.
 - **L1/L2 가 `T_5G_SUBS_SERVICE` 에 반영되는 것은 사용자 확인으로 확정**(L1→`W_DATA_ROAMING_BLOCK`, L2→`L_DATA_ROAMING_BLOCK`, 위 TC 판정 기준 3 참조). 다만 `W_`/`L_` 접두사가 정확히 어떤 차단 범위를 뜻하는지, L1/L2 가 서로의 반대(ON/OFF 토글) 관계인지는 아직 불명확 — RTS 소스(`RecvCommandRequest`)는 두 코드를 대칭적으로 처리할 뿐 의미까지는 알려주지 않는다. 반영 지연 시간(비동기 폴링 주기)도 미확인 — 현재 `${RTS_DB_WAIT}`=10초는 CDS 값을 그대로 가져온 추정치다.
 - **L3~LE(mVoIP/QoS)** — 코드에는 분기가 있으나 미사용 확인됨. 필요해지면 `pack_rts_order_body` 를 offset15/16 까지 채우도록 확장.
+- **PCF SBI Noti 본문 내용** — L1/L2 가 SBI Noti 를 유발한다는 것 자체는 확인됐으나, 본문에 MDN 이 그대로 들어가는지는 CDS 와 마찬가지로 미확인. 확인되면 `Verify RTS SBI Noti Sent` 호출에 `body=${RTS_TEST_MDN}` 처럼 좁힐 수 있다.

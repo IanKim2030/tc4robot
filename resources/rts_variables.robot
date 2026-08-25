@@ -16,9 +16,10 @@ Documentation
 # PG = Server, RTS = Client (로밍 데이터 차단 연동)
 # ════════════════════════════════════════════
 ${RTS_PG_HOST}         ${PG_HOST}
-${RTS_PG_PORT}         6003             # ★ 확인 필요 — PG_V2.cfg [RTS] 섹션 런타임 설정값.
-                                         #   소스(RTS/CEnv.cpp GetRTSPort())엔 하드코딩이 없어
-                                         #   레거시 rts_sim.py 의 예시값을 그대로 쓴 미검증 추정치다.
+${RTS_PG_PORT}         6003             # 현재는 의도적으로 하드코딩(레거시 rts_sim.py 값).
+                                         # PG 는 PG_V2.cfg [RTS] 런타임 설정으로 읽지만
+                                         # (RTS/CEnv.cpp GetRTSPort()), 도구 쪽 설정파일
+                                         # 연동은 TODO — 나중에 붙일 예정.
 ${RTS_TIMEOUT}         10
 
 # System ID — rts_sim.py(레거시 시뮬레이터) 실코드에서 그대로 확인된 값.
@@ -87,3 +88,14 @@ ${RTS_DB_CONNSTR}   DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=
 # 재조회로 기다린다. CDS 의 ${CDS_DB_WAIT}/${CDS_DB_WAIT_INTERVAL} 과 같은 기본값.
 ${RTS_DB_WAIT}            10s
 ${RTS_DB_WAIT_INTERVAL}   2s
+
+# ════════════════════════════════════════════
+# PCF SBI Noti 수신 검증 — CDS 와 같은 메커니즘/대상 포트(사용자 확인: RTS 의
+# L1/L2 도 SBI Noti 를 유발한다). CDS_NOTI_PORT(16101)와 같은 값을 쓴다 — 도구가
+# PCF 역할로 Listen 하는 h2c 포트는 PG 설정에 upstream 별로 안 갈리고 하나로 보임.
+# ════════════════════════════════════════════
+${RTS_NOTI_VERIFY}            ${TRUE}
+${RTS_NOTI_HOST}              0.0.0.0          # bind 주소 — PG 에서 닿는 주소가 아니다
+${RTS_NOTI_PORT}              16101            # CDS 의 ${CDS_NOTI_PORT} 와 동일값
+${RTS_NOTI_WAIT}              30s              # Noti 도착 대기 시간
+${RTS_NOTI_MONITOR_INTERVAL}  1s

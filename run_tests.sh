@@ -30,6 +30,10 @@
 #   bash run_tests.sh cds --sbi-wait         # PG 가 붙을 때까지 기다렸다 시작(기본은 안 기다림)
 #   bash run_tests.sh cds --no-session      # 세션 사전 적재(INSERT) 생략
 #
+# RTS 곁가지 연동 (기본은 켜짐 — rts_variables.robot):
+#   bash run_tests.sh rts --no-sbi          # PCF SBI Listen(${RTS_NOTI_PORT}) 자체를 안 함 (h2 불필요)
+#   (--no-sbi/--sbi 는 CDS/RTS 공용 플래그다 — 대상 슈트가 안 쓰는 쪽 변수는 무시된다)
+#
 # CDS 사전 확인 — 두 대상 번호의 잔존 데이터를 네 표에서 센다.
 #   **기본은 리포트만 하고 그대로 진행한다.** 아래는 그 동작을 바꿀 때만 쓴다.
 #   bash run_tests.sh cds --precheck-fail   # 잔존 데이터면 중단
@@ -75,13 +79,14 @@ for arg in "${@:2}"; do
         # 끄면 Suite Setup 이 UPM(${UPM_PG_PORT})에 접속조차 하지 않는다.
         --no-upm)       TOGGLE_VARS+=(--variable CDS_UPM_VERIFY:False) ;;
         --upm)          TOGGLE_VARS+=(--variable CDS_UPM_VERIFY:True) ;;
-        # PCF SBI — 도구가 PCF 역할로 여는 SBI Noti 수신 서버(${CDS_NOTI_PORT}).
+        # PCF SBI — 도구가 PCF 역할로 여는 SBI Noti 수신 서버(${CDS_NOTI_PORT}/${RTS_NOTI_PORT}).
         # 끄면 Listen 도 접속 대기도 안 한다 → h2 패키지 없이도 슈트가 돈다.
         # (전송은 HTTP/2 평문이다. 프로토콜 얘기는 HttpNotiServer.py 를 볼 것)
+        # CDS/RTS 둘 다 같은 플래그로 켜고 끈다 — 대상 슈트가 안 쓰는 변수는 무시된다.
         --no-sbi|--no-http|--no-noti)
-                        TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:False) ;;
+                        TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:False --variable RTS_NOTI_VERIFY:False) ;;
         --sbi|--http|--noti)
-                        TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:True) ;;
+                        TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:True --variable RTS_NOTI_VERIFY:True) ;;
         # 사전 확인 — 잔존 데이터가 있을 때의 처리 방식.
         # 기본은 report(리포트만 하고 진행)라 평소에는 아무것도 줄 필요가 없다.
         --no-precheck)     TOGGLE_VARS+=(--variable CDS_PRECHECK:False) ;;

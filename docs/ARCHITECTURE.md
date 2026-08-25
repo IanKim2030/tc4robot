@@ -36,7 +36,7 @@ flowchart TD
         UPM_PG["UPM PG Port (10506)"]
         CDS_PG["CDS PG Port (9201 / 9200)"]
         NWDAF_PG["NWDAF PG Port (10305)"]
-        RTS_PG["RTS PG Port (${RTS_PG_PORT}, 확인 필요)"]
+        RTS_PG["RTS PG Port (${RTS_PG_PORT}=6003, 설정파일 연동 TODO)"]
     end
 
     CLI --> ENV
@@ -110,7 +110,7 @@ Python 기반 저수준 프로토콜 인코딩/디코딩 및 통신 엔진. 6종
 마지막 하나만 전문이 아니라 **PG 가 DB 에 반영한 결과**를 본다 — CDS `CommandResult` 가
 Body 와 무관하게 `SC` 를 주기 때문이다(`TC-CDS-002`).
 
-담당 범위와 주요 함수 목록은 [RESOURCES.md](RESOURCES.md#python-헬퍼-5종) 에 있다.
+담당 범위와 주요 함수 목록은 [RESOURCES.md](RESOURCES.md#python-헬퍼-6종) 에 있다.
 
 ---
 
@@ -122,7 +122,7 @@ Body 와 무관하게 `SC` 를 주기 때문이다(`TC-CDS-002`).
 |---|---|---|
 | **소켓 라이프사이클** | 슈트당 1회 접속해 `Suite Variable` 로 공유한다. **TC 별 connect/disconnect 를 추가하지 말 것.** 닫힘 감지 시 `Fatal Error` 로 슈트 전체 중단 | [RESOURCES.md](RESOURCES.md#소켓-공유-규칙-절대) · [INTERFACES.md](INTERFACES.md#연결-실패-시-동작) |
 | **`txn_id` 채번** | **0이 될 수 없다**(규격 제약). `Next TXN ID` 가 강제하며 65535 초과 시 1로 wrap | [RESOURCES.md](RESOURCES.md#common_keywordsrobot) |
-| **전문 3계열 분리** | 8-옥텟 공통 / 48-옥텟 CDS / 8-옥텟 NWDAF+TLV. 계열마다 전용 헬퍼 | [INTERFACES.md](INTERFACES.md#전문-형식-3계열) |
+| **전문 4계열 분리** | 8-옥텟 공통 / 48-옥텟 CDS / 8-옥텟 NWDAF+TLV / 32-옥텟 RTS. 계열마다 전용 헬퍼 | [INTERFACES.md](INTERFACES.md#전문-형식-4계열) |
 | **환경 오버라이드** | `--variable` > `--variablefile` > 슈트 `*** Variables ***` > 임포트 Resource | [ENVIRONMENTS.md](ENVIRONMENTS.md#변수-우선순위) |
 
 ---

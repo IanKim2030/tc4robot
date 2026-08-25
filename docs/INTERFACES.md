@@ -13,7 +13,7 @@ PG 연동 7개 노드의 방향·포트·전문 형식을 한 장에 모은 표.
 | [UPM](nodes/UPM.md) | UPM | Client → PG | 10506 | 8B `0x00` | JSON | 단일 |
 | [CDS](nodes/CDS.md) | CDS | Client 듀얼 → PG.CDS | Rch 9201 → Sch 9200 | **48B** | 고정전문 | 듀얼 |
 | [NWDAF](nodes/NWDAF.md) | NWDAF | Client → PG | 10305 | 8B 비트필드 | **TLV 바이너리** | 단일 |
-| [RTS](nodes/RTS.md) | RTS | Client → PG.RTS | ${RTS_PG_PORT}(확인 필요) | **32B** | 고정폭(로밍 차단 L1/L2) | 단일 |
+| [RTS](nodes/RTS.md) | RTS | Client → PG.RTS | ${RTS_PG_PORT}(6003, 설정파일 연동 TODO) | **32B** | 고정폭(로밍 차단 L1/L2) | 단일 |
 
 **도구는 7개 노드 모두에서 능동 접속(Client) 한다.** 서버로 대기하는 건 NAG·LRS 가 함께 여는
 LRS-PCF 보조 채널(8890) 하나뿐이다.

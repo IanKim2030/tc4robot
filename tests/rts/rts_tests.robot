@@ -33,6 +33,12 @@ Documentation
 ...    ${CDS_DB_CONNSTR} 과 같은 문자열로 채워져 있다. 그래도 환경 오버라이드로
 ...    접속 문자열이 비게 되는 경우를 대비해, 없으면 실패 대신 Skip 한다 — CDS 처럼
 ...    Suite 전체를 막지 않는다.
+...
+...    [PCF SBI Noti]
+...    `noti` 태그 TC 는 L1/L2 전문이 PCF SBI Noti 도 유발하는지 확인한다(사용자 확인 —
+...    RTS 소스만으로는 notify 호출이 안 보여 미확인이었던 부분). CDS 와 같은 메커니즘
+...    (HttpNotiServer, 도구가 PCF 역할로 Listen)을 그대로 쓴다. ${RTS_NOTI_VERIFY}=${FALSE}
+...    (--no-sbi) 면 Listen 자체를 안 하고 통째로 건너뛴다.
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/rts_variables.robot
@@ -49,32 +55,40 @@ Test Setup       Check RTS Socket
 # 11/12  Order — 로밍 데이터 차단 (SVC_CODE=L1/L2)
 # ════════════════════════════════════════════════════════════════
 
-TC-RTS-001 로밍 데이터 차단 L1 (SVC_ID=W_DATA_ROAMING_BLOCK) - PDB 반영 확인
+TC-RTS-001 로밍 데이터 차단 L1 (SVC_ID=W_DATA_ROAMING_BLOCK) - PDB/Noti 반영 확인
     [Documentation]
     ...    SVC_CODE=L1, MDN 12B, 로밍 차단 플래그='Y'.
     ...    와이어 오프셋(수신 파싱) 14 / DB 저장 오프셋 85 — 서로 다르다
     ...    (RtsHelper.py 모듈 docstring 참조).
     ...    1) ACK(RESULT=SC) 확인
-    ...    2) T_RTS_ORDER_HIST.ORDER_DATA[85] 로 프로토콜 계층 반영 확인
-    ...    3) T_5G_SUBS_SERVICE(SVC_ID=W_DATA_ROAMING_BLOCK) 로 업무 계층 반영 확인(사용자 확인)
-    ...    PDB 접속 정보가 없으면 2)/3) 만 Skip.
-    [Tags]    rts    order    roaming    db
+    ...    2) PCF SBI Noti 도착 확인(사용자 확인)
+    ...    3) T_RTS_ORDER_HIST.ORDER_DATA[85] 로 프로토콜 계층 반영 확인
+    ...    4) T_5G_SUBS_SERVICE(SVC_ID=W_DATA_ROAMING_BLOCK) 로 업무 계층 반영 확인(사용자 확인)
+    ...    PDB/Noti 접속 정보가 없으면 해당 부분만 Skip — Noti 를 PDB 보다 먼저 확인해
+    ...    PDB 접속 문제로 Skip 되더라도(Skip 은 TC 를 즉시 끝낸다) Noti 확인은 남게 한다.
+    [Tags]    rts    order    roaming    db    noti
+    ${since}=    RTS Noti Timestamp
     ${tid_date}    ${tid_seq}=    Next RTS TID
     ${hdr}    ${ack}=    Send RTS Order
     ...    ${RTS_SVC_L1}    ${RTS_TEST_MDN}    ${RTS_ROAMING_BLOCK_ON}
     ...    ${tid_date}    ${tid_seq}
     RTS Order Should Succeed    ${ack}
+    Verify RTS SBI Noti Sent    ${RTS_SVC_L1}    since=${since}
     Verify RTS Order In PDB    ${tid_date}    ${tid_seq}    ${RTS_ROAMING_BLOCK_ON}
     Verify RTS Service Applied In PDB    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}
 
-TC-RTS-002 로밍 데이터 차단 L2 (SVC_ID=L_DATA_ROAMING_BLOCK) - PDB 반영 확인
+TC-RTS-002 로밍 데이터 차단 L2 (SVC_ID=L_DATA_ROAMING_BLOCK) - PDB/Noti 반영 확인
     [Documentation]
     ...    SVC_CODE=L2, 로밍 차단 플래그='N'.
     ...    1) ACK(RESULT=SC) 확인
-    ...    2) T_5G_SUBS_SERVICE(SVC_ID=L_DATA_ROAMING_BLOCK) 로 업무 계층 반영 확인(사용자 확인)
-    ...    PDB 접속 정보가 없으면 2) 만 Skip.
-    [Tags]    rts    order    roaming    db
+    ...    2) PCF SBI Noti 도착 확인(사용자 확인)
+    ...    3) T_5G_SUBS_SERVICE(SVC_ID=L_DATA_ROAMING_BLOCK) 로 업무 계층 반영 확인(사용자 확인)
+    ...    PDB/Noti 접속 정보가 없으면 해당 부분만 Skip — Noti 를 PDB 보다 먼저 확인해
+    ...    PDB 접속 문제로 Skip 되더라도(Skip 은 TC 를 즉시 끝낸다) Noti 확인은 남게 한다.
+    [Tags]    rts    order    roaming    db    noti
+    ${since}=    RTS Noti Timestamp
     ${hdr}    ${ack}=    Send RTS Order
     ...    ${RTS_SVC_L2}    ${RTS_TEST_MDN}    ${RTS_ROAMING_BLOCK_OFF}
     RTS Order Should Succeed    ${ack}
+    Verify RTS SBI Noti Sent    ${RTS_SVC_L2}    since=${since}
     Verify RTS Service Applied In PDB    ${RTS_TEST_MDN}    ${RTS_SVC_ID_L_DATA_ROAMING_BLOCK}

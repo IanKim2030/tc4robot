@@ -10,8 +10,9 @@ Documentation
 ...      Suite Setup    : Suite RTS Connect → ${RTS_SOCK}
 ...                       Connect Req(1)/Ack(2) 핸드셰이크, PG 가 준 최대 TID 를
 ...                       ${RTS_TID_DATE}/${RTS_TID_SEQ} 에 저장(TID 역전 방지).
+...                       PCF SBI Noti 수신 서버도 같이 연다(도구가 PCF 역할, h2c).
 ...      Test Setup     : Check RTS Socket (닫히면 Fatal Error)
-...      Suite Teardown : Suite RTS Disconnect (Release 송신 후 소켓 종료)
+...      Suite Teardown : Suite RTS Disconnect (Release 송신 후 소켓 종료, Noti 서버 종료)
 ...
 ...    [범위]
 ...      SVC_CODE=L1(로밍 데이터 차단 ON)/L2(차단 해제)만 다룬다.
@@ -23,12 +24,16 @@ Library    DateTime
 Library    BuiltIn
 Library    ${CURDIR}/RtsHelper.py     WITH NAME    Rts
 Library    ${CURDIR}/CdsDbHelper.py   WITH NAME    RtsDb
+# 도구가 PCF 역할로 SBI Noti(HTTP/2 h2c)를 받는다 → 의존성: pip install h2
+# CDS 가 쓰는 것과 같은 모듈 — RTS 의 L1/L2 도 같은 PCF SBI 대상을 쓴다는 전제(사용자 확인).
+Library    ${CURDIR}/HttpNotiServer.py   WITH NAME    Noti
 Resource   ${CURDIR}/common_keywords.robot
 
 *** Variables ***
 ${RTS_SOCK}       ${NONE}
 ${RTS_TID_DATE}    ${EMPTY}
 ${RTS_TID_SEQ}     ${0}
+${RTS_NOTI_SRV}    ${NONE}     # PCF Noti 수신 서버 핸들 (Suite Setup 에서 기동)
 
 
 *** Keywords ***
@@ -61,10 +66,20 @@ Suite RTS Connect
     Set Suite Variable    ${RTS_TID_DATE}    ${ack}[tid_date]
     Set Suite Variable    ${RTS_TID_SEQ}     ${ack}[tid_seq]
     Log    [Suite] RTS Connect 성공 tid=${RTS_TID_DATE}/${RTS_TID_SEQ}    console=True
+    # PCF SBI Noti 수신 서버 — 도구가 PCF 역할로 Listen. CDS 의 Suite CDS Connect 와
+    # 같은 패턴(소켓·DB 와 달리 PG 가 붙어 오는 쪽이라 여기서는 Listen 만 열어 둔다).
+    IF    ${RTS_NOTI_VERIFY}
+        Log    [Suite] PCF SBI 수신 서버 시작 → ${RTS_NOTI_HOST}:${RTS_NOTI_PORT}    console=True
+        ${srv}=    Noti.Noti Server Start    ${RTS_NOTI_PORT}    ${RTS_NOTI_HOST}
+        ...    monitor_interval=${RTS_NOTI_MONITOR_INTERVAL}
+        Set Suite Variable    ${RTS_NOTI_SRV}    ${srv}
+    ELSE
+        Log    [Suite] PCF Noti 검증 꺼짐 (RTS_NOTI_VERIFY=${RTS_NOTI_VERIFY})    console=True
+    END
 
 Suite RTS Disconnect
     [Documentation]
-    ...    RTS Suite Teardown 전용. Release(9) 송신 후 소켓 종료.
+    ...    RTS Suite Teardown 전용. Release(9) 송신 후 소켓 종료, Noti 서버 종료.
     ...    RTS/CDownMessage.cpp 의 RecvReleaseRequest 는 응답을 주지 않고 연결
     ...    종료를 유도할 뿐이므로, ACK 를 기다리지 않고 바로 소켓을 닫는다.
     IF    $RTS_SOCK is not None
@@ -73,6 +88,9 @@ Suite RTS Disconnect
         ...    ${RTS_TID_DATE}    ${RTS_TID_SEQ}    ${RTS_SRC_SYS_ID}    ${RTS_DST_SYS_ID}
         Rts.Tcp Close    ${RTS_SOCK}
     END
+    # Noti 서버는 데몬 스레드라 안 닫아도 프로세스와 함께 죽지만, 포트를 붙들고 있으면
+    # 바로 이어 도는 다음 실행이 bind 에서 실패한다 → 반드시 닫는다(CDS 와 동일 이유).
+    Run Keyword If    $RTS_NOTI_SRV is not None    Noti.Noti Server Stop    ${RTS_NOTI_SRV}
     Log    [Suite] RTS 연결 종료    console=True
 
 Check RTS Socket
@@ -224,3 +242,44 @@ Verify RTS Service Applied In PDB
     FINALLY
         RtsDb.Db Close    ${conn}
     END
+
+
+# ══════════════════════════════════════════════════════════════════
+# PCF SBI Noti 수신 검증 — CDS 의 Verify SBI Noti Sent 와 같은 메커니즘
+# (HttpNotiServer, 도구가 PCF 역할) 을 그대로 쓴다. RTS 의 L1/L2 도 SBI Noti 를
+# 유발한다는 것은 사용자 확인 — RTS 소스(RecvCommandRequest)만으로는 notify 호출이
+# 보이지 않아 미확인이었다(docs/nodes/RTS.md 참조).
+# ══════════════════════════════════════════════════════════════════
+
+RTS Noti Timestamp
+    [Documentation]
+    ...    현재 시각(epoch)을 뜬다. `Verify RTS SBI Noti Sent` 의 since= 기준점이다.
+    ...    "이 동작 뒤에 온 알림"만 보고 싶을 때 그 동작 앞에서 부른다.
+    ${ts}=    Noti.Noti Now
+    RETURN    ${ts}
+
+Verify RTS SBI Noti Sent
+    [Documentation]
+    ...    SVC_CODE ${code}(L1/L2) 전문이 유발한 **PCF SBI Noti 가 도착했는지** 판정한다.
+    ...
+    ...    ${since} : 이 시각 이후 도착분만 본다. `RTS Noti Timestamp` 로 뜬다.
+    ...    ${body}  : 본문에 포함돼야 할 문자열(예: MDN). 기본은 빈 값(내용을 가리지 않는다).
+    ...
+    ...    ${RTS_NOTI_VERIFY}=${FALSE}(--no-sbi) 면 통째로 건너뛴다.
+    [Arguments]    ${code}    ${since}=${NONE}    ${body}=${EMPTY}    ${wait}=${RTS_NOTI_WAIT}
+    IF    not ${RTS_NOTI_VERIFY}
+        Log    [Noti] 수신 검증 꺼짐 — ${code} 의 SBI Noti 확인을 건너뜁니다    console=True
+        RETURN
+    END
+    ${alive}=    Noti.Noti Server Is Running    ${RTS_NOTI_SRV}
+    Should Be True    ${alive}
+    ...    msg=PCF SBI 수신 서버가 떠 있지 않습니다 (포트 ${RTS_NOTI_PORT})
+    ${found}=    Noti.Noti Wait    ${RTS_NOTI_SRV}    timeout=${wait}
+    ...          body_contains=${body}    since=${since}
+    ${n}=      Get Length    ${found}
+    ${errs}=   Noti.Noti Errors    ${RTS_NOTI_SRV}
+    ${all}=    Noti.Noti Count    ${RTS_NOTI_SRV}
+    Should Be True    ${n} > 0
+    ...    msg=SBI Noti(${code}) 알림이 ${wait} 안에 오지 않았습니다 (body~'${body}', since=${since} / 전체 수신 ${all}건 / 서버 오류 ${errs})
+    Log    [Noti] SBI Noti(${code}) ${n}건 수신 — ${found}[0][method] ${found}[0][path]
+    RETURN    ${found}

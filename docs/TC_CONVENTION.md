@@ -82,7 +82,7 @@ TC-NWDAF-006 PGW STATUS Normal (0)
 | UPM | `hello` `ping` `cellinfo-noti` `subs-sync` `subs-info`* `subs-change`* `info-change`* |
 | CDS | `connect` `process-state` `command` `db` `subs-data`* `upload`* `release` |
 | NWDAF | `nwdaf_smoke` `nwdaf_pgw` `nwdaf_enb` `nwdaf_dpi` `nwdaf_5g` `nwdaf_status` `nwdaf_quick` `nwdaf_qos_policy` `nwdaf_support` `nwdaf_arpqci` `nwdaf_band` `nwdaf_cu` `nwdaf_network` `nwdaf_ratio` `nwdaf_usage` `nwdaf_common1` `nwdaf_common2` `nwdaf_msgid_wrap` `nwdaf_healthcheck` |
-| RTS | `order` `roaming` `db` |
+| RTS | `order` `roaming` `db` `noti` |
 
 `*` = 주석 처리된 TC 에만 달려 있다. 해당 TC 를 살리면 함께 살아난다.
 
