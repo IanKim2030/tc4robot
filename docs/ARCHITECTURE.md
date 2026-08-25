@@ -7,7 +7,7 @@ SK텔레콤 **PG (Policy Gateway)** 연동 검증 슈트 **tc4robot** 의 전체
 
 ## 1. 시스템 개요
 
-`tc4robot` 은 PG 와 6개 외곽 노드(NAG, PCF, LRS, UPM, CDS, NWDAF) 간의 인터페이스 규격과
+`tc4robot` 은 PG 와 7개 외곽 노드(NAG, PCF, LRS, UPM, CDS, NWDAF, RTS) 간의 인터페이스 규격과
 전문 송수신 동작을 검증한다. 도구는 **능동 클라이언트(Client)** 로 동작해 노드별 수신 포트에
 접속하고, 전문을 송수신한 뒤 응답과 상태 변화를 판정한다.
 
@@ -25,6 +25,7 @@ flowchart TD
             CDS_H["CdsHelper.py"]
             HTTP["HttpHelper.py"]
             CDS_DB["CdsDbHelper.py"]
+            RTS_H["RtsHelper.py"]
         end
     end
 
@@ -35,6 +36,7 @@ flowchart TD
         UPM_PG["UPM PG Port (10506)"]
         CDS_PG["CDS PG Port (9201 / 9200)"]
         NWDAF_PG["NWDAF PG Port (10305)"]
+        RTS_PG["RTS PG Port (${RTS_PG_PORT}, 확인 필요)"]
     end
 
     CLI --> ENV
@@ -48,6 +50,7 @@ flowchart TD
     TCP -->|"8B Header Binary"| UPM_PG
     CDS_H -->|"48B Fixed Header"| CDS_PG
     TLV -->|"8B Bitfield + TLV"| NWDAF_PG
+    RTS_H -->|"32B Fixed Header"| RTS_PG
 ```
 
 방향·포트·헤더·Body 의 전체 매트릭스는 [INTERFACES.md](INTERFACES.md) 에 있다.
@@ -99,10 +102,10 @@ flowchart TD
 
 ### 4) Protocol & Transport Helper Layer (`resources/*Helper.py`)
 
-Python 기반 저수준 프로토콜 인코딩/디코딩 및 통신 엔진. 5종이며 각각
+Python 기반 저수준 프로토콜 인코딩/디코딩 및 통신 엔진. 6종이며 각각
 [TcpHelper.py](../resources/TcpHelper.py) · [TlvHelper.py](../resources/TlvHelper.py) ·
 [CdsHelper.py](../resources/CdsHelper.py) · [HttpHelper.py](../resources/HttpHelper.py) ·
-[CdsDbHelper.py](../resources/CdsDbHelper.py) 다.
+[CdsDbHelper.py](../resources/CdsDbHelper.py) · [RtsHelper.py](../resources/RtsHelper.py) 다.
 
 마지막 하나만 전문이 아니라 **PG 가 DB 에 반영한 결과**를 본다 — CDS `CommandResult` 가
 Body 와 무관하게 `SC` 를 주기 때문이다(`TC-CDS-002`).
@@ -131,5 +134,5 @@ Body 와 무관하게 `SC` 를 주기 때문이다(`TC-CDS-002`).
 * [ENVIRONMENTS.md](ENVIRONMENTS.md) — dev/stg/prd 환경 설정 및 오버라이딩 체계
 * [TC_CONVENTION.md](TC_CONVENTION.md) — TC 명명, 태그, 템플릿 작성 규칙
 * [RESOURCES.md](RESOURCES.md) — 공통 키워드 및 Python 헬퍼 카탈로그
-* [nodes/](nodes/) — 노드별 스펙 6종
+* [nodes/](nodes/) — 노드별 스펙 7종
 * [CLAUDE.md](../CLAUDE.md) — 개발 가이드 및 프로젝트 메인 인덱스

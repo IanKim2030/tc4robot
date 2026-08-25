@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스트 슈트.
-**6개 노드** — NAG · PCF · LRS · UPM · CDS · NWDAF.
+**7개 노드** — NAG · PCF · LRS · UPM · CDS · NWDAF · RTS.
 
 ## 문서 인덱스
 
@@ -14,13 +14,14 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 | [docs/INTERFACES.md](docs/INTERFACES.md) ★ | **노드 간 연동 매트릭스** — 방향·포트·헤더·Body·opcode 충돌 |
 | [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) | dev/stg/prd 환경 설정, 변수 우선순위, 환경 축 변수 |
 | [docs/TC_CONVENTION.md](docs/TC_CONVENTION.md) | TC 명명·태그·템플릿·비활성화·판정 한계 |
-| [docs/RESOURCES.md](docs/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 5종 카탈로그 |
+| [docs/RESOURCES.md](docs/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 6종 카탈로그 |
 | [docs/nodes/NAG.md](docs/nodes/NAG.md) | NAG 노드 스펙 |
 | [docs/nodes/PCF.md](docs/nodes/PCF.md) | PCF 노드 스펙 |
 | [docs/nodes/LRS.md](docs/nodes/LRS.md) | LRS 노드 스펙 |
 | [docs/nodes/UPM.md](docs/nodes/UPM.md) | UPM 노드 스펙 |
 | [docs/nodes/CDS.md](docs/nodes/CDS.md) | CDS 노드 스펙 |
 | [docs/nodes/NWDAF.md](docs/nodes/NWDAF.md) | NWDAF 노드 스펙 |
+| [docs/nodes/RTS.md](docs/nodes/RTS.md) | RTS 노드 스펙 (로밍 데이터 차단 L1/L2 — CDS 문서의 "PG.RDS"와 별개이니 혼동 금지) |
 | [docs/callflow/README.md](docs/callflow/README.md) | **업무 코드별 콜플로우 인덱스** — 알림 경로 규칙(BSUBS/SDM), 11개 코드 |
 | [docs/callflow/CDS_&lt;코드&gt;.md](docs/callflow/README.md) | 업무 코드별 시트 — 콜플로우·Body 필드·판정 기준 (A1 1X 1Y I2 I3 C1 G1 K1 K2 D3 Z1) |
 
@@ -37,6 +38,7 @@ bash run_tests.sh lrs                       # LRS   (→ PG.LRS:10204 + 8890 Lis
 bash run_tests.sh upm                       # UPM   (→ PG:10506)
 bash run_tests.sh cds                       # CDS   (듀얼 → 9201 → 9200, + PDB, + UPM:10506, + PCF Noti 8081 Listen)
 bash run_tests.sh nwdaf                     # NWDAF (→ PG:10305)
+bash run_tests.sh rts                       # RTS   (→ PG:${RTS_PG_PORT}, 32B 고정헤더, 로밍 데이터 차단 L1/L2)
 bash run_tests.sh all                       # 전체
 bash run_tests.sh smoke                     # --include smoke
 bash run_tests.sh nag --log-msg             # PG_LOG_MSG=1 → REQ/RESP 추적 로그

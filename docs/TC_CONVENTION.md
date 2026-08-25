@@ -6,7 +6,7 @@
 TC-<IFACE>-NNN <한글 설명>
 ```
 
-- `<IFACE>` : `NAG` `PCF` `LRS` `UPM` `CDS` `NWDAF`
+- `<IFACE>` : `NAG` `PCF` `LRS` `UPM` `CDS` `NWDAF` `RTS`
 - `NNN` : 3자리 0 패딩
 - 설명은 **한글**. 테스트명·Documentation·로그 메시지 모두 한글이 이 리포의 스타일이다.
 
@@ -70,7 +70,7 @@ TC-NWDAF-006 PGW STATUS Normal (0)
 (쿠폰 만료) 하나뿐이다. PG.RDS 가 예약 큐를 집어갈 때까지 최대 몇 분 걸리므로,
 빠르게 돌릴 때는 `--exclude slow` 로 뺀다.
 
-**노드별** — `nag` `pcf` `lrs` `upm` `cds` `nwdaf`
+**노드별** — `nag` `pcf` `lrs` `upm` `cds` `nwdaf` `rts`
 
 **기능별**
 
@@ -82,6 +82,7 @@ TC-NWDAF-006 PGW STATUS Normal (0)
 | UPM | `hello` `ping` `cellinfo-noti` `subs-sync` `subs-info`* `subs-change`* `info-change`* |
 | CDS | `connect` `process-state` `command` `db` `subs-data`* `upload`* `release` |
 | NWDAF | `nwdaf_smoke` `nwdaf_pgw` `nwdaf_enb` `nwdaf_dpi` `nwdaf_5g` `nwdaf_status` `nwdaf_quick` `nwdaf_qos_policy` `nwdaf_support` `nwdaf_arpqci` `nwdaf_band` `nwdaf_cu` `nwdaf_network` `nwdaf_ratio` `nwdaf_usage` `nwdaf_common1` `nwdaf_common2` `nwdaf_msgid_wrap` `nwdaf_healthcheck` |
+| RTS | `order` `roaming` `db` |
 
 `*` = 주석 처리된 TC 에만 달려 있다. 해당 TC 를 살리면 함께 살아난다.
 

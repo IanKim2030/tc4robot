@@ -1,6 +1,6 @@
 # INTERFACES — 노드 간 연동 매트릭스
 
-PG 연동 6개 노드의 방향·포트·전문 형식을 한 장에 모은 표. **어느 노드를 건드리든 여기부터 본다.**
+PG 연동 7개 노드의 방향·포트·전문 형식을 한 장에 모은 표. **어느 노드를 건드리든 여기부터 본다.**
 상세는 각 노드 스펙(`docs/nodes/<IFACE>.md`) 참조.
 
 ## 한눈에
@@ -13,20 +13,22 @@ PG 연동 6개 노드의 방향·포트·전문 형식을 한 장에 모은 표.
 | [UPM](nodes/UPM.md) | UPM | Client → PG | 10506 | 8B `0x00` | JSON | 단일 |
 | [CDS](nodes/CDS.md) | CDS | Client 듀얼 → PG.CDS | Rch 9201 → Sch 9200 | **48B** | 고정전문 | 듀얼 |
 | [NWDAF](nodes/NWDAF.md) | NWDAF | Client → PG | 10305 | 8B 비트필드 | **TLV 바이너리** | 단일 |
+| [RTS](nodes/RTS.md) | RTS | Client → PG.RTS | ${RTS_PG_PORT}(확인 필요) | **32B** | 고정폭(로밍 차단 L1/L2) | 단일 |
 
-**도구는 6개 노드 모두에서 능동 접속(Client) 한다.** 서버로 대기하는 건 NAG·LRS 가 함께 여는
+**도구는 7개 노드 모두에서 능동 접속(Client) 한다.** 서버로 대기하는 건 NAG·LRS 가 함께 여는
 LRS-PCF 보조 채널(8890) 하나뿐이다.
 
 호스트는 전부 `${PG_HOST}`(`resources/variables.robot`, 기본 `192.168.15.141`)를 상속하며
 `run_tests.sh all <IP>` 로 일괄 오버라이드된다.
 
-## 전문 형식 3계열
+## 전문 형식 4계열
 
 | 계열 | 헤더 | 모듈 | 쓰는 노드 |
 |---|---|---|---|
 | 8-옥텟 공통 | Byte0 `0x00`(ProtoVer 0) / `0x20`(LRS 계열) | `TcpHelper.py` (`WITH NAME Tcp`) | NAG, PCF, UPM, LRS-PCF 채널 |
 | 48-옥텟 CDS | Message ID / TID(date+seq) / System·App ID / Continue / Serial / Data Size | `CdsHelper.py` (`Cds`) | CDS |
 | 8-옥텟 NWDAF | Byte0 비트필드(Ext/ProtoVer/HdrType/MsgType) + SvcId(2B) + MsgId(3B) + BodyLen(2B) | `TlvHelper.py` (`Tlv`) | NWDAF |
+| 32-옥텟 RTS | Message ID / TID(date+seq) / Source·Dest System ID / Data Size | `RtsHelper.py` (`Rts`) | RTS |
 
 `txn_id` 는 **절대 0이 될 수 없다**(규격 명시). `Next TXN ID` 키워드가 강제한다.
 NWDAF 는 `txn_id` 대신 Message Id(0x000~0xFFF 순환)를 쓴다.

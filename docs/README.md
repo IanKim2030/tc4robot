@@ -1,7 +1,7 @@
 # tc4robot 문서 인덱스
 
 SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스트 슈트.
-**6개 노드** — NAG · PCF · LRS · UPM · CDS · NWDAF.
+**7개 노드** — NAG · PCF · LRS · UPM · CDS · NWDAF · RTS.
 
 ## 먼저 읽을 것
 
@@ -15,7 +15,7 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 | 문서 | 내용 |
 |---|---|
 | [TC_CONVENTION.md](TC_CONVENTION.md) | TC 명명·태그·템플릿·비활성화·판정 한계 |
-| [RESOURCES.md](RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 5종 카탈로그 |
+| [RESOURCES.md](RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 6종 카탈로그 |
 | [ENVIRONMENTS.md](ENVIRONMENTS.md) | dev/stg/prd 설정, 변수 우선순위, 환경 축 변수 |
 
 ## 노드 스펙
@@ -28,6 +28,7 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 | [UPM](nodes/UPM.md) | 10506 | JSON | 단일 |
 | [CDS](nodes/CDS.md) | 9201 → 9200 | 48B 고정전문 | 듀얼 |
 | [NWDAF](nodes/NWDAF.md) | 10305 | TLV 바이너리 | 단일 |
+| [RTS](nodes/RTS.md) | ${RTS_PG_PORT}(확인 필요) | 32B 고정헤더 + 고정폭 Body | 단일 |
 
 각 노드 스펙은 **접속 → 메시지 타입 → wire 인코딩 → TC → 함정 → 확인 필요** 순의 공통 골격을 쓴다.
 해당 없는 절은 생략하고, 노드 고유 내용은 그 사이에 끼운다(예: CDS 의 `Call Flow`).

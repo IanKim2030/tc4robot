@@ -20,13 +20,14 @@ resources/TcpHelper.py                ← 원시 소켓 + 8옥텟 헤더
 resources/CdsHelper.py                ← 48옥텟 CDS 전문
 resources/TlvHelper.py                ← NWDAF TLV 바이너리
 resources/HttpHelper.py               ← LRS Session-Info (HTTP/XML)
-resources/CdsDbHelper.py              ← CDS PDB 조회 (ODBC/pyodbc)
+resources/CdsDbHelper.py              ← CDS PDB 조회 (ODBC/pyodbc, RTS 도 재사용)
+resources/RtsHelper.py                ← 32옥텟 RTS 전문 (로밍 데이터 차단 L1/L2)
 ```
 
 임포트 순서가 중요하다. `variables.robot` 이 `${PG_HOST}` 를 정의하고 노드별 변수 파일이
 이를 참조하므로 **`variables.robot` 을 항상 먼저 임포트**한다. 모든 슈트가 이 순서를 지킨다.
 
-## Python 헬퍼 5종
+## Python 헬퍼 6종
 
 | 모듈 | Robot 별칭 | 담당 | 주요 함수 |
 |---|---|---|---|
@@ -34,7 +35,8 @@ resources/CdsDbHelper.py              ← CDS PDB 조회 (ODBC/pyodbc)
 | `CdsHelper.py` | `Cds` | 48옥텟 CDS 고정전문. 소켓은 `TcpHelper` 재사용 | `pack_cds_header` `parse_cds_header` `send_cds` `receive_cds` `pack_ack` `unpack_ack` `pack_command_body` `unpack_command_body` |
 | `TlvHelper.py` | `Tlv` | NWDAF TLV. 소켓까지 자체 구현 | `build_nwdaf_header` `parse_nwdaf_header` `pack_tlv` `unpack_tlv_stream` `tlv_find` `tlv_find_all` `build_common1` `build_pcef_qos_ctrl` `build_dpi_qos_ctrl` `build_enb_qos_ctrl` `build_common2` `send_nwdaf_notification` `send_nwdaf_raw` `receive_nwdaf_message` `hex_dump` |
 | `HttpHelper.py` | — | LRS Session-Info 전용 | `build_aims_req` `parse_xml_fields` `post_session_info` |
-| `CdsDbHelper.py` | `CdsDb` | CDS PDB(골디락스/알티베이스) **조회 전용**. ODBC | `masked_conn_str` `db_connect` `db_end_transaction` `db_close` `db_count` `db_group_counts` |
+| `CdsDbHelper.py` | `CdsDb` (RTS 는 `RtsDb`) | CDS PDB(골디락스/알티베이스) **조회 전용**. ODBC. RTS 슈트도 같은 모듈을 다른 별칭으로 재사용(DSN 공유 여부는 확인 필요, `docs/nodes/RTS.md`) | `masked_conn_str` `db_connect` `db_end_transaction` `db_close` `db_count` `db_group_counts` |
+| `RtsHelper.py` | `Rts` | 32옥텟 RTS 고정전문(로밍 데이터 차단 L1/L2). 소켓은 `TcpHelper` 재사용 | `pack_rts_header` `parse_rts_header` `send_rts` `receive_rts` `pack_rts_order_body` `unpack_rts_order_body` `unpack_connect_ack` `unpack_order_ack` `unpack_keepalive_ack` |
 
 `CdsDbHelper` 만 성격이 다르다 — 전문을 만들지 않고 **PG 가 DB 에 반영했는지를 본다**.
 접속 방식은 **완성 문자열 하나뿐**이다(`${CDS_DB_CONNSTR}`) — 도구가 조립하지 않는다.
@@ -85,7 +87,7 @@ KIND/DSN/DRIVER/HOST/PORT 조립 경로는 제거했다. 골디락스는 DSN 을
 
 소켓은 **슈트당 1회만** 열리고 모든 TC 가 Suite Variable 로 공유한다:
 `${NAG_SOCK}` `${PCF_SOCK}` `${LRS_CONN}` `${LRS_SRV_SOCK}` `${UPM_SOCK}`
-`${CDS_SCH_SOCK}` `${CDS_RCH_SOCK}` `${NWDAF_SOCK}`
+`${CDS_SCH_SOCK}` `${CDS_RCH_SOCK}` `${NWDAF_SOCK}` `${RTS_SOCK}`
 
 각 `Test Setup` 의 `Check ... Socket` 이 닫힘을 감지하면 **`Fatal Error` 로 슈트 전체를 중단**한다.
 연결이 없으면 이후 TC 도 의미가 없기 때문이다.
@@ -114,7 +116,7 @@ NWDAF 만 `Tlv.Nwdaf Peer Closed`(논블로킹 `MSG_PEEK`)로 FIN/RST 를 잡는
 per-recv 타임아웃 인자도 `Wait Until` 계열 키워드도 리포에 없다.
 
 `${NAG_TIMEOUT}` `${PCF_TIMEOUT}` `${UPM_TIMEOUT}` `${CDS_TIMEOUT}` `${NWDAF_TIMEOUT}`
-`${LRS_CLIENT_TIMEOUT}` 모두 기본 10초. `${LRS_ACCEPT_TIMEOUT}` 만 30초다.
+`${RTS_TIMEOUT}` `${LRS_CLIENT_TIMEOUT}` 모두 기본 10초. `${LRS_ACCEPT_TIMEOUT}` 만 30초다.
 
 더 오래 기다려야 하면 그 구간에서만 올렸다 되돌린다 —
 NWDAF Health Check(30초 규격)가 `Tlv.Nwdaf Set Timeout` + `TRY/FINALLY` 로 이 패턴을 쓴다.
