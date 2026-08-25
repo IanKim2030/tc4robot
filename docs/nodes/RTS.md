@@ -146,6 +146,11 @@ PCF SBI Noti 도착 확인(`noti`), L1 은 추가로 `T_RTS_ORDER_HIST` 프로�
 3. **`T_5G_SUBS_SERVICE` 조회(둘 다, 권장)**: `SELECT COUNT(*) ... WHERE MDN=? AND SVC_ID=?` 1건 이상 — "전문이 가입자에게 실제로 적용됐는가"의 가장 신뢰 가능한 근거. CDS 의 `Verify Zone Service Subscribed In PDB` 와 같은 패턴("1건 이상이면 성공", 정확한 건수는 안 박음).
 4. **PCF SBI Noti 조회(둘 다, 사용자 확인)**: `Verify RTS SBI Noti Sent` — 위 PCF SBI Noti 절 참조.
 
+## Call Flow
+
+Order 부터 `PG.SDM_5G` 폴링·`T_5G_SUBS_SERVICE` 반영·SBI Noti 까지 한 장에 그린 시퀀스
+다이어그램은 [callflow/RTS_L1_L2.md](../callflow/RTS_L1_L2.md) 에 있다.
+
 ## 함정
 
 - **이중 오프셋** — 위 wire 인코딩 절 참조. 이 문서의 존재 이유다.
