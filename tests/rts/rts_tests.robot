@@ -29,8 +29,10 @@ Documentation
 ...    `db` 태그 TC 는 두 계층을 확인한다.
 ...      프로토콜 계층 — T_RTS_ORDER_HIST.ORDER_DATA (TC-RTS-001 만, 와이어 왕복 확인용)
 ...      업무 계층    — T_5G_SUBS_SERVICE.SVC_ID (TC-RTS-001/002 공통, 사용자 확인, 비동기라 재시도)
-...    접속 정보(DSN 공유 여부)가 아직 확인되지 않아 접속 문자열이 없으면 Skip 한다
-...    (docs/nodes/RTS.md 확인 필요 절 참조) — CDS 처럼 Suite 전체를 막지 않는다.
+...    PDB 접속은 CDS 와 DSN 이 동일함(사용자 확인) — ${RTS_DB_CONNSTR} 기본값이 이미
+...    ${CDS_DB_CONNSTR} 과 같은 문자열로 채워져 있다. 그래도 환경 오버라이드로
+...    접속 문자열이 비게 되는 경우를 대비해, 없으면 실패 대신 Skip 한다 — CDS 처럼
+...    Suite 전체를 막지 않는다.
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/rts_variables.robot

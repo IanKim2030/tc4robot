@@ -116,6 +116,11 @@ SVC_CODE(0)/MDN(2) 만 두 레이어의 오프셋이 우연히 같다. **`RtsHel
 | `T_RTS_ORDER_TID` | `NAME`(PG 프로세스 인스턴스명 — **MDN 아님**, TC 단위 구분 불가) / `TID` — 부차 확인용 |
 | `T_5G_SUBS_SERVICE` | `MDN` / `SVC_ID` — **업무 계층**(가입자 서비스 반영). `L1`→`SVC_ID=W_DATA_ROAMING_BLOCK` INSERT, `L2`→`SVC_ID=L_DATA_ROAMING_BLOCK` INSERT (사용자 확인). 비동기 반영으로 보여 재시도로 기다린다(`${RTS_DB_WAIT}`/`${RTS_DB_WAIT_INTERVAL}`, CDS 의 SDM 폴링과 같은 성격으로 추정) |
 
+**PDB 접속은 CDS 와 동일하다(사용자 확인)** — `${RTS_DB_CONNSTR}` 기본값이 `${CDS_DB_CONNSTR}`
+와 같은 DSN/계정 문자열로 미리 채워져 있다(`rts_variables.robot`). `Resolve RTS DB Connstr`
+키워드는 그래도 `${CDS_DB_CONNSTR}` 폴백을 남겨 둔다 — 환경 오버라이드로 한쪽만 비게 되는
+경우를 대비한 방어선일 뿐, DSN 자체가 다를 수 있다는 의미는 아니다.
+
 ## TC
 
 현재 **2건** — L1, L2 각 1건. 둘 다 ACK 확인 + `T_5G_SUBS_SERVICE` 업무 계층 반영 확인(`db` 태그), L1 은 추가로 `T_RTS_ORDER_HIST` 프로토콜 계층 확인도 겸한다. 태그: `rts` `order` `roaming` `db`.
@@ -135,6 +140,5 @@ SVC_CODE(0)/MDN(2) 만 두 레이어의 오프셋이 우연히 같다. **`RtsHel
 ## 확인 필요
 
 - **`${RTS_PG_PORT}` 실값** — 소스에 하드코딩 없음(`PG_V2.cfg [RTS]` 런타임 설정). 실환경 cfg 또는 PG 담당자 확인 필요.
-- **`T_RTS_ORDER_HIST` 가 CDS 의 `${CDS_DB_CONNSTR}` 과 같은 DSN/계정으로 조회 가능한지** — PDB 라우팅 키(`"SUBSCRIBER"`)는 CDS 와 같음을 소스로 확인했으나, tc4robot 외부 접속 계정이 같은지는 별개 문제. 확인 전까지 `Verify RTS Order In PDB` 는 접속 문자열이 없으면 Skip 한다.
 - **L1/L2 가 `T_5G_SUBS_SERVICE` 에 반영되는 것은 사용자 확인으로 확정**(L1→`W_DATA_ROAMING_BLOCK`, L2→`L_DATA_ROAMING_BLOCK`, 위 TC 판정 기준 3 참조). 다만 `W_`/`L_` 접두사가 정확히 어떤 차단 범위를 뜻하는지, L1/L2 가 서로의 반대(ON/OFF 토글) 관계인지는 아직 불명확 — RTS 소스(`RecvCommandRequest`)는 두 코드를 대칭적으로 처리할 뿐 의미까지는 알려주지 않는다. 반영 지연 시간(비동기 폴링 주기)도 미확인 — 현재 `${RTS_DB_WAIT}`=10초는 CDS 값을 그대로 가져온 추정치다.
 - **L3~LE(mVoIP/QoS)** — 코드에는 분기가 있으나 미사용 확인됨. 필요해지면 `pack_rts_order_body` 를 offset15/16 까지 채우도록 확장.

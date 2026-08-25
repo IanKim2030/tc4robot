@@ -140,7 +140,7 @@ RTS Order Should Fail
 
 
 # ══════════════════════════════════════════════════════════════════
-# PDB 검증 — ★ 확인 필요 (DSN 공유 여부, rts_variables.robot 참조)
+# PDB 검증 — CDS 와 DSN 동일함(사용자 확인, rts_variables.robot 참조)
 # ══════════════════════════════════════════════════════════════════
 
 Resolve RTS DB Connstr
@@ -160,12 +160,13 @@ Verify RTS Order In PDB
     ...    ORDER_DATA 는 265B 고정폭이며, 로밍 플래그는 **DB 저장 오프셋(85)**에
     ...    있다 — 와이어 오프셋(14)과 다르다(RtsHelper.py 모듈 docstring 참조).
     ...
-    ...    접속 문자열이 없거나 DSN 공유가 안 되면(확인 필요) 실패 대신 Skip 한다 —
+    ...    ${RTS_DB_CONNSTR} 기본값이 CDS 와 동일하게 채워져 있지만, 환경 오버라이드로
+    ...    비어 있는 경우까지 대비해 접속 문자열이 없으면 실패 대신 Skip 한다 —
     ...    CDS 처럼 Suite 전체를 막지 않는다.
     [Arguments]    ${tid_date}    ${tid_seq}    ${expected_roaming_block}
     ${conn_str}=    Resolve RTS DB Connstr
     IF    not $conn_str
-        Skip    RTS PDB 접속 문자열이 없습니다 — DSN 공유 여부 확인 필요(docs/nodes/RTS.md). rts_variables.robot 의 RTS_DB_CONNSTR 또는 cds_variables.robot 의 CDS_DB_CONNSTR 을 채우면 이 TC 가 동작합니다.
+        Skip    RTS PDB 접속 문자열이 없습니다. rts_variables.robot 의 RTS_DB_CONNSTR(기본값은 CDS 와 동일 DSN) 이 환경 오버라이드로 비워진 것으로 보입니다 — 채우면 이 TC 가 동작합니다.
     END
     ${transaction_id}=    Evaluate    "%8.8s%08d" % ("${tid_date}", ${tid_seq})
     ${status}    ${conn}=    Run Keyword And Ignore Error
@@ -210,7 +211,7 @@ Verify RTS Service Applied In PDB
     [Arguments]    ${mdn}    ${svc_id}    ${wait}=${RTS_DB_WAIT}    ${interval}=${RTS_DB_WAIT_INTERVAL}
     ${conn_str}=    Resolve RTS DB Connstr
     IF    not $conn_str
-        Skip    RTS PDB 접속 문자열이 없습니다 — DSN 공유 여부 확인 필요(docs/nodes/RTS.md). rts_variables.robot 의 RTS_DB_CONNSTR 또는 cds_variables.robot 의 CDS_DB_CONNSTR 을 채우면 이 TC 가 동작합니다.
+        Skip    RTS PDB 접속 문자열이 없습니다. rts_variables.robot 의 RTS_DB_CONNSTR(기본값은 CDS 와 동일 DSN) 이 환경 오버라이드로 비워진 것으로 보입니다 — 채우면 이 TC 가 동작합니다.
     END
     ${status}    ${conn}=    Run Keyword And Ignore Error
     ...    RtsDb.Db Connect    ${conn_str}
