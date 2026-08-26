@@ -39,8 +39,13 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 
 | 문서 | 내용 |
 |---|---|
-| [callflow/README.md](callflow/README.md) | **업무 코드별 콜플로우 인덱스** — 알림 경로 규칙(BSUBS/SDM) + 11개 코드 시트 |
-| [callflow/RTS_L1_L2.md](callflow/RTS_L1_L2.md) | RTS L1/L2(로밍 데이터 차단) 콜플로우 |
+| [callflow/cds_callflow.md](callflow/cds_callflow.md) | **CDS 업무 코드별 콜플로우** — 알림 경로 규칙(BSUBS/SDM) + 11개 코드를 한 파일에 (`gen_callflow.py` 생성) |
+| [callflow/nag_callflow.md](callflow/nag_callflow.md) | NAG(HFC/ADOT 존·셀 조회) 콜플로우 — 듀얼 소켓, LRS-PCF 교차 |
+| [callflow/lrs_callflow.md](callflow/lrs_callflow.md) | LRS(세션 정보 조회) 콜플로우 — REQ/ANS + HTTP AIMS, 8890 곁채널 교차 |
+| [callflow/rts_callflow.md](callflow/rts_callflow.md) | RTS L1/L2(로밍 데이터 차단) 콜플로우 |
+| [callflow/nwdaf_callflow.md](callflow/nwdaf_callflow.md) | NWDAF(기지국 혼잡제어) 콜플로우 — Notification/Health Check, 판정 공백 |
+| [callflow/pcf_callflow.md](callflow/pcf_callflow.md) | PCF(ZONE 알림) 콜플로우 — Zone-InOut(8011) ↔ ZION(8012) 듀얼 소켓 왕복 |
+| [callflow/upm_callflow.md](callflow/upm_callflow.md) | UPM(HFC 서비스 연동) 콜플로우 — 능동 4종 / 수동 수신 3종(트리거는 CDS) |
 
 노드 간 요약 흐름은 [INTERFACES.md](INTERFACES.md#hfc-서비스-call-flow--세-노드가-어떻게-이어지는가),
 CDS 단일 노드의 즉시/예약 흐름은 [nodes/CDS.md](nodes/CDS.md#call-flow--pg-내부-처리) 에 있다.

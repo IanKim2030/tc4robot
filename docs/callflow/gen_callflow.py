@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""docs/callflow/CDS_<업무코드>.md 생성기.
+"""docs/callflow/cds_callflow.md 생성기 (업무 코드 11개를 한 파일로).
 
 필드 집합은 **CdsHelper 에서 직접 뽑는다** — 손으로 옮기면 어긋난다.
 그 밖의 사실(TC 번호 / 알림 경로 / 판정 기준)은 아래 표가 쥔다.
@@ -128,9 +128,26 @@ HFC_ORDER = {
 
 # 전문 처리가 끝난 **한참 뒤**에 PG.RDS 가 예약 큐를 보고 스스로 하는 일.
 # 슈트가 판정하는 구간이 아니라 그림에만 남긴다.
-RDS_FOLLOWUP = {
- 'K1': 'K3(쿠폰 만료) 생성 — CDS 인입이 아니다',
+# (2026-08-24 c2c4526 에서 손으로 그려 넣은 것을 생성기로 옮겼다 — 재생성해도 유실되지 않는다.)
+RDS_EXPIRY = {
+ 'K1': ['    RDS->>PDB: SELECT T_5G_RESERVED_JOB(Polling)',
+        '    opt START_TIME > NOW() AND STATUS = N',
+        '    RDS->>PDB: INSERT T_5G_RESERVED_ORDER_HIST (STATUS=1) K3(쿠폰 만료) 생성',
+        '    SDM->>PDB: SELECT T_5G_RESERVED_ORDER_HIST(Polling)',
+        '    SDM->>PDB: SELECT T_5G_SUBS_PROFILE and SERVICE',
+        '    SDM->>PDB: DELETE T_5G_SUBS_SERVICE (MDN, SVC_ID=R17, SVC_TYPE=N, CNUM=COUPON_PIN)',
+        '    SDM->>SNOTI: RBUS NOTI',
+        '    SDM->>PDB: UPDATE T_RESERVED_ORDER_TID SET TID...',
+        '    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)',
+        '    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)',
+        '    SNOTI->>PCF: SBI Noti (h2c)',
+        '    end'],
 }
+
+# SDM 의 TID 갱신 위치. 대부분은 반영 직후지만, 아래 코드들은 RBUS NOTI 뒤다.
+# 시트(수동 편집)를 그대로 옮긴 것 — I2/I3/K2 는 반대(반영 직후)라 서로 어긋나 있다.
+# 어느 쪽이 맞는지 PG 소스로 확인 필요.
+TID_AFTER_NOTI = {'A1', '1X', '1Y', 'K1'}
 
 # BSUBS 가 폴링한 뒤 추가로 하는 일. 모르는 코드는 비워 둔다 — 지어내지 않는다.
 BSUBS_EXTRA = {
@@ -188,8 +205,8 @@ SDM_APPLY = {
  'Z1': 'DELETE T_5G_SUBS_*',
  'I2': 'INSERT T_5G_SUBS_SERVICE (SVC_ID=YOUNG_HARM_INFO_BLOCK)',
  'I3': 'DELETE T_5G_SUBS_SERVICE (SVC_ID=YOUNG_HARM_INFO_BLOCK)',
- 'K1': ['INSERT T_5G_SUBS_SERVICE (SVC_ID=R17, SVC_TYPE=N, JOB_CODE=K1, TPID=113, LIMIT=1, CNUM=COUPON_PIN)',
-        'INSERT T_5G_RESERVED_JOB (JOB_CODE=K3, CNUM=COUPON_PIN)'],
+ 'K1': ['INSERT T_5G_RESERVED_JOB (JOB_CODE=K3, CNUM=COUPON_PIN)',
+        'INSERT T_5G_SUBS_SERVICE (SVC_ID=R17, SVC_TYPE=N, JOB_CODE=K1, TPID=113, LIMIT=1, CNUM=COUPON_PIN)'],
  'K2': 'DELETE T_5G_SUBS_SERVICE (SVC_ID=R17, CNUM=COUPON_PIN)',
 }
 
@@ -214,7 +231,7 @@ def mermaid(code, route):
     L = ['```mermaid', 'sequenceDiagram', '    autonumber', '    ' + HDR]
     if route == 'SDM':
         L.append('    participant SDM as PG.SDM')
-        if code in RDS_FOLLOWUP:
+        if code in RDS_EXPIRY:
             L.append('    participant RDS as PG.RDS')
     elif route == 'BSUBS-always':
         # 1X/1Y 도 SDM 은 돈다 — 안 하는 것은 RBUS NOTI 뿐이다.
@@ -264,9 +281,13 @@ def mermaid(code, route):
         # 여기서 생긴다 — 이 블록이 빠지면 판정 대상이 어디서 왔는지 사라진다.
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
         [L.append('    SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
-        L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
+        tid = '    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...'
+        if code not in TID_AFTER_NOTI:
+            L.append(tid)
         L.append('    SDM--xSNOTI: RBUS NOTI 없음')
         L.append('    Note over SDM,SNOTI: 1X/1Y 인 경우 PG.SDM 에서 RBUS NOTI 하지 않음 — PG.BSUBS 가 RBUS NOTI 한다')
+        if code in TID_AFTER_NOTI:
+            L.append(tid)
         L.append('')
         L.append('    BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)')
         L.append('    BSUBS->>UPM: 0x07 Subs-Info-Request')
@@ -287,8 +308,12 @@ def mermaid(code, route):
         else:
             [L.append('    SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
         # 가입자 반영을 끝낸 뒤 SDM 도 TID 를 갱신한다 — PG.CDS 것과 별개로 한 번 더다.
-        L.append('    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
+        tid = '    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...'
+        if code not in TID_AFTER_NOTI:
+            L.append(tid)
         L.append('    SDM->>SNOTI: RBUS NOTI')
+        if code in TID_AFTER_NOTI:
+            L.append(tid)
         if code not in NO_NOTI:
             L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
             L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (%s)' % snoti_mdn(code))
@@ -362,6 +387,12 @@ def mermaid(code, route):
                 L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
                 L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (%s)' % snoti_mdn(code))
                 L.append('    SNOTI->>PCF: SBI Noti (h2c)')
+    if code in RDS_EXPIRY:
+        # 전문 처리가 끝난 한참 뒤, 쿠폰 만료 시각에 PG.RDS 가 스스로 하는 일.
+        # 슈트가 판정하는 구간이 아니라 그림에만 남긴다.
+        L.append('')
+        L.extend(RDS_EXPIRY[code])
+        L.append('')
     # TC 의 성패가 갈리는 자리. 위의 전문 왕복과 눈으로 구분되게 밴드로 감싼다.
     L.append('    rect %s' % BAND)
     L.append('    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
@@ -370,22 +401,28 @@ def mermaid(code, route):
     if code in PDB_PRE:
         L.append('        Note over TOOL,PDB: 두 집계가 같으면 성공')
     L.append('    end')
-    if code in RDS_FOLLOWUP:
-        # 슈트가 보는 구간 밖이다 — 한참 뒤에 PG 혼자 하는 일이라 그림에만 남긴다.
+    if code in RDS_EXPIRY:
         L.append('')
-        L.append('    Note over PDB,RDS: ── 아래는 쿠폰 만료 시각에 일어난다 (슈트가 보지 않는다) ──')
-        L.append('    RDS->>PDB: SELECT T_5G_RESERVED_JOB(Polling)')
-        L.append('    RDS->>PDB: %s' % RDS_FOLLOWUP[code])
     L.append('```')
     return '\n'.join(L)
 
 
-def render(code):
+def anchor(code):
+    """섹션 앵커. 한글/백틱이 섞인 제목의 자동 앵커에 기대지 않는다."""
+    return 'cds-%s' % code.lower()
+
+
+def section(code):
+    """업무 코드 하나의 절. 문서 전체가 한 파일이라 h2 부터 시작한다."""
     name, tc, route, checks, note = T[code]
     label, rule = ROUTE_LABEL[route]
     fs = fields_of(code)
     L = []
-    L.append('# CDS `%s` — %s' % (code, name))
+    L.append('---')
+    L.append('')
+    L.append('<a id="%s"></a>' % anchor(code))
+    L.append('')
+    L.append('## `%s` — %s' % (code, name))
     L.append('')
     L.append('| 항목 | 값 |')
     L.append('|---|---|')
@@ -404,36 +441,28 @@ def render(code):
     if note:
         L.append('> %s' % note)
         L.append('')
-    L.append('## 콜플로우')
+    L.append('### 콜플로우 — `%s`' % code)
     L.append('')
     L.append(mermaid(code, route))
     L.append('')
-    L.append('## 전문 Body 필드')
+    L.append('### 전문 Body 필드 — `%s`' % code)
     L.append('')
-    L.append('Body 는 업무 코드와 무관하게 **항상 327B** 다. 아래 필드만 채우고 나머지는 공백이다.')
+    L.append('아래 %d개만 채우고 나머지는 공백이다 ([공통 규칙](#body-공통)).' % len(fs))
     L.append('')
     L.append('| # | 필드 | 폭(B) |')
     L.append('|---|---|---|')
     for i, n in enumerate(fs, 1):
         L.append('| %d | `%s` | %d |' % (i, n, SIZES[n]))
     L.append('')
-    L.append('출처는 `resources/CdsHelper.py` 의 `_fill_command_fields()` 분기다 — '
-             '**규격서가 아니라 이 코드가 와이어의 기준이다.**')
-    L.append('★ 분기가 선언하지 않은 필드는 값을 넘겨도 **조용히 버려진다.**')
+    L.append('### 판정 기준 — `%s`' % code)
     L.append('')
-    L.append('## 판정 기준')
-    L.append('')
-    L.append('`0016 CommandRequestACK` 는 **받았다는 확인**이라 처리 전에 나간다 — 판정에 쓸 수 없다.')
-    L.append('')
-    L.append('`0017 CommandResult` 가 나르는 것은 **전문 이력 적재의 성패**다. '
-             'INSERT 가 실패하면 `FA`, 성공하면 Body 내용이 업무적으로 맞든 틀리든 `SC` 다.')
-    L.append('가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 로만 판정된다.**')
+    L.append('전문 왕복(`0016`/`0017`)으로는 판정하지 않는다 — [공통 규칙](#판정-공통) 참조.')
     L.append('')
     for c in checks:
         L.append('- %s' % c)
     L.append('')
     if code in EXEMPT:
-        L.append('### ⚠️ 알림 판정은 현재 꺼져 있다')
+        L.append('#### ⚠️ `%s` 의 알림 판정은 현재 꺼져 있다' % code)
         L.append('')
         L.append('이 코드는 `@{CDS_NOTI_EXEMPT_CODES}`(A1 / Z1)에 들어 있어 '
                  '`Verify SBI Noti Sent` 가 **건너뛴다.**')
@@ -450,34 +479,25 @@ def render(code):
         L.append('알림은 `Verify SBI Noti Sent %s` 가 본다(도착 여부). '
                  '경로는 수신만으로 구분되지 않아 규칙으로 계산해 실패 메시지에 싣는다.' % code)
         L.append('')
-    L.append('## 관련 문서')
-    L.append('')
-    L.append('- [CDS 노드 스펙](../nodes/CDS.md) — 인코딩 표, 함정, LTE/SA 차이')
-    if tc:
-        L.append('- `tests/cds/cds_tests.robot` — `%s`' % tc)
-    else:
-        L.append('- `tests/cds/cds_tests.robot` — **해당 TC 없음** '
-                 '(전문·판정 기준만 정리해 둔 시트다)')
+    L.append('<sub>[↑ 업무 코드 목록](#code-list)</sub>')
     L.append('')
     return '\n'.join(L)
 
 
-# TC 번호 순 = 슈트 실행 순서. 바꾸면 인덱스 표의 순서도 같이 바뀐다.
+# TC 번호 순 = 슈트 실행 순서. 바꾸면 목차 표의 순서도 같이 바뀐다.
 # 슈트 실행 순서 = 이 순서. **CDS 로 인입되는 코드만** 여기 있다.
-# K3(쿠폰 만료)는 PG.RDS 가 만료 시각에 스스로 만드는 것이라 시트가 없다(K1 참조).
+# K3(쿠폰 만료)는 PG.RDS 가 만료 시각에 스스로 만드는 것이라 절이 없다(K1 참조).
 order = ['A1', '1X', '1Y', 'I2', 'I3', 'C1', 'G1', 'K1', 'K2', 'D3', 'Z1']
-for code in order:
-    path = os.path.join(OUT, 'CDS_%s.md' % code)
-    io.open(path, 'w', encoding='utf-8', newline='').write(render(code))
-    print('%-28s %2d 필드' % (path, len(fields_of(code))))
-print('\n총 %d개' % len(order))
 
-
-# ── 인덱스 ────────────────────────────────────────────────────────
-idx = ['# CDS 업무 코드별 콜플로우', '',
+# ── 머리말 ────────────────────────────────────────────────────────
+# 코드마다 똑같이 반복되던 설명(327B Body / 0016·0017 의 의미)은 여기 한 번만 둔다.
+doc = ['# CDS 업무 코드별 콜플로우', '',
        '전문 하나가 PG 안에서 어떤 경로로 흐르고 무엇으로 판정되는지를 업무 코드별로 정리했다.',
        '**필드 집합은 `resources/CdsHelper.py` 의 `_fill_command_fields()` 에서 뽑은 것**이라',
        '규격서가 아니라 코드가 기준이다.', '',
+       '> 이 문서는 `gen_callflow.py` 가 생성한다. **직접 고치지 말 것** —',
+       '> 값을 바꾸려면 생성기의 표(`T` / `PDB_*` / `SDM_APPLY` …)를 고치고 다시 돌린다.',
+       '> `python docs/callflow/gen_callflow.py` (리포 루트에서)', '',
        '## 알림 경로 규칙 (2026-08-19)', '',
        '위에서부터 차례로 적용한다.', '',
        '| # | 조건 | 경로 |', '|---|---|---|',
@@ -493,10 +513,24 @@ idx = ['# CDS 업무 코드별 콜플로우', '',
        '주황 밴드(`★ 판정`)로 감싼 구간이 **TC 의 성패를 가르는 자리**다. 그 위의 전문 왕복과',
        'PG 내부 처리는 배경이 없다 — `0017 CommandResult` 가 `SC` 여도 밴드 안이 틀리면 실패다.',
        '전후 비교형(`C1` `G1` `D3`)은 밴드가 둘이다 — 전문 앞의 **기준선**과 뒤의 **집계**.', '',
+       '<a id="판정-공통"></a>', '',
+       '## 판정의 공통 규칙 — 전문 왕복으로는 판정하지 않는다', '',
+       '아래는 11개 코드에 모두 같이 적용된다. 각 절의 "판정 기준"은 이 위에 얹히는 코드별 조건이다.', '',
+       '`0016 CommandRequestACK` 는 **받았다는 확인**이라 처리 전에 나간다 — 판정에 쓸 수 없다.', '',
+       '`0017 CommandResult` 가 나르는 것은 **전문 이력 적재의 성패**다. '
+       'INSERT 가 실패하면 `FA`, 성공하면 Body 내용이 업무적으로 맞든 틀리든 `SC` 다.',
+       '가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 로만 판정된다.**', '',
+       '<a id="body-공통"></a>', '',
+       '## 전문 Body 의 공통 규칙 — 항상 327B', '',
+       'Body 는 업무 코드와 무관하게 **항상 327B** 다. 코드별로 채우는 필드만 다르고 나머지는 공백이다.', '',
+       '출처는 `resources/CdsHelper.py` 의 `_fill_command_fields()` 분기다 — '
+       '**규격서가 아니라 이 코드가 와이어의 기준이다.**',
+       '★ 분기가 선언하지 않은 필드는 값을 넘겨도 **조용히 버려진다.**', '',
+       '<a id="code-list"></a>', '',
        '## 업무 코드', '',
        '11개 전부 슈트가 실제로 보내는 코드다. `K3`(쿠폰 만료)은 여기 없다 —',
        'CDS 인입이 아니라 **PG.RDS 가 만료 시각에 예약 큐를 보고 스스로 만든다**',
-       '([K1](CDS_K1.md) 시트의 마지막 두 단계).', '',
+       '([K1](#cds-k1) 절의 마지막 두 단계).', '',
        '| 업무 코드 | 내용 | TC | 경로 | 알림 판정 |', '|---|---|---|---|---|']
 for c in order:
     name, tc, route, _, _ = T[c]
@@ -504,11 +538,21 @@ for c in order:
            'BSUBS-if-hfc': 'BSUBS / SDM (HFC 상태)',
            'SDM': 'SDM'}[route]
     mark = '건너뜀 ⚠️' if c in EXEMPT else '확인'
-    idx.append('| [`%s`](CDS_%s.md) | %s | %s | %s | %s |' % (
-        c, c, name, '`%s`' % tc if tc else '— (TC 없음)', lbl, mark))
-idx += ['', '⚠️ = `@{CDS_NOTI_EXEMPT_CODES}` 에 있어 판정을 건너뛴다. '
-        '위 경로 규칙과 어긋나는 지점이라 확인이 필요하다(각 문서의 해당 절 참조).', '',
-        '## 그 밖의 문서', '',
-        '- [../nodes/CDS.md](../nodes/CDS.md) — CDS 노드 스펙 (인코딩 표, 함정, LTE/SA 차이)', '']
-io.open('docs/callflow/README.md', 'w', encoding='utf-8', newline='').write(chr(10).join(idx))
-print('docs/callflow/README.md  (인덱스)')
+    doc.append('| [`%s`](#%s) | %s | %s | %s | %s |' % (
+        c, anchor(c), name, '`%s`' % tc if tc else '— (TC 없음)', lbl, mark))
+doc += ['', '⚠️ = `@{CDS_NOTI_EXEMPT_CODES}` 에 있어 판정을 건너뛴다. '
+        '위 경로 규칙과 어긋나는 지점이라 확인이 필요하다(해당 절의 ⚠️ 참조).', '']
+
+# ── 코드별 절 ─────────────────────────────────────────────────────
+for code in order:
+    doc.append(section(code))
+    print('  %-4s %2d fields' % (code, len(fields_of(code))))
+
+doc += ['---', '', '## 그 밖의 문서', '',
+        '- [../nodes/CDS.md](../nodes/CDS.md) — CDS 노드 스펙 (인코딩 표, 함정, LTE/SA 차이)',
+        '- `tests/cds/cds_tests.robot` — 위 표의 TC 들',
+        '- `resources/CdsHelper.py` — `_fill_command_fields()` (필드 집합의 출처)', '']
+
+out = os.path.join(OUT, 'cds_callflow.md')
+io.open(out, 'w', encoding='utf-8', newline='').write(chr(10).join(doc))
+print('%s : merged %d codes' % (out, len(order)))

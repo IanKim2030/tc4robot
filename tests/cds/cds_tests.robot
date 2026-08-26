@@ -275,7 +275,7 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...      기다리다 재시도로 넘어가 **뒤따르는 TC 의 PDB 판정이 흔들린다.**
     ...    ★ **SNOTI→PCF 가입자 Noti 는 기다리지 않는다** — PG.SDM 이 1X/1Y 에 대해서는
     ...      RBUS NOTI 를 보내지 않아 SNOTI 가 깨지 않기 때문이다. 오지 않는 알림을
-    ...      기다리면 전문이 멀쩡해도 TC 가 실패한다. 근거는 docs/callflow/CDS_1X.md.
+    ...      기다리면 전문이 멀쩡해도 TC 가 실패한다. 근거는 docs/callflow/cds_callflow.md#cds-1x.
     ...    ★ Cell List 판정은 `since` 로 0x08 응답 **이후 도착분**만 본다. 경로 필터
     ...      (${CDS_NOTI_PATH_CELL})가 비어 있어 "무엇이든 왔는가" 만 보는 상태라,
     ...      0x08 보다 먼저 도착한 알림이 있으면 그걸 집어 통과해 버리기 때문이다.
@@ -296,7 +296,7 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     Set HFC Subscribed    ${TRUE}
     # SNOTI → PCF 가입자 정보 변경 통보는 여기서 검증하지 않는다.
     # 1X/1Y 는 PG.SDM 이 RBUS NOTI 를 보내지 않아 SNOTI 가 깨지 않고, 따라서 그
-    # 알림이 애초에 나가지 않는다(docs/callflow/CDS_1X.md). 다른 업무 코드에 대해
+    # 알림이 애초에 나가지 않는다(docs/callflow/cds_callflow.md#cds-1x). 다른 업무 코드에 대해
     # 이 구간을 보게 되면 그때 ${CDS_NOTI_PATH_SUBS} 와 함께 살린다.
     #
     # Cell List 는 아래 0x08 응답 **뒤에** 나가므로, 그 이후 도착분만 보도록

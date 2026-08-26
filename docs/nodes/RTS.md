@@ -149,7 +149,7 @@ PCF SBI Noti 도착 확인(`noti`), L1 은 추가로 `T_RTS_ORDER_HIST` 프로�
 ## Call Flow
 
 Order 부터 `PG.SDM_5G` 폴링·`T_5G_SUBS_SERVICE` 반영·SBI Noti 까지 한 장에 그린 시퀀스
-다이어그램은 [callflow/RTS_L1_L2.md](../callflow/RTS_L1_L2.md) 에 있다.
+다이어그램은 [callflow/rts_callflow.md](../callflow/rts_callflow.md) 에 있다.
 
 ## 함정
 
