@@ -8,7 +8,6 @@
 | 알림 판정 | `Verify RTS SBI Noti Sent` 가 도착을 확인 |
 | UPM 연동 | 없음 |
 | Body 폭 | 17B(이번 범위) — 와이어 오프셋 0(SVC_CODE)/2(MDN)/14(로밍 플래그) |
-| PG 측 프로세스 | `RTS201` · `P_SDM601` · `SNOTI501` — 슈트 전에 **기동 확인** (아래 표) |
 
 > ⚠ RTS 는 CDS 문서의 "PG.RDS"(쿠폰 예약작업 폴러)와 **별개 인터페이스**다. 이름이 비슷해서
 > 생긴 혼동으로 이 노드가 추가됐다 — 절대 같은 것으로 취급하지 말 것 ([nodes/RTS.md](../nodes/RTS.md)).
@@ -17,7 +16,7 @@
 > 가능성이 있다 — 정확한 의미는 확인 필요. 아래 다이어그램은 두 코드가 구조적으로 동일해서
 > 하나로 합쳐 그렸다(달라지는 값만 표에 분리).
 
-## PG 측 프로세스
+## PG 프로세스 목록
 
 슈트를 돌리기 전에 기동을 확인한다. 이름은 `/PG/CFG/ST.cfg` 기준이다.
 
@@ -27,7 +26,7 @@
 | `P_SDM601` | `PG.SDM_5G` | 이력 폴링 → `T_5G_SUBS_SERVICE` 반영 → RBUS NOTI |
 | `SNOTI501` | `PG.SNOTI` | 세션 조회 후 PCF 로 SBI Noti |
 
-뒤의 둘은 **CDS 흐름과 같은 프로세스다** ([cds_callflow.md](cds_callflow.md#pg-측-프로세스)).
+뒤의 둘은 **CDS 흐름과 같은 프로세스다** ([cds_callflow.md](cds_callflow.md#pg-프로세스-목록)).
 그래서 `P_SDM601` 이나 `SNOTI501` 이 죽으면 RTS 와 CDS 가 **함께** 무너진다 — RTS 만
 실패하면 `RTS201` 쪽을, 둘 다 실패하면 뒤쪽을 본다.
 
