@@ -2,7 +2,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 도구 역할 | **NAG (Client)** → PG:`${NAG_PG_PORT}`(8012) — 주 채널 |
+| 도구 역할 | **NAG (Client)** → PG.BNOTI:`${NAG_PG_PORT}`(8012) — 주 채널 |
 | 곁채널 | **PCRF/PCF (Server)** — 도구가 `${LRS_SERVER_PORT}`(8890) Listen, PG.LRS 가 접속 |
 | 헤더 | 8B 공통 (`byte0` `msg_type` `body_length`(2, htons) `txn_id`(4, htonl)) |
 | Body | 주 채널 = **JSON** / 곁채널 = **고정길이 ASCII** |
@@ -14,13 +14,41 @@
 > PG 가 곁채널로 `0x05` 를 되물어 오고, 도구가 `0x06` 으로 답해야 비로소 `0x0c` 가 온다.
 > 그래서 Suite Setup 이 **두 소켓 + 곁채널 Hello 까지** 끝내 둔다.
 
+## PG 프로세스 목록
+
+**셋 다 떠 있어야 슈트가 선다(사용자 확인).** 두 소켓을 각각 다른 프로세스가 쥐고,
+가입자를 만드는 `PG.CDS` 는 그보다 앞서 떠 있어야 한다.
+
+| 프로세스 | 다이어그램의 참여자 | 담당 | 기동 플래그 |
+|---|---|---|---|
+| `G_BNOTI201` | `PG.BNOTI` | **주 채널 8012** — Hello/Ping, `0x09` Subs-Zone-Status, `0x0b` Subs-Cellid, `0x07` ZION 발신 | `/PG/BIN/PDB_RUN/G_BNOTI201.RUN` |
+| `G_LRS201` | `PG.LRS` | **곁채널 8890** — 도구에 역접속해 `0x05` Location-Info 를 되묻는다 | `/PG/BIN/PDB_RUN/G_LRS201.RUN` |
+| `CDS201` | `PG.CDS` | **사전 기동 필수** — 전문 수신·가입자 적재 | `/PG/BIN/PDB_RUN/CDS201.RUN` |
+
+`/PG/BIN/PDB_RUN/<프로세스>.RUN` 은 **0바이트 플래그 파일**이다 — 내용이 아니라
+있고 없음이 의미를 갖는다(같은 디렉토리에 `RDS601.RUN` `G_ZONE201.RUN` 등이 같은 형태로 있다).
+
+### 어느 것이 죽었는지 증상으로 가르기
+
+이 슈트는 **Suite Setup 이 두 프로세스를 다 거치므로**, 하나만 죽어도 TC 가 한 건도
+돌지 않는다. 실패 지점이 다르니 그걸로 가른다.
+
+| 증상 | 의심 |
+|---|---|
+| `Suite LRS Accept` 가 30초를 채우고 슈트가 섬 | **`G_LRS201`** — 8890 에 붙어 오지 않는다 |
+| 소켓은 붙는데 `TC-NAG-001` Hello 가 `9999 Inactive Status` | **`G_BNOTI201`** — 떠 있어도 Standby 면 같은 응답이다 |
+| `TC-NAG-007` 만 곁채널 `0x05` 를 기다리다 타임아웃 | **`G_LRS201`** — Setup 은 지났는데 중간에 끊긴 경우 |
+
+2026-08-27 실행이 첫 줄에 해당했다 — 8890 대기 30초를 채우고 7건 전부 Suite Setup
+실패로 떨어졌다. 같은 PG 의 `0x01` Hello 도 `9999 Inactive Status` 였다.
+
 ## Suite Setup — 듀얼 소켓
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant TOOL as ROBOT (NAG 역할)
-    participant PG as PG (8012)
+    participant PG as PG.BNOTI (8012)
     participant SRV as ROBOT (PCRF/PCF 역할, 8890 Listen)
     participant PLRS as PG.LRS (LRS-PCF 채널)
 
@@ -41,7 +69,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     participant TOOL as ROBOT (NAG 역할)
-    participant PG as PG (8012)
+    participant PG as PG.BNOTI (8012)
 
     TOOL->>PG: Hello-Request (0x01) — {sys-id, branch-name}
     PG-->>TOOL: Hello-Response (0x02) — {code:200, ping-interval}
@@ -64,7 +92,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     participant TOOL as ROBOT (NAG 역할)
-    participant PG as PG (8012)
+    participant PG as PG.BNOTI (8012)
 
     TOOL->>PG: Subs-Zone-Status-Request (0x09)<br/>{sys-id, branch-name, event-timestamp, mdn, [mobile-ip]}
     alt HFC 가입 & 세션 있음
@@ -94,7 +122,7 @@ MDN 은 케이스별 전용 변수를 쓴다: `${TEST_MDN_NORMAL}` / `${TEST_MDN
 sequenceDiagram
     autonumber
     participant TOOL as ROBOT (NAG 역할)
-    participant PG as PG (8012)
+    participant PG as PG.BNOTI (8012)
     participant PLRS as PG.LRS (LRS-PCF)
     participant SRV as ROBOT (PCRF/PCF 역할, 8890)
 
@@ -132,7 +160,7 @@ PG 는 그것을 `0x0c` 로 되돌려줄 뿐이므로, `TC-NAG-007` 의 필드 �
 ```mermaid
 sequenceDiagram
     autonumber
-    participant PG as PG (8012)
+    participant PG as PG.BNOTI (8012)
     participant TOOL as ROBOT (NAG 역할)
 
     PG->>TOOL: ZION-Request (0x07) — {mdn, zone-info, cell-info, rat-type}
