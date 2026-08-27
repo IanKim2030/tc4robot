@@ -68,13 +68,13 @@ Suite RTS Connect
     Log    [Suite] RTS Connect 성공 tid=${RTS_TID_DATE}/${RTS_TID_SEQ}    console=True
     # PCF SBI Noti 수신 서버 — 도구가 PCF 역할로 Listen. CDS 의 Suite CDS Connect 와
     # 같은 패턴(소켓·DB 와 달리 PG 가 붙어 오는 쪽이라 여기서는 Listen 만 열어 둔다).
-    IF    ${RTS_NOTI_VERIFY}
+    IF    ${SNOTI_PCF_NOTI}
         Log    [Suite] PCF SBI 수신 서버 시작 → ${RTS_NOTI_HOST}:${RTS_NOTI_PORT}    console=True
         ${srv}=    Noti.Noti Server Start    ${RTS_NOTI_PORT}    ${RTS_NOTI_HOST}
         ...    monitor_interval=${RTS_NOTI_MONITOR_INTERVAL}
         Set Suite Variable    ${RTS_NOTI_SRV}    ${srv}
     ELSE
-        Log    [Suite] PCF Noti 검증 꺼짐 (RTS_NOTI_VERIFY=${RTS_NOTI_VERIFY})    console=True
+        Log    [Suite] PCF Noti 검증 꺼짐 (SNOTI_PCF_NOTI=${SNOTI_PCF_NOTI})    console=True
     END
 
 Suite RTS Disconnect
@@ -158,18 +158,15 @@ RTS Order Should Fail
 
 
 # ══════════════════════════════════════════════════════════════════
-# PDB 검증 — CDS 와 DSN 동일함(사용자 확인, rts_variables.robot 참조)
+# PDB 검증 — CDS 와 같은 DB (공용 ${PDB_CONNSTR}, variables.robot)
 # ══════════════════════════════════════════════════════════════════
 
 Resolve RTS DB Connstr
     [Documentation]
-    ...    ${RTS_DB_CONNSTR} → (비었으면) ${CDS_DB_CONNSTR} 순으로 접속 문자열을 찾는다.
-    ...    둘 다 없으면 빈 문자열을 반환한다(호출부가 Skip 여부를 결정).
-    ${conn_str}=    Set Variable    ${RTS_DB_CONNSTR}
-    IF    not $conn_str
-        ${conn_str}=    Get Variable Value    \${CDS_DB_CONNSTR}    ${EMPTY}
-    END
-    RETURN    ${conn_str}
+    ...    공용 접속 문자열 ${PDB_CONNSTR}(variables.robot)을 돌려준다.
+    ...    CDS 와 같은 DB 라 변수가 하나다 — 예전의 RTS→CDS 폴백 사슬은 없앴다.
+    ...    비어 있으면 빈 문자열을 돌려준다(호출부가 Skip 여부를 결정).
+    RETURN    ${PDB_CONNSTR}
 
 Verify RTS Order In PDB
     [Documentation]
@@ -178,13 +175,12 @@ Verify RTS Order In PDB
     ...    ORDER_DATA 는 265B 고정폭이며, 로밍 플래그는 **DB 저장 오프셋(85)**에
     ...    있다 — 와이어 오프셋(14)과 다르다(RtsHelper.py 모듈 docstring 참조).
     ...
-    ...    ${RTS_DB_CONNSTR} 기본값이 CDS 와 동일하게 채워져 있지만, 환경 오버라이드로
-    ...    비어 있는 경우까지 대비해 접속 문자열이 없으면 실패 대신 Skip 한다 —
-    ...    CDS 처럼 Suite 전체를 막지 않는다.
+    ...    접속 문자열(${PDB_CONNSTR})이 환경 오버라이드로 비어 있는 경우까지 대비해
+    ...    없으면 실패 대신 Skip 한다 — CDS 처럼 Suite 전체를 막지 않는다.
     [Arguments]    ${tid_date}    ${tid_seq}    ${expected_roaming_block}
     ${conn_str}=    Resolve RTS DB Connstr
     IF    not $conn_str
-        Skip    RTS PDB 접속 문자열이 없습니다. rts_variables.robot 의 RTS_DB_CONNSTR(기본값은 CDS 와 동일 DSN) 이 환경 오버라이드로 비워진 것으로 보입니다 — 채우면 이 TC 가 동작합니다.
+        Skip    PDB 접속 문자열이 없습니다. variables.robot 의 ${PDB_CONNSTR}(CDS 와 공용) 이 환경 오버라이드로 비워진 것으로 보입니다 — 채우면 이 TC 가 동작합니다.
     END
     ${transaction_id}=    Evaluate    "%8.8s%08d" % ("${tid_date}", ${tid_seq})
     ${status}    ${conn}=    Run Keyword And Ignore Error
@@ -229,7 +225,7 @@ Verify RTS Service Applied In PDB
     [Arguments]    ${mdn}    ${svc_id}    ${wait}=${RTS_DB_WAIT}    ${interval}=${RTS_DB_WAIT_INTERVAL}
     ${conn_str}=    Resolve RTS DB Connstr
     IF    not $conn_str
-        Skip    RTS PDB 접속 문자열이 없습니다. rts_variables.robot 의 RTS_DB_CONNSTR(기본값은 CDS 와 동일 DSN) 이 환경 오버라이드로 비워진 것으로 보입니다 — 채우면 이 TC 가 동작합니다.
+        Skip    PDB 접속 문자열이 없습니다. variables.robot 의 ${PDB_CONNSTR}(CDS 와 공용) 이 환경 오버라이드로 비워진 것으로 보입니다 — 채우면 이 TC 가 동작합니다.
     END
     ${status}    ${conn}=    Run Keyword And Ignore Error
     ...    RtsDb.Db Connect    ${conn_str}
@@ -265,9 +261,9 @@ Verify RTS SBI Noti Sent
     ...    ${since} : 이 시각 이후 도착분만 본다. `RTS Noti Timestamp` 로 뜬다.
     ...    ${body}  : 본문에 포함돼야 할 문자열(예: MDN). 기본은 빈 값(내용을 가리지 않는다).
     ...
-    ...    ${RTS_NOTI_VERIFY}=${FALSE}(--no-sbi) 면 통째로 건너뛴다.
+    ...    ${SNOTI_PCF_NOTI}=${FALSE}(--no-sbi) 면 통째로 건너뛴다.
     [Arguments]    ${code}    ${since}=${NONE}    ${body}=${EMPTY}    ${wait}=${RTS_NOTI_WAIT}
-    IF    not ${RTS_NOTI_VERIFY}
+    IF    not ${SNOTI_PCF_NOTI}
         Log    [Noti] 수신 검증 꺼짐 — ${code} 의 SBI Noti 확인을 건너뜁니다    console=True
         RETURN
     END

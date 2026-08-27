@@ -166,7 +166,7 @@ Documentation
 ...        따로 돌며 표본을 뜨기 때문이다 — disconnects_since 가 0이 아니면 전문이
 ...        아니라 링크가 끊겼던 것이다.
 ...      끄는 손잡이가 둘이고 층이 다르다.
-...        --no-sbi        (= --variable CDS_NOTI_VERIFY:False)
+...        --no-sbi        (= --variable SNOTI_PCF_NOTI:False — RTS 와 공용)
 ...                        Listen 도 판정도 안 한다. h2 패키지 없이도 돈다
 ...        --sbi-wait      (= --variable CDS_NOTI_WAIT_CONNECT:True)
 ...                        예전처럼 접속까지 기다렸다 시작한다(상시 접속 환경용)
@@ -239,7 +239,7 @@ TC-CDS-002 A1 (신규가입)
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='DATA_USAGE_LEVEL'
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${CDS_MDN}' AND SVC_ID='DATA_USAGE_LEVEL_2'
     ...    반영이 비동기라 ${CDS_DB_WAIT} 동안 재조회한다.
-    ...    ※ PDB 접속 문자열(${CDS_DB_CONNSTR})이 비어 있으면 이 TC 뿐 아니라 슈트 전체가
+    ...    ※ PDB 접속 문자열(${PDB_CONNSTR})이 비어 있으면 이 TC 뿐 아니라 슈트 전체가
     ...       서지 않는다(Suite Setup 에서 접속한다). config/env/<env>.py 에 채울 것.
     [Tags]    cds    command    validation    db
     Command Download Flow    ${CDS_CODE_A1}
@@ -283,11 +283,11 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...    ★ **PCF SBI 알림이 왔는지는 이 TC 가 판정한다.** Suite Setup 은 Listen 만
     ...      열고 접속을 기다리지 않는다 — PG 는 보낼 알림이 생겼을 때 비로소 붙기
     ...      때문이다. 여기서 ${CDS_NOTI_WAIT} 동안 기다려 도착으로 판정한다.
-    ...      ${CDS_NOTI_VERIFY}=${FALSE}(--no-sbi) 면 이 단계를 통째로 건너뛴다.
+    ...      ${SNOTI_PCF_NOTI}=${FALSE}(--no-sbi) 면 이 단계를 통째로 건너뛴다.
     ...    ★ 이 판정은 **SA(5G) 가입자 전제**다 — LTE 는 SBI 가 아니라 RBUS 라
     ...      아무것도 안 들어온다(docs/nodes/CDS.md).
     ...    ※ 구간별로 끌 수 있다(끄면 접속·Listen 자체를 하지 않는다).
-    ...       --variable CDS_UPM_VERIFY:False    --variable CDS_NOTI_VERIFY:False
+    ...       --variable CDS_UPM_VERIFY:False    --variable SNOTI_PCF_NOTI:False
     [Tags]    cds    command    validation    db    upm    noti
     # 수신 상태 리셋은 Test Setup(`CDS Test Setup`)이 **모든 TC 에서** 한다.
     Command Download Flow    ${CDS_CODE_1X}    addr=${CDS_ADDR}

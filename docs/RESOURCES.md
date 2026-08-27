@@ -39,13 +39,13 @@ resources/RtsHelper.py                ← 32옥텟 RTS 전문 (로밍 데이터 
 | `RtsHelper.py` | `Rts` | 32옥텟 RTS 고정전문(로밍 데이터 차단 L1/L2). 소켓은 `TcpHelper` 재사용 | `pack_rts_header` `parse_rts_header` `send_rts` `receive_rts` `pack_rts_order_body` `unpack_rts_order_body` `unpack_connect_ack` `unpack_order_ack` `unpack_keepalive_ack` |
 
 `CdsDbHelper` 만 성격이 다르다 — 전문을 만들지 않고 **PG 가 DB 에 반영했는지를 본다**.
-접속 방식은 **완성 문자열 하나뿐**이다(`${CDS_DB_CONNSTR}`) — 도구가 조립하지 않는다.
+접속 방식은 **완성 문자열 하나뿐**이다(`${PDB_CONNSTR}`, CDS·RTS 공용) — 도구가 조립하지 않는다.
 KIND/DSN/DRIVER/HOST/PORT 조립 경로는 제거했다. 골디락스는 DSN 을 `odbc.ini` 에 등록해
 두고 이름만 참조하는 것이 정석이며, 그 이유와 `IM012` 이력은
 [nodes/CDS.md](nodes/CDS.md) 에 있다.
 `pyodbc` 는 **지연 임포트**한다(모듈 최상단에 두면 pyodbc 없는 환경에서 CDS 슈트 전체가
 로드되지 않는다). 접속 문자열은 비밀번호를 담고 있어 키워드 인자로 받지 않고 환경변수
-`PG_CDS_DB_CONNSTR` → Robot 변수 `${CDS_DB_CONNSTR}` 순으로 Python 이 직접 읽는다 —
+`PG_PDB_CONNSTR` → `PG_CDS_DB_CONNSTR`(구 이름) → Robot 변수 `${PDB_CONNSTR}` 순으로 Python 이 직접 읽는다 —
 인자로 넘기면 `log.html` 의 Arguments 에 평문으로 남기 때문이다. 로그에 찍는 접속
 문자열은 항상 마스킹된다(`PWD=****`).
 

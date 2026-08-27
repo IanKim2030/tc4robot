@@ -84,9 +84,9 @@ for arg in "${@:2}"; do
         # (전송은 HTTP/2 평문이다. 프로토콜 얘기는 HttpNotiServer.py 를 볼 것)
         # CDS/RTS 둘 다 같은 플래그로 켜고 끈다 — 대상 슈트가 안 쓰는 변수는 무시된다.
         --no-sbi|--no-http|--no-noti)
-                        TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:False --variable RTS_NOTI_VERIFY:False) ;;
+                        TOGGLE_VARS+=(--variable SNOTI_PCF_NOTI:False) ;;
         --sbi|--http|--noti)
-                        TOGGLE_VARS+=(--variable CDS_NOTI_VERIFY:True --variable RTS_NOTI_VERIFY:True) ;;
+                        TOGGLE_VARS+=(--variable SNOTI_PCF_NOTI:True) ;;
         # 사전 확인 — 잔존 데이터가 있을 때의 처리 방식.
         # 기본은 report(리포트만 하고 진행)라 평소에는 아무것도 줄 필요가 없다.
         --no-precheck)     TOGGLE_VARS+=(--variable CDS_PRECHECK:False) ;;

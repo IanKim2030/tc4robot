@@ -89,7 +89,7 @@ Robot 은 변수 파일의 **모듈 전역 이름을 그대로 변수로 읽는�
 
 `db` 태그가 붙은 두 TC 는 전문 흐름에 더해 **PDB 반영까지** 판정한다 —
 `TC-CDS-002`(A1 신규가입)는 행이 생겼는지, `TC-CDS-013`(Z1 가입해지)는 행이
-사라졌는지를 본다. 접속 문자열은 `cds_variables.robot` 의 `${CDS_DB_CONNSTR}` 하나뿐이다.
+사라졌는지를 본다. 접속 문자열은 `variables.robot` 의 `${PDB_CONNSTR}` 하나뿐이다 — CDS·RTS 공용이다.
 
 ★ **CDS 슈트는 Suite Setup 에서 PDB 에 붙는다.** 그래서 이 값이 틀리면 이 두 TC 뿐
 아니라 **전문 송수신 TC 까지 포함해 CDS 슈트 전체가 서지 않는다**(`--exclude db`
@@ -102,14 +102,14 @@ DSN 을 등록해 두고 이름만 참조하는 것이 정석이다(드라이버
 
 ```python
 # config/env/stg.py
-CDS_DB_CONNSTR = 'DSN=PDB;UID=pgtest;PWD=...'
+PDB_CONNSTR = 'DSN=PDB;UID=pgtest;PWD=...'
 ```
 
 DSN 없이 직접 쓸 수도 있다. 다만 `.so` **경로에 중괄호를 붙이면 안 되고** 호스트 키는
 `SERVER` 가 아니라 `HOST` 다 — 둘 다 골디락스 실측이다.
 
 ```python
-CDS_DB_CONNSTR = ('DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;'
+PDB_CONNSTR = ('DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;'
                   'HOST=10.20.30.40;PORT=22581;UID=pgtest;PWD=...;CHARSET=UHC;')
 ```
 
@@ -117,8 +117,9 @@ CDS_DB_CONNSTR = ('DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;'
 Robot 변수보다 우선한다.
 
 ```bash
-export PG_CDS_DB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
-# PowerShell: $env:PG_CDS_DB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
+export PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
+# PowerShell: $env:PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
+# 구 이름 PG_CDS_DB_CONNSTR 도 폴백으로 계속 읽는다.
 ```
 
 어느 쪽이든 **Python 이 직접 읽는다**(Robot 키워드 인자로 넘기지 않는다) — 그래서

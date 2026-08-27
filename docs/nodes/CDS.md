@@ -303,8 +303,8 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?
 |---|---|
 | 대상 DB | 환경에 따라 **골디락스** 또는 **알티베이스** |
 | 드라이버 | ODBC (`pyodbc`). `resources/CdsDbHelper.py` 가 직접 쓴다 — `DatabaseLibrary` 는 쓰지 않는다 |
-| 접속 방식 | **완성된 ODBC 문자열 하나뿐** — `${CDS_DB_CONNSTR}`. 도구가 조립하지 않는다 |
-| 비밀번호 | 접속 문자열 안에. 환경변수 `PG_CDS_DB_CONNSTR` 우선, 없으면 `${CDS_DB_CONNSTR}` |
+| 접속 방식 | **완성된 ODBC 문자열 하나뿐** — `${PDB_CONNSTR}`(RTS 와 공용). 도구가 조립하지 않는다 |
+| 비밀번호 | 접속 문자열 안에. 환경변수 `PG_PDB_CONNSTR`(구 `PG_CDS_DB_CONNSTR` 폴백) 우선, 없으면 `${PDB_CONNSTR}` |
 | 접속 시점 | **Suite Setup**(`Suite CDS Connect`)에서 소켓에 이어 1회. DB 가 안 붙으면 전문 송수신 TC 까지 포함해 슈트 전체가 서지 않는다 |
 | 트랜잭션 | `autocommit` **끔**(`${CDS_DB_AUTOCOMMIT}`=`${FALSE}`). 조회 직전마다 rollback — 아래 절 |
 | 종료 | `Suite CDS Disconnect` |
@@ -335,12 +335,12 @@ Verify Zone Service Subscribed In PDB    ${CDS_MDN}    settle=10s
 
 #### 접속 문자열 — 조립하지 않는다
 
-`${CDS_DB_CONNSTR}` 에 완성된 ODBC 문자열을 넣으면 **그대로** `pyodbc` 로 간다.
+`${PDB_CONNSTR}` 에 완성된 ODBC 문자열을 넣으면 **그대로** `pyodbc` 로 간다.
 DSN 을 `odbc.ini`(Linux) / ODBC 데이터 원본 관리자(Windows)에 등록해 두고 이름만
 참조하는 것이 골디락스 정석이다.
 
 ```python
-CDS_DB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'
+PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'
 ```
 
 `${CDS_DB_KIND}` `${CDS_DB_DSN}` `${CDS_DB_DRIVER}` `HOST`/`PORT`/`NAME`/`USER`/
@@ -400,7 +400,7 @@ sql=SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?  params=('01090010001',
 
 | 요인 | 예전 | 지금 |
 |---|---|---|
-| 문자 인코딩 | `${CDS_DB_ENCODING}`(기본 `utf-8`) → `conn.setencoding` / `setdecoding` | **`${CDS_DB_CONNSTR}` 의 `CHARSET=`** (골디락스는 `UHC`). 변수·코드 모두 제거 |
+| 문자 인코딩 | `${CDS_DB_ENCODING}`(기본 `utf-8`) → `conn.setencoding` / `setdecoding` | **`${PDB_CONNSTR}` 의 `CHARSET=`** (골디락스는 `UHC`). 변수·코드 모두 제거 |
 | 파라미터 바인딩 | `${CDS_DB_BIND}` 로 `auto`/`param`/`literal` 선택, 리터럴 폴백 있음 | **`?` 고정**(`param` 상당). `setinputsizes` 로 `SQLDescribeParam` 회피. 모드 선택·리터럴 경로 제거 |
 
 ★ **둘은 같은 것이 아니다.** `CHARSET=` 은 **드라이버**가 서버와 주고받는 문자셋이고,
@@ -629,7 +629,7 @@ Cell List 는 `CommandResult(0017)` 보다 늦게 오고, **전문(SC)·PDB 어�
 > 예전에는 `HttpNotiServer.py` 가 최상단에서 `import h2` 를 해서, 패키지가 없으면
 > **라이브러리 자체가 안 올라오고** Robot 이 저 메시지로 보고했다 — 진짜 원인이 전혀
 > 드러나지 않았다. 지금은 지연 임포트라 서버를 띄울 때 `pip install h2` 안내와 함께
-> 실패하고, `${CDS_NOTI_VERIFY}=False` 면 `h2` 없이도 슈트가 그대로 돈다.
+> 실패하고, `${SNOTI_PCF_NOTI}=False` 면 `h2` 없이도 슈트가 그대로 돈다.
 > 시험 장비가 개발 PC 와 다르면 **그 장비에** 설치해야 한다.
 지원하는 건 **prior-knowledge** 방식뿐이라, PG 가 HTTP/1.1 Upgrade 로 붙으면 받지 못하고
 `noti_errors()` 에 "h2c prior-knowledge 가 아닌 접속" 이 남는다 — 알림이 안 잡히면 여기부터 볼 것.

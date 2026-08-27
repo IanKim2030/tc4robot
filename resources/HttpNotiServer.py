@@ -38,7 +38,7 @@ _PREFACE = b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'
 # 전례가 있다(2026-08-12).
 #
 # 그래서 h2 는 **서버를 실제로 띄울 때만** 부른다. 덕분에
-#   · ${CDS_NOTI_VERIFY}=False 면 h2 없이도 슈트가 그대로 돈다
+#   · ${SNOTI_PCF_NOTI}=False 면 h2 없이도 슈트가 그대로 돈다
 #   · 켠 채로 h2 가 없으면 "pip install h2" 라고 정확히 알려주고 실패한다
 # CdsDbHelper 가 pyodbc 를 지연 임포트하는 것과 같은 이유·같은 방식이다.
 _h2 = None
@@ -56,7 +56,7 @@ def _load_h2():
             raise RuntimeError(
                 'PCF Noti 수신 서버에는 h2 패키지가 필요합니다 — pip install h2 '
                 '(또는 pip install -r requirements.txt). '
-                'Noti 검증이 필요 없으면 CDS_NOTI_VERIFY 를 False 로 두면 됩니다. '
+                'Noti 검증이 필요 없으면 SNOTI_PCF_NOTI 를 False 로 두면 됩니다. '
                 '원본 오류: %s' % e)
         _h2 = (h2.config, h2.connection, h2.events)
     return _h2

@@ -59,7 +59,6 @@ ${CDS_UPM_VERIFY}         ${TRUE}          # 1X/1Y → UPM Subs-Info(0x07/0x08) 
 #
 # ★ PG 가 이 주소로 보내도록 설정돼 있어야 한다. 포트가 다르면 여기서 맞출 것.
 #   LTE 가입자는 SBI 가 아니라 RBUS 라 아무것도 안 들어온다(docs/nodes/CDS.md).
-${CDS_NOTI_VERIFY}        ${TRUE}          # PCF Noti 수신 검증 여부
 ${CDS_NOTI_PORT}          16101            # 도구가 Listen 할 포트 (PG 설정과 일치해야 함)
 ${CDS_NOTI_HOST}          0.0.0.0          # 모든 인터페이스 Listen
 ${CDS_NOTI_WAIT}          30s              # Noti 도착 대기 시간
@@ -76,7 +75,7 @@ ${CDS_NOTI_WAIT}          30s              # Noti 도착 대기 시간
 # 접속을 유지하는 환경에서 "붙지도 않았다" 를 슈트 시작 시점에 잡고 싶을 때만 쓴다.
 # 켠 채로 시간 안에 안 붙으면 슈트가 서지 않는다.
 #
-# ${CDS_NOTI_VERIFY} 와 **별개 손잡이**다. 셋의 조합은 이렇다.
+# ${SNOTI_PCF_NOTI}(공용) 와 **별개 손잡이**다. 셋의 조합은 이렇다.
 #   VERIFY=True  + WAIT_CONNECT=False  Listen 만 하고 바로 시작 (기본)
 #                                      → 003 이 알림 도착으로 판정한다
 #   VERIFY=True  + WAIT_CONNECT=True   접속까지 기다렸다 시작 (상시 접속 환경용)
@@ -495,10 +494,8 @@ ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      #
 #    config/env/<env>.py 에서 오버라이드하는 것이 정석이다.
 #
 # ════════════════════════════════════════════
-# DSN 방식
-#${CDS_DB_CONNSTR}         DSN=GOLD_GLOBAL;UID=pdb;PWD=pdb1234
-# DSN-less 방식
-${CDS_DB_CONNSTR}         DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;
+# ★ 접속 문자열은 여기 없다 — variables.robot 의 ${PDB_CONNSTR} 하나다.
+#   RTS 와 같은 DB 라 두 벌로 두면 한쪽만 고쳐 어긋난다.
 
 ${CDS_DB_TIMEOUT}         5               # 접속·쿼리 타임아웃(초)
 
@@ -512,7 +509,7 @@ ${CDS_DB_AUTOCOMMIT}      ${FALSE}
 # 바인딩·인코딩에는 변수가 없다. 둘 다 손잡이를 없앴다.
 #   · 바인딩 : `?` 파라미터 바인딩 **고정**. setinputsizes 로 SQLDescribeParam 호출을
 #              피한다. 리터럴 모드와 ${CDS_DB_BIND} 는 제거됐다.
-#   · 인코딩 : 위 ${CDS_DB_CONNSTR} 의 **CHARSET=** 으로 지정한다 (골디락스는 UHC).
+#   · 인코딩 : ${PDB_CONNSTR} 의 **CHARSET=** 으로 지정한다 (골디락스는 UHC).
 #              pyodbc 쪽 setencoding/setdecoding(구 ${CDS_DB_ENCODING})은 제거됐다.
 #
 # ★ 둘 다 예전에 ('HY000', 'The driver did not supply an error!') 의 원인으로 지목된

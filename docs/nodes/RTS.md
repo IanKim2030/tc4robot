@@ -116,10 +116,12 @@ SVC_CODE(0)/MDN(2) 만 두 레이어의 오프셋이 우연히 같다. **`RtsHel
 | `T_RTS_ORDER_TID` | `NAME`(PG 프로세스 인스턴스명 — **MDN 아님**, TC 단위 구분 불가) / `TID` — 부차 확인용 |
 | `T_5G_SUBS_SERVICE` | `MDN` / `SVC_ID` — **업무 계층**(가입자 서비스 반영). `L1`→`SVC_ID=W_DATA_ROAMING_BLOCK` INSERT, `L2`→`SVC_ID=L_DATA_ROAMING_BLOCK` INSERT (사용자 확인). 비동기 반영으로 보여 재시도로 기다린다(`${RTS_DB_WAIT}`/`${RTS_DB_WAIT_INTERVAL}`, CDS 의 SDM 폴링과 같은 성격으로 추정) |
 
-**PDB 접속은 CDS 와 동일하다(사용자 확인)** — `${RTS_DB_CONNSTR}` 기본값이 `${CDS_DB_CONNSTR}`
-와 같은 DSN/계정 문자열로 미리 채워져 있다(`rts_variables.robot`). `Resolve RTS DB Connstr`
-키워드는 그래도 `${CDS_DB_CONNSTR}` 폴백을 남겨 둔다 — 환경 오버라이드로 한쪽만 비게 되는
-경우를 대비한 방어선일 뿐, DSN 자체가 다를 수 있다는 의미는 아니다.
+**PDB 접속은 CDS 와 같은 DB 다(사용자 확인)** — 접속 문자열은 `variables.robot` 의
+공용 `${PDB_CONNSTR}` 하나뿐이다. 예전에는 `${RTS_DB_CONNSTR}` 과 `${CDS_DB_CONNSTR}` 로
+**같은 값이 두 벌** 있었고 `Resolve RTS DB Connstr` 이 둘 사이에 폴백을 걸고 있었는데,
+한쪽만 고치면 어긋나는 자리라 하나로 합쳤다. 그 폴백 사슬도 함께 없앴다.
+환경 오버라이드로 비어 있으면 `db` 태그 TC 는 실패가 아니라 **Skip** 한다 — CDS 처럼
+슈트 전체를 막지 않는다.
 
 ## PCF SBI Noti
 
@@ -131,7 +133,7 @@ notify 호출이 안 보여 애초엔 미확인이었던 부분이다. CDS 가 �
 `Verify SBI Noti Sent`/`Verify PCF Noti Received` 와 동형이나, RTS 는 업무 코드가 L1/L2
 둘뿐이라 CDS 의 예외 목록·라우팅 라벨(BSUBS/SDM) 계층은 두지 않았다.
 
-`${RTS_NOTI_VERIFY}=${FALSE}`(`run_tests.sh rts --no-sbi`, CDS 와 공용 플래그)면 Listen
+`${SNOTI_PCF_NOTI}=${FALSE}`(`run_tests.sh rts --no-sbi`, CDS 와 공용 플래그)면 Listen
 자체를 안 하고 판정도 건너뛴다 — h2 패키지 없이도 슈트가 돈다.
 
 ## TC

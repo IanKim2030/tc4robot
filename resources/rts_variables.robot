@@ -78,11 +78,9 @@ ${RTS_ROAMING_BLOCK_OFF}   N
 ${RTS_TEST_MDN}   01090010001
 
 # ════════════════════════════════════════════
-# PDB 접속 문자열 — CDS 와 동일함(사용자 확인). cds_variables.robot 의
-# ${CDS_DB_CONNSTR} 과 같은 값을 그대로 쓴다 — RTS 슈트를 단독 실행해도
-# (cds_variables.robot 을 안 거쳐도) db 태그 TC 가 바로 동작하도록 기본값 자체를
-# 복제해 둔다. 실환경 값이 바뀌면 **양쪽을 같이 고칠 것**.
-${RTS_DB_CONNSTR}   DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;
+# PDB 접속 문자열은 여기 없다 — CDS 와 **같은 DB** 라(사용자 확인)
+# variables.robot 의 ${PDB_CONNSTR} 하나를 같이 쓴다.
+# 예전에는 같은 값이 두 벌이라 한쪽만 고치면 어긋났다.
 
 # T_5G_SUBS_SERVICE 반영은 비동기(운영 폴러 경유 추정 — CDS 의 SDM 과 같은 성격)라
 # 재조회로 기다린다. CDS 의 ${CDS_DB_WAIT}/${CDS_DB_WAIT_INTERVAL} 과 같은 기본값.
@@ -91,11 +89,13 @@ ${RTS_DB_WAIT_INTERVAL}   2s
 
 # ════════════════════════════════════════════
 # PCF SBI Noti 수신 검증 — CDS 와 같은 메커니즘/대상 포트(사용자 확인: RTS 의
-# L1/L2 도 SBI Noti 를 유발한다). CDS_NOTI_PORT(16101)와 같은 값을 쓴다 — 도구가
-# PCF 역할로 Listen 하는 h2c 포트는 PG 설정에 upstream 별로 안 갈리고 하나로 보임.
+# L1/L2 도 SBI Noti 를 유발한다). 도구가 PCF 역할로 Listen 하는 h2c 포트는
+# PG 설정에 upstream 별로 안 갈리고 하나다.
+#
+# 켜고 끄는 손잡이는 **공용**이다 — variables.robot 의 ${SNOTI_PCF_NOTI}.
+# 아래 대기 시간만 RTS 가 따로 쥔다(CDS 보다 짧다).
 # ════════════════════════════════════════════
-${RTS_NOTI_VERIFY}            ${TRUE}
 ${RTS_NOTI_HOST}              0.0.0.0          # bind 주소 — PG 에서 닿는 주소가 아니다
-${RTS_NOTI_PORT}              16101            # CDS 의 ${CDS_NOTI_PORT} 와 동일값
+${RTS_NOTI_PORT}              16101            # CDS 의 ${CDS_NOTI_PORT} 와 동일값 (같은 서버를 쓴다)
 ${RTS_NOTI_WAIT}              12s              # Noti 도착 대기 시간
 ${RTS_NOTI_MONITOR_INTERVAL}  1s

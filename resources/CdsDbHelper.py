@@ -21,10 +21,10 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
   임포트하고, 실패 시 설치 방법을 담은 한글 메시지를 낸다.
 
 [접속 방식은 완성 문자열 하나뿐이다]
-  `${CDS_DB_CONNSTR}` 에 완성된 ODBC 접속 문자열을 통째로 준다. **이 헬퍼는 접속
+  `${PDB_CONNSTR}` 에 완성된 ODBC 접속 문자열을 통째로 준다. **이 헬퍼는 접속
   문자열을 조립하지 않는다** — 받은 값을 그대로 pyodbc 에 넘긴다.
 
-    CDS_DB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=pdb1234'
+    PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=pdb1234'
 
   KIND/DSN/DRIVER/HOST/PORT 로 조립하던 경로는 제거했다. 골디락스에서 DSN-less
   조립이 `IM012 DRIVER keyword syntax error` 로 거부됐고, 실환경 odbc.ini 에
@@ -34,8 +34,9 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
 [비밀번호 — 접속 문자열 안에 들어간다]
   그래서 접속 문자열은 **Robot 키워드 인자로 받지 않는다.** 인자로 넘기면 log.html
   의 Arguments 에 평문으로 남는다. 아래 순서로 Python 이 직접 읽는다.
-    1) 환경변수 `PG_CDS_DB_CONNSTR`   ← 파일에 안 남기려면 이쪽
-    2) Robot 변수 `${CDS_DB_CONNSTR}`
+    1) 환경변수 `PG_PDB_CONNSTR`      ← 파일에 안 남기려면 이쪽
+       (구 이름 `PG_CDS_DB_CONNSTR` 도 폴백으로 읽는다)
+    2) Robot 변수 `${PDB_CONNSTR}`
   로그에 남기는 접속 문자열은 항상 마스킹한다(`_mask` → `PWD=****`).
   ※ 2) 를 쓰면 **파일에 평문으로 남는다** — 실환경 값은 커밋되는
      cds_variables.robot 이 아니라 config/env/<env>.py 에서 오버라이드할 것.
@@ -46,8 +47,13 @@ import re
 
 # 접속 문자열을 읽는 곳. 환경변수가 Robot 변수보다 우선한다 —
 # 비밀번호가 들어 있어 파일에 안 남기고 싶을 때 쓰는 통로다.
-_CONN_STR_ENV = 'PG_CDS_DB_CONNSTR'
-_CONN_STR_VAR = '${CDS_DB_CONNSTR}'
+#
+# CDS 와 RTS 가 **같은 DB** 라 Robot 변수는 공용 ${PDB_CONNSTR} 하나다.
+# 환경변수는 구 이름(PG_CDS_DB_CONNSTR)도 계속 읽는다 — 기존 운영 설정을
+# 깨지 않기 위한 폴백이며, 새로 쓸 때는 PG_PDB_CONNSTR 을 쓴다.
+_CONN_STR_ENV = 'PG_PDB_CONNSTR'
+_CONN_STR_ENV_LEGACY = 'PG_CDS_DB_CONNSTR'
+_CONN_STR_VAR = '${PDB_CONNSTR}'
 
 
 class CdsDbError(Exception):
@@ -82,9 +88,10 @@ def _read_conn_str(conn_str=''):
     """
     if conn_str:
         return str(conn_str).strip()
-    env = os.environ.get(_CONN_STR_ENV)
-    if env:
-        return env.strip()
+    for name in (_CONN_STR_ENV, _CONN_STR_ENV_LEGACY):
+        env = os.environ.get(name)
+        if env:
+            return env.strip()
     try:
         from robot.libraries.BuiltIn import BuiltIn
         return (BuiltIn().get_variable_value(_CONN_STR_VAR) or '').strip()
@@ -98,7 +105,7 @@ def _require_conn_str(conn_str=''):
     if not cs:
         raise CdsDbError(
             'PDB 접속 문자열이 비어 있습니다 — DB 반영을 판정할 수 없습니다.\n'
-            "  ${CDS_DB_CONNSTR} 예: 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'\n"
+            "  ${PDB_CONNSTR} 예: 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'\n"
             '  config/env/<env>.py 에 넣거나 --variable 로 지정하십시오.\n'
             '  비밀번호를 파일에 남기지 않으려면 환경변수 %s 를 쓰십시오.\n'
             '  (DSN 은 odbc.ini / ODBC 데이터 원본 관리자에 미리 등록돼 있어야 합니다.)'
@@ -113,13 +120,14 @@ def db_connect(conn_str='', timeout=10, autocommit=False):
     """PDB 에 접속해 connection 객체를 반환한다.
 
     접속 문자열은 **완성된 ODBC 문자열**이며 조립하지 않고 그대로 넘긴다.
-    conn_str 을 비워 두면 `PG_CDS_DB_CONNSTR` → `${CDS_DB_CONNSTR}` 순으로
-    직접 읽는다 — 비밀번호가 log.html 인자에 남지 않게 하기 위함이다.
+    conn_str 을 비워 두면 `PG_PDB_CONNSTR` → `PG_CDS_DB_CONNSTR`(구 이름)
+    → `${PDB_CONNSTR}` 순으로 직접 읽는다 — 비밀번호가 log.html 인자에
+    남지 않게 하기 위함이다.
 
     [문자 인코딩은 접속 문자열에서 지정한다]
       예전에는 `conn.setencoding` / `setdecoding` 으로 pyodbc 쪽을 ANSI 로 못 박았다.
       지금은 그 코드가 없다 — **드라이버 쪽 `CHARSET=` 으로 지정한다.**
-        CDS_DB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...;CHARSET=UHC'
+        PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...;CHARSET=UHC'
       ※ 둘은 같은 것이 아니다. `CHARSET=` 은 드라이버가 서버와 주고받는 문자셋이고,
         `setencoding` 은 pyodbc 가 Python str 을 어느 SQL 타입으로 바인딩하는지다.
         `('HY000', 'The driver did not supply an error!')` 가 다시 나오면 이 차이를

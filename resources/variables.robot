@@ -44,6 +44,24 @@ ${SUBS_MDN_NO_HFC}           00000000000       # HFC 미가입 → code 402
 ${SUBS_MDN_NO_SESSION}       99999999999       # 세션 없음 → code 403
 # CDS 가입자는 CDS 슈트만 쓰므로 cds_variables.robot 의 ${CDS_MDN} 계열에 직접 있다.
 
+# ── PDB 접속 (CDS · RTS 공용) ────────────────
+# 두 슈트가 **같은 DB** 를 본다(사용자 확인). 예전에는 ${CDS_DB_CONNSTR} /
+# ${RTS_DB_CONNSTR} 로 같은 값이 두 벌 있었는데, 한쪽만 고쳐 어긋나는 자리였다.
+#
+# 완성된 ODBC 문자열을 통째로 준다 — 도구가 조립하지 않는다.
+# 비밀번호를 파일에 남기지 않으려면 환경변수 PG_PDB_CONNSTR 을 쓴다
+# (구 이름 PG_CDS_DB_CONNSTR 도 폴백으로 계속 읽는다 — CdsDbHelper.py).
+#   DSN 방식      : DSN=GOLD_GLOBAL;UID=pdb;PWD=...
+#   DSN-less 방식 : DRIVER=<.so 절대경로>;HOST=...;PORT=...;UID=...;PWD=...;CHARSET=UHC;
+${PDB_CONNSTR}               DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;
+
+# ── PCF SBI Noti 수신 검증 (CDS · RTS 공용) ──
+# 도구가 PCF 역할로 h2c 를 Listen 해 PG.SNOTI 가 보내는 SBI Noti 를 받는 판정.
+# **CDS 와 RTS 가 같은 포트(16101)·같은 HttpNotiServer 를 쓴다** — 손잡이도 하나다.
+# 끄면 Listen 자체를 안 한다(h2 패키지 없이도 슈트가 돈다).
+#   bash run_tests.sh cds --no-sbi   /   bash run_tests.sh rts --no-sbi
+${SNOTI_PCF_NOTI}            ${TRUE}
+
 # ── 망 데이터 ────────────────────────────────
 ${SUBS_APN_LTE}              lte.sktelecom.com
 ${SUBS_APN_5G}               5g.sktelecom.com

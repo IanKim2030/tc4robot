@@ -125,16 +125,16 @@ Suite CDS Connect
     END
     # 6) PCF SBI Noti 수신 서버 — 도구가 PCF 역할로 Listen.
     #    소켓·DB 와 달리 **PG 가 붙어 오는 쪽**이라 여기서는 Listen 만 열어 둔다.
-    IF    ${CDS_NOTI_VERIFY}
+    IF    ${SNOTI_PCF_NOTI}
         Log    [Suite] PCF SBI 수신 서버 시작 → ${CDS_NOTI_HOST}:${CDS_NOTI_PORT}    console=True
         ${srv}=    Noti.Noti Server Start    ${CDS_NOTI_PORT}    ${CDS_NOTI_HOST}
         ...    monitor_interval=${CDS_NOTI_MONITOR_INTERVAL}
         Set Suite Variable    ${CDS_NOTI_SRV}    ${srv}
         Wait For PCF Noti Connection
     ELSE
-        Log    [Suite] PCF Noti 검증 꺼짐 (CDS_NOTI_VERIFY=${CDS_NOTI_VERIFY})    console=True
+        Log    [Suite] PCF Noti 검증 꺼짐 (SNOTI_PCF_NOTI=${SNOTI_PCF_NOTI})    console=True
     END
-    Log    [Suite] CDS 접속 완료 (Rchannel→Schannel + PDB, UPM=${CDS_UPM_VERIFY}, Noti=${CDS_NOTI_VERIFY})    console=True
+    Log    [Suite] CDS 접속 완료 (Rchannel→Schannel + PDB, UPM=${CDS_UPM_VERIFY}, Noti=${SNOTI_PCF_NOTI})    console=True
 
 Suite CDS Disconnect
     [Documentation]
@@ -188,7 +188,7 @@ Reset PCF Noti For Test
     ...
     ...    시작 시각은 실패 진단용이다 — 알림이 안 오면 `Verify PCF Noti Received`
     ...    가 **이 TC 동안의 링크 상태**를 붙여서 실패시킨다.
-    IF    not ${CDS_NOTI_VERIFY}
+    IF    not ${SNOTI_PCF_NOTI}
         RETURN
     END
     Clear PCF Noti
@@ -540,9 +540,9 @@ Ensure CDS DB Connection
     ...    정상 경로에서는 `Suite CDS Connect` 가 한 번 부르고 끝이다 — 조회 키워드에도
     ...    남겨 둔 것은 슈트 밖에서 키워드만 따로 부를 때의 안전장치다.
     ...
-    ...    ★ 접속 문자열(${CDS_DB_CONNSTR})은 **인자로 넘기지 않는다** — 비밀번호가
+    ...    ★ 접속 문자열(${PDB_CONNSTR})은 **인자로 넘기지 않는다** — 비밀번호가
     ...      들어 있어 log.html 의 Arguments 에 평문으로 남기 때문이다. Python 이
-    ...      환경변수 PG_CDS_DB_CONNSTR → ${CDS_DB_CONNSTR} 순으로 직접 읽고,
+    ...      환경변수 PG_PDB_CONNSTR → ${PDB_CONNSTR} 순으로 직접 읽고,
     ...      비어 있으면 어디에 채워야 하는지까지 담아 실패한다.
     ...      로그에는 마스킹된 문자열(PWD=****)만 남는다.
     ...
@@ -944,10 +944,10 @@ Wait For PCF Noti Connection
     ...    HTTP/1.1 로 붙어 온 경우도 접속으로 치지 않으므로 오류 목록에 남는다.
     ...
     ...    끄는 손잡이가 둘이고 층이 다르다.
-    ...      ${CDS_NOTI_VERIFY}=${FALSE}       Listen 자체를 안 한다 → 여기도 무의미
+    ...      ${SNOTI_PCF_NOTI}=${FALSE}       Listen 자체를 안 한다 → 여기도 무의미
     ...      ${CDS_NOTI_WAIT_CONNECT}=${FALSE} Listen 은 하되 기다리지 않는다 (기본)
     [Arguments]    ${timeout}=${CDS_NOTI_ACCEPT_TIMEOUT}
-    IF    not ${CDS_NOTI_VERIFY}
+    IF    not ${SNOTI_PCF_NOTI}
         RETURN
     END
     IF    not ${CDS_NOTI_WAIT_CONNECT}
@@ -967,7 +967,7 @@ Clear PCF Noti
     ...    쌓인 수신 알림·오류를 비운다(접속 이력은 남긴다).
     ...    **평소에는 직접 부를 일이 없다** — Test Setup 의 `Reset PCF Noti For Test`
     ...    가 모든 TC 시작 때 부른다. 한 TC 안에서 구간을 나눠 보고 싶을 때만 쓴다.
-    IF    not ${CDS_NOTI_VERIFY}
+    IF    not ${SNOTI_PCF_NOTI}
         RETURN
     END
     Noti.Noti Clear    ${CDS_NOTI_SRV}
@@ -981,7 +981,7 @@ Verify PCF Noti Received
     ...    ${label}     : 실패 메시지에 쓸 이름 (예: "Cell List").
     ...    반환: 조건에 맞는 요청 목록(dict) — ${req}[json] / [path] / [headers] 로 꺼낸다.
     ...
-    ...    ${CDS_NOTI_VERIFY}=${FALSE} 면 아무것도 하지 않고 빈 목록을 준다.
+    ...    ${SNOTI_PCF_NOTI}=${FALSE} 면 아무것도 하지 않고 빈 목록을 준다.
     ...
     ...    ★ 못 받으면 서버가 남긴 오류도 함께 띄운다. 가장 흔한 원인은 PG 가
     ...      HTTP/1.1 로 붙는 경우인데(h2c prior-knowledge 만 지원), 그러면
@@ -991,7 +991,7 @@ Verify PCF Noti Received
     ...      (`Noti Timestamp` 로 기준 시각을 뜬다).
     [Arguments]    ${label}=PCF Noti    ${path}=${EMPTY}    ${body}=${EMPTY}
     ...            ${since}=${NONE}    ${wait}=${CDS_NOTI_WAIT}
-    IF    not ${CDS_NOTI_VERIFY}
+    IF    not ${SNOTI_PCF_NOTI}
         Log    [Noti] 수신 검증 꺼짐 — ${label} 확인을 건너뜁니다    console=True
         ${empty}=    Create List
         RETURN    ${empty}
@@ -1068,9 +1068,9 @@ Verify SBI Noti Sent
     ...               실 PG 본문에 MDN 이 그대로 들어가는지 확인되지 않았다. 확인되면
     ...               TC 에서 body=${CDS_MDN} 처럼 좁힐 수 있다.
     ...
-    ...    ${CDS_NOTI_VERIFY}=${FALSE}(--no-sbi) 면 통째로 건너뛴다.
+    ...    ${SNOTI_PCF_NOTI}=${FALSE}(--no-sbi) 면 통째로 건너뛴다.
     [Arguments]    ${code}    ${since}=${NONE}    ${body}=${EMPTY}    ${wait}=${CDS_NOTI_WAIT}
-    IF    not ${CDS_NOTI_VERIFY}
+    IF    not ${SNOTI_PCF_NOTI}
         Log    [Noti] 수신 검증 꺼짐 — ${code} 의 SBI Noti 확인을 건너뜁니다    console=True
         RETURN
     END

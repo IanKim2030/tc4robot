@@ -29,15 +29,15 @@ Documentation
 ...    `db` 태그 TC 는 두 계층을 확인한다.
 ...      프로토콜 계층 — T_RTS_ORDER_HIST.ORDER_DATA (TC-RTS-001 만, 와이어 왕복 확인용)
 ...      업무 계층    — T_5G_SUBS_SERVICE.SVC_ID (TC-RTS-001/002 공통, 사용자 확인, 비동기라 재시도)
-...    PDB 접속은 CDS 와 DSN 이 동일함(사용자 확인) — ${RTS_DB_CONNSTR} 기본값이 이미
-...    ${CDS_DB_CONNSTR} 과 같은 문자열로 채워져 있다. 그래도 환경 오버라이드로
+...    PDB 접속은 CDS 와 같은 DB 다(사용자 확인) — 접속 문자열은 공용
+...    ${PDB_CONNSTR}(variables.robot) 하나뿐이다. 그래도 환경 오버라이드로
 ...    접속 문자열이 비게 되는 경우를 대비해, 없으면 실패 대신 Skip 한다 — CDS 처럼
 ...    Suite 전체를 막지 않는다.
 ...
 ...    [PCF SBI Noti]
 ...    `noti` 태그 TC 는 L1/L2 전문이 PCF SBI Noti 도 유발하는지 확인한다(사용자 확인 —
 ...    RTS 소스만으로는 notify 호출이 안 보여 미확인이었던 부분). CDS 와 같은 메커니즘
-...    (HttpNotiServer, 도구가 PCF 역할로 Listen)을 그대로 쓴다. ${RTS_NOTI_VERIFY}=${FALSE}
+...    (HttpNotiServer, 도구가 PCF 역할로 Listen)을 그대로 쓴다. ${SNOTI_PCF_NOTI}=${FALSE}
 ...    (--no-sbi) 면 Listen 자체를 안 하고 통째로 건너뛴다.
 
 Resource    ../../resources/variables.robot
