@@ -439,7 +439,7 @@ ${CDS_K3_START_OFFSET_MIN}     ${0}                     # 만료 TC(011)의 STAR
 # 만료를 **기다리는** 시간. 만료는 도구가 시키는 것이 아니라 PG.RDS 가 예약 큐를
 # 폴링해서 하는 일이라, 전문 반영(${CDS_DB_WAIT}=10s)과는 시간 척도가 다르다.
 # RDS 폴링 주기보다 넉넉해야 한다 — 짧으면 만료가 정상인데도 TC 가 실패한다.
-${CDS_EXPIRE_WAIT}             3 min                    # 만료 대기 총 시간 (PG.RDS 폴링)
+${CDS_EXPIRE_WAIT}             1 min                    # 만료 대기 총 시간 (PG.RDS 폴링)
 ${CDS_EXPIRE_WAIT_INTERVAL}    10s                      # 만료 재조회 간격
 
 # 판정 기준표의 $LIMIT_VALID_TIME — 서비스 테이블 LIMIT_VALID_TIME 컬럼의 기대값이다.
