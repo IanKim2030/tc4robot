@@ -157,10 +157,19 @@ BSUBS_EXTRA = {
 # BSUBS 가 폴링 뒤 UPM 과 왕복하는 코드. PG 소스로 확정(2026-08-24) —
 # BSUBS/SIF.cpp processInfoChgReq/Res, BSUBS/BaroDSubDB.sc UpdateInfoChg().
 # (db_step, upm_req, upm_resp)
-# BSUBS 연동(UPM 왕복 포함)이 열릴 때만 알림도 나간다고 확인된 코드.
-# 미가입이면 이 코드는 RBUS NOTI 자체가 없다 — SDM 쪽 대체 알림도 없다.
-# (PG 소스 확인: BSUBS/SIF.cpp processInfoChgReq/Res 에 sendnotiByRbus 호출이 없다.
-#  D3/Z1 은 아직 같은 확인을 하지 않아 여기 넣지 않았다 — 기존 alt 구조 그대로다.)
+# BSUBS 자신의 RBUS NOTI 는 이 UPM 왕복(BSUBS 연동)이 열릴 때만 나간다고
+# 확인된 코드다 — 미가입이면 BSUBS 는 알리지 않는다
+# (PG 소스 확인: BSUBS/SIF.cpp processInfoChgReq/Res 에 sendnotiByRbus 호출이 없다).
+#
+# 그런데 PG.SDM 은 이 코드들에 대해 **별개로** doNoti() 를 무조건 부른다
+# (PG 소스 확인 2026-08-28: SDM_5G/SubsProcessing.cpp doNoti(), 호출부는
+#  Do() 의 else 가지 — job code 가 "91"/"92" 가 아니면 Job::Do() 성공 시
+#  HFC 가입 여부와 무관하게 RBUS NOTI 를 보낸다). 두 알림은 서로 배타적이지
+#  않다 — 미가입이면 SDM 쪽 알림만 나가지만, **가입 상태에서는 BSUBS 와 SDM
+#  이 각자 알리므로 SBI Noti 가 두 번 나간다.** "SDM 쪽 대체 알림도 없다"던
+#  이전 메모는 BSUBS 소스만 본 것이었다. D3 는 BSUBS 쪽 sendnotiByRbus
+#  부재는 아직 확인 전이지만, SDM 쪽 doNoti() 무조건 호출은 job code 를
+#  가리지 않는 공통 로직이라 D3 에도 같이 적용한다.
 NOTI_HFC_ONLY = {'C1', 'G1', 'D3'}
 
 # UPM 요청을 보낸 직후 RBUS NOTI 부터 쏘고, 응답은 그 뒤에 받는 코드.
@@ -189,11 +198,10 @@ def snoti_mdn(code):
 
 
 # SDM 이 삭제를 실행하기 전에 같은 MDN 의 다른 예약(다른 핀)이 아직
-# 대기 중인지 본다. 있으면 이번 삭제를 건너뛴다 — 남의 예약을 건드리지
-# 않기 위해서다.
-DELETE_GUARD = {
- 'K2': "SELECT COUNT(*) FROM T_5G_RESERVED_JOB WHERE MDN=? AND COUPON_PIN!=? AND STATUS='N'",
-}
+# 대기 중인지 보던 가드. K2 는 PG 소스 수정으로 이 가드가 없어졌다(2026-08-28) —
+# 지금은 DELETE T_5G_SUBS_SERVICE 가 무조건 실행된다. 코드 자체는 다른 코드가
+# 같은 패턴을 다시 쓸 수 있어 남겨 둔다.
+DELETE_GUARD = {}
 
 
 SDM_APPLY = {
@@ -348,9 +356,19 @@ def mermaid(code, route):
             return '%sUPM->>BSUBS: %s' % (indent, resp)
 
         if code in NOTI_HFC_ONLY:
-            # BSUBS 연동 자체가 HFC 가입 상태에서만 일어난다 — RBUS NOTI 이후 SNOTI
-            # 세션 조회·SBI Noti 까지 전부 이 조건 하나에 걸린다. 미가입이면 이
-            # 블록 전체가 통째로 일어나지 않는다.
+            # PG.SDM 은 이 코드들에 대해 doNoti() 를 무조건 부른다
+            # (SDM_5G/SubsProcessing.cpp, 2026-08-28 확인) — TID 갱신 직후,
+            # BSUBS 가 폴링을 시작하기도 전에 SDM 자기 워커 루프 안에서 바로
+            # 나간다. 그래서 순서상 BSUBS 쪽보다 먼저 그린다.
+            # BSUBS 자신의 알림은 HFC 가입 상태에서만 나간다(아래 opt) — 나가면
+            # 그 블록 안에서 PCF 까지 끝난다. 두 알림은 서로 배타적이지 않다 —
+            # **HFC 가입 상태에서는 SBI Noti 가 SDM 경유 1번 + BSUBS 경유 1번,
+            # 총 두 번 나간다.**
+            L.append('    SDM->>SNOTI: RBUS NOTI')
+            if code not in NO_NOTI:
+                L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
+                L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (%s)' % snoti_mdn(code))
+                L.append('    SNOTI->>PCF: SBI Noti (h2c)')
             L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
             L.extend(_bsubs_pre_lines('        '))
             resp_line = _upm_resp_line('        ')
@@ -528,6 +546,11 @@ doc = ['# CDS 업무 코드별 콜플로우', '',
        '> ⚠️ 지금 슈트 순서로는 **규칙 2 의 BSUBS 분기를 타는 TC 가 하나도 없다.**',
        '> `1Y`(004)가 HFC 를 해지한 뒤에 `C1`(007) · `G1`(008) · `D3`(018) · `Z1`(019)이',
        '> 돌기 때문에 넷 다 SDM 경유로 판정된다.', '',
+       '> ⚠️ `C1` `G1` `D3` 는 BSUBS 알림(HFC 가입 상태에서만, `SIF.cpp`)과 SDM 알림',
+       '> (`doNoti()`, 코드와 무관하게 무조건)이 **서로 배타적이지 않다** — 그래서 HFC',
+       '> **가입** 상태에서 이 코드를 보내면 SBI Noti 가 BSUBS 경유 1번 + SDM 경유 1번,',
+       '> **총 두 번** 나간다(PG 소스 확인, 2026-08-28). `Verify SBI Noti Sent` 는 "1건',
+       '> 이상 도착"만 보므로 판정에는 영향이 없다.', '',
        '## 다이어그램 읽는 법', '',
        '주황 밴드(`★ 판정`)로 감싼 구간이 **TC 의 성패를 가르는 자리**다. 그 위의 전문 왕복과',
        'PG 내부 처리는 배경이 없다 — `0017 CommandResult` 가 `SC` 여도 밴드 안이 틀리면 실패다.',

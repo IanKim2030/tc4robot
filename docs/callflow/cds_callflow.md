@@ -48,6 +48,12 @@ PDB 판정만 조용히 실패한다. 이름은 `/PG/CFG/ST.cfg` 기준이다.
 > `1Y`(004)가 HFC 를 해지한 뒤에 `C1`(007) · `G1`(008) · `D3`(018) · `Z1`(019)이
 > 돌기 때문에 넷 다 SDM 경유로 판정된다.
 
+> ⚠️ `C1` `G1` `D3` 는 BSUBS 알림(HFC 가입 상태에서만, `SIF.cpp`)과 SDM 알림
+> (`doNoti()`, 코드와 무관하게 무조건)이 **서로 배타적이지 않다** — 그래서 HFC
+> **가입** 상태에서 이 코드를 보내면 SBI Noti 가 BSUBS 경유 1번 + SDM 경유 1번,
+> **총 두 번** 나간다(PG 소스 확인, 2026-08-28). `Verify SBI Noti Sent` 는 "1건
+> 이상 도착"만 보므로 판정에는 영향이 없다.
+
 ## 다이어그램 읽는 법
 
 주황 밴드(`★ 판정`)로 감싼 구간이 **TC 의 성패를 가르는 자리**다. 그 위의 전문 왕복과
@@ -583,6 +589,10 @@ sequenceDiagram
     SDM->>PDB: INSERT INTO SELECT T_5G_SUBS_PROFILE
     SDM->>PDB: INSERT INTO SELECT T_5G_SUBS_SERVICE
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+    SDM->>SNOTI: RBUS NOTI
+    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
+    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
+    SNOTI->>PCF: SBI Noti (h2c)
     opt ZONE_SVC_D 있음 — HFC 가입
         BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
         BSUBS->>PDB: UPDATE T_BAROD_SUBS_CELLINFO (MIN/기종/상태)
@@ -693,6 +703,10 @@ sequenceDiagram
     SDM->>PDB: INSERT INTO SELECT T_5G_SUBS_SERVICE
     SDM->>PDB: UPDATE T_5G_SUBS_SERVICE (SVC_ID=DATA_USAGE_LEVEL, DATA_USAGE_LEVEL_2)
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+    SDM->>SNOTI: RBUS NOTI
+    SNOTI->>PDB: SELECT T_SESSION_INFO (MDN)
+    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (MDN)
+    SNOTI->>PCF: SBI Noti (h2c)
     opt ZONE_SVC_D 있음 — HFC 가입
         BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
         BSUBS->>PDB: UPDATE T_BAROD_SUBS_CELLINFO (기종/상태)
@@ -885,7 +899,6 @@ sequenceDiagram
     Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인
 
     SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)
-    SDM->>PDB: SELECT COUNT(*) FROM T_5G_RESERVED_JOB WHERE MDN=? AND COUPON_PIN!=? AND STATUS='N'
     SDM->>PDB: DELETE T_5G_SUBS_SERVICE (SVC_ID=R17, CNUM=COUPON_PIN)
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
     SDM->>SNOTI: RBUS NOTI
@@ -974,6 +987,10 @@ sequenceDiagram
     SDM->>PDB: INSERT INTO SELECT T_5G_SUBS_PROFILE (MDN)
     SDM->>PDB: INSERT INTO SELECT T_5G_SUBS_SERVICE (MDN)
     SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...
+    SDM->>SNOTI: RBUS NOTI
+    SNOTI->>PDB: SELECT T_SESSION_INFO (NEW MDN)
+    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (NEW MDN)
+    SNOTI->>PCF: SBI Noti (h2c)
     opt ZONE_SVC_D 있음 — HFC 가입
         BSUBS->>PDB: SELECT T_BAROD_ORDER_HIST(Polling)
         BSUBS->>PDB: SELECT T_BAROD_SUBS_CELLINFO (MDN)
