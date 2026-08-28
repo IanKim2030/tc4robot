@@ -378,6 +378,7 @@ TC-CDS-007 C1 (기기변경)
     Command Download Flow    ${CDS_CODE_C1}    new_min=${CDS_NEW_MIN}    device_model=${CDS_NEW_DEVICE_MODEL}
     Verify Service Counts Preserved In PDB    ${CDS_MDN}    ${CDS_CODE_C1}    ${before}
     Verify SBI Noti Sent    ${CDS_CODE_C1}
+    
 
 TC-CDS-008 G1 (정보변경)
     [Documentation]
