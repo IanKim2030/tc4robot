@@ -28,6 +28,7 @@ Library    ${CURDIR}/CdsDbHelper.py   WITH NAME    RtsDb
 # CDS 가 쓰는 것과 같은 모듈 — RTS 의 L1/L2 도 같은 PCF SBI 대상을 쓴다는 전제(사용자 확인).
 Library    ${CURDIR}/HttpNotiServer.py   WITH NAME    Noti
 Resource   ${CURDIR}/common_keywords.robot
+Resource   ${CURDIR}/ssh_keywords.robot
 
 *** Variables ***
 ${RTS_SOCK}       ${NONE}
@@ -51,6 +52,10 @@ Suite RTS Connect
     ...       Suite Variable 로 저장해 이후 Order 의 TID 채번 기준으로 쓴다 —
     ...       PG 가 준 값보다 낮은 TID 를 보내면 E_REVERSE_TID_ERROR(3) 다.
     [Arguments]    ${host}=${RTS_PG_HOST}    ${port}=${RTS_PG_PORT}    ${timeout}=${RTS_TIMEOUT}
+    # 소켓을 열기 전에 이 슈트가 의존하는 PG 프로세스가 죽어 있으면 깨운다
+    # (docs/callflow/rts_callflow.md 의 "PG 프로세스 목록"). 계정 정보가
+    # 없으면 조용히 건너뛴다 — ssh_keywords.robot 참조.
+    Ensure PG Process Running    RTS201    P_SDM601    SNOTI501
     Log    [Suite] RTS 연결 시작 → ${host}:${port}    console=True
     ${sock}=    Rts.Tcp Connect    ${host}    ${port}    ${timeout}
     Set Suite Variable    ${RTS_SOCK}    ${sock}

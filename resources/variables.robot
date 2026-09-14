@@ -55,6 +55,22 @@ ${SUBS_MDN_NO_SESSION}       99999999999       # 세션 없음 → code 403
 #   DSN-less 방식 : DRIVER=<.so 절대경로>;HOST=...;PORT=...;UID=...;PWD=...;CHARSET=UHC;
 ${PDB_CONNSTR}               DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;
 
+# ── PG 프로세스 기동 보장 (SSH, 선택) ────────
+# Suite Setup 이 슈트가 의존하는 PG 프로세스의 .RUN 파일을 touch 해 죽어 있으면
+# 다시 띄운다(resources/ssh_keywords.robot 의 `Ensure PG Process Running`).
+#
+# 계정 정보는 여기 넣지 않는다 — 예전에 SSH 비밀번호가 평문 커밋된 사고
+# 전례가 있다(docs/ENVIRONMENTS.md "자격증명" 절). ${PG_SSH_USER} 만 두고,
+# 비밀번호는 환경변수 PG_SSH_PASSWORD 로만 준다. 키 인증을 쓰려면
+# config/env/<env>.py 에서 ${PG_SSH_KEY_FILE} 을 채운다(있으면 키 우선).
+#
+# ${PG_SSH_USER} 가 비어 있으면(기본) 통째로 건너뛴다 — SSH 없이도 슈트는
+# 정상 동작한다. 끄려면: --variable PG_SSH_ENSURE:False (--no-ssh-ensure)
+${PG_SSH_ENSURE}             ${TRUE}
+${PG_SSH_USER}               ${EMPTY}
+${PG_SSH_KEY_FILE}           ${EMPTY}
+${PG_SSH_RUN_DIR}            /PG/BIN/PDB_RUN
+
 # ── PCF SBI Noti 수신 검증 (CDS · RTS 공용) ──
 # 도구가 PCF 역할로 h2c 를 Listen 해 PG.SNOTI 가 보내는 SBI Noti 를 받는 판정.
 # **CDS 와 RTS 가 같은 포트(16101)·같은 HttpNotiServer 를 쓴다** — 손잡이도 하나다.

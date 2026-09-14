@@ -26,6 +26,7 @@ Library    DateTime
 Library    BuiltIn
 Library    ${CURDIR}/TcpHelper.py    WITH NAME    Tcp
 Resource   ${CURDIR}/common_keywords.robot
+Resource   ${CURDIR}/ssh_keywords.robot
 
 *** Variables ***
 ${NAG_SOCK}      ${NONE}
@@ -43,6 +44,10 @@ Suite Connect NAG
     ...    (NAG Hello 는 TC-NAG-001 에서 수행)
     [Arguments]    ${nag_host}=${NAG_PG_HOST}    ${nag_port}=${NAG_PG_PORT}
     ...            ${timeout}=${NAG_TIMEOUT}
+    # 소켓을 열기 전에 이 슈트가 의존하는 PG 프로세스가 죽어 있으면 깨운다
+    # (docs/callflow/nag_callflow.md 의 "PG 프로세스 목록"). 계정 정보가
+    # 없으면 조용히 건너뛴다 — ssh_keywords.robot 참조.
+    Ensure PG Process Running    G_BNOTI201    G_LRS201    CDS201
     Log    [Suite] NAG 연결 시작 → ${nag_host}:${nag_port}    console=True
     ${nag_sock}=    Tcp.Tcp Connect    ${nag_host}    ${nag_port}    ${timeout}
     Set Suite Variable    ${NAG_SOCK}    ${nag_sock}

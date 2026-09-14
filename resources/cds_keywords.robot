@@ -35,6 +35,7 @@ Resource   ${CURDIR}/common_keywords.robot
 # → TC-CDS-003 / TC-CDS-004 가 UPM 키워드를 쓴다.
 # PCF 슈트가 nag_keywords 를 들여오는 것과 같은 구조.
 Resource   ${CURDIR}/upm_keywords.robot
+Resource   ${CURDIR}/ssh_keywords.robot
 
 *** Variables ***
 ${CDS_SCH_SOCK}        ${NONE}
@@ -79,6 +80,11 @@ Suite CDS Connect
     [Arguments]    ${host}=${CDS_PG_HOST}
     ...            ${sch_port}=${CDS_SCH_PORT}    ${rch_port}=${CDS_RCH_PORT}
     ...            ${timeout}=${CDS_TIMEOUT}
+    # 소켓을 열기 전에 이 슈트가 의존하는 PG 프로세스가 죽어 있으면 깨운다
+    # (docs/callflow/cds_callflow.md 의 "PG 프로세스 목록"). 계정 정보가
+    # 없으면 조용히 건너뛴다 — ssh_keywords.robot 참조.
+    Ensure PG Process Running
+    ...    CDS201    P_SDM601    R_SDM601    SNOTI501    BSUBS201    RDS601
     ${sid}=    Resolve CDS System Id
     Set Suite Variable    ${CDS_SYSTEM_ID}    ${sid}
     # 예약 시각(START_TIME 계열)을 확정한다. 전문을 보내기 전이면 어디든 되지만,

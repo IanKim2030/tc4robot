@@ -18,3 +18,7 @@ pyodbc
 # 3GPP SBI 가 HTTP/2 라 표준 http.server 로는 받을 수 없다.
 # hpack / hyperframe 이 딸려 온다. CDS 슈트의 ${CDS_NOTI_VERIFY} 를 끄면 없어도 된다.
 h2
+
+# PG 프로세스 .RUN 파일 touch 용(resources/SshHelper.py 가 **지연 임포트**).
+# ${PG_SSH_USER} 가 비어 있으면(기본) 아예 안 쓰이므로 없어도 슈트는 돈다.
+paramiko
