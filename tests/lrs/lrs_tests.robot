@@ -75,7 +75,7 @@ TC-LRS-002 Session-Info - 200 성공 및 응답 필드 검증 (LRS-PCF 연동)
 
 TC-LRS-003 Session-Info - Content-Length 불일치 시 연결 종료
     [Documentation]
-    ...    Content-Length 헤더 값을 실제 Body 바이트 수보다 작게 보내면 PG 가 Header/Body Syntax
+    ...    Content-Length 헤더 값을 실제 Body 바이트 수보다 크게 보내면 PG 가 Header/Body Syntax
     ...    오류로 판단해 HTTP 응답 없이 연결을 끊는지 검증한다(400 이 아니라 소켓 close).
     [Tags]    lrs    session-info    negative
     ${sock}=    Send Session Info Request With Wrong Content-Length

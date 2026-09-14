@@ -181,8 +181,8 @@ Send Session Info Request With Wrong Content-Length
     [Documentation]
     ...    Send Session Info Request 와 동일하나, Content-Length 헤더 값을 실제 Body 바이트 수가
     ...    아니라 인자로 지정한 값으로 강제한다 — Header/Body Syntax 오류 유발용(TC-LRS-003).
-    ...    기본값(${LRS_SI_WRONG_CONTENT_LENGTH})은 실제 AIMS_REQ 길이보다 작게 잡아 PG 가
-    ...    Body 를 끝까지 읽지 못하도록 한다.
+    ...    기본값(${LRS_SI_WRONG_CONTENT_LENGTH})은 실제 AIMS_REQ 길이보다 크게 잡아 PG 가
+    ...    선언된 길이만큼 Body 를 채우지 못하도록 한다.
     [Arguments]
     ...    ${content_length}=${LRS_SI_WRONG_CONTENT_LENGTH}
     ...    ${req_id}=${LRS_SI_REQ_ID}
