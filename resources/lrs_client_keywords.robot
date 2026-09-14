@@ -172,6 +172,38 @@ Send Session Info Request
     Log    [HTTP TX] SESSION-INFO 요청 송신 → ${LRS_CLIENT_HOST}:${port} (LRS-PCF 응답 대기)
     RETURN    ${sock}
 
+Send Session Info Request With Wrong Content-Length
+    [Documentation]
+    ...    Send Session Info Request 와 동일하나, Content-Length 헤더 값을 실제 Body 바이트 수가
+    ...    아니라 인자로 지정한 값으로 강제한다 — Header/Body Syntax 오류 유발용(TC-LRS-003).
+    ...    기본값(${LRS_SI_WRONG_CONTENT_LENGTH})은 실제 AIMS_REQ 길이보다 작게 잡아 PG 가
+    ...    Body 를 끝까지 읽지 못하도록 한다.
+    [Arguments]
+    ...    ${content_length}=${LRS_SI_WRONG_CONTENT_LENGTH}
+    ...    ${req_id}=${LRS_SI_REQ_ID}
+    ...    ${pgw_group_id}=${LRS_SI_PGW_GROUP_ID}
+    ...    ${client_ip}=${LRS_SI_CLIENT_IP}
+    ...    ${min}=${LRS_SI_MIN}    ${mdn}=${LRS_SI_MDN}    ${imsi}=${LRS_SI_IMSI}
+    ...    ${from_ip}=${LRS_SI_FROM_IP}
+    ${port}=    Set Variable If    $LRS_CLIENT_PORT is not None    ${LRS_CLIENT_PORT}    ${LRS_CLIENT_DEFAULT_PORT}
+    ${xml}=    Http.Build Aims Req    ${req_id}    ${pgw_group_id}    ${client_ip}
+    ...        min_=${min}    mdn=${mdn}    imsi=${imsi}
+    ${crlf}=    Evaluate    chr(13)+chr(10)
+    ${req}=    Catenate    SEPARATOR=${crlf}
+    ...    POST ${LRS_SI_PATH} HTTP/1.1
+    ...    Host: ${LRS_CLIENT_HOST}:${port}
+    ...    From: ${from_ip}
+    ...    Accept: text/xml
+    ...    Content-Type: text/xml
+    ...    Content-Length: ${content_length}
+    ...    Connection: close
+    ...    ${EMPTY}
+    ...    ${xml}
+    ${sock}=    Tcp.Tcp Connect    ${LRS_CLIENT_HOST}    ${port}    ${LRS_CLIENT_TIMEOUT}
+    Tcp.Send Text    ${sock}    ${req}
+    Log    [HTTP TX] SESSION-INFO 요청 송신(Content-Length=${content_length}, 실제 Body 크기 무시) → ${LRS_CLIENT_HOST}:${port}
+    RETURN    ${sock}
+
 Receive Session Info Response
     [Documentation]
     ...    Send Session Info Request 가 반환한 소켓에서 HTTP 응답 전체를 수신·파싱한다.
@@ -195,6 +227,17 @@ Session Info Status Should Be
     [Arguments]    ${res}    ${expected}
     Should Be Equal As Integers    ${res}[status]    ${expected}
     ...    msg=HTTP status 기대=${expected}, 실제=${res}[status]
+
+Session Info Connection Should Be Closed
+    [Documentation]
+    ...    PG 가 Content-Length 불일치(또는 다른 Syntax 오류)를 감지했을 때 정상 HTTP 응답 대신
+    ...    연결을 끊는지 검증한다. Tcp.Recv Http Response 는 소켓이 데이터 없이 닫히면 빈 문자열을
+    ...    반환하므로(EOF 를 응답 종료로 처리) 그 결과가 비어 있는지로 판단한다.
+    [Arguments]    ${sock}    ${timeout}=${LRS_CLIENT_TIMEOUT}
+    ${raw}=    Tcp.Recv Http Response    ${sock}    ${timeout}
+    Tcp.Tcp Close    ${sock}
+    Should Be Equal As Strings    ${raw}    ${EMPTY}
+    ...    msg=PG 가 연결을 끊는 대신 응답을 보냈습니다: ${raw}
 
 Session Info Should Succeed
     [Documentation]

@@ -40,6 +40,7 @@ ${LRS_SI_CLIENT_IP}        ${SUBS_MOBILE_IP}    # 조회 대상 단말 IP
 ${LRS_SI_MIN}              ${EMPTY}
 ${LRS_SI_MDN}              ${SUBS_MDN_LTE}
 ${LRS_SI_IMSI}             ${EMPTY}
+${LRS_SI_WRONG_CONTENT_LENGTH}    ${10}    # 실제 AIMS_REQ 길이보다 작게 고정 — Body 절단 유발(TC-LRS-003)
 
 # SESSION-INFO 응답 상태코드 (규격)
 ${LRS_SI_CODE_OK}          ${200}    # 세션 정보 존재

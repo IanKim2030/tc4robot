@@ -81,11 +81,18 @@ END
 
 `${LRS_SI_FROM_IP}` 는 **PG 에 등록된 IP 여야 한다** — 아니면 403 이다.
 
+Content-Length 헤더 값을 실제 Body 크기와 다르게(작게) 보내면 PG 는 400 을 응답하지 않고
+**연결을 끊는다**(TC-LRS-003 로 확인). 규격상 400(`${LRS_SI_CODE_BAD_REQ}`)이 정의돼 있지만
+이 케이스에서는 실제로 관측되지 않으므로 혼동하지 말 것.
+
 ## TC
 
-현재 **2건**(활성). 태그: `lrs` `health-check` `session-info` `smoke` `negative` `validation`
+현재 **3건**(활성). 태그: `lrs` `health-check` `session-info` `smoke` `negative` `validation`
 
-negative TC 는 대부분 주석 처리돼 있다.
+`TC-LRS-003`은 Content-Length 를 의도적으로 조작해 PG 가 연결을 끊는지 검증하는 자체완결형
+negative TC 다(실 PG 의 특정 상태 유발이 불필요해 활성 상태).
+
+그 외 negative TC(`TC-LRS-SI-00x`)는 대부분 주석 처리돼 있다.
 
 ## 확인 필요
 
