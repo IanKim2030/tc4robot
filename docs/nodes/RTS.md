@@ -98,7 +98,7 @@ SVC_CODE(0)/MDN(2) 만 두 레이어의 오프셋이 우연히 같다. **`RtsHel
 | 2 | `${RTS_REASON_INTERNAL_ERROR}` | DB insert 실패 |
 | 3 | `${RTS_REASON_REVERSE_TID}` | TID 가 이전보다 낮음 |
 | 4 | `${RTS_REASON_DUP_TID}` | TID 중복 |
-| 12 | `${RTS_REASON_WRONG_SIZE}` | — |
+| 12 | `${RTS_REASON_WRONG_SIZE}` | Data Size 필드 불일치로 추정(TC-RTS-003 이 최초로 검증 시도 — 실 PG 결과로 확정 전) |
 | 54 | `${RTS_REASON_NOT_DEFINE}` | — |
 | 99 | `${RTS_REASON_NO_COUNT}` | — |
 
@@ -138,15 +138,24 @@ notify 호출이 안 보여 애초엔 미확인이었던 부분이다. CDS 가 �
 
 ## TC
 
-현재 **2건** — L1, L2 각 1건. 각각 ACK 확인 + `T_5G_SUBS_SERVICE` 업무 계층 반영 확인(`db`) +
-PCF SBI Noti 도착 확인(`noti`), L1 은 추가로 `T_RTS_ORDER_HIST` 프로토콜 계층 확인도 겸한다.
-태그: `rts` `order` `roaming` `db` `noti`.
+현재 **3건** — L1, L2 정상 케이스 각 1건 + 패킷 크기 검증 negative 1건. 정상 케이스는 각각
+ACK 확인 + `T_5G_SUBS_SERVICE` 업무 계층 반영 확인(`db`) + PCF SBI Noti 도착 확인(`noti`),
+L1 은 추가로 `T_RTS_ORDER_HIST` 프로토콜 계층 확인도 겸한다.
+태그: `rts` `order` `roaming` `db` `noti` `negative`.
 
 판정 기준 — 4단계로 신뢰도가 올라간다:
 1. **ACK RESULT="SC"+REASON=0**: `RecvCommandRequest` 는 `InsertOrder` 가 실제로 성공했을 때만 `SC`를 주므로 CDS `CommandResult`보다 신뢰도가 높다. 다만 Body 내용(SVC/로밍 플래그)이 잘못돼도 INSERT 자체는 성공하면 `SC`가 나온다는 점은 CDS 와 같다.
 2. **`T_RTS_ORDER_HIST` 조회(TC-RTS-001)**: `SUBSTR(ORDER_DATA, 86, 1)`(DB 오프셋 85, SQL 1-index)로 실제 반영된 로밍 플래그를 확인한다 — 와이어 인코딩 회귀를 잡는 계층.
 3. **`T_5G_SUBS_SERVICE` 조회(둘 다, 권장)**: `SELECT COUNT(*) ... WHERE MDN=? AND SVC_ID=?` 1건 이상 — "전문이 가입자에게 실제로 적용됐는가"의 가장 신뢰 가능한 근거. CDS 의 `Verify Zone Service Subscribed In PDB` 와 같은 패턴("1건 이상이면 성공", 정확한 건수는 안 박음).
 4. **PCF SBI Noti 조회(둘 다, 사용자 확인)**: `Verify RTS SBI Noti Sent` — 위 PCF SBI Noti 절 참조.
+
+**TC-RTS-003(negative)**: Data Size 헤더 필드를 실제 Body(17B)보다 크게(`${RTS_DATA_SIZE_
+OVERSIZED}`=600, 512 초과) 거짓 신고하고 실제 바이트는 정상 그대로 보낸다(`Send RTS Order
+With Wrong Data Size`, `RtsHelper.send_rts_wrong_size`). Order Ack 가 RESULT=FA,
+REASON=`${RTS_REASON_WRONG_SIZE}`(12, `E_WRONG_SIZE`)를 돌려주는지로 판정한다 — 이 REASON
+코드는 그동안 정의만 돼 있고 실제로 유발한 TC 가 없었다(아래 REASON 표의 "—" 참고). **아직
+실 PG 로 확인 전** — 기대와 다르면(예: 연결이 끊기거나 응답이 없으면) 이 TC 를 근거로
+기대값을 재조정한다.
 
 ## Call Flow
 

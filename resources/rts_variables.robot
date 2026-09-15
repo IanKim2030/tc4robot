@@ -77,6 +77,10 @@ ${RTS_ROAMING_BLOCK_OFF}   N
 # 11자리 유지 — attachMDN 의 10자리 재배치 분기(RtsHelper.py 모듈 docstring 참조)를 피한다.
 ${RTS_TEST_MDN}   01090010001
 
+# 패킷 크기 검증(E_WRONG_SIZE=12) negative TC 전용 — 헤더 Data Size 필드만 이 값으로
+# 거짓 신고하고 실제 Body(17B, RTS_WIRE_BODY_SIZE)는 그대로 보낸다. 512 초과로 잡는다.
+${RTS_DATA_SIZE_OVERSIZED}   600
+
 # ════════════════════════════════════════════
 # PDB 접속 문자열은 여기 없다 — CDS 와 **같은 DB** 라(사용자 확인)
 # variables.robot 의 ${PDB_CONNSTR} 하나를 같이 쓴다.

@@ -160,6 +160,28 @@ def send_rts(sock, msg_id, tid_date, tid_seq, src_sys, dst_sys, data=b''):
         raise ConnectionClosed(f"소켓 전송 오류: {e}") from e
 
 
+def send_rts_wrong_size(sock, msg_id, tid_date, tid_seq, src_sys, dst_sys, data, declared_size):
+    """
+    RTS 메시지 송신, 단 헤더의 Data Size 필드를 실제 전송 바이트 수와 다르게(보통 더 크게)
+    선언한다 — 패킷 크기 검증(E_WRONG_SIZE) negative TC 전용.
+    실제 body(data)는 정상 그대로 보내고, 헤더의 dataSize 필드만 declared_size 로 거짓
+    신고한다 — send_rts() 와 달리 data_size 를 len(data) 로 자동 계산하지 않는다.
+    """
+    if not is_connected(sock):
+        raise ConnectionClosed("소켓이 이미 닫혀 있습니다")
+    if data is None:
+        data = b''
+    if isinstance(data, str):
+        data = data.encode('ascii', errors='replace')
+    header = pack_rts_header(
+        msg_id, tid_date, tid_seq, src_sys, dst_sys, data_size=declared_size,
+    )
+    try:
+        sock.sendall(header + data)
+    except (OSError, BrokenPipeError) as e:
+        raise ConnectionClosed(f"소켓 전송 오류: {e}") from e
+
+
 def receive_rts(sock):
     """RTS 메시지 수신 → (header_dict, data_bytes). 32B 헤더는 항상 붙는다."""
     hdr_bytes = _recv_exact(sock, HEADER_SIZE)

@@ -18,6 +18,7 @@ Documentation
 ...    [TC 번호 체계]
 ...    001      Order(11/12) L1 — SVC_ID=W_DATA_ROAMING_BLOCK
 ...    002      Order(11/12) L2 — SVC_ID=L_DATA_ROAMING_BLOCK
+...    003      Order(11/12) 패킷 크기 검증 negative — Data Size 과대 신고 시 E_WRONG_SIZE(12)
 ...
 ...    이번 범위는 SVC_CODE=L1/L2 뿐이다. L1/L2 를 단순 ON/OFF 토글 쌍으로 단정하지
 ...    않는다 — 반영 SVC_ID 가 서로 다른 걸 보면 코드마다 별개 차단 유형일 수 있다
@@ -92,3 +93,22 @@ TC-RTS-002 로밍 데이터 차단 L2 (SVC_ID=L_DATA_ROAMING_BLOCK) - PDB/Noti �
     RTS Order Should Succeed    ${ack}
     Verify RTS SBI Noti Sent    ${RTS_SVC_L2}    since=${since}
     Verify RTS Service Applied In PDB    ${RTS_TEST_MDN}    ${RTS_SVC_ID_L_DATA_ROAMING_BLOCK}
+
+
+# ════════════════════════════════════════════════════════════════
+# 11/12  Order — negative (패킷 크기 검증)
+# ════════════════════════════════════════════════════════════════
+
+TC-RTS-003 Order - Data Size 필드 과대 신고 시 패킷 크기 검증 (E_WRONG_SIZE)
+    [Documentation]
+    ...    Data Size 헤더 필드를 실제 Body(17B, RTS_WIRE_BODY_SIZE)보다 훨씬 큰
+    ...    ${RTS_DATA_SIZE_OVERSIZED}B 로 거짓 신고하고, 실제로는 정상 17B Body 만
+    ...    보낸다. PG 가 선언된 크기 불일치를 감지해 Order Ack 에 RESULT=FA,
+    ...    REASON=${RTS_REASON_WRONG_SIZE}(E_WRONG_SIZE)를 돌려주는지 검증한다.
+    ...    (이 REASON 코드는 rts_variables.robot 에 이미 정의는 돼 있었으나 실제로
+    ...    유발하는 TC 는 이번이 처음 — 기대와 다르면 이 TC 를 근거로 재조정한다.)
+    [Tags]    rts    order    negative
+    ${hdr}    ${ack}=    Send RTS Order With Wrong Data Size
+    ...    ${RTS_SVC_L1}    ${RTS_TEST_MDN}    ${RTS_ROAMING_BLOCK_ON}
+    ...    ${RTS_DATA_SIZE_OVERSIZED}
+    RTS Order Should Fail    ${ack}    ${RTS_REASON_WRONG_SIZE}

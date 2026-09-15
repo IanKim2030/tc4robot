@@ -94,7 +94,12 @@ sequenceDiagram
 읽는 코드는 확인했으나 그 이후 처리 전체는 조사 범위 밖이었다)와 반영까지 걸리는 지연 시간은
 **확인 필요** — 현재 `${RTS_DB_WAIT}`/`${RTS_NOTI_WAIT}` 는 CDS 값을 참고한 추정치다.
 
+**TC-RTS-003(negative, 패킷 크기 검증)**은 위 콜플로우를 타지 않는다 — Data Size 헤더 필드를
+실제 Body 보다 크게 거짓 신고해 `RTS201` 단계에서 곧바로 Order Ack(FA, REASON=`E_WRONG_SIZE`
+=12)로 거부되는 것을 기대하므로, `InsertOrder` 이후의 PDB/Noti 흐름 자체가 발생하지 않아야
+정상이다. 상세는 [nodes/RTS.md](../nodes/RTS.md) 참조.
+
 ## 관련 문서
 
 - [RTS 노드 스펙](../nodes/RTS.md) — 인코딩 표, 이중 오프셋, 함정, 확인 필요
-- `tests/rts/rts_tests.robot` — `TC-RTS-001` / `TC-RTS-002`
+- `tests/rts/rts_tests.robot` — `TC-RTS-001` / `TC-RTS-002` / `TC-RTS-003`(negative)

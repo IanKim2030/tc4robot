@@ -145,6 +145,28 @@ Send RTS Order
     Log    [RX-RTS] Order Ack result=${ack}[result] reason=${ack}[reason]
     RETURN    ${hdr}    ${ack}
 
+Send RTS Order With Wrong Data Size
+    [Documentation]
+    ...    Order(11) 을 보내되 헤더의 Data Size 필드만 실제 Body 크기(17B,
+    ...    RTS_WIRE_BODY_SIZE)보다 크게 거짓 신고한다(실제 전송 바이트 수는 정상
+    ...    그대로) — 패킷 크기 검증(E_WRONG_SIZE=12) negative TC 전용.
+    ...    TID 미지정 시 Next RTS TID 로 자동 채번. 반환: (header_dict, ack_dict).
+    [Arguments]    ${svc_code}    ${mdn}    ${roaming_block}    ${declared_size}
+    ...            ${tid_date}=${NONE}    ${tid_seq}=${NONE}
+    IF    $tid_date is None or $tid_seq is None
+        ${tid_date}    ${tid_seq}=    Next RTS TID
+    END
+    ${body}=    Rts.Pack Rts Order Body    ${svc_code}    ${mdn}    ${roaming_block}
+    Log    [TX-RTS] Order(과대 dataSize) svc=${svc_code} mdn=${mdn} 실제바디=${{ len($body) }}B 선언크기=${declared_size}B tid=${tid_date}/${tid_seq}
+    Rts.Send Rts Wrong Size    ${RTS_SOCK}    ${MSG_RTS_ORDER_REQ}    ${tid_date}    ${tid_seq}
+    ...    ${RTS_SRC_SYS_ID}    ${RTS_DST_SYS_ID}    ${body}    ${declared_size}
+    ${hdr}    ${data}=    Rts.Receive Rts    ${RTS_SOCK}
+    Should Be Equal As Numbers    ${hdr}[msg_id]    ${MSG_RTS_ORDER_ACK}
+    ...    msg=Order Ack(12) 기대, 실제=${hdr}[msg_id]
+    ${ack}=    Rts.Unpack Order Ack    ${data}
+    Log    [RX-RTS] Order Ack result=${ack}[result] reason=${ack}[reason]
+    RETURN    ${hdr}    ${ack}
+
 RTS Order Should Succeed
     [Documentation]    result=SC, reason=0 확인.
     [Arguments]    ${ack}
