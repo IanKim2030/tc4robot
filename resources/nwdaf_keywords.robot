@@ -165,8 +165,9 @@ Build dpiQoSCtrl
     ...    ${timer}=${NWDAF_DPI_TEST_TIMER}
     ...    ${quick_support}=${NWDAF_QUICK_AFTER}
     ...    ${policy_len}=${NWDAF_LEN_QOS_POLICY}
+    ...    ${category_len}=${NONE}
     ${tlvs}=    Tlv.Build Dpi Qos Ctrl    ${category_policy}    ${status}    ${timer}
-    ...    ${quick_support}    policy_len=${policy_len}
+    ...    ${quick_support}    policy_len=${policy_len}    category_len=${category_len}
     Log TLV Section    dpiQoSCtrl    ${tlvs}
     RETURN    ${tlvs}
 
@@ -181,9 +182,10 @@ Build enodebQoSCtl
     ...    ${arp_vulnerability}=${NWDAF_ENABLE}
     ...    ${qci}=${NWDAF_TEST_QCI}
     ...    ${timer}=${NWDAF_TEST_TIMER}
+    ...    ${qci_len}=${NONE}
     ${tlvs}=    Tlv.Build Enb Qos Ctrl    ${support_type}    ${arp_qci_flag}
     ...    ${enb_arp}    ${arp_capability}    ${arp_vulnerability}
-    ...    ${qci}    ${timer}
+    ...    ${qci}    ${timer}    qci_len=${qci_len}
     Log TLV Section    enodebQoSCtl    ${tlvs}
     RETURN    ${tlvs}
 
@@ -226,6 +228,25 @@ Send NWDAF Notification
     Log    [TX→PG] packet = ${pkt_hex}
     Tlv.Send Nwdaf Packet    ${NWDAF_SOCK}    ${packet}
     RETURN    ${mid}
+
+Send NWDAF Notification On New Connection
+    [Documentation]
+    ...    공유 ${NWDAF_SOCK} 을 건드리지 않고 이 호출 전용의 새 연결로 Notification 을 보낸다.
+    ...    과대 길이 필드처럼 PG 가 연결을 끊을 수도 있는 negative TC 전용 — 공유 소켓이
+    ...    오염되면 이후 모든 TC 의 Test Setup(Check NWDAF Socket)이 Fatal Error 로 슈트를
+    ...    통째로 중단시키므로 격리한다(LRS TC-003 과 같은 이유).
+    ...    송신 후 잠깐 대기해 PG 반응 시간을 준 뒤 연결 유지 여부(peer_closed)를 반환하고
+    ...    이 소켓은 닫는다 — ${NWDAF_SOCK} 과 Suite Variable ${NWDAF_MSG_ID}만 공유한다.
+    [Arguments]    ${tlv_bytes_list}    ${service_id}=${NWDAF_SID_SUBSCRIBER}
+    ${sock}=    Tlv.Nwdaf Connect    ${NWDAF_HOST}    ${NWDAF_PORT}    ${NWDAF_TIMEOUT}
+    ${mid}=    Next NWDAF Msg Id
+    ${packet}=    Tlv.Build Nwdaf Notification    ${service_id}    ${mid}    ${tlv_bytes_list}
+    Log    [TX→PG, 격리 연결] sid=${service_id} mid=${mid} bytes=${{ len($packet) }}
+    Tlv.Send Nwdaf Packet    ${sock}    ${packet}
+    Sleep    ${NWDAF_PEER_CLOSE_WAIT}
+    ${closed}=    Tlv.Nwdaf Peer Closed    ${sock}
+    Tlv.Nwdaf Close    ${sock}
+    RETURN    ${closed}
 
 
 # ══════════════════════════════════════════════════════════════════

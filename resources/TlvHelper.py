@@ -517,7 +517,7 @@ DPI_DEFAULT_CATEGORY_POLICY = [
 
 def build_dpi_qos_ctrl(category_policy=None, status: str = '0',
                        timer: int = 250, quick_support: str = '1',
-                       policy_len=None) -> list:
+                       policy_len=None, category_len=None) -> list:
     """
     dpiQoSCtrl (PCEF_TYPE 비트 0x02) TLV bytes 리스트.
     PG 참조 구현의 `if (pcef_type & 0x02) { ... }` 블록을 그대로 재현한다.
@@ -537,13 +537,17 @@ def build_dpi_qos_ctrl(category_policy=None, status: str = '0',
     timer           : sec, uint32 BE (참조 구현 예시 250)
     quick_support   : '0'|'1' (참조 구현 예시 '1')
     policy_len      : QOS_POLICY 고정 길이. 미지정 시 LEN_QOS_POLICY.
+    category_len    : CATEGORY 고정 길이로 강제할 때 지정(NUL 패딩). 미지정 시 가변 길이(기존 동작).
     """
     pairs = DPI_DEFAULT_CATEGORY_POLICY if category_policy is None else category_policy
     plen = LEN_QOS_POLICY if policy_len is None else policy_len
 
     out = [pack_uint8(TAG_QOS_HDR, PCEF_DPI)]           # 0x02 flag
     for category, qos_policy in pairs:
-        out.append(pack_string    (TAG_CATEGORY, category))
+        if category_len:
+            out.append(pack_string_fixed(TAG_CATEGORY, category, int(category_len), pad=b'\x00'))
+        else:
+            out.append(pack_string(TAG_CATEGORY, category))
         out.append(_pack_qos_policy(qos_policy, plen))
     out.append(pack_string(TAG_STATUS,        status))
     out.append(pack_uint32(TAG_TIMER,         timer))
@@ -553,7 +557,7 @@ def build_dpi_qos_ctrl(category_policy=None, status: str = '0',
 
 def build_enb_qos_ctrl(support_type: int, arp_qci_flag: int, enb_arp: int,
                        arp_capability: int, arp_vulnerability: int,
-                       qci: int, timer: int) -> list:
+                       qci: int, timer: int, qci_len=None) -> list:
     """
     enodebQoSCtl (3절, PCEF_TYPE=0x10) TLV bytes 리스트.
 
@@ -564,6 +568,7 @@ def build_enb_qos_ctrl(support_type: int, arp_qci_flag: int, enb_arp: int,
     arp_vulnerability: 0=Enable, 1=Disable
     qci              : QCI 값
     timer            : sec
+    qci_len          : QCI 고정 길이. 미지정 시 LEN_QCI.
 
     ※ 인코딩은 PG 참조 시뮬레이터(송신부) + CNWQosGateway.cpp(수신부) 가 기준이다.
       규격 표의 "numeric" 표기와 실제 wire 형식이 필드마다 다르므로 아래 표를 따른다.
@@ -586,6 +591,7 @@ def build_enb_qos_ctrl(support_type: int, arp_qci_flag: int, enb_arp: int,
       수신부는 **TAG 를 검사하지 않고 고정 순서로** `p++; length=*p; p++;` 하며 읽으므로
       순서나 폭이 하나라도 어긋나면 그 뒤 필드가 전부 밀린다.
     """
+    qlen = LEN_QCI if qci_len is None else int(qci_len)
     return [
         pack_uint8       (TAG_QOS_HDR,           PCEF_ENB),    # 0x10 flag (바이너리)
         pack_string      (TAG_SUPPORT_TYPE,      str(int(support_type))),
@@ -593,7 +599,7 @@ def build_enb_qos_ctrl(support_type: int, arp_qci_flag: int, enb_arp: int,
         pack_uint32      (TAG_ENB_ARP,           enb_arp),
         pack_string      (TAG_ARP_CAPABILITY,    str(int(arp_capability))),
         pack_string      (TAG_ARP_VULNERABILITY, str(int(arp_vulnerability))),
-        pack_string_fixed(TAG_QCI, str(int(qci)), LEN_QCI, pad=b'\x00'),
+        pack_string_fixed(TAG_QCI, str(int(qci)), qlen, pad=b'\x00'),
         pack_uint32      (TAG_TIMER,             timer),
     ]
 

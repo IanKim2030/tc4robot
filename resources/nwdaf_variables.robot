@@ -141,6 +141,14 @@ ${NWDAF_TEST_CELL_AVG_USAGE}   ${500}      # KB
 ${NWDAF_TEST_HEAVY_USER}       ${50}
 ${NWDAF_TEST_USER_USAGE}       ${50000}    # KB (Heavy+Medium+Light 합)
 
+# ── datalength(과대 길이) negative TC 전용 (TC-NWDAF-034~037) ──
+# PG 소스 확정값(SCMQosDefine.hpp: LEN_CATEGORY=29, LEN_QOS_POLICY=50, LEN_QCI=3)
+# 보다 확실히 크게 잡는다. Length 필드와 실제 전송 바이트 수는 항상 일치시킨다(B안).
+${NWDAF_LEN_QOS_POLICY_OVERSIZED}    ${200}   # LEN_QOS_POLICY(50) 초과
+${NWDAF_LEN_CATEGORY_OVERSIZED}      ${64}    # LEN_CATEGORY(29) 초과 — 원래 pack_string 가변
+${NWDAF_LEN_QCI_OVERSIZED}           ${64}    # LEN_QCI(3) 초과
+${NWDAF_PEER_CLOSE_WAIT}             ${1}     # 초. 송신 후 PG 가 끊을 시간을 잠깐 준다
+
 # ════════════════════════════════════════════
 # NWDAF TLV TAG (규격 4개 섹션에서 쓰는 태그만 정의)
 # ════════════════════════════════════════════

@@ -40,7 +40,8 @@ Documentation
 ...      TC-NWDAF-021 ~ 022 : COMMON1 (RCT_3M/1M_USAGE 경계)
 ...      TC-NWDAF-023 ~ 030 : COMMON2 (NETWORK / CONTROL_UNIT / DN_USAGE / USER_RATIO)
 ...      TC-NWDAF-031       : Message Id wrap
-...      TC-NWDAF-032 ~ 036 : dpiQoSCtrl (LTE DPI QoS, 인코딩 검증 — 034~036 은 송신 없음)
+...      TC-NWDAF-032 ~ 033 : dpiQoSCtrl (LTE DPI QoS 추가 / DPI 단독)
+...      TC-NWDAF-034 ~ 037 : datalength(과대 길이) — QOS_POLICY(PGW/DPI) / CATEGORY(DPI) / QCI(ENB)
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/nwdaf_variables.robot
@@ -351,5 +352,76 @@ TC-NWDAF-033 DPI 단독 Notification (PCEF_TYPE=0x02)
     [Tags]    nwdaf    nwdaf_dpi
     ${mid}=    Send DPI Only QoS Notification
     Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
+
+
+# ════════════════════════════════════════════════════════════════
+# datalength(과대 길이) — QOS_POLICY / CATEGORY / QCI 가 PG 버퍼보다 클 때
+# Length 필드와 실제 전송 바이트 수는 일치시킨다(TLV 스트림은 길이를 속이면
+# 그 뒤 모든 필드가 밀리므로). 공유 소켓 오염을 막기 위해 격리 연결로 보낸다.
+# Notification 은 PG 응답이 없어 accept/reject 를 단정할 수 없다 — 연결 유지
+# 여부만 관찰해 로그로 남기고, 실제 판정은 PG 로그 대조가 필요하다.
+# ════════════════════════════════════════════════════════════════
+
+TC-NWDAF-034 PGW QOS_POLICY 과대 길이
+    [Documentation]
+    ...    QOS_POLICY(0x10, pcefQoSCtrl) 를 PG 소스 LEN_QOS_POLICY(50, 코드는 16으로 틀림)
+    ...    보다 훨씬 큰 ${NWDAF_LEN_QOS_POLICY_OVERSIZED}B 로 채워 보낸다. PG 반응은 관찰만 한다.
+    [Tags]    nwdaf    nwdaf_pgw    nwdaf_datalength    negative
+    ${qc}=    Build pcefQoSCtrl    policy_len=${NWDAF_LEN_QOS_POLICY_OVERSIZED}
+    ${value}=    Tlv.Tlv Find    ${{ b''.join($qc) }}    ${NWDAF_TAG_QOS_POLICY}
+    Length Should Be    ${value}    ${NWDAF_LEN_QOS_POLICY_OVERSIZED}
+    ...    msg=QOS_POLICY 가 선언한 과대 길이만큼 실제로 나가지 않음
+    ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW}
+    ${c2}=    Build COMMON2
+    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+    ${closed}=    Send NWDAF Notification On New Connection    ${body}
+    Log    [NWDAF] PG 연결 유지 여부(peer_closed)=${closed} — accept/reject 는 PG 로그로 교차 확인
+
+TC-NWDAF-035 DPI QOS_POLICY 과대 길이
+    [Documentation]
+    ...    QOS_POLICY(0x10, dpiQoSCtrl) 6쌍 전부를 PG 소스 LEN_QOS_POLICY(50)보다 큰
+    ...    ${NWDAF_LEN_QOS_POLICY_OVERSIZED}B 로 채워 보낸다. PG 반응은 관찰만 한다.
+    [Tags]    nwdaf    nwdaf_dpi    nwdaf_datalength    negative
+    ${dpi}=    Build dpiQoSCtrl    policy_len=${NWDAF_LEN_QOS_POLICY_OVERSIZED}
+    ${value}=    Tlv.Tlv Find    ${{ b''.join($dpi) }}    ${NWDAF_TAG_QOS_POLICY}
+    Length Should Be    ${value}    ${NWDAF_LEN_QOS_POLICY_OVERSIZED}
+    ...    msg=QOS_POLICY 가 선언한 과대 길이만큼 실제로 나가지 않음
+    ${c1}=    Build COMMON1    ${NWDAF_PCEF_DPI}
+    ${c2}=    Build COMMON2
+    ${body}=    Tlv.Build Notification Body    ${c1}    ${dpi}    ${c2}
+    ${closed}=    Send NWDAF Notification On New Connection    ${body}
+    Log    [NWDAF] PG 연결 유지 여부(peer_closed)=${closed} — accept/reject 는 PG 로그로 교차 확인
+
+TC-NWDAF-036 DPI CATEGORY 과대 길이
+    [Documentation]
+    ...    CATEGORY(0x0C, dpiQoSCtrl) 를 PG 소스 LEN_CATEGORY(29, TlvHelper.py 에는 상수
+    ...    자체가 없고 원래 pack_string 가변 길이)보다 큰 ${NWDAF_LEN_CATEGORY_OVERSIZED}B
+    ...    고정 길이로 강제해 보낸다. 0x0C 는 CATEGORY(6)+STATUS(1)로 겹치므로 첫 번째
+    ...    매치(=첫 CATEGORY)만 확인한다. PG 반응은 관찰만 한다.
+    [Tags]    nwdaf    nwdaf_dpi    nwdaf_datalength    negative
+    ${dpi}=    Build dpiQoSCtrl    category_len=${NWDAF_LEN_CATEGORY_OVERSIZED}
+    ${value}=    Tlv.Tlv Find    ${{ b''.join($dpi) }}    ${NWDAF_TAG_CATEGORY}
+    Length Should Be    ${value}    ${NWDAF_LEN_CATEGORY_OVERSIZED}
+    ...    msg=CATEGORY 가 선언한 과대 길이만큼 실제로 나가지 않음
+    ${c1}=    Build COMMON1    ${NWDAF_PCEF_DPI}
+    ${c2}=    Build COMMON2
+    ${body}=    Tlv.Build Notification Body    ${c1}    ${dpi}    ${c2}
+    ${closed}=    Send NWDAF Notification On New Connection    ${body}
+    Log    [NWDAF] PG 연결 유지 여부(peer_closed)=${closed} — accept/reject 는 PG 로그로 교차 확인
+
+TC-NWDAF-037 ENB QCI 과대 길이
+    [Documentation]
+    ...    QCI(0x11, enodebQoSCtl) 를 PG 소스 LEN_QCI(3, 코드는 2로 틀림)보다 훨씬 큰
+    ...    ${NWDAF_LEN_QCI_OVERSIZED}B 로 채워 보낸다. PG 반응은 관찰만 한다.
+    [Tags]    nwdaf    nwdaf_enb    nwdaf_datalength    negative
+    ${qc}=    Build enodebQoSCtl    qci_len=${NWDAF_LEN_QCI_OVERSIZED}
+    ${value}=    Tlv.Tlv Find    ${{ b''.join($qc) }}    ${NWDAF_TAG_QCI}
+    Length Should Be    ${value}    ${NWDAF_LEN_QCI_OVERSIZED}
+    ...    msg=QCI 가 선언한 과대 길이만큼 실제로 나가지 않음
+    ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}
+    ${c2}=    Build COMMON2
+    ${body}=    Tlv.Build Notification Body    ${c1}    ${qc}    ${c2}
+    ${closed}=    Send NWDAF Notification On New Connection    ${body}
+    Log    [NWDAF] PG 연결 유지 여부(peer_closed)=${closed} — accept/reject 는 PG 로그로 교차 확인
 
 

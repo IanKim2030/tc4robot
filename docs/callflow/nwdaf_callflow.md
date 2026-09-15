@@ -57,6 +57,7 @@ sequenceDiagram
 | `0x10` (eNB) | COMMON1 + **enodebQoSCtl** + COMMON2 | 003/005, 014~020 |
 | `0x03` (LTE DPI) | COMMON1 + **pcefQoSCtrl + dpiQoSCtrl** + COMMON2 — 한 전문에 함께 | 032 |
 | `0x02` (DPI 단독) | COMMON1 + **dpiQoSCtrl** + COMMON2 | 033 |
+| datalength 과대 길이 (negative) | QOS_POLICY(PGW/DPI) / CATEGORY(DPI) / QCI(ENB) 를 PG 버퍼보다 크게, 격리 연결로 송신 | 034~037 |
 
 ## 콜플로우 — Health Check (`TC-NWDAF-001`)
 
@@ -100,9 +101,14 @@ sequenceDiagram
 Notification 에는 응답이 없고 PDB 판정도 없으므로 Robot 이 자동으로 볼 수 있는 것은
 세 가지뿐이다.
 
-- **전문 조립 결과** — build 단위 TC (`Tlv Find All` 등으로 TLV 를 직접 검증, 034~036 처럼 송신 없는 TC 포함)
+- **전문 조립 결과** — build 단위 TC (`Tlv Find`/`Tlv Find All` 등으로 TLV 를 직접 검증)
 - **TCP 송신 성공** — 소켓 오류 없이 write 가 끝났다는 것 이상을 말해주지 않는다
 - **`Check NWDAF Socket` 의 FIN/RST 감지** — PG 가 직전 전문을 거부하고 끊었을 때, 다음 TC 에서 잡힌다
+
+datalength 과대 길이 negative TC(034~037)는 실제로 송신하되(길이 필드와 바이트 수는 항상
+일치), 공유 소켓이 아니라 `Send NWDAF Notification On New Connection` 으로 연 격리 연결을
+쓴다 — PG 가 이 값을 거부하고 끊어도 공유 `${NWDAF_SOCK}` 은 오염되지 않는다. accept/reject
+는 단정하지 않고 연결 유지 여부(`peer_closed`)만 관찰해 로그로 남긴다.
 
 **내용이 맞는지는 사람이 대조해야 한다** — `Send NWDAF Notification` 이 매 송신마다
 전체 패킷 hexdump 를 `log.html` 에 남기므로 PG 의 `Header Info`/`BodyInfo` 덤프와 바이트
@@ -112,5 +118,5 @@ pcefQoSCtrl/eNB/DPI 필드가 로그에 안 보이는 것은 파싱 실패가 �
 ## 관련 문서
 
 - [NWDAF 노드 스펙](../nodes/NWDAF.md) — 헤더 비트 배치, 섹션별 인코딩 표, 함정, 확인 필요
-- `tests/nwdaf/nwdaf_tests.robot` — `TC-NWDAF-001`~`036`
+- `tests/nwdaf/nwdaf_tests.robot` — `TC-NWDAF-001`~`037`
 - `resources/nwdaf_keywords.robot` · `resources/TlvHelper.py` — build/송신/드레인 구현

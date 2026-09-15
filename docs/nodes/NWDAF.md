@@ -163,7 +163,7 @@ QUICK_SUPPORT(0x3B)         1B ASCII "1"
 
 ## TC
 
-현재 **36건**(001~036 연속). NWDAF 만 `nwdaf_` 접두사 태그 체계를 쓴다.
+현재 **37건**(001~037 연속). NWDAF 만 `nwdaf_` 접두사 태그 체계를 쓴다.
 
 | 대역 | 내용 |
 |---|---|
@@ -173,7 +173,8 @@ QUICK_SUPPORT(0x3B)         1B ASCII "1"
 | 014~020 | enodebQoSCtl |
 | 021~030 | COMMON1 / COMMON2 |
 | 031 | Message Id wrap |
-| 032~036 | dpiQoSCtrl (034~036 은 송신 없는 build 검증) |
+| 032~033 | dpiQoSCtrl (LTE DPI QoS 추가 / DPI 단독) |
+| 034~037 | datalength(과대 길이) negative — QOS_POLICY(PGW/DPI) / CATEGORY(DPI) / QCI(ENB). 공유 소켓 오염을 피하려 `Send NWDAF Notification On New Connection`(격리 연결)으로 보낸다. accept/reject 는 단정하지 않고 연결 유지 여부만 관찰·로그로 남긴다(판정 공백 참고) |
 
 ## 함정
 
@@ -225,6 +226,11 @@ NWDAF 는 반드시 `SCMQosDefine.hpp` 를 봐야 한다.
 | `LEN_QOS_POLICY` | **50** (`:22`, `TAG_LEN_QOS_POLICY = 0x32`) | `16` |
 | `LEN_QCI` | **3** (`:23`, `cQCI[LEN_QCI+1]`) | `2` |
 | `LEN_CELL_ID` | **14** (`:15`) | `LEN_LOCATION_ID = None` (가변) |
+| `LEN_CATEGORY` | **29**(사용자 확인) | 상수 없음 — `pack_string` 로 가변 길이만 지원 |
+
+`category_len`(`build_dpi_qos_ctrl`)/`qci_len`(`build_enb_qos_ctrl`) 오버라이드 파라미터는
+위 드리프트를 이용한 TC-NWDAF-034~037(datalength 과대 길이 negative) 전용이다 — 기본 동작
+(가변 길이 / `LEN_QCI`)은 그대로 유지된다.
 
 `16`/`2` 는 **다른 노드 헤더의 값**이다(`SC/CommonDef.hpp:41-42`,
 `LRS/LRS_SIM/CommonDef.hpp:41-42` 가 정확히 16/2). 거기서 넘어온 것으로 보인다.
