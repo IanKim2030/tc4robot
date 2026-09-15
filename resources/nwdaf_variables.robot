@@ -143,10 +143,16 @@ ${NWDAF_TEST_USER_USAGE}       ${50000}    # KB (Heavy+Medium+Light 합)
 
 # ── datalength(과대 길이) negative TC 전용 (TC-NWDAF-034~037) ──
 # PG 소스 확정값(SCMQosDefine.hpp: LEN_CATEGORY=29, LEN_QOS_POLICY=50, LEN_QCI=3)
-# 보다 확실히 크게 잡는다. Length 필드와 실제 전송 바이트 수는 항상 일치시킨다(B안).
-${NWDAF_LEN_QOS_POLICY_OVERSIZED}    ${200}   # LEN_QOS_POLICY(50) 초과
-${NWDAF_LEN_CATEGORY_OVERSIZED}      ${64}    # LEN_CATEGORY(29) 초과 — 원래 pack_string 가변
-${NWDAF_LEN_QCI_OVERSIZED}           ${64}    # LEN_QCI(3) 초과
+# 보다 크게 잡되, 128(0x80) 미만으로 유지한다. CNWQosGateway.cpp::ParsingPacket 이
+# 1바이트 길이 필드를 `length = *p`(signed char → short)로 읽어서, 0x80 이상을 보내면
+# 음수로 부호 확장되어 포인터가 되감기고 전문 전체가 깨진다(실측: TC-NWDAF-034 로
+# LEN_QOS_POLICY_OVERSIZED=200(0xC8)을 보냈더니 truncate 경고 로그도 안 찍히고
+# `Unknown TAG(00) Packet ignore!`로 귀결됨 — length=-56 이 되어 두 방어 분기를 다
+# 비껴간 것). 우리가 보려는 건 "버퍼 초과 시 안전하게 잘리는지"이지 이 부호 확장
+# 버그가 아니므로 128 미만으로 유지한다.
+${NWDAF_LEN_QOS_POLICY_OVERSIZED}    ${100}   # LEN_QOS_POLICY(50) 초과, 0x80 미만
+${NWDAF_LEN_CATEGORY_OVERSIZED}      ${64}    # LEN_CATEGORY(29) 초과, 0x80 미만 — 원래 pack_string 가변
+${NWDAF_LEN_QCI_OVERSIZED}           ${64}    # LEN_QCI(3) 초과, 0x80 미만
 ${NWDAF_PEER_CLOSE_WAIT}             ${1}     # 초. 송신 후 PG 가 끊을 시간을 잠깐 준다
 
 # ════════════════════════════════════════════

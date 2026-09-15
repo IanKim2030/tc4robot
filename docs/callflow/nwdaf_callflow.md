@@ -106,9 +106,20 @@ Notification 에는 응답이 없고 PDB 판정도 없으므로 Robot 이 자동
 - **`Check NWDAF Socket` 의 FIN/RST 감지** — PG 가 직전 전문을 거부하고 끊었을 때, 다음 TC 에서 잡힌다
 
 datalength 과대 길이 negative TC(034~037)는 실제로 송신하되(길이 필드와 바이트 수는 항상
-일치), 공유 소켓이 아니라 `Send NWDAF Notification On New Connection` 으로 연 격리 연결을
-쓴다 — PG 가 이 값을 거부하고 끊어도 공유 `${NWDAF_SOCK}` 은 오염되지 않는다. accept/reject
-는 단정하지 않고 연결 유지 여부(`peer_closed`)만 관찰해 로그로 남긴다.
+일치), `Send NWDAF Notification On New Connection` 을 쓴다 — 단, PG 의 NWDAF 인터페이스는
+"소켓: 단일"이라 공유 소켓과 **동시에 2개**를 열지 않는다: 기존 `${NWDAF_SOCK}` 을 먼저
+닫고, 그 자리에 정확히 하나의 연결만 열어 전문을 보내 관찰한 뒤, 그 연결을 닫고 다시 새로
+접속해 `${NWDAF_SOCK}` 을 정상 상태로 복구한다 — 항상 순차로 하나씩만 연결해서, PG 가 이
+값을 거부하고 끊어도 다음 TC 는 재연결된 새 소켓으로 정상 시작한다. accept/reject 는
+단정하지 않고 연결 유지 여부(`peer_closed`)만 관찰해 로그로 남긴다.
+
+**실측(TC-NWDAF-034)으로 확정된 별개의 버그**: PG 파서(`CSCMQosGateway.cpp` 의
+`CNWQosGateway::ParsingPacket`)는 1바이트 길이 필드를 `length = *p`(signed char → short)로
+읽는다. 선언 길이가 **0x80(128) 이상**이면 음수로 부호 확장되어 포인터가 뒤로 되감기고
+`multiMessageLength` 가 오히려 늘어나 파싱이 완전히 어긋나며, 결국 `Unknown TAG(00) Packet
+ignore!` 로 전문 전체가 버려진다(PG 는 연결을 끊지 않고 조용히 무시한다). 그래서 datalength
+negative TC 의 오버사이즈 값은 전부 0x80 미만으로 유지한다 — 자세한 내용은
+[NWDAF 노드 스펙](../nodes/NWDAF.md)의 "길이 필드 부호 확장 버그" 절 참고.
 
 **내용이 맞는지는 사람이 대조해야 한다** — `Send NWDAF Notification` 이 매 송신마다
 전체 패킷 hexdump 를 `log.html` 에 남기므로 PG 의 `Header Info`/`BodyInfo` 덤프와 바이트

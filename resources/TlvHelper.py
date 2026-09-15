@@ -376,14 +376,28 @@ LEN_LOCATION_ID        = None
 #   양수 = 그 길이로 NUL 패딩 (시뮬레이터 동작과 동일)
 #   None = 문자열 실제 길이로 가변 송신 (안전 폴백)
 #
-# ★ 주의 — 이 값은 **아직 확인되지 않은 추정치(16)** 다.
-#   PG 수신부는 QOS_POLICY 를 길이 상한 없이 복사한다:
+# ★ 주의 — 이 값은 **아직 확인되지 않은 추정치(16)** 다. 실제 PG 소스(SCMQosDefine.hpp)
+#   상의 LEN_QOS_POLICY 는 50이다(docs/nodes/NWDAF.md "코드와 소스가 어긋난 상태" 참고).
+#
+#   PG 수신부(CNWQosGateway.cpp::ParsingPacket)는 **길이 상한 검사가 있다** — 예전에 이
+#   주석이 "방어가 없다"고 적었던 건 실제 소스 미확인 상태의 잘못된 추정이었다:
 #       p++; length = *p; p++;
-#       if (length > 0) memcpy(stQosInfo.stDPIQosInfo.cQosPolicy[i], p, length);
-#   CELL_ID 처럼 `if (length > LEN_CELL_ID) memcpy(..., LEN_CELL_ID)` 로 자르는 방어가 없다.
-#   따라서 실제 LEN_QOS_POLICY 보다 **큰 길이를 보내면 PG 측 버퍼 오버플로**가 난다.
+#       if (length > LEN_QOS_POLICY) {
+#           memcpy(dst, p, LEN_QOS_POLICY); dst[LEN_QOS_POLICY]='\0';
+#           gLog->Write(LOG_WARNING, "...QosPolicy length(%d) exceeds buffer size(%d)...");
+#       } else if (length > 0) { memcpy(dst, p, length); dst[length]='\0'; }
+#   즉 LEN_QOS_POLICY(50) 초과 값은 안전하게 50바이트로 잘리고 WARNING 로그만 남는다
+#   (TC-NWDAF-034/035 실측 확인, `docs/nodes/NWDAF.md` 참고).
+#
+#   ★ 진짜 위험은 다른 곳에 있다 — `length` 는 `short`, `*p` 는 signed char 라서
+#   **선언 길이가 0x80(128) 이상이면 음수로 부호 확장**된다. 그러면 위 두 `if` 분기를
+#   전부 비껴가 truncate/memcpy 가 아예 안 일어나고, `p = p + length`(음수만큼 전진 =
+#   포인터가 뒤로 되감김)와 `multiMessageLength -= length + 2`(음수를 빼서 오히려 증가)
+#   때문에 그 뒤 파싱이 전부 어긋나 결국 `Unknown TAG(00) Packet ignore!` 로 전문
+#   전체가 버려진다. QOS_POLICY 뿐 아니라 이 함수의 모든 1바이트 길이 필드가 공통으로
+#   가진 결함이다 — 이 헬퍼로 어떤 필드든 길이를 128 이상으로 강제하지 말 것
+#   (LEN_CATEGORY_OVERSIZED/LEN_QCI_OVERSIZED 도 128 미만으로 유지하는 이유).
 #   'QoS400K_NoGBR'(13자) 가 들어가므로 실값은 최소 13 이다.
-#   운영 PG 대상 시험 전에 반드시 실값을 확인할 것. 확인 전 안전하게 가려면 None 으로 둔다.
 LEN_QOS_POLICY         = 16
 
 # enodebQoSCtl (PCEF_TYPE=0x10) sub-fields (QOS_HDR/TIMER 는 위와 공유)

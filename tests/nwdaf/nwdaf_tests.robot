@@ -365,7 +365,11 @@ TC-NWDAF-033 DPI 단독 Notification (PCEF_TYPE=0x02)
 TC-NWDAF-034 PGW QOS_POLICY 과대 길이
     [Documentation]
     ...    QOS_POLICY(0x10, pcefQoSCtrl) 를 PG 소스 LEN_QOS_POLICY(50, 코드는 16으로 틀림)
-    ...    보다 훨씬 큰 ${NWDAF_LEN_QOS_POLICY_OVERSIZED}B 로 채워 보낸다. PG 반응은 관찰만 한다.
+    ...    보다 큰 ${NWDAF_LEN_QOS_POLICY_OVERSIZED}B(0x80 미만 유지 — 그 이상은 PG 파서의
+    ...    signed char 부호 확장 버그를 밟아 전문 전체가 깨짐, 별개 결함) 로 채워 보낸다.
+    ...    PG 가 `PGW.QosPolicy length(...) exceeds buffer size(50). Truncated to 50 bytes.`
+    ...    WARNING 로그를 남기고 50바이트로 안전하게 truncate 하는지 관찰한다(PG 반응은
+    ...    관찰만 하고 단정하지 않음).
     [Tags]    nwdaf    nwdaf_pgw    nwdaf_datalength    negative
     ${qc}=    Build pcefQoSCtrl    policy_len=${NWDAF_LEN_QOS_POLICY_OVERSIZED}
     ${value}=    Tlv.Tlv Find    ${{ b''.join($qc) }}    ${NWDAF_TAG_QOS_POLICY}
@@ -380,7 +384,11 @@ TC-NWDAF-034 PGW QOS_POLICY 과대 길이
 TC-NWDAF-035 DPI QOS_POLICY 과대 길이
     [Documentation]
     ...    QOS_POLICY(0x10, dpiQoSCtrl) 6쌍 전부를 PG 소스 LEN_QOS_POLICY(50)보다 큰
-    ...    ${NWDAF_LEN_QOS_POLICY_OVERSIZED}B 로 채워 보낸다. PG 반응은 관찰만 한다.
+    ...    ${NWDAF_LEN_QOS_POLICY_OVERSIZED}B(0x80 미만 유지 — 그 이상은 PG 파서의
+    ...    signed char 부호 확장 버그를 밟아 전문 전체가 깨짐, 별개 결함) 로 채워 보낸다.
+    ...    PG 가 `DPI.QosPolicy length(...) exceeds buffer size(50). Truncated to 50 bytes.`
+    ...    WARNING 로그를 6쌍 모두에 대해 남기고 50바이트로 안전하게 truncate 하는지
+    ...    관찰한다(PG 반응은 관찰만 하고 단정하지 않음).
     [Tags]    nwdaf    nwdaf_dpi    nwdaf_datalength    negative
     ${dpi}=    Build dpiQoSCtrl    policy_len=${NWDAF_LEN_QOS_POLICY_OVERSIZED}
     ${value}=    Tlv.Tlv Find    ${{ b''.join($dpi) }}    ${NWDAF_TAG_QOS_POLICY}

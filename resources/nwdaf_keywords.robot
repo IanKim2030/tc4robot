@@ -231,21 +231,24 @@ Send NWDAF Notification
 
 Send NWDAF Notification On New Connection
     [Documentation]
-    ...    공유 ${NWDAF_SOCK} 을 건드리지 않고 이 호출 전용의 새 연결로 Notification 을 보낸다.
-    ...    과대 길이 필드처럼 PG 가 연결을 끊을 수도 있는 negative TC 전용 — 공유 소켓이
-    ...    오염되면 이후 모든 TC 의 Test Setup(Check NWDAF Socket)이 Fatal Error 로 슈트를
-    ...    통째로 중단시키므로 격리한다(LRS TC-003 과 같은 이유).
-    ...    송신 후 잠깐 대기해 PG 반응 시간을 준 뒤 연결 유지 여부(peer_closed)를 반환하고
-    ...    이 소켓은 닫는다 — ${NWDAF_SOCK} 과 Suite Variable ${NWDAF_MSG_ID}만 공유한다.
+    ...    PG 의 NWDAF 인터페이스는 "소켓: 단일"이다(docs/nodes/NWDAF.md). 공유 ${NWDAF_SOCK}
+    ...    을 열어둔 채 두 번째 연결을 동시에 여는 걸 피하려고 "동시에 2개"가 아니라 "항상
+    ...    1개씩 순차로" 접속한다: 기존 공유 소켓을 먼저 닫고, 그 자리에 딱 하나의 연결만
+    ...    열어 전문을 보내 관찰한 뒤, 그 연결을 닫고 다시 새로 접속해 ${NWDAF_SOCK} 을 정상
+    ...    상태로 복구한다 — 다음 TC 의 Test Setup(Check NWDAF Socket)이 Fatal Error 없이
+    ...    통과하도록. PG 입장에서 동시에 열려 있는 연결 수는 항상 0~1개다.
     [Arguments]    ${tlv_bytes_list}    ${service_id}=${NWDAF_SID_SUBSCRIBER}
+    Tlv.Nwdaf Close    ${NWDAF_SOCK}
     ${sock}=    Tlv.Nwdaf Connect    ${NWDAF_HOST}    ${NWDAF_PORT}    ${NWDAF_TIMEOUT}
     ${mid}=    Next NWDAF Msg Id
     ${packet}=    Tlv.Build Nwdaf Notification    ${service_id}    ${mid}    ${tlv_bytes_list}
-    Log    [TX→PG, 격리 연결] sid=${service_id} mid=${mid} bytes=${{ len($packet) }}
+    Log    [TX→PG, 단일 순차 연결] sid=${service_id} mid=${mid} bytes=${{ len($packet) }}
     Tlv.Send Nwdaf Packet    ${sock}    ${packet}
     Sleep    ${NWDAF_PEER_CLOSE_WAIT}
     ${closed}=    Tlv.Nwdaf Peer Closed    ${sock}
     Tlv.Nwdaf Close    ${sock}
+    ${fresh}=    Tlv.Nwdaf Connect    ${NWDAF_HOST}    ${NWDAF_PORT}    ${NWDAF_TIMEOUT}
+    Set Suite Variable    ${NWDAF_SOCK}    ${fresh}
     RETURN    ${closed}
 
 
