@@ -55,6 +55,13 @@ ${SUBS_MDN_NO_SESSION}       99999999999       # 세션 없음 → code 403
 #   DSN-less 방식 : DRIVER=<.so 절대경로>;HOST=...;PORT=...;UID=...;PWD=...;CHARSET=UHC;
 ${PDB_CONNSTR}               DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;
 
+# 두 번째 DB (선택, CDS 세션 사전 적재 전용) — 환경에 따라 골디락스+알티베이스
+# 이중화라 세션 정보를 **두 DB 모두에** 넣어야 하는 경우가 있다. 비워 두면(기본)
+# 기존과 같이 DB 한 곳에만 넣는다 — CdsDbHelper.has_second_db() 가 이 값으로 판정한다.
+# 조회(SELECT, 반영 판정)는 항상 ${PDB_CONNSTR}(첫 번째 DB) 기준이다.
+# 비밀번호를 파일에 남기지 않으려면 환경변수 PG_PDB_CONNSTR_2 를 쓴다(레거시 폴백 없음).
+${PDB_CONNSTR_2}             ${EMPTY}
+
 # ── PG 프로세스 기동 보장 (SSH, 선택) ────────
 # Suite Setup 이 슈트가 의존하는 PG 프로세스의 .RUN 파일을 touch 해 죽어 있으면
 # 다시 띄운다(resources/ssh_keywords.robot 의 `Ensure PG Process Running`).

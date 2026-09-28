@@ -41,6 +41,7 @@ Resource   ${CURDIR}/ssh_keywords.robot
 ${CDS_SCH_SOCK}        ${NONE}
 ${CDS_RCH_SOCK}        ${NONE}
 ${CDS_DB_CONN}         ${NONE}     # PDB connection (Suite Setup 에서 접속)
+${CDS_DB_CONN_2}       ${NONE}     # 두 번째 PDB connection (선택 — ${PDB_CONNSTR_2} 있을 때만)
 ${CDS_SYSTEM_ID}       ${NONE}
 ${CDS_NOTI_SRV}        ${NONE}     # PCF Noti 수신 서버 핸들 (Suite Setup 에서 기동)
 ${CDS_NOTI_TEST_START}  ${NONE}    # 이번 TC 가 시작한 시각 (CDS Test Setup 이 찍는다)
@@ -553,15 +554,27 @@ Ensure CDS DB Connection
     ...      로그에는 마스킹된 문자열(PWD=****)만 남는다.
     ...
     ...    autocommit 은 ${CDS_DB_AUTOCOMMIT}(기본 ${FALSE}) 로 전달한다.
-    IF    $CDS_DB_CONN is not None
-        RETURN
+    ...
+    ...    ${PDB_CONNSTR_2} 가 채워져 있으면 **두 번째 DB** 에도 붙여 ${CDS_DB_CONN_2}
+    ...    에 둔다(세션 이중 적재용, `Ensure CDS Session In PDB` 참조). 비어 있으면
+    ...    두 번째 접속은 시도하지 않는다 — DB 한 곳만 쓰는 환경의 기존 동작 그대로다.
+    IF    $CDS_DB_CONN is None
+        ${shown}=    CdsDb.Masked Conn Str
+        Log    [Suite] PDB 접속 시도 — ${shown}    console=True
+        ${conn}=    CdsDb.Db Connect
+        ...    timeout=${CDS_DB_TIMEOUT}    autocommit=${CDS_DB_AUTOCOMMIT}
+        Set Suite Variable    ${CDS_DB_CONN}    ${conn}
+        Log    [Suite] PDB 접속 완료 (autocommit=${CDS_DB_AUTOCOMMIT})    console=True
     END
-    ${shown}=    CdsDb.Masked Conn Str
-    Log    [Suite] PDB 접속 시도 — ${shown}    console=True
-    ${conn}=    CdsDb.Db Connect
-    ...    timeout=${CDS_DB_TIMEOUT}    autocommit=${CDS_DB_AUTOCOMMIT}
-    Set Suite Variable    ${CDS_DB_CONN}    ${conn}
-    Log    [Suite] PDB 접속 완료 (autocommit=${CDS_DB_AUTOCOMMIT})    console=True
+    ${has_2nd}=    CdsDb.Has Second Db
+    IF    ${has_2nd} and $CDS_DB_CONN_2 is None
+        ${shown_2}=    CdsDb.Masked Conn Str    which=${2}
+        Log    [Suite] 두 번째 PDB 접속 시도 — ${shown_2}    console=True
+        ${conn_2}=    CdsDb.Db Connect
+        ...    timeout=${CDS_DB_TIMEOUT}    autocommit=${CDS_DB_AUTOCOMMIT}    which=${2}
+        Set Suite Variable    ${CDS_DB_CONN_2}    ${conn_2}
+        Log    [Suite] 두 번째 PDB 접속 완료 (autocommit=${CDS_DB_AUTOCOMMIT})    console=True
+    END
 
 Precheck Existing Subscriber Rows
     [Documentation]
@@ -692,6 +705,11 @@ Ensure CDS Session In PDB
     ...    덮거나 지우지 않는다). Teardown 에서 정리하지 않으므로 **행은 남는다.**
     ...    → 그래서 두 세션은 **SM_POLICY_ID 가 서로 달라야 한다.** 같으면 둘째가
     ...      "이미 있음" 으로 조용히 건너뛰어져 D3 이후 번호에 세션이 안 생긴다.
+    ...
+    ...    ${PDB_CONNSTR_2} 가 설정돼 ${CDS_DB_CONN_2} 가 있으면 **같은 세션을 두 번째
+    ...    DB 에도** 넣는다(예: 골디락스+알티베이스 이중화 환경). 없으면 첫 번째 DB
+    ...    한 곳에만 넣는다 — 기존과 동일한 동작이다. 판정 조회(`CDS DB Count Should
+    ...    Be At Least`)는 **첫 번째 DB 기준**이다.
     [Arguments]    ${mdn}    ${min}    ${imsi}    ${ip}    ${sm_policy_id}
     ...            ${res_uri}    ${noti_uri}    ${udr_noti_uri}    ${label}=세션
     Ensure CDS DB Connection
@@ -709,18 +727,35 @@ Ensure CDS Session In PDB
     ELSE
         Log    [Suite] 세션이 이미 있어 넣지 않았습니다 (${label}) — SM_POLICY_ID=${sm_policy_id}    console=True
     END
-    # 넣었든 이미 있었든, 이 시점에 세션이 **반드시 있어야** 한다.
+    IF    $CDS_DB_CONN_2 is not None
+        ${n2}=    CdsDb.Db Execute    ${CDS_DB_CONN_2}    ${sql}
+        ...    ${sm_policy_id}    ${supi}    ${gpsi}    ${mdn}    ${ip}
+        ...    ${res_uri}    ${noti_uri}    ${udr_noti_uri}
+        ...    ${sm_policy_id}
+        IF    ${n2} > 0
+            Log    [Suite] 세션 적재 완료 (${label}, 2번째 DB) ${n2}건 — SM_POLICY_ID=${sm_policy_id}    console=True
+        ELSE
+            Log    [Suite] 세션이 이미 있어 넣지 않았습니다 (${label}, 2번째 DB) — SM_POLICY_ID=${sm_policy_id}    console=True
+        END
+    END
+    # 넣었든 이미 있었든, 이 시점에 세션이 **반드시 있어야** 한다(첫 번째 DB 기준).
     CDS DB Count Should Be At Least    ${CDS_DB_TBL_SESSION} (${label}, SM_POLICY_ID)
     ...    ${1}    ${CDS_DB_SQL_SESSION}    ${sm_policy_id}
 
 Close CDS DB Connection
-    [Documentation]    PDB connection 종료. 접속한 적이 없으면 아무것도 하지 않는다.
-    IF    $CDS_DB_CONN is None
-        RETURN
+    [Documentation]
+    ...    PDB connection 종료. 접속한 적이 없으면 아무것도 하지 않는다.
+    ...    두 번째 DB(${CDS_DB_CONN_2})가 있으면 그것도 같이 닫는다.
+    IF    $CDS_DB_CONN is not None
+        CdsDb.Db Close    ${CDS_DB_CONN}
+        Set Suite Variable    ${CDS_DB_CONN}    ${NONE}
+        Log    [Suite] PDB 연결 종료    console=True
     END
-    CdsDb.Db Close    ${CDS_DB_CONN}
-    Set Suite Variable    ${CDS_DB_CONN}    ${NONE}
-    Log    [Suite] PDB 연결 종료    console=True
+    IF    $CDS_DB_CONN_2 is not None
+        CdsDb.Db Close    ${CDS_DB_CONN_2}
+        Set Suite Variable    ${CDS_DB_CONN_2}    ${NONE}
+        Log    [Suite] 두 번째 PDB 연결 종료    console=True
+    END
 
 CDS DB Count
     [Documentation]

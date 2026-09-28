@@ -40,6 +40,15 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
   로그에 남기는 접속 문자열은 항상 마스킹한다(`_mask` → `PWD=****`).
   ※ 2) 를 쓰면 **파일에 평문으로 남는다** — 실환경 값은 커밋되는
      cds_variables.robot 이 아니라 config/env/<env>.py 에서 오버라이드할 것.
+
+[두 번째 DB — 세션 사전 적재 전용]
+  환경에 따라 세션 정보(T_SMF_SESSION_INFO)를 **두 DB 모두에** 넣어야 하는 경우가
+  있다(예: 골디락스 + 알티베이스 이중화). `${PDB_CONNSTR_2}`(환경변수 `PG_PDB_CONNSTR_2`)
+  를 채우면 `cds_keywords.robot` 의 `Ensure CDS DB Connection` 이 두 번째 connection 도
+  붙이고, `Ensure CDS Session In PDB` 가 두 곳 모두에 INSERT 한다. 비워 두면(기본)
+  기존과 같이 **DB 한 곳**에만 넣는다 — `has_second_db()` 로 판정한다.
+  조회(SELECT) 계열은 여전히 첫 번째 DB(${CDS_DB_CONN})만 본다 — 판정 대상 DB는
+  하나로 고정돼 있다는 전제다.
 """
 
 import os
@@ -54,6 +63,11 @@ import re
 _CONN_STR_ENV = 'PG_PDB_CONNSTR'
 _CONN_STR_ENV_LEGACY = 'PG_CDS_DB_CONNSTR'
 _CONN_STR_VAR = '${PDB_CONNSTR}'
+
+# 두 번째 DB(세션 이중 적재용). 레거시 이름 폴백은 없다 — 새로 생긴 자리다.
+# 비어 있으면(기본) 두 번째 DB 를 쓰지 않는다 — has_second_db() 가 그 판정이다.
+_CONN_STR_ENV_2 = 'PG_PDB_CONNSTR_2'
+_CONN_STR_VAR_2 = '${PDB_CONNSTR_2}'
 
 
 class CdsDbError(Exception):
@@ -78,51 +92,76 @@ def _as_bool(value):
     return bool(value)
 
 
-def _read_conn_str(conn_str=''):
+def _conn_names(which):
+    """which(1|2) 에 맞는 (환경변수 후보 튜플, Robot 변수명) 을 돌려준다."""
+    if which == 2:
+        return (_CONN_STR_ENV_2,), _CONN_STR_VAR_2
+    return (_CONN_STR_ENV, _CONN_STR_ENV_LEGACY), _CONN_STR_VAR
+
+
+def _read_conn_str(conn_str='', which=1):
     """접속 문자열을 인자 → 환경변수 → Robot 변수 순으로 읽는다 (없으면 빈 문자열).
 
     **평소에는 인자로 넘기지 않는다.** 접속 문자열에는 비밀번호가 들어 있는데,
     Robot 키워드 인자로 넘기면 log.html 의 Arguments 에 평문으로 남기 때문이다
     (예전에 비밀번호만 따로 읽던 이유와 같다). 인자는 Robot 밖에서 이 모듈을
     직접 쓸 때를 위해 남겨 뒀다.
+
+    `which=2` 는 두 번째 DB(세션 이중 적재용, `${PDB_CONNSTR_2}`)를 읽는다.
     """
     if conn_str:
         return str(conn_str).strip()
-    for name in (_CONN_STR_ENV, _CONN_STR_ENV_LEGACY):
+    env_names, var_name = _conn_names(which)
+    for name in env_names:
         env = os.environ.get(name)
         if env:
             return env.strip()
     try:
         from robot.libraries.BuiltIn import BuiltIn
-        return (BuiltIn().get_variable_value(_CONN_STR_VAR) or '').strip()
+        return (BuiltIn().get_variable_value(var_name) or '').strip()
     except Exception:          # Robot 밖에서 직접 호출된 경우
         return ''
 
 
-def _require_conn_str(conn_str=''):
+def has_second_db(conn_str=''):
+    """두 번째 DB(`${PDB_CONNSTR_2}`) 접속 문자열이 채워져 있는지.
+
+    CDS 세션 사전 적재를 DB 한 곳에만 할지 두 곳 모두에 할지 이 값으로 정한다
+    (환경에 따라 골디락스/알티베이스 이중화가 있을 수도, 없을 수도 있어서다).
+    비어 있으면(기본) False — 기존과 같이 DB 한 곳만 쓴다.
+    """
+    return bool(_read_conn_str(conn_str, which=2))
+
+
+def _require_conn_str(conn_str='', which=1):
     """접속 문자열을 읽고, 비어 있으면 어디에 채워야 하는지까지 알린다."""
-    cs = _read_conn_str(conn_str)
+    cs = _read_conn_str(conn_str, which=which)
     if not cs:
+        env_names, var_name = _conn_names(which)
         raise CdsDbError(
             'PDB 접속 문자열이 비어 있습니다 — DB 반영을 판정할 수 없습니다.\n'
-            "  ${PDB_CONNSTR} 예: 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'\n"
+            "  %s 예: 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'\n"
             '  config/env/<env>.py 에 넣거나 --variable 로 지정하십시오.\n'
             '  비밀번호를 파일에 남기지 않으려면 환경변수 %s 를 쓰십시오.\n'
             '  (DSN 은 odbc.ini / ODBC 데이터 원본 관리자에 미리 등록돼 있어야 합니다.)'
-            % _CONN_STR_ENV
+            % (var_name, env_names[0])
         )
     return cs
 
 
 # ── 접속 / 해제 ───────────────────────────────────────────────────
 
-def db_connect(conn_str='', timeout=10, autocommit=False):
+def db_connect(conn_str='', timeout=10, autocommit=False, which=1):
     """PDB 에 접속해 connection 객체를 반환한다.
 
     접속 문자열은 **완성된 ODBC 문자열**이며 조립하지 않고 그대로 넘긴다.
     conn_str 을 비워 두면 `PG_PDB_CONNSTR` → `PG_CDS_DB_CONNSTR`(구 이름)
     → `${PDB_CONNSTR}` 순으로 직접 읽는다 — 비밀번호가 log.html 인자에
     남지 않게 하기 위함이다.
+
+    `which=2` 를 주면 두 번째 DB(`PG_PDB_CONNSTR_2` / `${PDB_CONNSTR_2}`,
+    세션 이중 적재용)에 접속한다. 보통은 인자로 안 주고 `has_second_db()` 로
+    있는지 먼저 확인한 뒤에만 부른다.
 
     [문자 인코딩은 접속 문자열에서 지정한다]
       예전에는 `conn.setencoding` / `setdecoding` 으로 pyodbc 쪽을 ANSI 로 못 박았다.
@@ -148,7 +187,7 @@ def db_connect(conn_str='', timeout=10, autocommit=False):
             '`pip install pyodbc` 후 다시 실행하십시오. (원인: %s)' % exc
         )
 
-    cs = _require_conn_str(conn_str)
+    cs = _require_conn_str(conn_str, which=which)
     try:
         # 기본은 autocommit=False (PG 참조 샘플과 동일). 스냅샷 문제는 조회 직전
         # rollback 으로 푼다 — 위 docstring 참조.
@@ -191,15 +230,16 @@ def db_close(conn):
         pass
 
 
-def masked_conn_str(conn_str='', **_ignored):
+def masked_conn_str(conn_str='', which=1, **_ignored):
     """로그용 마스킹된 접속 문자열(`PWD=****`). 비밀번호가 log.html 로 새지 않는다.
 
     `db_connect` 와 **같은 곳에서 같은 순서로** 읽는다(`_read_conn_str`) — 로그에
     찍힌 문자열과 실제로 접속에 쓰인 문자열이 어긋나면 진단이 무의미해진다.
     `db_connect` 와 인자 묶음을 맞추려고 `**_ignored` 를 둔다(encoding/timeout 등).
     빈 값이어도 실패하지 않는다 — 로그용이라 정작 접속 실패 진단을 가리면 안 된다.
+    `which=2` 로 두 번째 DB 문자열을 볼 수 있다.
     """
-    return _mask(_read_conn_str(conn_str)) or '(비어 있음)'
+    return _mask(_read_conn_str(conn_str, which=which)) or '(비어 있음)'
 
 
 # ── 조회 ──────────────────────────────────────────────────────────

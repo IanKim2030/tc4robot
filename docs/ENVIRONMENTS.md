@@ -105,6 +105,18 @@ DSN 을 등록해 두고 이름만 참조하는 것이 정석이다(드라이버
 PDB_CONNSTR = 'DSN=PDB;UID=pgtest;PWD=...'
 ```
 
+**세션 사전 적재를 두 DB 모두에 넣어야 하면 `PDB_CONNSTR_2` 도 채운다** — 환경에 따라
+골디락스+알티베이스 이중화가 있는 경우와 DB 한 곳뿐인 경우가 섞여 있어서다. 비워
+두면(기본) 기존처럼 DB 한 곳에만 넣는다. 반영 판정(SELECT)은 항상 `PDB_CONNSTR`
+(첫 번째 DB) 기준이다. 레거시 환경변수 폴백은 없다 — 새로 쓸 때는 `PG_PDB_CONNSTR_2`.
+상세는 `docs/nodes/CDS.md` "두 번째 DB" 절.
+
+```python
+# config/env/stg.py — stg 가 골디락스+알티베이스 이중화라면
+PDB_CONNSTR   = 'DSN=GOLD_PDB;UID=pgtest;PWD=...'
+PDB_CONNSTR_2 = 'Server=...;PORT=...;DBName=...;UID=pgtest;PWD=...'
+```
+
 DSN 없이 직접 쓸 수도 있다. 다만 `.so` **경로에 중괄호를 붙이면 안 되고** 호스트 키는
 `SERVER` 가 아니라 `HOST` 다 — 둘 다 골디락스 실측이다.
 

@@ -305,6 +305,7 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?
 | 드라이버 | ODBC (`pyodbc`). `resources/CdsDbHelper.py` 가 직접 쓴다 — `DatabaseLibrary` 는 쓰지 않는다 |
 | 접속 방식 | **완성된 ODBC 문자열 하나뿐** — `${PDB_CONNSTR}`(RTS 와 공용). 도구가 조립하지 않는다 |
 | 비밀번호 | 접속 문자열 안에. 환경변수 `PG_PDB_CONNSTR`(구 `PG_CDS_DB_CONNSTR` 폴백) 우선, 없으면 `${PDB_CONNSTR}` |
+| 두 번째 DB (선택) | `${PDB_CONNSTR_2}`(환경변수 `PG_PDB_CONNSTR_2`)를 채우면 **세션 사전 적재만** 두 DB 모두에 넣는다(골디락스+알티베이스 이중화 환경 대응). 비어 있으면(기본) 한 DB만 쓴다. 조회·판정은 항상 첫 번째 DB 기준 — 아래 "두 번째 DB — 세션 사전 적재만 이중 적재한다" 절 |
 | 접속 시점 | **Suite Setup**(`Suite CDS Connect`)에서 소켓에 이어 1회. DB 가 안 붙으면 전문 송수신 TC 까지 포함해 슈트 전체가 서지 않는다 |
 | 트랜잭션 | `autocommit` **끔**(`${CDS_DB_AUTOCOMMIT}`=`${FALSE}`). 조회 직전마다 rollback — 아래 절 |
 | 종료 | `Suite CDS Disconnect` |
@@ -360,6 +361,24 @@ DB 마다 키워드 표기가 다르다는 사실 자체는 **여전히 유효�
 | 계정 / 비밀번호 | `UID` / `PWD` | `UID` / `PWD` |
 
 골디락스 값은 실환경 `odbc.ini` 실측(2026-08-06)이고 **알티베이스 값은 아직 미검증**이다.
+
+#### 두 번째 DB — 세션 사전 적재만 이중 적재한다
+
+환경에 따라 골디락스·알티베이스를 **둘 다** 두고 세션 정보(`T_SMF_SESSION_INFO`)를
+양쪽에 넣어야 하는 경우와, DB 한 곳만 있는 경우가 섞여 있다. `${PDB_CONNSTR_2}`
+(환경변수 `PG_PDB_CONNSTR_2`, 레거시 폴백 없음)를 채우면 `Ensure CDS Session In PDB`
+가 `${CDS_DB_CONN}`(첫 번째)과 `${CDS_DB_CONN_2}`(두 번째) **양쪽에 같은 INSERT** 를
+실행한다. 비어 있으면(기본) 첫 번째 DB에만 넣는다 — 기존 동작 그대로다.
+
+```python
+# config/env/<env>.py
+PDB_CONNSTR   = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'        # 골디락스
+PDB_CONNSTR_2 = 'Server=...;PORT=...;DBName=...;UID=...;PWD=...'  # 알티베이스
+```
+
+★ **이중 적재 대상은 세션 사전 적재 하나뿐이다.** 가입자 프로파일/서비스 반영 판정
+(`Verify Subscriber Provisioned In PDB` 등 `SELECT` 계열)은 여전히 **첫 번째 DB만** 본다
+— PG.SDM 이 어느 DB를 반영 대상으로 보는지는 하나로 고정돼 있다는 전제다.
 
 #### 함정 — 골디락스 DSN-less 는 `IM012` 로 거부됐다
 
