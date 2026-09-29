@@ -409,11 +409,15 @@ SESSION_PARAM_ORDER = (
 )
 
 
-def session_insert_sql(table='PDB.T_SMF_SESSION_INFO'):
+def session_insert_sql(table='T_SMF_SESSION_INFO'):
     """세션 1건을 넣는 INSERT ... SELECT ... WHERE NOT EXISTS 문을 만든다.
 
     **멱등이다** — 같은 SM_POLICY_ID 가 이미 있으면 0행을 넣는다. 그래서 슈트를
     몇 번 돌려도 중복되지 않고, 지우고 다시 넣지도 않는다(기존 세션을 존중한다).
+
+    `table` 에 스키마 접두사를 붙이지 않는다 — "PDB." 를 붙였다가 실환경에서
+    `schema 'PDB' does not exist` 로 거부된 전례가 있다(2026-09-29). "PDB" 는
+    이 리포에서 DB 를 가리키는 일반 명칭일 뿐 실제 스키마 이름이 아니다.
     """
     return (
         'INSERT INTO ' + table + ' ('

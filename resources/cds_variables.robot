@@ -125,7 +125,11 @@ ${CDS_NOTI_PATH_CELL}     ${EMPTY}         # BSUBS→PCF Cell List 의 :path 조
 #
 # 끄려면: bash run_tests.sh cds --no-session
 ${CDS_SESSION_CREATE}     ${TRUE}          # TC 수행 전 세션 적재 여부
-${CDS_DB_TBL_SESSION}     PDB.T_SMF_SESSION_INFO
+# ★ 스키마 접두사 없이 테이블명만 쓴다 — 다른 CDS_DB_TBL_* 도 마찬가지다.
+#   "PDB." 를 붙였다가 실환경에서 `schema 'PDB' does not exist` 로 거부된 전례가
+#   있다(2026-09-29) — "PDB" 는 이 리포에서 DB 를 가리키는 일반 명칭일 뿐,
+#   실제 스키마/카탈로그 이름이 아니다.
+${CDS_DB_TBL_SESSION}     T_SMF_SESSION_INFO
 
 # ── 가입자 축 — 환경마다 갈리는 값 ──────────────────────────────
 # MDN/MIN 은 위 테스트 데이터 블록의 ${CDS_MDN}/${CDS_MIN} 을 그대로 쓴다.
