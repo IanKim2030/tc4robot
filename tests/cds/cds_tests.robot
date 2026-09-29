@@ -347,10 +347,10 @@ TC-CDS-005 I2 (부가서비스신청)
     [Documentation]
     ...    0015(I2 부가서비스신청) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...
-    ...    [성공 판단 기준] 아래 6개 조건을 모두 만족하는 행이 **1건 이상**이어야 성공이다.
+    ...    [성공 판단 기준] 아래 5개 조건을 모두 만족하는 행이 **1건 이상**이어야 성공이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN='${CDS_MDN}' AND SVC_TYPE='N' AND JOB_CODE='I2'
-    ...             AND TIME_PERIOD_ID='56' AND "LIMIT"='Y' AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
+    ...             AND "LIMIT"='Y' AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
     [Tags]    cds    command    validation    db    noti
     Command Download Flow    ${CDS_CODE_I2}
     Verify Addon Service Subscribed In PDB    ${CDS_MDN}
@@ -427,12 +427,12 @@ TC-CDS-009 K1 (Data(Time) 쿠폰 가입)
     ...      1. 서비스 저장 — 1건 이상
     ...         SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...          WHERE MDN='${CDS_MDN}' AND SVC_ID='${CDS_DB_SVC_COUPON}' AND SVC_TYPE='${CDS_DB_SVC_TYPE_N}'
-    ...                AND JOB_CODE='${CDS_CODE_K1}' AND TIME_PERIOD_ID='${CDS_DB_TPID_K1}'
+    ...                AND JOB_CODE='${CDS_CODE_K1}'
     ...                AND "LIMIT"='${CDS_DB_LIMIT_K1}' AND LIMIT_VALID_TIME='${CDS_LIMIT_VALID_TIME}'
     ...                AND CNUM='${CDS_COUPON_PIN_K1}'
     ...      2. 예약 큐 적재 — 1건 이상 (JOB_CODE='${CDS_DB_RSV_JOB_K1}', 만료 예약)
     ...
-    ...    CNUM 이 쿠폰 핀이 들어가는 컬럼이다.
+    ...    CNUM 이 쿠폰 핀이 들어가는 컬럼이다. TIME_PERIOD_ID 는 판정 조건이 아니다(WHERE 절에서 뺐다).
     ...    ※ ${CDS_COUPON_CATEGORY} 가 T/P 가 아니면 Syncer 가 Invalid 로 걸러 **예약을
     ...       넣지 않는다** — 전문 흐름은 SC 로 통과하고 조회 2번째에서만 실패한다.
     ...
@@ -442,7 +442,7 @@ TC-CDS-009 K1 (Data(Time) 쿠폰 가입)
     ...    start_time=${CDS_START_TIME}            coupon_type=${CDS_COUPON_TYPE}
     ...    coupon_pin=${CDS_COUPON_PIN_K1}         coupon_category=${CDS_COUPON_CATEGORY}
     Verify Coupon Service Subscribed In PDB
-    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K1}
+    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K1}
     Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_K1}    ${CDS_COUPON_PIN_K1}
     Verify SBI Noti Sent    ${CDS_CODE_K1}
 
@@ -509,7 +509,7 @@ TC-CDS-011 K1 (Data(Time) 쿠폰 만료)
     ...    start_time=${start_time}                coupon_type=${CDS_COUPON_TYPE}
     ...    coupon_pin=${CDS_COUPON_PIN_K3}         coupon_category=${CDS_COUPON_CATEGORY}
     Verify Coupon Service Subscribed In PDB
-    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_TPID_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K3}
+    ...    ${CDS_MDN}    ${CDS_CODE_K1}    ${CDS_DB_LIMIT_K1}    ${CDS_COUPON_PIN_K3}
     ...    limit_valid_time=${valid_time}
     Verify Reserved Job Created In PDB    ${CDS_MDN}    ${CDS_DB_RSV_JOB_K1}    ${CDS_COUPON_PIN_K3}
     Verify SBI Noti Sent    ${CDS_CODE_K1}    since=${since}

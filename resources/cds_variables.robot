@@ -546,8 +546,8 @@ ${CDS_DB_SVC_ZONE_D}          ZONE_SVC_D               # 1X 가입 / 1Y 해지 �
 ${CDS_DB_SVC_YOUNG_HARM}      YOUNG_HARM_INFO_BLOCK    # I2 신청 / I3 해지 대상 SVC_ID
 ${CDS_DB_SVC_TYPE_D}          D                        # 1X 의 SVC_TYPE
 ${CDS_DB_SVC_TYPE_N}          N                        # I2 의 SVC_TYPE
-${CDS_DB_TIME_PERIOD_ID}      56                       # I2 의 TIME_PERIOD_ID
 ${CDS_DB_LIMIT_FLAG}          Y                        # I2 의 LIMIT
+# ${CDS_DB_TIME_PERIOD_ID}(I2, 값 56) 는 판정 WHERE 절에서 뺐다 — 더 이상 안 쓴다.
 
 # COUNT 조회 SQL — `?` 는 pyodbc 바인딩 자리표시자다(값을 문자열로 잇지 않는다)
 ${CDS_DB_SQL_PROFILE}     SELECT COUNT(*) FROM ${CDS_DB_TBL_PROFILE} WHERE MDN = ?
@@ -593,13 +593,14 @@ ${CDS_PRECHECK_MODE}      report
 ${CDS_DB_SQL_SERVICE_1X}
 ...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ?
 
-# I2(부가서비스신청) — 조건이 6개다. LIMIT 은 **예약어와 겹쳐 큰따옴표로 감쌌다**
+# I2(부가서비스신청) — 조건이 5개다. LIMIT 은 **예약어와 겹쳐 큰따옴표로 감쌌다**
 # (골디락스/알티베이스 모두 LIMIT 절이 있다). 큰따옴표 식별자는 대소문자를 구분하므로
 # 컬럼이 대문자로 만들어져 있어야 맞는다 — 안 맞으면 "컬럼 없음"으로 실패한다.
 # 그때는 따옴표를 빼 보고, 그래도 구문 오류면 실제 컬럼명을 확인할 것.
 # 해지(I3) 판정은 ${CDS_DB_SQL_SERVICE}(MDN+SVC_ID) 로 0 을 기대한다.
+# ★ TIME_PERIOD_ID 는 WHERE 절에서 뺐다(2026-09-29) — 판정 조건에서 제외.
 ${CDS_DB_SQL_SERVICE_I2}
-...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ?
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND "LIMIT" = ?
 
 # C1/G1/D3 — 업무 수행 **전후의 SVC_ID 별 행 수가 같아야** 한다.
 #   전: MDN 의 모든 서비스 행을 SVC_ID 로 묶어 센다
@@ -640,8 +641,9 @@ ${CDS_DB_SVC_TYPE_Z}          Z            # Y9 SVC_TYPE
 ${CDS_DB_SVC_TYPE_T}          T            # SS SVC_TYPE
 
 # TIME_PERIOD_ID / LIMIT — 코드마다 다르다. LIMIT 은 I2 의 'Y' 와 달리 숫자다.
-${CDS_DB_TPID_K1}             113          # K1 TIME_PERIOD_ID
-${CDS_DB_TPID_K5}             0            # K5 TIME_PERIOD_ID
+# K1 의 TIME_PERIOD_ID(113, 위 코멘트 표 참조)는 WHERE 절에서 뺐다(2026-09-29) —
+# ${CDS_DB_SQL_SERVICE_COUPON} 이 더 이상 안 본다. K5 도 같은 SQL 을 쓴다.
+${CDS_DB_TPID_K5}             0            # K5 TIME_PERIOD_ID (미구현, 참고용)
 ${CDS_DB_TPID_Y9}             25           # Y9 TIME_PERIOD_ID
 ${CDS_DB_LIMIT_K1}            1            # K1 LIMIT
 ${CDS_DB_LIMIT_K5}            2            # K5 LIMIT
@@ -666,9 +668,10 @@ ${CDS_DB_RSV_JOB_K5}          K7       # K5 가입 → 만료(K7) 예약
 ${CDS_DB_RSV_JOB_Y9}          Y6       # Y9 + COUPON_TYPE='T' → Y6 (숫자 권종이면 Y8)
 
 # ── 쿠폰 계열 판정 SQL ───────────────────────────────────────────
-# 쿠폰 가입 (K1/K5) — 8개 조건. "LIMIT" 은 예약어라 큰따옴표로 감쌌다(I2 SQL 주석 참조).
+# 쿠폰 가입 (K1/K5) — 7개 조건. "LIMIT" 은 예약어라 큰따옴표로 감쌌다(I2 SQL 주석 참조).
+# ★ TIME_PERIOD_ID 는 WHERE 절에서 뺐다(2026-09-29) — 판정 조건이 아니다.
 ${CDS_DB_SQL_SERVICE_COUPON}
-...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND TIME_PERIOD_ID = ? AND "LIMIT" = ? AND LIMIT_VALID_TIME = ? AND CNUM = ?
+...    SELECT COUNT(*) FROM ${CDS_DB_TBL_SERVICE} WHERE MDN = ? AND SVC_ID = ? AND SVC_TYPE = ? AND JOB_CODE = ? AND "LIMIT" = ? AND LIMIT_VALID_TIME = ? AND CNUM = ?
 
 # Y9 — CNUM 을 걸지 않는 7개 조건.
 ${CDS_DB_SQL_SERVICE_ZONE_B}

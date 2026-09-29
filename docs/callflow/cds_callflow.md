@@ -391,7 +391,7 @@ sequenceDiagram
 | 예약 큐 적재 | 없음 |
 | Body 필드 수 | 8개 / 총 327B (고정) |
 
-> `LIMIT` 은 예약어라 SQL 에서 큰따옴표로 감싼다.
+> `LIMIT` 은 예약어라 SQL 에서 큰따옴표로 감싼다. `TIME_PERIOD_ID` 는 WHERE 절에서 뺐다(2026-09-29) — 판정 조건이 아니다.
 
 ### 콜플로우 — `I2`
 
@@ -449,7 +449,7 @@ sequenceDiagram
 
 전문 왕복(`0016`/`0017`)으로는 판정하지 않는다 — [공통 규칙](#판정-공통) 참조.
 
-- `T_5G_SUBS_SERVICE` (MDN, `YOUNG_HARM_INFO_BLOCK`, `SVC_TYPE=N`, `JOB_CODE=I2`, `TIME_PERIOD_ID=56`, `"LIMIT"=Y`) = **1건 이상**
+- `T_5G_SUBS_SERVICE` (MDN, `YOUNG_HARM_INFO_BLOCK`, `SVC_TYPE=N`, `JOB_CODE=I2`, `"LIMIT"=Y`) = **1건 이상**
 
 알림은 `Verify SBI Noti Sent I2` 가 본다(도착 여부). 경로는 수신만으로 구분되지 않아 규칙으로 계산해 실패 메시지에 싣는다.
 
@@ -849,7 +849,7 @@ sequenceDiagram
 
 전문 왕복(`0016`/`0017`)으로는 판정하지 않는다 — [공통 규칙](#판정-공통) 참조.
 
-- `T_5G_SUBS_SERVICE` (MDN, `R17`, `SVC_TYPE=N`, `JOB_CODE=K1`, `TIME_PERIOD_ID=113`, `"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=COUPON_PIN`) = **1건 이상**
+- `T_5G_SUBS_SERVICE` (MDN, `R17`, `SVC_TYPE=N`, `JOB_CODE=K1`, `"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=COUPON_PIN`) = **1건 이상** (PG 는 `TIME_PERIOD_ID=113` 도 저장하지만 판정 WHERE 절에서는 뺐다, 2026-09-29)
 - `T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K3`, COUPON_PIN) = **1건 이상**
 
 알림은 `Verify SBI Noti Sent K1` 가 본다(도착 여부). 경로는 수신만으로 구분되지 않아 규칙으로 계산해 실패 메시지에 싣는다.

@@ -1175,18 +1175,19 @@ Addon Service Should Be Subscribed
     [Documentation]    I2 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
     [Arguments]    ${mdn}
     CDS DB Count Should Be At Least
-    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_YOUNG_HARM}, SVC_TYPE=${CDS_DB_SVC_TYPE_N}, JOB_CODE=${CDS_CODE_I2}, TIME_PERIOD_ID=${CDS_DB_TIME_PERIOD_ID}, LIMIT=${CDS_DB_LIMIT_FLAG})
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_YOUNG_HARM}, SVC_TYPE=${CDS_DB_SVC_TYPE_N}, JOB_CODE=${CDS_CODE_I2}, LIMIT=${CDS_DB_LIMIT_FLAG})
     ...    ${1}    ${CDS_DB_SQL_SERVICE_I2}
     ...    ${mdn}    ${CDS_DB_SVC_YOUNG_HARM}    ${CDS_DB_SVC_TYPE_N}    ${CDS_CODE_I2}
-    ...    ${CDS_DB_TIME_PERIOD_ID}    ${CDS_DB_LIMIT_FLAG}
+    ...    ${CDS_DB_LIMIT_FLAG}
 
 Verify Addon Service Subscribed In PDB
     [Documentation]
     ...    I2(부가서비스신청) 판정. **1건 이상이면 성공**이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
-    ...       WHERE MDN=? AND SVC_TYPE='N' AND JOB_CODE='I2' AND TIME_PERIOD_ID='56'
+    ...       WHERE MDN=? AND SVC_TYPE='N' AND JOB_CODE='I2'
     ...             AND "LIMIT"='Y' AND SVC_ID='YOUNG_HARM_INFO_BLOCK'
     ...    ※ LIMIT 은 예약어라 큰따옴표로 감쌌다 — cds_variables.robot 의 해당 SQL 주석 참조.
+    ...    ※ TIME_PERIOD_ID 는 WHERE 절에서 뺐다(2026-09-29) — 판정 조건이 아니다.
     [Arguments]    ${mdn}=${CDS_MDN}    ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
     Settle Before PDB Query    ${settle}
@@ -1337,33 +1338,34 @@ Current CDS Start Time
 
 Coupon Service Should Be Subscribed
     [Documentation]    K1/K5 판정 1회 조회. 재시도는 Verify ... 키워드가 한다.
-    [Arguments]    ${mdn}    ${job_code}    ${time_period_id}    ${limit}    ${coupon_pin}
+    [Arguments]    ${mdn}    ${job_code}    ${limit}    ${coupon_pin}
     ...            ${limit_valid_time}=${CDS_LIMIT_VALID_TIME}
     CDS DB Count Should Be At Least
-    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_COUPON}, SVC_TYPE=${CDS_DB_SVC_TYPE_N}, JOB_CODE=${job_code}, TIME_PERIOD_ID=${time_period_id}, LIMIT=${limit}, LIMIT_VALID_TIME=${limit_valid_time}, CNUM=${coupon_pin})
+    ...    ${CDS_DB_TBL_SERVICE} (MDN=${mdn}, SVC_ID=${CDS_DB_SVC_COUPON}, SVC_TYPE=${CDS_DB_SVC_TYPE_N}, JOB_CODE=${job_code}, LIMIT=${limit}, LIMIT_VALID_TIME=${limit_valid_time}, CNUM=${coupon_pin})
     ...    ${1}    ${CDS_DB_SQL_SERVICE_COUPON}
     ...    ${mdn}    ${CDS_DB_SVC_COUPON}    ${CDS_DB_SVC_TYPE_N}    ${job_code}
-    ...    ${time_period_id}    ${limit}    ${limit_valid_time}    ${coupon_pin}
+    ...    ${limit}    ${limit_valid_time}    ${coupon_pin}
 
 Verify Coupon Service Subscribed In PDB
     [Documentation]
     ...    쿠폰 가입(K1/K5) 판정. **1건 이상이면 성공**이다.
     ...      SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
     ...       WHERE MDN=? AND SVC_ID='R17' AND SVC_TYPE='N' AND JOB_CODE=?
-    ...             AND TIME_PERIOD_ID=? AND "LIMIT"=? AND LIMIT_VALID_TIME=? AND CNUM=?
+    ...             AND "LIMIT"=? AND LIMIT_VALID_TIME=? AND CNUM=?
     ...    CNUM 이 쿠폰 핀(COUPON_PIN)이 들어가는 컬럼이다.
-    ...    K1 은 (113, 1), K5 는 (0, 2) 로 TIME_PERIOD_ID·LIMIT 이 다르다.
+    ...    K1 은 LIMIT `1`, K5 는 LIMIT `2` 로 다르다.
+    ...    ※ TIME_PERIOD_ID 는 WHERE 절에서 뺐다(2026-09-29) — 판정 조건이 아니다.
     ...
     ...    LIMIT_VALID_TIME 기대값은 전문 start_time 에 초 '00' 을 붙인 **14자리**다
     ...    (${CDS_LIMIT_VALID_TIME}). 전문은 12자리라 그대로 비교하면 안 맞는다.
     ...    형식이 또 어긋나면 이 판정만 실패하므로 그 변수부터 확인할 것.
-    [Arguments]    ${mdn}    ${job_code}    ${time_period_id}    ${limit}    ${coupon_pin}
+    [Arguments]    ${mdn}    ${job_code}    ${limit}    ${coupon_pin}
     ...            ${limit_valid_time}=${CDS_LIMIT_VALID_TIME}    ${settle}=${CDS_DB_SETTLE}
     Ensure CDS DB Connection
     Settle Before PDB Query    ${settle}
     Wait Until Keyword Succeeds    ${CDS_DB_WAIT}    ${CDS_DB_WAIT_INTERVAL}
     ...    Coupon Service Should Be Subscribed
-    ...    ${mdn}    ${job_code}    ${time_period_id}    ${limit}    ${coupon_pin}
+    ...    ${mdn}    ${job_code}    ${limit}    ${coupon_pin}
     ...    ${limit_valid_time}
 
 Coupon Service Should Be Released

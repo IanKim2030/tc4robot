@@ -259,10 +259,10 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
 -- 004/011 1Y : 존 서비스가 떨어졌는지          → 0건
 SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'ZONE_SVC_D'
 
--- 005 I2 : 부가서비스가 붙었는지               → 1건 이상
+-- 005 I2 : 부가서비스가 붙었는지               → 1건 이상 (TIME_PERIOD_ID 는 안 본다)
 SELECT COUNT(*) FROM T_5G_SUBS_SERVICE
  WHERE MDN = ? AND SVC_ID = 'YOUNG_HARM_INFO_BLOCK' AND SVC_TYPE = 'N'
-       AND JOB_CODE = 'I2' AND TIME_PERIOD_ID = '56' AND "LIMIT" = 'Y'
+       AND JOB_CODE = 'I2' AND "LIMIT" = 'Y'
 
 -- 006 I3 : 부가서비스가 떨어졌는지             → 0건
 SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID = 'YOUNG_HARM_INFO_BLOCK'
@@ -526,15 +526,19 @@ def db_end_transaction(conn):
 
 | 코드 | 업무 | 서비스 테이블 판정 | 예약 큐 |
 |---|---|---|---|
-| `K1` | Data(Time) 쿠폰 가입 | `R17` + `N` + `K1` + TPID `113` + LIMIT `1` + CNUM(핀) 저장 | `K3` |
+| `K1` | Data(Time) 쿠폰 가입 | `R17` + `N` + `K1` + LIMIT `1` + CNUM(핀) 저장 (TPID `113`, 판정 조건 아님*) | `K3` |
 | `K2` | Data(Time) 쿠폰 해지 | `R17` + CNUM(핀) 삭제 | — |
 | `K3` | Data(Time) 쿠폰 만료 | `R17` + CNUM(핀) 삭제 | — |
 | `K4` | Data(Time) 쿠폰 취소 | `R17` + CNUM(핀) 삭제 | — |
-| `K5` | 3Mbps 쿠폰 가입 | `R17` + `N` + `K5` + TPID `0` + LIMIT `2` + CNUM(핀) 저장 | `K7` |
+| `K5` | 3Mbps 쿠폰 가입 | `R17` + `N` + `K5` + LIMIT `2` + CNUM(핀) 저장 (TPID `0`, 판정 조건 아님*) | `K7` |
 | `K6` | 3Mbps 쿠폰 해지 | `R17` + CNUM(핀) 삭제 | — |
 | `Y9` | Zone 부가서비스(쿠폰) 사용시점 알림 | `ZONE_SVC_B` + `Z` + `Y9` + TPID `25` + LIMIT `0` 저장 | `Y6` |
 | `SS` | 0플랜 옵션(3시간 프리) 가입 | `TIME_SVC_I` + `T` + `SS` + TPID `SS_`+START_TIME(12) + LIMIT `0` + CNUM `0` 저장 | — |
 | `ST` | 0플랜 옵션(3시간 프리) 해지 | `TIME_SVC_I` 삭제 | — |
+
+\* K1/K5 는 PG 가 TIME_PERIOD_ID 를 실제로 그 값으로 저장하지만, 도구의 판정 SQL
+(`${CDS_DB_SQL_SERVICE_COUPON}`)은 2026-09-29 부터 이 컬럼을 **WHERE 절에서 보지 않는다.**
+Y9/SS 는 그대로 판정 조건에 남아 있다.
 
 세 가지가 함정이다.
 

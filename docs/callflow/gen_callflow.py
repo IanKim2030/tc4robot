@@ -40,8 +40,9 @@ T = {
         '1X 과 같이 UPM 을 탄다 — 해지도 Cell 정보를 정리해야 한다.'),
  'I2': ('부가서비스신청', 'TC-CDS-005', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `YOUNG_HARM_INFO_BLOCK`, `SVC_TYPE=N`, '
-         '`JOB_CODE=I2`, `TIME_PERIOD_ID=56`, `"LIMIT"=Y`) = **1건 이상**'],
-        '`LIMIT` 은 예약어라 SQL 에서 큰따옴표로 감싼다.'),
+         '`JOB_CODE=I2`, `"LIMIT"=Y`) = **1건 이상**'],
+        '`LIMIT` 은 예약어라 SQL 에서 큰따옴표로 감싼다. `TIME_PERIOD_ID` 는 '
+        'WHERE 절에서 뺐다(2026-09-29) — 판정 조건이 아니다.'),
  'I3': ('부가서비스해지', 'TC-CDS-006', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `YOUNG_HARM_INFO_BLOCK`) = **0건**'], ''),
  'C1': ('기기변경', 'TC-CDS-007', 'BSUBS-if-hfc',
@@ -53,7 +54,8 @@ T = {
         '필드 집합이 A1 과 완전히 같다(2026-08-03 확인).'),
  'K1': ('Data(Time) 쿠폰 가입', 'TC-CDS-009 / 011', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `SVC_TYPE=N`, `JOB_CODE=K1`, '
-         '`TIME_PERIOD_ID=113`, `"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=COUPON_PIN`) = **1건 이상**',
+         '`"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=COUPON_PIN`) = **1건 이상** '
+         '(PG 는 `TIME_PERIOD_ID=113` 도 저장하지만 판정 WHERE 절에서는 뺐다, 2026-09-29)',
          '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K3`, COUPON_PIN) = **1건 이상**'],
         '가입과 동시에 만료 예약이 걸린다. **인입 코드(K1)와 예약 코드(K3)가 다르다.** '
         'K3 는 CDS 가 보내는 전문이 아니다 — 쿠폰 만료 시각이 되면 **PG.RDS 가 예약 '
