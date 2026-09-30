@@ -306,6 +306,7 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?
 | 접속 방식 | **완성된 ODBC 문자열 하나뿐** — `${PDB_CONNSTR}`(RTS 와 공용). 도구가 조립하지 않는다 |
 | 비밀번호 | 접속 문자열 안에. 환경변수 `PG_PDB_CONNSTR`(구 `PG_CDS_DB_CONNSTR` 폴백) 우선, 없으면 `${PDB_CONNSTR}` |
 | 두 번째 DB (선택) | `${PDB_CONNSTR_2}`(환경변수 `PG_PDB_CONNSTR_2`)를 채우면 **쓰기(세션 사전 적재 + 종료 시 정리)** 를 두 DB 모두에 한다(골디락스+알티베이스 이중화 환경 대응). 비어 있으면(기본) 한 DB만 쓴다. 조회·판정은 항상 첫 번째 DB 기준 — 아래 "두 번째 DB — 쓰기(세션 적재 + 종료 시 정리)만 이중 적용한다" 절 |
+| 세션 DB 별 on/off (선택) | `${CDS_SESSION_DB1}`/`${CDS_SESSION_DB2}`(둘 다 기본 `${TRUE}`). `T_SMF_SESSION_INFO` 의 INSERT/DELETE 만 DB1/DB2 각각 따로 끌 수 있다(PROFILE/SERVICE 는 영향 없음). `--no-session-db1`/`--no-session-db2` |
 | 접속 시점 | **Suite Setup**(`Suite CDS Connect`)에서 소켓에 이어 1회. DB 가 안 붙으면 전문 송수신 TC 까지 포함해 슈트 전체가 서지 않는다 |
 | 트랜잭션 | `autocommit` **끔**(`${CDS_DB_AUTOCOMMIT}`=`${FALSE}`). 조회 직전마다 rollback — 아래 절 |
 | 종료 시 정리 (선택) | `${CDS_CLEANUP_ON_TEARDOWN}`(기본 `${TRUE}`). Suite Teardown 에서 두 대상 번호의 `T_5G_SUBS_PROFILE`/`T_5G_SUBS_SERVICE`/`T_SMF_SESSION_INFO` 를 지운다(예약 큐만 그대로 둔다) — 아래 "종료 시 정리" 절. 끄려면 `--no-cleanup` |
@@ -382,6 +383,24 @@ PDB_CONNSTR_2 = 'Server=...;PORT=...;DBName=...;UID=...;PWD=...'  # 알티베이
 (`Verify Subscriber Provisioned In PDB` 등 `SELECT` 계열)은 여전히 **첫 번째 DB만** 본다
 — PG.SDM 이 어느 DB를 반영 대상으로 보는지는 하나로 고정돼 있다는 전제다.
 
+#### 세션 테이블만 DB 별로 따로 끄기 — `${CDS_SESSION_DB1}` / `${CDS_SESSION_DB2}`
+
+위 이중 적용은 전부-켜짐/전부-꺼짐(`${PDB_CONNSTR_2}` 유무) 하나로만 갈렸는데,
+`T_SMF_SESSION_INFO` 하나만 DB1/DB2 각각 따로 켜고 끌 필요가 있어(2026-09-30)
+전용 토글을 추가했다. `${CDS_SESSION_DB1}`/`${CDS_SESSION_DB2}`(둘 다 기본
+`${TRUE}`)가 `Ensure CDS Session In PDB`(INSERT)와 `Cleanup CDS Subscriber
+Rows`(DELETE) 양쪽에서 그대로 쓰인다 — **`T_SMF_SESSION_INFO` 전용이다.**
+PROFILE/SERVICE 는 이 토글과 무관하게 항상 DB1(+ DB2 있으면 그쪽도) 대상이다.
+
+`${CDS_SESSION_DB2}` 가 켜져 있어도 `${PDB_CONNSTR_2}` 자체가 비어 있으면
+(`${CDS_DB_CONN_2}` 가 없으면) 어차피 DB2 쪽은 건너뛴다 — 이 토글은 "DB2가 있을
+때 그걸 세션에 쓸지"를 정하는 것이지, DB2 연결 자체를 만들지는 않는다.
+
+```bash
+bash run_tests.sh cds --no-session-db1   # DB1(골디락스)에 세션 INSERT/DELETE 안 함
+bash run_tests.sh cds --no-session-db2   # DB2(알티베이스)에 세션 INSERT/DELETE 안 함
+```
+
 #### 종료 시 정리(cleanup) — Suite Teardown 이 PROFILE/SERVICE/SESSION 을 지운다
 
 이 슈트는 `TC-CDS-002`(A1)로 가입자를 **새로 만드는 것**을 전제로 돈다. 앞선
@@ -404,8 +423,12 @@ DELETE FROM T_SMF_SESSION_INFO  WHERE MDN IN (?, ?)
 ★ 예약 큐(`T_5G_RESERVED_JOB`, K1/K5/Y9 가 쓰는 표)만 이 옵션의 범위 밖이다 —
 지우지 않는다.
 
+★ `T_SMF_SESSION_INFO` 삭제는 `${CDS_SESSION_DB1}`/`${CDS_SESSION_DB2}` 로 DB 별로
+따로 끌 수 있다(앞 절 참조) — PROFILE/SERVICE 삭제와는 별개의 토글이다.
+
 ```bash
-bash run_tests.sh cds --no-cleanup    # 껐다 — 기존처럼 행이 남는다
+bash run_tests.sh cds --no-cleanup    # 껐다(전체) — 기존처럼 행이 남는다
+bash run_tests.sh cds --no-session-db2   # 세션만 DB2 에서 안 지움(PROFILE/SERVICE 는 그대로)
 ```
 
 #### 함정 — 골디락스 DSN-less 는 `IM012` 로 거부됐다
@@ -463,6 +486,34 @@ conn.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
 ```
 
 (PG 참조 샘플은 두 DB 모두에 이 설정을 무조건 적용한다.)
+
+#### 함정 — 알티베이스는 host variable 을 `SELECT` 목록에 놓으면 거부한다 (2026-09-30)
+
+세션 사전 적재(`Ensure CDS Session In PDB`)를 알티베이스(DB2)에 실행하면 다음이 났다.
+
+```
+('HY000', "[HY000] Invalid use of host variables \n0001 : INSERT INTO T_SMF_SESSION_INFO (...)
+SELECT ?, ?, 2, ?, ?, ?, '5g.sktelecom.com', ... FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM T_SMF_SESSION_INFO WHERE SM_POLICY_ID = ?)")
+```
+
+**원인**: 예전 `session_insert_sql()`은 `INSERT INTO ... SELECT ?, ?, ... FROM DUAL
+WHERE NOT EXISTS (...)` 한 문장으로 멱등(같은 `SM_POLICY_ID`면 0행)을 DB 안에서
+보장했다. 바인드 파라미터(`?`, 알티베이스 용어로 host variable)가 `WHERE SM_POLICY_ID
+= ?` 처럼 **실제 컬럼과 비교되는 자리**면 문제없지만(이 리포의 다른 모든 `?` 바인딩이
+이 형태다), `SELECT ?, ?, ... FROM DUAL` 처럼 **컬럼 없는 `DUAL` 의 SELECT 목록에
+바로 놓인 `?`**는 컴파일러가 타입을 정할 근거가 없다. 골디락스는 관대하게 받아주지만
+알티베이스는 컴파일 단계에서 거부한다.
+
+`_try_setinputsizes`(클라이언트가 드라이버에 타입을 미리 알려 `SQLDescribeParam` 호출을
+피하는 장치, 위 절 참조)로는 못 고친다 — 이건 **서버(알티베이스)의 SQL 컴파일 거부**라
+클라이언트 힌트가 닿지 않는다.
+
+**대응**: 멱등 판단을 SQL 밖(Robot 키워드)으로 옮겼다. `session_insert_sql()`은 이제
+`WHERE NOT EXISTS` 없는 평범한 `INSERT INTO ... VALUES (...)` 만 만들고(모든 `?` 가
+INSERT 대상 컬럼과 위치대로 짝지어져 타입 추론이 명확하다), `cds_keywords.robot` 의
+`Insert CDS Session Row` 가 실행 전에 `SELECT COUNT(*) ... WHERE SM_POLICY_ID = ?`
+로 먼저 존재를 확인하고 없을 때만 INSERT 한다.
 
 #### 함정 — 같은 HY000 인데 원인이 다르다 (2026-08-18)
 

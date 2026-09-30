@@ -51,6 +51,12 @@
 # 같이 지운다.
 #   bash run_tests.sh cds --no-cleanup      # 껐다 — 기존처럼 행이 남는다
 #
+# CDS 세션(T_SMF_SESSION_INFO) INSERT/DELETE 를 DB 별로 끄기 — PROFILE/SERVICE 는
+# 영향 없다. 둘 다 기본 켜짐(DB1+DB2 이중 적재/이중 삭제). DB2 는 PDB_CONNSTR_2 가
+# 없으면 이 플래그와 무관하게 항상 건너뛴다.
+#   bash run_tests.sh cds --no-session-db1  # DB1(골디락스)에 세션 INSERT/DELETE 안 함
+#   bash run_tests.sh cds --no-session-db2  # DB2(알티베이스)에 세션 INSERT/DELETE 안 함
+#
 # CDS 예약 시각(START_TIME) — 기본은 먼 미래 고정값(203712312359):
 #   bash run_tests.sh cds --start-now       # 실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분(기본 60)
 #   ★ 오프셋은 양수여야 한다. 0이나 음수면 K1/K5 가입 직후 만료 예약이 실행돼
@@ -112,9 +118,15 @@ for arg in "${@:2}"; do
         --start-now)       TOGGLE_VARS+=(--variable CDS_START_TIME_MODE:now) ;;
         --start-fixed)     TOGGLE_VARS+=(--variable CDS_START_TIME_MODE:fixed) ;;
         # 세션 사전 적재 — T_SMF_SESSION_INFO 에 5G 세션 1건을 넣는다(멱등).
-        # 이 슈트에서 유일하게 PDB 에 쓰는 자리다. 없으면 PG 가 알림 상대를 못 찾는다.
+        # 없으면 PG 가 알림 상대를 못 찾는다.
         --no-session)   TOGGLE_VARS+=(--variable CDS_SESSION_CREATE:False) ;;
         --session)      TOGGLE_VARS+=(--variable CDS_SESSION_CREATE:True) ;;
+        # 세션 INSERT/DELETE 를 DB1/DB2 각각 따로 끄기 (PROFILE/SERVICE 는 영향 없음).
+        # DB2 는 PDB_CONNSTR_2 가 없으면 이 값과 무관하게 항상 건너뛴다.
+        --no-session-db1)  TOGGLE_VARS+=(--variable CDS_SESSION_DB1:False) ;;
+        --session-db1)     TOGGLE_VARS+=(--variable CDS_SESSION_DB1:True) ;;
+        --no-session-db2)  TOGGLE_VARS+=(--variable CDS_SESSION_DB2:False) ;;
+        --session-db2)     TOGGLE_VARS+=(--variable CDS_SESSION_DB2:True) ;;
         # PCF SBI 를 켜 두되 PG 가 붙기를 기다리지 않는다(Listen 만 하고 바로 시작).
         --no-sbi-wait|--no-http-wait|--no-noti-wait)
                         TOGGLE_VARS+=(--variable CDS_NOTI_WAIT_CONNECT:False) ;;

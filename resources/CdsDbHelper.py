@@ -50,6 +50,10 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
   Session In PDB` / `Cleanup CDS Subscriber Rows` 가 두 곳 모두에 실행한다.
   비워 두면(기본) 기존과 같이 **DB 한 곳**에만 적용한다 — `has_second_db()` 로
   판정한다.
+  ★ 세션 테이블(T_SMF_SESSION_INFO)에 한해서는 `${CDS_SESSION_DB1}` /
+    `${CDS_SESSION_DB2}`(cds_variables.robot, 각각 기본 `${TRUE}`)로 DB 별
+    INSERT/DELETE 를 따로 끌 수 있다 — `run_tests.sh cds --no-session-db1` /
+    `--no-session-db2`. PROFILE/SERVICE 는 이 토글의 영향을 받지 않는다.
   조회(SELECT) 계열은 여전히 첫 번째 DB(${CDS_DB_CONN})만 본다 — 판정 대상 DB는
   하나로 고정돼 있다는 전제다.
 """
@@ -408,15 +412,24 @@ _SESSION_OUT_PAYLOAD = (
 SESSION_PARAM_ORDER = (
     'sm_policy_id', 'supi', 'gpsi', 'mdn', 'ip_addr',
     'res_uri', 'noti_uri', 'udr_noti_uri',
-    'sm_policy_id',          # WHERE NOT EXISTS 의 같은 값
 )
 
 
 def session_insert_sql(table='T_SMF_SESSION_INFO'):
-    """세션 1건을 넣는 INSERT ... SELECT ... WHERE NOT EXISTS 문을 만든다.
+    """세션 1건을 넣는 순수 INSERT ... VALUES 문을 만든다.
 
-    **멱등이다** — 같은 SM_POLICY_ID 가 이미 있으면 0행을 넣는다. 그래서 슈트를
-    몇 번 돌려도 중복되지 않고, 지우고 다시 넣지도 않는다(기존 세션을 존중한다).
+    호출자가 **먼저 SELECT COUNT 로 있는지 확인하고, 없을 때만** 이 SQL 을 실행하는
+    방식으로 멱등을 보장한다(cds_keywords.robot 의 `Insert CDS Session Row` 참조).
+
+    ★ 예전에는 `INSERT ... SELECT ... FROM DUAL WHERE NOT EXISTS (...)` 한 문장으로
+      SQL 안에서 멱등을 보장했다. **알티베이스가 이 형태를 거부한다**:
+        `[HY000] Invalid use of host variables`
+      원인은 바인드 파라미터(`?`, host variable)가 `SELECT ?, ?, ... FROM DUAL`
+      처럼 **실제 컬럼과 비교되지 않는 SELECT 목록**에 있어 컴파일러가 타입을 못
+      정하기 때문이다(골디락스는 관대하게 받아준다. 2026-09-30 확인).
+      그래서 멱등 판단을 호출자로 옮기고, 여기는 모든 `?` 가 INSERT 대상 컬럼과
+      위치대로 짝지어지는 평범한 `INSERT ... VALUES` 로 바꿨다 — 이 형태는 두 DB
+      모두에서 타입 추론이 명확하다.
 
     `table` 에 스키마 접두사를 붙이지 않는다 — "PDB." 를 붙였다가 실환경에서
     `schema 'PDB' does not exist` 로 거부된 전례가 있다(2026-09-29). "PDB" 는
@@ -431,16 +444,14 @@ def session_insert_sql(table='T_SMF_SESSION_INFO'):
         'TM_NOTI_URI, STATUS, SUBSCRIBE, AF_SUBSCRIBE, NODE_ID, '
         'PROC_ID, SMF_ID, CONN_ID, STREAM_ID, CREATE_TIME, '
         'UPDATE_TIME, DESCRIPTION) '
-        'SELECT '
+        'VALUES ('
         "?, ?, 2, ?, ?, "
         "?, '5g.sktelecom.com', 200, '000001', '1200:926', "
         "'45005', 'NR', '1', NULL, '" + _SESSION_IN_PAYLOAD + "', "
         "NULL, '" + _SESSION_OUT_PAYLOAD + "', ?, ?, ?, "
         "NULL, '3', NULL, NULL, 'ROBOT-mp01-app01', "
         "'SMF.MGR.01', '550e8400-e29b-41d4-a716-446655440012', 0, 803831, SYSDATE, "
-        'SYSDATE, \'000004\' '
-        'FROM DUAL '
-        'WHERE NOT EXISTS (SELECT 1 FROM ' + table + ' WHERE SM_POLICY_ID = ?)'
+        "SYSDATE, '000004')"
     )
 
 

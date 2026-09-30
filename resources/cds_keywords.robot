@@ -694,55 +694,82 @@ Ensure CDS Sessions In PDB
     ...    res_uri=${CDS_SESSION_RES_URI_NEW}    noti_uri=${CDS_SESSION_NOTI_URI_NEW}
     ...    udr_noti_uri=${CDS_SESSION_UDR_NOTI_URI_NEW}
 
+Insert CDS Session Row
+    [Documentation]
+    ...    세션 1건을 주어진 connection 에 **멱등하게** 넣는다 — 먼저 SELECT COUNT
+    ...    로 있는지 보고, 없을 때만 INSERT 한다. 넣었으면 콘솔에 완료를, 이미
+    ...    있었으면 건너뛴 것을 로그로 남긴다.
+    ...
+    ...    ★ 예전에는 `INSERT ... SELECT ... FROM DUAL WHERE NOT EXISTS(...)` 한
+    ...      문장으로 멱등을 DB 에 맡겼다. 알티베이스가 이 형태를 `Invalid use of
+    ...      host variables` 로 거부해(2026-09-30) 멱등 판단을 여기(호출자)로
+    ...      옮겼다 — `CdsDbHelper.session_insert_sql` 의 docstring 참조.
+    [Arguments]    ${conn}    ${sql}    ${label}
+    ...            ${sm_policy_id}    ${supi}    ${gpsi}    ${mdn}    ${ip}
+    ...            ${res_uri}    ${noti_uri}    ${udr_noti_uri}
+    ${existing}=    CdsDb.Db Count    ${conn}    ${CDS_DB_SQL_SESSION}    ${sm_policy_id}
+    IF    ${existing} > 0
+        Log    [Suite] 세션이 이미 있어 넣지 않았습니다 (${label}) — SM_POLICY_ID=${sm_policy_id}    console=True
+        RETURN
+    END
+    # 인자 순서는 CdsDbHelper.SESSION_PARAM_ORDER 와 같아야 한다. 바꾸면 양쪽을 같이 고칠 것.
+    CdsDb.Db Execute    ${conn}    ${sql}
+    ...    ${sm_policy_id}    ${supi}    ${gpsi}    ${mdn}    ${ip}
+    ...    ${res_uri}    ${noti_uri}    ${udr_noti_uri}
+    Log    [Suite] 세션 적재 완료 (${label}) — SM_POLICY_ID=${sm_policy_id}    console=True
+
 Ensure CDS Session In PDB
     [Documentation]
     ...    세션 1건을 ${CDS_DB_TBL_SESSION} 에 심는다. 보통은 `Ensure CDS Sessions In PDB`
     ...    가 두 번 부르고, 직접 부를 일은 없다.
     ...
-    ...    ★ **이 슈트에서 유일하게 PDB 에 쓰는 자리다.** 나머지는 전부 SELECT 다.
-    ...      autocommit 이 꺼져 있고 조회 키워드가 조회 직전마다 rollback 하므로,
-    ...      commit 하지 않으면 넣은 행이 곧바로 사라진다 — `Db Execute` 가 commit 한다.
+    ...    ★ **이 슈트에서 PDB 에 쓰는 자리 중 하나다**(다른 하나는 종료 시 정리의
+    ...      DELETE). autocommit 이 꺼져 있고 조회 키워드가 조회 직전마다 rollback
+    ...      하므로, commit 하지 않으면 넣은 행이 곧바로 사라진다 — `Db Execute`
+    ...      가 commit 한다.
     ...
-    ...    멱등이다: 같은 SM_POLICY_ID 가 이미 있으면 0행을 넣고 지나간다(기존 세션을
-    ...    덮거나 지우지 않는다). Teardown 에서 정리하지 않으므로 **행은 남는다.**
+    ...    멱등이다(`Insert CDS Session Row` 참조): 같은 SM_POLICY_ID 가 이미 있으면
+    ...    넣지 않고 지나간다(기존 세션을 덮거나 지우지 않는다). Teardown 이 지우지
+    ...    않는 한(${CDS_CLEANUP_ON_TEARDOWN}=${FALSE}) **행은 남는다.**
     ...    → 그래서 두 세션은 **SM_POLICY_ID 가 서로 달라야 한다.** 같으면 둘째가
     ...      "이미 있음" 으로 조용히 건너뛰어져 D3 이후 번호에 세션이 안 생긴다.
     ...
-    ...    ${PDB_CONNSTR_2} 가 설정돼 ${CDS_DB_CONN_2} 가 있으면 **같은 세션을 두 번째
-    ...    DB 에도** 넣는다(예: 골디락스+알티베이스 이중화 환경). 없으면 첫 번째 DB
-    ...    한 곳에만 넣는다 — 기존과 동일한 동작이다. 판정 조회(`CDS DB Count Should
-    ...    Be At Least`)는 **첫 번째 DB 기준**이다.
+    ...    **DB1/DB2 를 각각 독립적으로 끌 수 있다** — ${CDS_SESSION_DB1}(기본
+    ...    ${TRUE})이 꺼지면 DB1(${CDS_DB_CONN})에 넣지 않는다. ${CDS_SESSION_DB2}
+    ...    (기본 ${TRUE})가 꺼지거나 ${CDS_DB_CONN_2} 가 없으면(=${PDB_CONNSTR_2}
+    ...    미설정) DB2 에도 넣지 않는다. 둘 다 켜져 있으면(기본) 두 DB 모두에 넣는다
+    ...    — "라우팅"이 아니라 "이중 적재"다. 각 DB 에 넣은 뒤에는 **그 DB 를 바로
+    ...    조회해서** 확인한다(다른 DB 를 대신 보지 않는다).
+    ...
+    ...    끄려면: bash run_tests.sh cds --no-session-db1 / --no-session-db2
     [Arguments]    ${mdn}    ${min}    ${imsi}    ${ip}    ${sm_policy_id}
     ...            ${res_uri}    ${noti_uri}    ${udr_noti_uri}    ${label}=세션
     Ensure CDS DB Connection
     ${supi}=    Set Variable    imsi-${imsi}
     ${gpsi}=    Set Variable    msisdn-${CDS_SESSION_CC}${min}
     ${sql}=     CdsDb.Session Insert Sql    ${CDS_DB_TBL_SESSION}
-    Log    [Suite] 세션 적재 시도 (${label}) — MDN=${mdn} SUPI=${supi} IP=${ip}    console=True
-    # 인자 순서는 CdsDbHelper.SESSION_PARAM_ORDER 와 같아야 한다. 바꾸면 양쪽을 같이 고칠 것.
-    ${n}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${sql}
-    ...    ${sm_policy_id}    ${supi}    ${gpsi}    ${mdn}    ${ip}
-    ...    ${res_uri}    ${noti_uri}    ${udr_noti_uri}
-    ...    ${sm_policy_id}
-    IF    ${n} > 0
-        Log    [Suite] 세션 적재 완료 (${label}) ${n}건 — SM_POLICY_ID=${sm_policy_id}    console=True
-    ELSE
-        Log    [Suite] 세션이 이미 있어 넣지 않았습니다 (${label}) — SM_POLICY_ID=${sm_policy_id}    console=True
-    END
-    IF    $CDS_DB_CONN_2 is not None
-        ${n2}=    CdsDb.Db Execute    ${CDS_DB_CONN_2}    ${sql}
+    IF    ${CDS_SESSION_DB1}
+        Insert CDS Session Row    ${CDS_DB_CONN}    ${sql}    ${label} (DB1)
         ...    ${sm_policy_id}    ${supi}    ${gpsi}    ${mdn}    ${ip}
         ...    ${res_uri}    ${noti_uri}    ${udr_noti_uri}
-        ...    ${sm_policy_id}
-        IF    ${n2} > 0
-            Log    [Suite] 세션 적재 완료 (${label}, 2번째 DB) ${n2}건 — SM_POLICY_ID=${sm_policy_id}    console=True
-        ELSE
-            Log    [Suite] 세션이 이미 있어 넣지 않았습니다 (${label}, 2번째 DB) — SM_POLICY_ID=${sm_policy_id}    console=True
-        END
+        ${cnt1}=    CdsDb.Db Count    ${CDS_DB_CONN}    ${CDS_DB_SQL_SESSION}    ${sm_policy_id}
+        Should Be True    ${cnt1} >= 1
+        ...    msg=${CDS_DB_TBL_SESSION} (${label}, DB1, SM_POLICY_ID=${sm_policy_id}) 행 수 기대=1건 이상, 실제=${cnt1}
+    ELSE
+        Log    [Suite] 세션 적재 DB1 꺼짐 (CDS_SESSION_DB1=${CDS_SESSION_DB1}, ${label})    console=True
     END
-    # 넣었든 이미 있었든, 이 시점에 세션이 **반드시 있어야** 한다(첫 번째 DB 기준).
-    CDS DB Count Should Be At Least    ${CDS_DB_TBL_SESSION} (${label}, SM_POLICY_ID)
-    ...    ${1}    ${CDS_DB_SQL_SESSION}    ${sm_policy_id}
+    IF    ${CDS_SESSION_DB2} and $CDS_DB_CONN_2 is not None
+        Insert CDS Session Row    ${CDS_DB_CONN_2}    ${sql}    ${label} (DB2)
+        ...    ${sm_policy_id}    ${supi}    ${gpsi}    ${mdn}    ${ip}
+        ...    ${res_uri}    ${noti_uri}    ${udr_noti_uri}
+        ${cnt2}=    CdsDb.Db Count    ${CDS_DB_CONN_2}    ${CDS_DB_SQL_SESSION}    ${sm_policy_id}
+        Should Be True    ${cnt2} >= 1
+        ...    msg=${CDS_DB_TBL_SESSION} (${label}, DB2, SM_POLICY_ID=${sm_policy_id}) 행 수 기대=1건 이상, 실제=${cnt2}
+    ELSE IF    ${CDS_SESSION_DB2}
+        Log    [Suite] 세션 적재 DB2 대상 없음 — PDB_CONNSTR_2 미설정 (${label})    console=True
+    ELSE
+        Log    [Suite] 세션 적재 DB2 꺼짐 (CDS_SESSION_DB2=${CDS_SESSION_DB2}, ${label})    console=True
+    END
 
 Cleanup CDS Subscriber Rows
     [Documentation]
@@ -754,14 +781,17 @@ Cleanup CDS Subscriber Rows
     ...
     ...    ★ 예약 큐(${CDS_DB_TBL_RESERVED})만 이 옵션의 범위 밖이다 — 지우지 않는다.
     ...
-    ...    ${CDS_DB_CONN_2} 가 있으면(${PDB_CONNSTR_2} 설정) **두 번째 DB 도 같이**
-    ...    지운다 — 세션 이중 적재와 같은 정책이다.
+    ...    PROFILE/SERVICE 는 DB1(${CDS_DB_CONN})에서 지우고, ${CDS_DB_CONN_2} 가
+    ...    있으면(${PDB_CONNSTR_2} 설정) 그쪽도 같이 지운다 — 이 둘은 토글이 없다.
+    ...    SESSION 은 ${CDS_SESSION_DB1}/${CDS_SESSION_DB2} 로 DB 별로 따로 끌 수
+    ...    있다 — 세션 적재(`Ensure CDS Session In PDB`)와 같은 토글이다.
     ...
     ...    DB 에 접속된 적이 없으면(Suite Setup 이 그 전에 실패) 아무것도 하지
     ...    않는다 — Teardown 은 실패 여부와 무관하게 항상 실행되므로 실제로
     ...    일어날 수 있는 경로다.
     ...
-    ...    끄려면: bash run_tests.sh cds --no-cleanup
+    ...    끄려면: bash run_tests.sh cds --no-cleanup (전체) /
+    ...    --no-session-db1 / --no-session-db2 (세션만 DB 별로)
     IF    not ${CDS_CLEANUP_ON_TEARDOWN}
         Log    [Suite] 종료 시 정리 꺼짐 (CDS_CLEANUP_ON_TEARDOWN=${CDS_CLEANUP_ON_TEARDOWN})    console=True
         RETURN
@@ -772,13 +802,25 @@ Cleanup CDS Subscriber Rows
     END
     ${n_svc}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${CDS_DB_SQL_DELETE_SERVICE}    ${CDS_MDN}    ${CDS_NEW_MDN}
     ${n_prf}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${CDS_DB_SQL_DELETE_PROFILE}    ${CDS_MDN}    ${CDS_NEW_MDN}
-    ${n_ses}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${CDS_DB_SQL_DELETE_SESSION}    ${CDS_MDN}    ${CDS_NEW_MDN}
-    Log    [Suite] 종료 시 정리 — SERVICE ${n_svc}건, PROFILE ${n_prf}건, SESSION ${n_ses}건 삭제 (MDN IN (${CDS_MDN}, ${CDS_NEW_MDN}))    console=True
+    Log    [Suite] 종료 시 정리 — SERVICE ${n_svc}건, PROFILE ${n_prf}건 삭제 (MDN IN (${CDS_MDN}, ${CDS_NEW_MDN}))    console=True
     IF    $CDS_DB_CONN_2 is not None
         ${n_svc2}=    CdsDb.Db Execute    ${CDS_DB_CONN_2}    ${CDS_DB_SQL_DELETE_SERVICE}    ${CDS_MDN}    ${CDS_NEW_MDN}
         ${n_prf2}=    CdsDb.Db Execute    ${CDS_DB_CONN_2}    ${CDS_DB_SQL_DELETE_PROFILE}    ${CDS_MDN}    ${CDS_NEW_MDN}
+        Log    [Suite] 종료 시 정리 (2번째 DB) — SERVICE ${n_svc2}건, PROFILE ${n_prf2}건 삭제    console=True
+    END
+    IF    ${CDS_SESSION_DB1}
+        ${n_ses}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${CDS_DB_SQL_DELETE_SESSION}    ${CDS_MDN}    ${CDS_NEW_MDN}
+        Log    [Suite] 종료 시 정리 — SESSION(DB1) ${n_ses}건 삭제    console=True
+    ELSE
+        Log    [Suite] 종료 시 정리 — SESSION(DB1) 꺼짐 (CDS_SESSION_DB1=${CDS_SESSION_DB1})    console=True
+    END
+    IF    ${CDS_SESSION_DB2} and $CDS_DB_CONN_2 is not None
         ${n_ses2}=    CdsDb.Db Execute    ${CDS_DB_CONN_2}    ${CDS_DB_SQL_DELETE_SESSION}    ${CDS_MDN}    ${CDS_NEW_MDN}
-        Log    [Suite] 종료 시 정리 (2번째 DB) — SERVICE ${n_svc2}건, PROFILE ${n_prf2}건, SESSION ${n_ses2}건 삭제    console=True
+        Log    [Suite] 종료 시 정리 — SESSION(DB2) ${n_ses2}건 삭제    console=True
+    ELSE IF    ${CDS_SESSION_DB2}
+        Log    [Suite] 종료 시 정리 — SESSION(DB2) 대상 없음 (PDB_CONNSTR_2 미설정)    console=True
+    ELSE
+        Log    [Suite] 종료 시 정리 — SESSION(DB2) 꺼짐 (CDS_SESSION_DB2=${CDS_SESSION_DB2})    console=True
     END
 
 Close CDS DB Connection

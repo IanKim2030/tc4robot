@@ -125,6 +125,17 @@ ${CDS_NOTI_PATH_CELL}     ${EMPTY}         # BSUBS→PCF Cell List 의 :path 조
 #
 # 끄려면: bash run_tests.sh cds --no-session
 ${CDS_SESSION_CREATE}     ${TRUE}          # TC 수행 전 세션 적재 여부
+
+# DB 별 on/off — ${CDS_SESSION_CREATE} 가 켜져 있을 때, 세션 INSERT(Suite Setup)와
+# 종료 시 정리 DELETE(Suite Teardown)를 DB1(${PDB_CONNSTR})/DB2(${PDB_CONNSTR_2})
+# 각각에 적용할지 따로 끌 수 있다. DB2 쪽은 ${PDB_CONNSTR_2} 가 비어 있으면(=DB2
+# 자체가 없으면) 이 값과 무관하게 항상 건너뛴다. PROFILE/SERVICE 의 조회·삭제는
+# 이 토글의 영향을 받지 않는다 — 그건 항상 DB1(+ DB2 가 있으면 그쪽도) 대상이다.
+#
+#   bash run_tests.sh cds --no-session-db1   # DB1(골디락스)에 세션 INSERT/DELETE 안 함
+#   bash run_tests.sh cds --no-session-db2   # DB2(알티베이스)에 세션 INSERT/DELETE 안 함
+${CDS_SESSION_DB1}        ${TRUE}
+${CDS_SESSION_DB2}        ${TRUE}
 # ★ 스키마 접두사 없이 테이블명만 쓴다 — 다른 CDS_DB_TBL_* 도 마찬가지다.
 #   "PDB." 를 붙였다가 실환경에서 `schema 'PDB' does not exist` 로 거부된 전례가
 #   있다(2026-09-29) — "PDB" 는 이 리포에서 DB 를 가리키는 일반 명칭일 뿐,
