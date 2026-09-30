@@ -6,8 +6,9 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
 
   대상 DB : 골디락스(Goldilocks) 또는 알티베이스(Altibase) — 환경에 따라 다르다
   드라이버 : ODBC (pyodbc). 두 DB 모두 ODBC 드라이버를 제공한다
-  용도    : `SELECT COUNT(*)` 계열 조회가 대부분이다. 쓰기는 **세션 사전 적재
-             (`db_execute` / `session_insert_sql`) 하나뿐**이며 그것만 commit 한다
+  용도    : `SELECT COUNT(*)` 계열 조회가 대부분이다. 쓰기는 `db_execute` 로
+             하는 두 가지뿐이다 — 세션 사전 적재(`session_insert_sql`, INSERT)와
+             종료 시 정리(cds_variables.robot 의 DELETE SQL). 둘 다 commit 한다
   트랜잭션 : autocommit **끔**(기본). 조회 직전마다 rollback 으로 트랜잭션을 끊어
              재조회가 새 스냅샷을 보게 한다 (`db_end_transaction`)
 
@@ -41,12 +42,14 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
   ※ 2) 를 쓰면 **파일에 평문으로 남는다** — 실환경 값은 커밋되는
      cds_variables.robot 이 아니라 config/env/<env>.py 에서 오버라이드할 것.
 
-[두 번째 DB — 세션 사전 적재 전용]
-  환경에 따라 세션 정보(T_SMF_SESSION_INFO)를 **두 DB 모두에** 넣어야 하는 경우가
-  있다(예: 골디락스 + 알티베이스 이중화). `${PDB_CONNSTR_2}`(환경변수 `PG_PDB_CONNSTR_2`)
-  를 채우면 `cds_keywords.robot` 의 `Ensure CDS DB Connection` 이 두 번째 connection 도
-  붙이고, `Ensure CDS Session In PDB` 가 두 곳 모두에 INSERT 한다. 비워 두면(기본)
-  기존과 같이 **DB 한 곳**에만 넣는다 — `has_second_db()` 로 판정한다.
+[두 번째 DB — 쓰기(INSERT/DELETE) 전용]
+  환경에 따라 세션 정보(T_SMF_SESSION_INFO) 적재나 종료 시 정리(DELETE)를
+  **두 DB 모두에** 해야 하는 경우가 있다(예: 골디락스 + 알티베이스 이중화).
+  `${PDB_CONNSTR_2}`(환경변수 `PG_PDB_CONNSTR_2`)를 채우면 `cds_keywords.robot`
+  의 `Ensure CDS DB Connection` 이 두 번째 connection 도 붙이고, `Ensure CDS
+  Session In PDB` / `Cleanup CDS Subscriber Rows` 가 두 곳 모두에 실행한다.
+  비워 두면(기본) 기존과 같이 **DB 한 곳**에만 적용한다 — `has_second_db()` 로
+  판정한다.
   조회(SELECT) 계열은 여전히 첫 번째 DB(${CDS_DB_CONN})만 본다 — 판정 대상 DB는
   하나로 고정돼 있다는 전제다.
 """

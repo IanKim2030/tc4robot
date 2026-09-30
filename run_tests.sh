@@ -45,6 +45,12 @@
 #   bash run_tests.sh cds --precheck-ask    # 물어보게 하기 (화면이 있을 때만)
 #   bash run_tests.sh cds --no-precheck     # 확인 자체를 생략
 #
+# CDS 종료 시 정리(cleanup) — 두 대상 번호의 PROFILE/SERVICE/SESSION 을 Suite
+# Teardown 에서 지운다(기본 켜짐 — 다음 실행이 잔존 데이터 없이 시작하게 한다).
+# 예약 큐는 범위 밖(안 지움). ${PDB_CONNSTR_2} 로 두 번째 DB 가 붙어 있으면 그쪽도
+# 같이 지운다.
+#   bash run_tests.sh cds --no-cleanup      # 껐다 — 기존처럼 행이 남는다
+#
 # CDS 예약 시각(START_TIME) — 기본은 먼 미래 고정값(203712312359):
 #   bash run_tests.sh cds --start-now       # 실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분(기본 60)
 #   ★ 오프셋은 양수여야 한다. 0이나 음수면 K1/K5 가입 직후 만료 예약이 실행돼
@@ -99,6 +105,9 @@ for arg in "${@:2}"; do
                            TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:report) ;;
         --precheck-fail)   TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:fail) ;;
         --precheck-ask)    TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:ask) ;;
+        # 종료 시 정리 — Suite Teardown 에서 PROFILE/SERVICE 삭제. 기본 켜짐.
+        --no-cleanup)   TOGGLE_VARS+=(--variable CDS_CLEANUP_ON_TEARDOWN:False) ;;
+        --cleanup)      TOGGLE_VARS+=(--variable CDS_CLEANUP_ON_TEARDOWN:True) ;;
         # 예약 시각을 실행 시각 기준으로 (K1/K5/Y9/SS/ST). 오프셋은 변수로 조정한다.
         --start-now)       TOGGLE_VARS+=(--variable CDS_START_TIME_MODE:now) ;;
         --start-fixed)     TOGGLE_VARS+=(--variable CDS_START_TIME_MODE:fixed) ;;

@@ -35,7 +35,7 @@ resources/RtsHelper.py                ← 32옥텟 RTS 전문 (로밍 데이터 
 | `CdsHelper.py` | `Cds` | 48옥텟 CDS 고정전문. 소켓은 `TcpHelper` 재사용 | `pack_cds_header` `parse_cds_header` `send_cds` `receive_cds` `pack_ack` `unpack_ack` `pack_command_body` `unpack_command_body` |
 | `TlvHelper.py` | `Tlv` | NWDAF TLV. 소켓까지 자체 구현 | `build_nwdaf_header` `parse_nwdaf_header` `pack_tlv` `unpack_tlv_stream` `tlv_find` `tlv_find_all` `build_common1` `build_pcef_qos_ctrl` `build_dpi_qos_ctrl` `build_enb_qos_ctrl` `build_common2` `send_nwdaf_notification` `send_nwdaf_raw` `receive_nwdaf_message` `hex_dump` |
 | `HttpHelper.py` | — | LRS Session-Info 전용 | `build_aims_req` `parse_xml_fields` `post_session_info` |
-| `CdsDbHelper.py` | `CdsDb` (RTS 는 `RtsDb`) | CDS PDB(골디락스/알티베이스) 조회 + 세션 사전 적재(쓰기는 이것 하나뿐). ODBC. RTS 슈트도 같은 모듈을 다른 별칭으로 재사용(DSN 공유 여부는 확인 필요, `docs/nodes/RTS.md`). `${PDB_CONNSTR_2}` 로 두 번째 DB(세션 이중 적재)도 지원 | `masked_conn_str` `db_connect` `db_end_transaction` `db_close` `db_count` `db_group_counts` `db_execute` `session_insert_sql` `has_second_db` |
+| `CdsDbHelper.py` | `CdsDb` (RTS 는 `RtsDb`) | CDS PDB(골디락스/알티베이스) 조회 + 쓰기(세션 사전 적재 INSERT, 종료 시 정리 DELETE). ODBC. RTS 슈트도 같은 모듈을 다른 별칭으로 재사용(DSN 공유 여부는 확인 필요, `docs/nodes/RTS.md`). `${PDB_CONNSTR_2}` 로 두 번째 DB(쓰기 이중 적용)도 지원 | `masked_conn_str` `db_connect` `db_end_transaction` `db_close` `db_count` `db_group_counts` `db_execute` `session_insert_sql` `has_second_db` |
 | `RtsHelper.py` | `Rts` | 32옥텟 RTS 고정전문(로밍 데이터 차단 L1/L2). 소켓은 `TcpHelper` 재사용 | `pack_rts_header` `parse_rts_header` `send_rts` `receive_rts` `pack_rts_order_body` `unpack_rts_order_body` `unpack_connect_ack` `unpack_order_ack` `unpack_keepalive_ack` |
 
 `CdsDbHelper` 만 성격이 다르다 — 전문을 만들지 않고 **PG 가 DB 에 반영했는지를 본다**.

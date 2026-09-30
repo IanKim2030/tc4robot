@@ -12,7 +12,7 @@ Documentation
 ...        1) Rchannel 연결 → RchannelConnectionRequest(0003) + ACK(0004) (세션 등록)
 ...        2) 성공 후 Schannel 연결 → SchannelConnectionRequest(0001) + ACK(0002)
 ...      Test Setup     : Check CDS Sockets (둘 중 하나라도 닫히면 Fatal Error)
-...      Suite Teardown : Suite CDS Disconnect
+...      Suite Teardown : Suite CDS Disconnect (해제 → 종료 시 정리(cleanup) → PDB 접속 종료)
 ...
 ...    [메시지 흐름 — 로봇 능동 송신 기준]
 ...      접속   0001/0002(S), 0003/0004(R)
@@ -147,7 +147,7 @@ Suite CDS Disconnect
     [Documentation]
     ...    CDS Suite Teardown 전용.
     ...    Schannel 해제 요구(0005) → ACK(0006, SC) 검증, 이어서 Rchannel(0007→0008),
-    ...    그 뒤 소켓 종료.
+    ...    소켓 종료 → **종료 시 정리(Cleanup CDS Subscriber Rows)** → PDB 접속 종료.
     ...
     ...    `Send Release And Validate` 가 ACK 를 검증하되 **PG 가 ACK 없이 끊는 것도
     ...    정상 해제로 간주**한다(규격상 허용되는 동작). 따라서 Teardown 이 그 이유로
@@ -164,6 +164,8 @@ Suite CDS Disconnect
     Send Release And Validate    ${CDS_RCH_SOCK}    ${CDS_MSG_RCH_REL_REQ}    ${CDS_MSG_RCH_REL_ACK}
     Run Keyword If    $CDS_SCH_SOCK is not None    Cds.Tcp Close    ${CDS_SCH_SOCK}
     Run Keyword If    $CDS_RCH_SOCK is not None    Cds.Tcp Close    ${CDS_RCH_SOCK}
+    # DB 를 닫기 **전에** 정리해야 한다 — 지우려면 연결이 살아 있어야 한다.
+    Cleanup CDS Subscriber Rows
     Close CDS DB Connection
     # UPM 은 붙었을 때만 닫는다. Suite Setup 이 CDS 소켓 단계에서 실패했으면
     # ${UPM_SOCK} 이 ${NONE} 이라 Suite UPM Disconnect 가 그냥 지나간다.
@@ -741,6 +743,43 @@ Ensure CDS Session In PDB
     # 넣었든 이미 있었든, 이 시점에 세션이 **반드시 있어야** 한다(첫 번째 DB 기준).
     CDS DB Count Should Be At Least    ${CDS_DB_TBL_SESSION} (${label}, SM_POLICY_ID)
     ...    ${1}    ${CDS_DB_SQL_SESSION}    ${sm_policy_id}
+
+Cleanup CDS Subscriber Rows
+    [Documentation]
+    ...    **Suite Teardown 전용.** ${CDS_CLEANUP_ON_TEARDOWN}(기본 ${TRUE}) 이면
+    ...    이번 슈트가 쓴 두 대상 번호(${CDS_MDN} / ${CDS_NEW_MDN})의
+    ...    ${CDS_DB_TBL_PROFILE} · ${CDS_DB_TBL_SERVICE} · ${CDS_DB_TBL_SESSION}
+    ...    행을 지운다 — 다음 실행이 "잔존 데이터" 없이 깨끗하게 시작하게 하기
+    ...    위함이다(Precheck Existing Subscriber Rows 는 찾기만 하고 지우지 않는다).
+    ...
+    ...    ★ 예약 큐(${CDS_DB_TBL_RESERVED})만 이 옵션의 범위 밖이다 — 지우지 않는다.
+    ...
+    ...    ${CDS_DB_CONN_2} 가 있으면(${PDB_CONNSTR_2} 설정) **두 번째 DB 도 같이**
+    ...    지운다 — 세션 이중 적재와 같은 정책이다.
+    ...
+    ...    DB 에 접속된 적이 없으면(Suite Setup 이 그 전에 실패) 아무것도 하지
+    ...    않는다 — Teardown 은 실패 여부와 무관하게 항상 실행되므로 실제로
+    ...    일어날 수 있는 경로다.
+    ...
+    ...    끄려면: bash run_tests.sh cds --no-cleanup
+    IF    not ${CDS_CLEANUP_ON_TEARDOWN}
+        Log    [Suite] 종료 시 정리 꺼짐 (CDS_CLEANUP_ON_TEARDOWN=${CDS_CLEANUP_ON_TEARDOWN})    console=True
+        RETURN
+    END
+    IF    $CDS_DB_CONN is None
+        Log    [Suite] PDB 에 접속된 적이 없어 종료 시 정리를 건너뜁니다    console=True
+        RETURN
+    END
+    ${n_svc}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${CDS_DB_SQL_DELETE_SERVICE}    ${CDS_MDN}    ${CDS_NEW_MDN}
+    ${n_prf}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${CDS_DB_SQL_DELETE_PROFILE}    ${CDS_MDN}    ${CDS_NEW_MDN}
+    ${n_ses}=    CdsDb.Db Execute    ${CDS_DB_CONN}    ${CDS_DB_SQL_DELETE_SESSION}    ${CDS_MDN}    ${CDS_NEW_MDN}
+    Log    [Suite] 종료 시 정리 — SERVICE ${n_svc}건, PROFILE ${n_prf}건, SESSION ${n_ses}건 삭제 (MDN IN (${CDS_MDN}, ${CDS_NEW_MDN}))    console=True
+    IF    $CDS_DB_CONN_2 is not None
+        ${n_svc2}=    CdsDb.Db Execute    ${CDS_DB_CONN_2}    ${CDS_DB_SQL_DELETE_SERVICE}    ${CDS_MDN}    ${CDS_NEW_MDN}
+        ${n_prf2}=    CdsDb.Db Execute    ${CDS_DB_CONN_2}    ${CDS_DB_SQL_DELETE_PROFILE}    ${CDS_MDN}    ${CDS_NEW_MDN}
+        ${n_ses2}=    CdsDb.Db Execute    ${CDS_DB_CONN_2}    ${CDS_DB_SQL_DELETE_SESSION}    ${CDS_MDN}    ${CDS_NEW_MDN}
+        Log    [Suite] 종료 시 정리 (2번째 DB) — SERVICE ${n_svc2}건, PROFILE ${n_prf2}건, SESSION ${n_ses2}건 삭제    console=True
+    END
 
 Close CDS DB Connection
     [Documentation]

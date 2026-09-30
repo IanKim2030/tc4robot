@@ -116,9 +116,9 @@ ${CDS_NOTI_PATH_CELL}     ${EMPTY}         # BSUBS→PCF Cell List 의 :path 조
 # 이 표를 보고 알림 상대를 정하므로, 세션이 없으면 전문이 정상 처리돼도 PCF 로
 # 아무것도 나가지 않는다 — 그러면 TC-CDS-003 의 Noti 판정이 이유 없이 실패한다.
 #
-# ★ 이 슈트에서 **유일하게 PDB 에 쓰는 경로**다(나머지는 전부 SELECT).
-#   SM_POLICY_ID 가 이미 있으면 넣지 않는다(멱등) — 기존 세션을 건드리지 않는다.
-#   지우지도 않는다. Suite Teardown 에서 정리하지 않으므로 행은 남는다.
+# ★ SM_POLICY_ID 가 이미 있으면 넣지 않는다(멱등) — 기존 세션을 건드리지 않는다.
+#   슈트가 끝나면 Suite Teardown 의 종료 시 정리(cleanup, 아래 ${CDS_CLEANUP_ON_TEARDOWN})
+#   가 이 표도 함께 지운다 — 다음 실행이 새로 멱등 INSERT 를 하게 된다.
 #
 # ★ **두 건을 심는다.** 기본 번호(${CDS_MDN})와 D3 이후 번호(${CDS_NEW_MDN}) 각각이다 —
 #   아래 "2번 세션" 블록 참조.
@@ -591,6 +591,26 @@ ${CDS_PRECHECK}           ${TRUE}          # 사전 확인 수행 여부
 #   bash run_tests.sh cds --precheck-ask     # 물어보게 하기 (화면이 있을 때)
 #   bash run_tests.sh cds --no-precheck      # 확인 자체를 생략
 ${CDS_PRECHECK_MODE}      report
+
+# ── 종료 시 정리(cleanup, Suite Teardown) — 두 대상 번호의 행 삭제 ──────
+# 매 실행이 002(A1)로 새로 가입시키는 것을 전제로 한다. 위 "사전 확인"은 잔존
+# 행을 **찾기만** 하지 지우지는 않는다 — 이 옵션은 슈트가 끝날 때 실제로 지워서
+# **다음 실행이 잔존 데이터 없이 시작**하게 한다.
+#
+# ★ 대상은 ${CDS_DB_TBL_PROFILE} · ${CDS_DB_TBL_SERVICE} · ${CDS_DB_TBL_SESSION}
+#   셋이다(2026-09-30 세션 표 추가). 예약 큐(${CDS_DB_TBL_RESERVED})만 이 옵션의
+#   범위 밖이다 — 지우지 않는다.
+#
+# ${PDB_CONNSTR_2} 로 두 번째 DB 가 붙어 있으면(${CDS_DB_CONN_2}) **그쪽도 같이**
+# 지운다 — 세션 이중 적재(Ensure CDS Session In PDB)와 같은 정책이다.
+#
+#   bash run_tests.sh cds --no-cleanup   # 껐다 — 기존처럼 행이 남는다
+#   bash run_tests.sh cds --cleanup      # 켰다 (기본값과 같음, 명시용)
+${CDS_CLEANUP_ON_TEARDOWN}    ${TRUE}    # Suite Teardown 에서 PROFILE/SERVICE/SESSION 삭제 여부
+
+${CDS_DB_SQL_DELETE_SERVICE}    DELETE FROM ${CDS_DB_TBL_SERVICE} WHERE MDN IN (?, ?)
+${CDS_DB_SQL_DELETE_PROFILE}    DELETE FROM ${CDS_DB_TBL_PROFILE} WHERE MDN IN (?, ?)
+${CDS_DB_SQL_DELETE_SESSION}    DELETE FROM ${CDS_DB_TBL_SESSION} WHERE MDN IN (?, ?)
 
 # 1X(HFC/ZONE 가입) — SVC_ID + SVC_TYPE + JOB_CODE 를 모두 만족하는 행이 1건 이상이어야 한다.
 # 해지(1Y) 판정은 위 ${CDS_DB_SQL_SERVICE}(MDN+SVC_ID) 를 그대로 쓰고 0 을 기대한다.
