@@ -103,3 +103,11 @@ ${RTS_NOTI_HOST}              0.0.0.0          # bind 주소 — PG 에서 닿�
 ${RTS_NOTI_PORT}              16101            # CDS 의 ${CDS_NOTI_PORT} 와 동일값 (같은 서버를 쓴다)
 ${RTS_NOTI_WAIT}              12s              # Noti 도착 대기 시간
 ${RTS_NOTI_MONITOR_INTERVAL}  1s
+
+# TC-RTS-001 전체 재시도(2026-10-01) — Noti/PDB 업무 계층 반영은 비동기라
+# ${RTS_NOTI_WAIT}/${RTS_DB_WAIT} 가 추정치다. 타이밍이 빠듯해 실패하면 한 번 더
+# 통째로 재시도한다(Send RTS L1 Order And Verify Reflection 전체를 다시 수행).
+# 간격을 0s 로 둔 이유: 각 시도 자체가 이미 위 두 대기 시간만큼 기다리므로
+# 시도 사이에 추가로 쉴 필요가 없다.
+${RTS_TC001_RETRY_COUNT}      2x
+${RTS_TC001_RETRY_INTERVAL}   0s

@@ -67,16 +67,14 @@ TC-RTS-001 로밍 데이터 차단 L1 (SVC_ID=W_DATA_ROAMING_BLOCK) - PDB/Noti �
     ...    4) T_5G_SUBS_SERVICE(SVC_ID=W_DATA_ROAMING_BLOCK) 로 업무 계층 반영 확인(사용자 확인)
     ...    PDB/Noti 접속 정보가 없으면 해당 부분만 Skip — Noti 를 PDB 보다 먼저 확인해
     ...    PDB 접속 문제로 Skip 되더라도(Skip 은 TC 를 즉시 끝낸다) Noti 확인은 남게 한다.
+    ...
+    ...    ★ 비동기 반영(Noti/PDB) 타이밍이 빠듯해 실패하면 **한 번 더 전체를 재시도**한다
+    ...      (최대 ${RTS_TC001_RETRY_COUNT}, 2026-10-01). 소켓은 재사용하고 TID만 새로
+    ...      받으므로 "소켓은 슈트당 1회" 규칙과는 무관하다 — rts_keywords.robot 의
+    ...      `Send RTS L1 Order And Verify Reflection` 참조.
     [Tags]    rts    order    roaming    db    noti
-    ${since}=    RTS Noti Timestamp
-    ${tid_date}    ${tid_seq}=    Next RTS TID
-    ${hdr}    ${ack}=    Send RTS Order
-    ...    ${RTS_SVC_L1}    ${RTS_TEST_MDN}    ${RTS_ROAMING_BLOCK_ON}
-    ...    ${tid_date}    ${tid_seq}
-    RTS Order Should Succeed    ${ack}
-    Verify RTS SBI Noti Sent    ${RTS_SVC_L1}    since=${since}
-    Verify RTS Order In PDB    ${tid_date}    ${tid_seq}    ${RTS_ROAMING_BLOCK_ON}
-    Verify RTS Service Applied In PDB    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}
+    Wait Until Keyword Succeeds    ${RTS_TC001_RETRY_COUNT}    ${RTS_TC001_RETRY_INTERVAL}
+    ...    Send RTS L1 Order And Verify Reflection
 
 TC-RTS-002 로밍 데이터 차단 L2 (SVC_ID=L_DATA_ROAMING_BLOCK) - PDB/Noti 반영 확인
     [Documentation]

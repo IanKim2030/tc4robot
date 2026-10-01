@@ -168,6 +168,7 @@ Order 부터 `PG.SDM_5G` 폴링·`T_5G_SUBS_SERVICE` 반영·SBI Noti 까지 한
 - **MDN 10자리 재배치** — 위 참조.
 - **Keepalive Ack 는 Order Ack 과 폭이 다르다** — 2B(REASON 만) vs 4B(RESULT+REASON). `RtsHelper.py` 의 ack 파서를 msg_id 별로 분리해 둔 이유.
 - **Release(9) 에 PG 응답이 없다** — `RecvReleaseRequest` 가 로그만 남기고 `false`를 반환할 뿐이라, `Suite RTS Disconnect` 는 ACK 를 기다리지 않고 바로 소켓을 닫는다.
+- **TC-RTS-001 은 실패하면 한 번 더 전체를 재시도한다(2026-10-01)** — Noti 도착·PDB 업무 계층 반영의 전파 지연값(`${RTS_NOTI_WAIT}`/`${RTS_DB_WAIT}`)이 위 "확인 필요"대로 아직 추정치라, 타이밍이 빠듯하면 간헐적으로 실패할 수 있어서다. `${RTS_TC001_RETRY_COUNT}`(기본 `2x`)로 조정한다 — `rts_keywords.robot` 의 `Send RTS L1 Order And Verify Reflection` 참조.
 
 ## 확인 필요
 

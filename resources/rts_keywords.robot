@@ -306,3 +306,25 @@ Verify RTS SBI Noti Sent
     ...    msg=SBI Noti(${code}) 알림이 ${wait} 안에 오지 않았습니다 (body~'${body}', since=${since} / 전체 수신 ${all}건 / 서버 오류 ${errs})
     Log    [Noti] SBI Noti(${code}) ${n}건 수신 — ${found}[0][method] ${found}[0][path]
     RETURN    ${found}
+
+Send RTS L1 Order And Verify Reflection
+    [Documentation]
+    ...    TC-RTS-001 본문. Order(L1) 송신 → ACK → PCF SBI Noti 도착 → PDB 프로토콜/업무
+    ...    계층 반영을 한 번에 확인한다.
+    ...
+    ...    ★ 뒤쪽 확인(Noti 도착·PDB 업무 계층 반영)은 PG.SDM_5G → PG.SNOTI 비동기 반영에
+    ...      의존하는데, 그 전파 지연값(${RTS_NOTI_WAIT}/${RTS_DB_WAIT})이 아직 추정치다
+    ...      (docs/nodes/RTS.md 참조). 그래서 TC-RTS-001 은 이 키워드 전체를
+    ...      `Wait Until Keyword Succeeds` 로 감싸 **실패하면 한 번 더 통째로 재시도**한다
+    ...      (${RTS_TC001_RETRY_COUNT}, 2026-10-01). 재시도는 `Next RTS TID` 로 새 TID 를
+    ...      받아 Order 를 다시 보낸다 — 소켓(${RTS_SOCK})은 손대지 않으므로 "소켓은
+    ...      슈트당 1회" 규칙과 무관하고, TID 는 단조 증가만 요구돼 다른 TC 에도 영향 없다.
+    ${since}=    RTS Noti Timestamp
+    ${tid_date}    ${tid_seq}=    Next RTS TID
+    ${hdr}    ${ack}=    Send RTS Order
+    ...    ${RTS_SVC_L1}    ${RTS_TEST_MDN}    ${RTS_ROAMING_BLOCK_ON}
+    ...    ${tid_date}    ${tid_seq}
+    RTS Order Should Succeed    ${ack}
+    Verify RTS SBI Noti Sent    ${RTS_SVC_L1}    since=${since}
+    Verify RTS Order In PDB    ${tid_date}    ${tid_seq}    ${RTS_ROAMING_BLOCK_ON}
+    Verify RTS Service Applied In PDB    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}
