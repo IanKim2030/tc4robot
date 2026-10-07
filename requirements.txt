@@ -2,8 +2,8 @@
 #
 #   pip install -r requirements.txt
 #
-# 버전을 고정하지 않는다 — 세 패키지 모두 이 리포가 쓰는 API 가 안정적이고,
-# 환경(사내 미러/오프라인)마다 받을 수 있는 버전이 달라서다.
+# 버전을 고정하지 않는다 — 두 패키지(pyodbc/h2) 모두 이 리포가 쓰는 API 가
+# 안정적이고, 환경(사내 미러/오프라인)마다 받을 수 있는 버전이 달라서다.
 
 robotframework
 
@@ -19,6 +19,8 @@ pyodbc
 # hpack / hyperframe 이 딸려 온다. CDS 슈트의 ${CDS_NOTI_VERIFY} 를 끄면 없어도 된다.
 h2
 
-# PG 프로세스 .RUN 파일 touch 용(resources/SshHelper.py 가 **지연 임포트**).
+# PG 프로세스 .RUN 파일 touch 용(resources/SshHelper.py) — pip 패키지가 아니라
+# **OS 명령**이 필요하다. 시스템 ssh 를 그대로 호출한다(라이브러리 없음).
+#   · 키 인증(${PG_SSH_KEY_FILE})  : ssh 만 있으면 된다
+#   · 비밀번호 인증(PG_SSH_PASSWORD) : sshpass 도 필요하다 (apt/yum install sshpass)
 # ${PG_SSH_USER} 가 비어 있으면(기본) 아예 안 쓰이므로 없어도 슈트는 돈다.
-paramiko

@@ -34,10 +34,13 @@
 #   bash run_tests.sh rts --no-sbi          # PCF SBI Listen(${RTS_NOTI_PORT}) 자체를 안 함 (h2 불필요)
 #   (--no-sbi/--sbi 는 CDS/RTS 공용 플래그다 — 대상 슈트가 안 쓰는 쪽 변수는 무시된다)
 #
-# PG 프로세스 기동 보장 (SSH, nag/lrs/cds/rts 공용) — Suite Setup 이 슈트가
+# PG 프로세스 기동 보장 (SSH, nag/lrs/pcf/cds/rts 공용) — Suite Setup 이 슈트가
 # 의존하는 PG 프로세스의 .RUN 파일을 touch 한다. 계정 정보(${PG_SSH_USER},
 # resources/variables.robot)가 없으면 이 플래그와 무관하게 원래 건너뛴다.
 #   bash run_tests.sh cds --no-ssh-ensure   # SSH 자체를 시도하지 않음
+# ★ 계정 정보를 채워서 "쓰기로 한" 뒤에는 실패를 조용히 넘기지 않는다 —
+#   ssh/sshpass 가 없거나 접속·명령이 실패하면 그 슈트의 Suite Setup 이
+#   실패해 TC 가 한 건도 돌지 않는다(resources/ssh_keywords.robot 참조).
 #
 # CDS 사전 확인 — 두 대상 번호의 잔존 데이터를 네 표에서 센다.
 #   **기본은 리포트만 하고 그대로 진행한다.** 아래는 그 동작을 바꿀 때만 쓴다.
