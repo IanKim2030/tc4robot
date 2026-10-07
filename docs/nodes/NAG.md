@@ -22,14 +22,21 @@
 NAG 슈트는 소켓 두 개를 쓴다.
 
 ```
-① Suite Connect NAG      : NAG 클라이언트 소켓(8012) 연결       → ${NAG_SOCK}
-② Suite LRS Accept       : LRS-PCF 서버 소켓(8890) Listen/accept → ${LRS_CONN}
-③ Handle LRS Hello       : PG 의 Hello-Request(0x01) 수신 → Hello-Response(0x02) 회신
+① Suite LRS Accept       : LRS-PCF 서버 소켓(8890) Listen/accept → ${LRS_CONN}
+② Handle LRS Hello       : PG 의 Hello-Request(0x01) 수신 → Hello-Response(0x02) 회신
+③ Suite Connect NAG      : NAG 클라이언트 소켓(8012) 연결       → ${NAG_SOCK}
 ```
 
 **왜 필요한가** — Subs-Cellid TC 가 `0x0b` 를 보내면 PG 는 응답을 바로 주지 않고
 **LRS-PCF 채널로 `0x05` Location-Info-Request 를 되돌려 보낸다.** 도구가 `0x06` 으로
-위치를 답해야 PG 가 비로소 `0x0c` 응답을 완성한다. 그래서 ②③ 이 TC 실행 전에 끝나 있어야 한다.
+위치를 답해야 PG 가 비로소 `0x0c` 응답을 완성한다. 그래서 ①② 이 TC 실행 전에 끝나 있어야 한다.
+
+★ **순서가 ①②→③인 이유(2026-10-07)**: ③을 먼저 하면 PG.LRS 쪽 재접속이 느릴 때(특히
+`run_tests.sh all` 로 LRS 슈트 바로 뒤에 돌 때) `${NAG_SOCK}`이 그 대기 시간만큼 idle 상태로
+남다가 PG.BNOTI 에게 `Connection reset by peer`로 끊긴 사례가 있었다(NAG 단독 실행에서는
+재현 안 됨). 느리고 PG.LRS 의존적인 ①②를 먼저 끝내고 ③(NAG 소켓)은 TC 가 바로 쓰기 직전,
+가장 마지막에 연다 — 상세는 [callflow/nag_callflow.md](../callflow/nag_callflow.md) 의
+"Suite Setup — 듀얼 소켓" 절.
 
 리포에 스레드가 없으므로 이 왕복은 **송신과 수신을 분리**해 처리한다:
 ```robot

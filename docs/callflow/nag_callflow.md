@@ -48,20 +48,29 @@
 sequenceDiagram
     autonumber
     participant TOOL as ROBOT (NAG 역할)
-    participant PG as PG.BNOTI (8012)
     participant SRV as ROBOT (PCRF/PCF 역할, 8890 Listen)
     participant PLRS as PG.LRS (LRS-PCF 채널)
+    participant PG as PG.BNOTI (8012)
 
-    TOOL->>PG: ① Suite Connect NAG — TCP connect 8012 → ${NAG_SOCK}
-    Note over SRV: ② Suite LRS Accept — 0.0.0.0:8890 Listen
+    Note over SRV: ① Suite LRS Accept — 0.0.0.0:8890 Listen
     PLRS->>SRV: TCP connect (출발지 IP 가 ${LRS_ALLOWED_PEER_IPS} 일 때만 수락) → ${LRS_CONN}
-    PLRS->>SRV: ③ Hello-Request (0x01) — SYS_ID(4)+BRANCH_NAME(2)
+    PLRS->>SRV: ② Hello-Request (0x01) — SYS_ID(4)+BRANCH_NAME(2)
     SRV-->>PLRS: Hello-Response (0x02) — RESULT_CODE(4)+INTERVAL(4), byte0=0x00
     Note over SRV,PLRS: ★ byte0 는 표준 LRS 의 0x20 이 아니라 **0x00** — 슈트가 ${LRS_TX_BYTE0}=0 으로 덮는다
+    TOOL->>PG: ③ Suite Connect NAG — TCP connect 8012 → ${NAG_SOCK} (가장 마지막에 연다)
 ```
 
 **NAG Hello(0x01)는 Suite Setup 이 하지 않는다** — `TC-NAG-001` 이 직접 보낸다. 다른 슈트와 다른 점이다.
 곁채널 Hello 만 Setup 에서 처리한다(PG 가 먼저 보내오므로 안 받으면 이후가 막힌다).
+
+★ **순서가 ①②→③인 이유(2026-10-07)** — `Suite Connect NAG` 를 먼저 하면, 그 뒤에 이어지는
+`Suite LRS Accept`/`Handle LRS Hello`(PG.LRS 쪽 재접속 — 느릴 수 있다) 동안 `${NAG_SOCK}`
+(8012)이 아무것도 안 보내고 **그만큼 더 길게 idle 상태**로 남는다. `run_tests.sh all` 로
+LRS 슈트 바로 뒤에 NAG 가 돌 때 이 idle 구간이 길어져 PG.BNOTI 가 `TC-NAG-001` 의 Hello
+송신 시점에 `Connection reset by peer`로 연결을 끊는 사례가 있었다(NAG 단독 실행에서는
+재현 안 됨). 느리고 PG.LRS 의존적인 ①②를 먼저 끝내고 `${NAG_SOCK}`은 TC 가 바로 쓰기
+직전(가장 마지막)에 열어 idle 구간을 최소화했다 — 근본 원인(PG.BNOTI 의 idle 타임아웃
+정책 자체)은 PG 소스 확인 전이라 추정이다.
 
 ## 콜플로우 ① — Hello / Ping (`TC-NAG-001` `002`)
 

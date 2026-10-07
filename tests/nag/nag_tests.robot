@@ -2,10 +2,17 @@
 Documentation
 ...    NAG 기능 검증 - msg_type 기준 (공유 소켓)
 ...
-...    Suite Setup  : NAG → PG.BNOTI(${NAG_PG_PORT}) 소켓 연결 → ${NAG_SOCK} 공유
-...                   + PCF 서버 소켓(${LRS_SERVER_PORT}) Listen → PG.LRS 접속 수락 (${LRS_CONN})
+...    Suite Setup  : PCF 서버 소켓(${LRS_SERVER_PORT}) Listen → PG.LRS 접속 수락 (${LRS_CONN})
 ...                   → PCF Hello-Request(0x01) 수신 → Hello-Response(0x02) 처리
+...                   → **그 다음에** NAG → PG.BNOTI(${NAG_PG_PORT}) 소켓 연결 → ${NAG_SOCK} 공유
 ...                   (NAG Hello 는 TC-NAG-001 에서 직접 수행)
+...
+...    ★ 순서가 중요하다(2026-10-07) — `run_tests.sh all` 로 LRS 슈트 바로 뒤에 NAG 가
+...      돌 때, PG.LRS 쪽 재접속이 더 오래 걸리는 경우가 있다. NAG 소켓(8012)을 먼저 열고
+...      그 대기를 하면 TC-NAG-001 이 Hello 를 보낼 때까지 8012 소켓이 그만큼 더 오래
+...      idle 상태로 남아 있다가 PG 쪽에서 "Connection reset by peer"로 끊긴 사례가 있었다.
+...      그래서 **느리고 PG.LRS 에 의존하는 ①②를 먼저 끝내고, NAG 소켓은 가장 마지막에
+...      (TC-NAG-001 이 쓰기 직전에) 연다.**
 ...    Test Setup   : NAG 소켓 상태 확인 (닫히면 Suite 중단)
 ...    각 TC        : ${NAG_SOCK} 공유 사용, TC별 연결/해제 없음
 
@@ -17,9 +24,9 @@ Resource    ../../resources/lrs_keywords.robot
 
 
 Suite Setup      Run Keywords
-...              Suite Connect NAG    AND
 ...              Suite LRS Accept    AND
-...              Handle LRS Hello
+...              Handle LRS Hello    AND
+...              Suite Connect NAG
 Suite Teardown   Run Keywords
 ...              Suite LRS Disconnect    AND
 ...              Suite Disconnect NAG
