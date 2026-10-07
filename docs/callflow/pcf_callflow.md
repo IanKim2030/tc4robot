@@ -51,6 +51,15 @@ sequenceDiagram
 `txn_id` 는 **두 소켓이 하나의 전역 카운터(`Next TXN ID`)를 공유**한다. 소켓별로 나뉘어 있지
 않으므로 로그에서 txn 값만 보고 어느 채널인지 판단하면 안 된다.
 
+## PG 프로세스 목록
+
+| 프로세스 | 하는 일 | 기동 플래그 |
+|---|---|---|
+| `CDS201` | **사전 기동 필수** — ZONE 알림 대상 가입자 데이터를 `PG.CDS` 가 적재(NAG/LRS 와 같은 이유, 사용자 확인) | `/PG/BIN/PDB_RUN/CDS201.RUN` |
+
+`Suite Connect With NAG` 가 소켓을 열기 전에 `Ensure PG Process Running`으로 깨운다(SSH
+계정 정보가 없으면 조용히 건너뛴다 — `ssh_keywords.robot` 참조).
+
 ## 콜플로우 — Zone-InOut + ZION (주력)
 
 슈트의 본체다. **한 번의 논리적 흐름이 TC 두 개로 쪼개져 있다** — 0x05 를 보내는 TC 와

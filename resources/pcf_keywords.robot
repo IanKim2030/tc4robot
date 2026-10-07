@@ -24,6 +24,7 @@ Library    BuiltIn
 Library    ${CURDIR}/TcpHelper.py    WITH NAME    Tcp
 Resource   ${CURDIR}/common_keywords.robot
 Resource   ${CURDIR}/nag_keywords.robot
+Resource   ${CURDIR}/ssh_keywords.robot
 
 *** Variables ***
 ${PCF_SOCK}      ${NONE}
@@ -41,6 +42,10 @@ Suite Connect With NAG
     ...    1) NAG → PG(8012) Hello → NAG 세션 등록
     ...    2) PCF → PG(8011) 연결 + Hello
     [Arguments]    ${pcf_host}    ${pcf_port}    ${timeout}=10
+    # 소켓을 열기 전에 이 슈트가 의존하는 PG 프로세스가 죽어 있으면 깨운다
+    # (NAG/LRS 와 같은 이유, 사용자 확인, 2026-10-07) — 계정 정보가 없으면
+    # 조용히 건너뛴다. ssh_keywords.robot 참조.
+    Ensure PG Process Running    CDS201
     Log    [Suite] NAG 세션 선등록 → ${NAG_PG_HOST}:${NAG_PG_PORT}    console=True
     ${nag_sock}=    Tcp.Tcp Connect    ${NAG_PG_HOST}    ${NAG_PG_PORT}    ${timeout}
     Set Suite Variable    ${NAG_SOCK}    ${nag_sock}

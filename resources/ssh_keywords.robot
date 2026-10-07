@@ -31,9 +31,9 @@ Ensure PG Process Running
     ...    touch 한다(예: CDS201 → /PG/BIN/PDB_RUN/CDS201.RUN).
     ...
     ...    각 노드 콜플로우 문서의 "PG 프로세스 목록" 표에 있는 이름을 그대로 쓴다
-    ...    (예: docs/callflow/nag_callflow.md, docs/callflow/cds_callflow.md).
-    ...    표에 `.RUN` 경로가 없는 노드(PCF/UPM/NWDAF)는 아직 확인되지 않았으므로
-    ...    이 키워드를 부르지 않는다 — 지어내지 않는다.
+    ...    (예: docs/callflow/nag_callflow.md, docs/callflow/cds_callflow.md,
+    ...    docs/callflow/pcf_callflow.md). 표에 `.RUN` 경로가 없는 노드(UPM/NWDAF)는
+    ...    아직 확인되지 않았으므로 이 키워드를 부르지 않는다 — 지어내지 않는다.
     [Arguments]    @{processes}
     IF    not ${PG_SSH_ENSURE}
         RETURN

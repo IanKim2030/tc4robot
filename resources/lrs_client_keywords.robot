@@ -61,7 +61,9 @@ Suite Connect LRS Client
     # 소켓을 열기 전에 이 슈트가 의존하는 PG 프로세스가 죽어 있으면 깨운다
     # (docs/callflow/lrs_callflow.md 의 "PG 프로세스 목록"). 계정 정보가
     # 없으면 조용히 건너뛴다 — ssh_keywords.robot 참조.
-    Ensure PG Process Running    G_LRS201
+    # CDS201 도 같이 깨운다 — Session-Info 가 조회하는 가입자 데이터를 PG.CDS 가
+    # 적재하므로(NAG 와 같은 이유, 사용자 확인, 2026-10-07).
+    Ensure PG Process Running    G_LRS201    CDS201
     Log    [Suite] LRS 클라이언트 연결 시작 → ${host}:${port} (HC 주기 ${interval}s)    console=True
     ${sock}=    Tcp.Tcp Connect    ${host}    ${port}    ${timeout}
     Set Suite Variable    ${LRS_CLIENT_SOCK}    ${sock}
