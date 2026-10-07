@@ -20,16 +20,18 @@ Documentation
 ...      · ${PG_SSH_USER} 가 비어 있음 (계정 정보 미설정)
 ...
 ...    [그 외는 전부 실패로 본다 — 2026-10-07] ${PG_SSH_USER} 를 채워 **쓰기로
-...    한 뒤**에는 조용히 넘어가지 않는다. `ssh`/`sshpass`(비밀번호 인증일 때)
-...    명령이 없거나, 접속·인증·명령 실행이 실패하면 `SshHelper.SshEnsureError`
-...    가 올라온다. 이 키워드는 각 슈트의 **Suite Setup**에서 불리므로, 이
-...    예외가 그대로 Setup 을 실패시켜 **그 슈트의 TC 가 한 건도 돌지 않는다**
-...    — CDS201 등이 실제로 안 떠 있는 채로 TC 가 돌아가 9999/Connection reset
-...    같은 증상으로 헤매는 것을 막기 위함이다(조용히 넘어갈 문제가 아니라는
-...    사용자 확인). `--no-ssh-ensure` 로 이 기능 자체를 끄는 것과는 다르다.
+...    한 뒤**에는 조용히 넘어가지 않는다. `ssh` 명령이 없거나, 접속·인증·명령
+...    실행이 실패하면 `SshHelper.SshEnsureError` 가 올라온다. 이 키워드는 각
+...    슈트의 **Suite Setup**에서 불리므로, 이 예외가 그대로 Setup 을 실패시켜
+...    **그 슈트의 TC 가 한 건도 돌지 않는다** — CDS201 등이 실제로 안 떠 있는
+...    채로 TC 가 돌아가 9999/Connection reset 같은 증상으로 헤매는 것을 막기
+...    위함이다(조용히 넘어갈 문제가 아니라는 사용자 확인). `--no-ssh-ensure`
+...    로 이 기능 자체를 끄는 것과는 다르다.
 ...
-...    (SshHelper.py 는 파이썬 SSH 라이브러리가 아니라 시스템 ssh/sshpass 를
-...    subprocess 로 그대로 부른다 — 둘 다 OS 명령이라 pip 설치가 없다.)
+...    (SshHelper.py 는 파이썬 SSH 라이브러리가 아니라 시스템 `ssh` 를
+...    subprocess 로 그대로 부른다 — OS 명령이라 pip 설치가 없다. 비밀번호
+...    인증도 sshpass 없이 OpenSSH 의 SSH_ASKPASS 로 자동 주입한다 — 폐쇄망
+...    에서 패키지 추가 설치가 어려워서다.)
 Library    ${CURDIR}/SshHelper.py    WITH NAME    Ssh
 
 

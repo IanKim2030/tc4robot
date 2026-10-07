@@ -39,7 +39,7 @@
 # resources/variables.robot)가 없으면 이 플래그와 무관하게 원래 건너뛴다.
 #   bash run_tests.sh cds --no-ssh-ensure   # SSH 자체를 시도하지 않음
 # ★ 계정 정보를 채워서 "쓰기로 한" 뒤에는 실패를 조용히 넘기지 않는다 —
-#   ssh/sshpass 가 없거나 접속·명령이 실패하면 그 슈트의 Suite Setup 이
+#   ssh 가 없거나 접속·명령이 실패하면 그 슈트의 Suite Setup 이
 #   실패해 TC 가 한 건도 돌지 않는다(resources/ssh_keywords.robot 참조).
 #
 # CDS 사전 확인 — 두 대상 번호의 잔존 데이터를 네 표에서 센다.
