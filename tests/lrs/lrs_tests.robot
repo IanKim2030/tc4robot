@@ -16,7 +16,8 @@ Documentation
 ...      TC-LRS-002 는 HTTP 송신/수신을 분리해 그 사이 Handle LRS Location Info 로 0x06 응답(단일 스레드).
 ...
 ...    [Suite 소켓 정책]
-...    Suite Setup    : Suite Connect LRS Client(→PG.LRS 10204) + Suite LRS Accept(8890) + Handle LRS Hello
+...    Suite Setup    : Ensure PG Process Running(G_LRS201/CDS201) + Suite Connect LRS Client
+...                     (→PG.LRS 10204) + Suite LRS Accept(8890) + Handle LRS Hello
 ...    Test Setup     : Check LRS Client Socket (닫히면 Suite 즉시 중단)
 ...    Suite Teardown : Suite LRS Disconnect + Suite Disconnect LRS Client
 ...    각 TC          : ${LRS_CLIENT_SOCK} 공유 (TC-LRS-002 는 ${LRS_CONN} 도 사용)
@@ -26,10 +27,12 @@ Documentation
 Resource    ../../resources/variables.robot
 Resource    ../../resources/lrs_variables.robot
 Resource    ../../resources/common_keywords.robot
+Resource    ../../resources/ssh_keywords.robot
 Resource    ../../resources/lrs_client_keywords.robot
 Resource    ../../resources/lrs_keywords.robot
 
 Suite Setup      Run Keywords
+...              Ensure PG Process Running    G_LRS201    CDS201    AND
 ...              Suite Connect LRS Client    AND
 ...              Suite LRS Accept    AND
 ...              Handle LRS Hello

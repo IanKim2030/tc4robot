@@ -2,7 +2,8 @@
 Documentation
 ...    NAG 기능 검증 - msg_type 기준 (공유 소켓)
 ...
-...    Suite Setup  : PCF 서버 소켓(${LRS_SERVER_PORT}) Listen → PG.LRS 접속 수락 (${LRS_CONN})
+...    Suite Setup  : Ensure PG Process Running(G_BNOTI201/G_LRS201/CDS201)
+...                   → PCF 서버 소켓(${LRS_SERVER_PORT}) Listen → PG.LRS 접속 수락 (${LRS_CONN})
 ...                   → PCF Hello-Request(0x01) 수신 → Hello-Response(0x02) 처리
 ...                   → **그 다음에** NAG → PG.BNOTI(${NAG_PG_PORT}) 소켓 연결 → ${NAG_SOCK} 공유
 ...                   (NAG Hello 는 TC-NAG-001 에서 직접 수행)
@@ -19,11 +20,13 @@ Documentation
 Resource    ../../resources/variables.robot
 Resource    ../../resources/nag_variables.robot
 Resource    ../../resources/common_keywords.robot
+Resource    ../../resources/ssh_keywords.robot
 Resource    ../../resources/nag_keywords.robot
 Resource    ../../resources/lrs_keywords.robot
 
 
 Suite Setup      Run Keywords
+...              Ensure PG Process Running    G_BNOTI201    G_LRS201    CDS201    AND
 ...              Suite LRS Accept    AND
 ...              Handle LRS Hello    AND
 ...              Suite Connect NAG
