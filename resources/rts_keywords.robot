@@ -297,7 +297,7 @@ RTS Precheck Existing Service Rows
         RETURN
     END
     TRY
-        ${count}=    RtsDb.Db Count    ${RTS_DB_SQL_PRECHECK_SERVICE}
+        ${count}=    RtsDb.Db Count    ${conn}    ${RTS_DB_SQL_PRECHECK_SERVICE}
         ...    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}    ${RTS_SVC_ID_L_DATA_ROAMING_BLOCK}
         IF    ${count} > 0
             Log    [Suite] RTS 잔존 데이터 ${count}건 — T_5G_SUBS_SERVICE(MDN=${RTS_TEST_MDN}, SVC_ID=W/L_DATA_ROAMING_BLOCK). 이전 실행이 못 지운 행일 수 있습니다(RTS_CLEANUP_ON_TEARDOWN 참고).
@@ -329,7 +329,7 @@ Cleanup RTS Service Rows
     IF    '${status}' != 'PASS'
         RETURN
     END
-    ${del_status}    ${result}=    Run Keyword And Ignore Error    RtsDb.Db Execute
+    ${del_status}    ${result}=    Run Keyword And Ignore Error    RtsDb.Db Execute    ${conn}
     ...    ${RTS_DB_SQL_DELETE_SERVICE}
     ...    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}    ${RTS_SVC_ID_L_DATA_ROAMING_BLOCK}
     IF    '${del_status}' == 'PASS'
