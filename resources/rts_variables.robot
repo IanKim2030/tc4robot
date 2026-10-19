@@ -91,9 +91,12 @@ ${RTS_DATA_SIZE_OVERSIZED}   600
 ${RTS_DB_WAIT}            10s
 ${RTS_DB_WAIT_INTERVAL}   2s
 
-# 사전 확인 / 종료 시 정리 — CDS 의 ${CDS_CLEANUP_ON_TEARDOWN} 과 같은 목적이지만
-# 범위는 좁다. RTS 는 가입자를 만들지 않는다(A1 은 CDS 영역) — 자기가 심은 두
-# SVC_ID 행(W_DATA_ROAMING_BLOCK/L_DATA_ROAMING_BLOCK, ${RTS_TEST_MDN})만 본다.
+# 사전 확인 / 종료 시 정리 — CDS 의 ${CDS_CLEANUP_ON_TEARDOWN} 과 같은 목적이다.
+# ★ RTS 도 PROFILE 을 건드린다(사용자 확인, 2026-10-19) — "RTS 는 가입자를
+#   안 만든다"던 처음 추정은 틀렸다. PG 가 L1/L2 를 반영할 때 T_5G_SUBS_PROFILE
+#   도 같이 upsert 하는 것으로 보인다. 그래서 CDS 와 동형으로 PROFILE/SERVICE
+#   둘 다 지운다 — 다만 RTS 는 MDN 이 하나뿐이라(D3 같은 번호변경이 없다)
+#   SVC_ID 조건은 SERVICE 쪽에만, PROFILE 쪽은 MDN 하나로 건다.
 # SQL 은 CDS 와 같은 관례대로 리터럴을 여기 두고 키워드는 변수만 참조한다.
 ${RTS_CLEANUP_ON_TEARDOWN}   ${TRUE}
 # `run_tests.sh rts --no-cleanup`(CDS 와 공용 플래그)로 끌 수 있다.
@@ -101,8 +104,16 @@ ${RTS_CLEANUP_ON_TEARDOWN}   ${TRUE}
 ${RTS_DB_SQL_PRECHECK_SERVICE}
 ...    SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID IN (?, ?)
 
+${RTS_DB_SQL_PRECHECK_PROFILE}
+...    SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?
+
+# 삭제 순서 주의 — SERVICE(자식) 먼저, PROFILE(부모) 나중. CDS 의 Cleanup CDS
+# Subscriber Rows 도 같은 순서다(FK 로 추정, cds_variables.robot 참조).
 ${RTS_DB_SQL_DELETE_SERVICE}
 ...    DELETE FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID IN (?, ?)
+
+${RTS_DB_SQL_DELETE_PROFILE}
+...    DELETE FROM T_5G_SUBS_PROFILE WHERE MDN = ?
 
 # ════════════════════════════════════════════
 # PCF SBI Noti 수신 검증 — CDS 와 같은 메커니즘/대상 포트(사용자 확인: RTS 의

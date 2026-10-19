@@ -71,9 +71,9 @@ Suite RTS Connect
     Set Suite Variable    ${RTS_TID_DATE}    ${ack}[tid_date]
     Set Suite Variable    ${RTS_TID_SEQ}     ${ack}[tid_seq]
     Log    [Suite] RTS Connect 성공 tid=${RTS_TID_DATE}/${RTS_TID_SEQ}    console=True
-    # 사전 확인 — 이전 실행이 지우지 못한 L1/L2 반영 행이 있는지 리포트만 한다
-    # (지우지는 않는다 — Cleanup RTS Service Rows 는 Suite Teardown 전용).
-    RTS Precheck Existing Service Rows
+    # 사전 확인 — 이전 실행이 지우지 못한 행(PROFILE/SERVICE)이 있는지 리포트만
+    # 한다(지우지는 않는다 — Cleanup RTS Subscriber Rows 는 Suite Teardown 전용).
+    RTS Precheck Existing Subscriber Rows
     # PCF SBI Noti 수신 서버 — 도구가 PCF 역할로 Listen. CDS 의 Suite CDS Connect 와
     # 같은 패턴(소켓·DB 와 달리 PG 가 붙어 오는 쪽이라 여기서는 Listen 만 열어 둔다).
     IF    ${SNOTI_PCF_NOTI}
@@ -100,7 +100,7 @@ Suite RTS Disconnect
     # 바로 이어 도는 다음 실행이 bind 에서 실패한다 → 반드시 닫는다(CDS 와 동일 이유).
     Run Keyword If    $RTS_NOTI_SRV is not None    Noti.Noti Server Stop    ${RTS_NOTI_SRV}
     # 종료 시 정리 — 소켓/Noti 와 별개의 DB 접속이라 순서는 무관하다.
-    Cleanup RTS Service Rows
+    Cleanup RTS Subscriber Rows
     Log    [Suite] RTS 연결 종료    console=True
 
 Check RTS Socket
@@ -273,19 +273,21 @@ Verify RTS Service Applied In PDB
 
 
 # ══════════════════════════════════════════════════════════════════
-# PDB 잔존 데이터 — CDS 의 Precheck/Cleanup 과 같은 목적, 범위는 좁다
-# (RTS 는 가입자를 만들지 않으니 자기가 심은 두 SVC_ID 행만 본다)
+# PDB 잔존 데이터 — CDS 의 Precheck/Cleanup 과 같은 목적.
+# RTS 도 PROFILE 을 건드린다(사용자 확인, 2026-10-19) — PROFILE 전체 +
+# SERVICE 의 두 SVC_ID(W_DATA_ROAMING_BLOCK/L_DATA_ROAMING_BLOCK) 를 본다.
 # ══════════════════════════════════════════════════════════════════
 
-RTS Precheck Existing Service Rows
+RTS Precheck Existing Subscriber Rows
     [Documentation]
     ...    CDS 의 Precheck Existing Subscriber Rows 와 같은 목적 — 이전 실행이
-    ...    중간에 끊겨 ${RTS_TEST_MDN} 에 L1/L2 반영 행(T_5G_SUBS_SERVICE,
-    ...    SVC_ID=${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}/${RTS_SVC_ID_L_DATA_ROAMING_BLOCK})이
-    ...    남아 있는지 찾아 **로그만 남긴다.** CDS 처럼 가입자 전체(PROFILE)를 보는
-    ...    게 아니라 서비스 행 두 종류뿐인 좁은 범위라, report/fail/ask 모드 선택
-    ...    없이 리포트만 한다 — 지우는 건 `Cleanup RTS Service Rows`(Suite Teardown)
-    ...    뿐이다.
+    ...    중간에 끊겨 ${RTS_TEST_MDN} 에 행이 남아 있는지 찾아 **로그만 남긴다.**
+    ...    RTS 도 PROFILE 을 건드린다(사용자 확인, 2026-10-19 — "서비스 행만
+    ...    본다"던 처음 설계는 틀렸다) — T_5G_SUBS_PROFILE(MDN 전체)과
+    ...    T_5G_SUBS_SERVICE(SVC_ID=${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}/
+    ...    ${RTS_SVC_ID_L_DATA_ROAMING_BLOCK}) 둘 다 본다. CDS 처럼 report/fail/ask
+    ...    모드 선택은 두지 않는다 — 지우는 건 `Cleanup RTS Subscriber Rows`
+    ...    (Suite Teardown)뿐이다.
     ...    PDB 접속 문자열이 없거나 접속이 안 되면 **조용히 건너뛴다** — 사전 확인은
     ...    참고 정보일 뿐이라 Suite Setup 을 막으면 안 된다.
     ${conn_str}=    Resolve RTS DB Connstr
@@ -297,10 +299,12 @@ RTS Precheck Existing Service Rows
         RETURN
     END
     TRY
-        ${count}=    RtsDb.Db Count    ${conn}    ${RTS_DB_SQL_PRECHECK_SERVICE}
+        ${count_svc}=    RtsDb.Db Count    ${conn}    ${RTS_DB_SQL_PRECHECK_SERVICE}
         ...    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}    ${RTS_SVC_ID_L_DATA_ROAMING_BLOCK}
-        IF    ${count} > 0
-            Log    [Suite] RTS 잔존 데이터 ${count}건 — T_5G_SUBS_SERVICE(MDN=${RTS_TEST_MDN}, SVC_ID=W/L_DATA_ROAMING_BLOCK). 이전 실행이 못 지운 행일 수 있습니다(RTS_CLEANUP_ON_TEARDOWN 참고).
+        ${count_prf}=    RtsDb.Db Count    ${conn}    ${RTS_DB_SQL_PRECHECK_PROFILE}    ${RTS_TEST_MDN}
+        ${total}=    Evaluate    ${count_svc} + ${count_prf}
+        IF    ${total} > 0
+            Log    [Suite] RTS 잔존 데이터 — T_5G_SUBS_SERVICE ${count_svc}건 / T_5G_SUBS_PROFILE ${count_prf}건 (MDN=${RTS_TEST_MDN}). 이전 실행이 못 지운 행일 수 있습니다(RTS_CLEANUP_ON_TEARDOWN 참고).
             ...    level=WARN    console=True
         END
     EXCEPT    AS    ${err}
@@ -308,15 +312,16 @@ RTS Precheck Existing Service Rows
     END
     RtsDb.Db Close    ${conn}
 
-Cleanup RTS Service Rows
+Cleanup RTS Subscriber Rows
     [Documentation]
     ...    **Suite Teardown 전용.** ${RTS_CLEANUP_ON_TEARDOWN}(기본 ${TRUE}) 이면
-    ...    ${RTS_TEST_MDN} 의 L1/L2 반영 행(T_5G_SUBS_SERVICE, SVC_ID=
-    ...    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}/${RTS_SVC_ID_L_DATA_ROAMING_BLOCK})만
-    ...    지운다 — CDS 처럼 PROFILE/전체 SERVICE 를 지우지 않는다. RTS 는 가입자를
-    ...    만든 적이 없으니(A1 은 CDS 영역) 자기가 심은 두 SVC_ID 행만 책임진다.
-    ...    못 지워도 Teardown 전체를 막지 않는다 — 실패해도 WARN 로그만 남기고
-    ...    나머지 Teardown(소켓 종료 등)은 그대로 진행된다.
+    ...    ${RTS_TEST_MDN} 의 T_5G_SUBS_SERVICE(SVC_ID=
+    ...    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}/${RTS_SVC_ID_L_DATA_ROAMING_BLOCK})와
+    ...    T_5G_SUBS_PROFILE 을 둘 다 지운다 — RTS 도 PROFILE 을 건드리는 것으로
+    ...    확인됐다(사용자 확인, 2026-10-19). **SERVICE 를 먼저 지우고 PROFILE 을
+    ...    나중에 지운다**(FK 로 추정 — CDS 의 Cleanup CDS Subscriber Rows 와 같은
+    ...    순서). 못 지워도 Teardown 전체를 막지 않는다 — 실패해도 WARN 로그만
+    ...    남기고 나머지 Teardown(소켓 종료 등)은 그대로 진행된다.
     IF    not ${RTS_CLEANUP_ON_TEARDOWN}
         Log    [Suite] RTS 종료 시 정리 꺼짐 (RTS_CLEANUP_ON_TEARDOWN=${RTS_CLEANUP_ON_TEARDOWN})    console=True
         RETURN
@@ -329,13 +334,15 @@ Cleanup RTS Service Rows
     IF    '${status}' != 'PASS'
         RETURN
     END
-    ${del_status}    ${result}=    Run Keyword And Ignore Error    RtsDb.Db Execute    ${conn}
+    ${svc_status}    ${n_svc}=    Run Keyword And Ignore Error    RtsDb.Db Execute    ${conn}
     ...    ${RTS_DB_SQL_DELETE_SERVICE}
     ...    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}    ${RTS_SVC_ID_L_DATA_ROAMING_BLOCK}
-    IF    '${del_status}' == 'PASS'
-        Log    [Suite] RTS 종료 시 정리 — T_5G_SUBS_SERVICE ${result}건 삭제 (MDN=${RTS_TEST_MDN})    console=True
+    ${prf_status}    ${n_prf}=    Run Keyword And Ignore Error    RtsDb.Db Execute    ${conn}
+    ...    ${RTS_DB_SQL_DELETE_PROFILE}    ${RTS_TEST_MDN}
+    IF    '${svc_status}' == 'PASS' and '${prf_status}' == 'PASS'
+        Log    [Suite] RTS 종료 시 정리 — T_5G_SUBS_SERVICE ${n_svc}건 / T_5G_SUBS_PROFILE ${n_prf}건 삭제 (MDN=${RTS_TEST_MDN})    console=True
     ELSE
-        Log    [Suite] RTS 종료 시 정리 실패 — ${result}    level=WARN    console=True
+        Log    [Suite] RTS 종료 시 정리 일부 실패 — SERVICE: ${svc_status}(${n_svc}) / PROFILE: ${prf_status}(${n_prf})    level=WARN    console=True
     END
     RtsDb.Db Close    ${conn}
 

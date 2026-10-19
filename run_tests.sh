@@ -49,11 +49,11 @@
 #   bash run_tests.sh cds --no-precheck     # 확인 자체를 생략
 #
 # CDS/RTS 종료 시 정리(cleanup) — 공용 플래그다(대상 슈트가 안 쓰는 변수는 무시된다).
-# CDS 는 두 대상 번호의 PROFILE/SERVICE/SESSION 을, RTS 는 ${RTS_TEST_MDN} 의 L1/L2
-# 반영 행(SVC_ID=W_DATA_ROAMING_BLOCK/L_DATA_ROAMING_BLOCK)만 Suite Teardown 에서
-# 지운다(기본 켜짐 — 다음 실행이 잔존 데이터 없이 시작하게 한다). CDS 의 예약 큐는
-# 범위 밖(안 지움). ${PDB_CONNSTR_2} 로 두 번째 DB 가 붙어 있으면 CDS 는 그쪽도 같이
-# 지운다(RTS 는 두 번째 DB 를 쓰지 않는다).
+# CDS 는 두 대상 번호의 PROFILE/SERVICE/SESSION 을, RTS 는 ${RTS_TEST_MDN} 의
+# PROFILE 전체 + SERVICE 반영 행(SVC_ID=W_DATA_ROAMING_BLOCK/L_DATA_ROAMING_BLOCK)을
+# Suite Teardown 에서 지운다(기본 켜짐 — 다음 실행이 잔존 데이터 없이 시작하게 한다).
+# CDS 의 예약 큐는 범위 밖(안 지움). ${PDB_CONNSTR_2} 로 두 번째 DB 가 붙어 있으면
+# CDS 는 그쪽도 같이 지운다(RTS 는 두 번째 DB 를 쓰지 않는다).
 #   bash run_tests.sh cds --no-cleanup      # 껐다 — 기존처럼 행이 남는다
 #   bash run_tests.sh rts --no-cleanup      # RTS 도 같은 플래그로 끈다
 #
