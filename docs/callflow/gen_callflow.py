@@ -157,27 +157,22 @@ BSUBS_EXTRA = {
 }
 
 # BSUBS 가 폴링 뒤 UPM 과 왕복하는 코드. PG 소스로 확정(2026-08-24) —
-# BSUBS/SIF.cpp processInfoChgReq/Res, BSUBS/BaroDSubDB.sc UpdateInfoChg().
-# (db_step, upm_req, upm_resp)
-# BSUBS 자신의 RBUS NOTI 는 이 UPM 왕복(BSUBS 연동)이 열릴 때만 나간다고
-# 확인된 코드다 — 미가입이면 BSUBS 는 알리지 않는다
-# (PG 소스 확인: BSUBS/SIF.cpp processInfoChgReq/Res 에 sendnotiByRbus 호출이 없다).
+# BSUBS/SIF.cpp processInfoChgReq/Res/processSubsChgReq, BSUBS/BaroDSubDB.sc
+# UpdateInfoChg(). (db_step, upm_req, upm_resp)
 #
-# 그런데 PG.SDM 은 이 코드들에 대해 **별개로** doNoti() 를 무조건 부른다
-# (PG 소스 확인 2026-08-28: SDM_5G/SubsProcessing.cpp doNoti(), 호출부는
-#  Do() 의 else 가지 — job code 가 "91"/"92" 가 아니면 Job::Do() 성공 시
-#  HFC 가입 여부와 무관하게 RBUS NOTI 를 보낸다). 두 알림은 서로 배타적이지
-#  않다 — 미가입이면 SDM 쪽 알림만 나가지만, **가입 상태에서는 BSUBS 와 SDM
-#  이 각자 알리므로 SBI Noti 가 두 번 나간다.** "SDM 쪽 대체 알림도 없다"던
-#  이전 메모는 BSUBS 소스만 본 것이었다. D3 는 BSUBS 쪽 sendnotiByRbus
-#  부재는 아직 확인 전이지만, SDM 쪽 doNoti() 무조건 호출은 job code 를
-#  가리지 않는 공통 로직이라 D3 에도 같이 적용한다.
-NOTI_HFC_ONLY = {'C1', 'G1', 'D3'}
-
-# UPM 요청을 보낸 직후 RBUS NOTI 부터 쏘고, 응답은 그 뒤에 받는 코드.
-# (PG 소스 확인: BSUBS/SIF.cpp processSubsChgReq — sendnotiByRbus 가
-#  UPM Send() 성공 직후, 0x06 응답을 기다리지 않고 바로 불린다.)
-NOTIFY_BEFORE_RESPONSE = {'D3'}
+# PG.SDM 은 이 코드들에 대해 doNoti() 를 **무조건** 부른다(HFC 가입 여부와
+# 무관하게) — PG 소스 확인(2026-08-28, SDM_5G/SubsProcessing.cpp doNoti(),
+# Do() 의 else 가지에서 job code 가 "91"/"92" 가 아니면 호출).
+#
+# BSUBS 자신은 이 코드들에 대해 **SNOTI 로 알리지 않는다.**
+# `processInfoChgReq`/`processInfoChgRes`(`C1`/`G1`), `processSubsChgReq`
+# (`D3`) 모두 끝까지 읽어도 `sendnotiByRbus`/`sendnotiByHttp` 호출이 없다 —
+# PG 소스로 확인(2026-08-24), 사용자가 재확인(2026-10-16, `D3` 포함).
+# **"`D3` 는 BSUBS 경유로도 알려 HFC 가입 상태에서 SBI Noti 가 두 번
+# 나간다"던 이전 메모(2026-08-28)는 틀렸다** — BSUBS 가 UPM 왕복만 하고
+# 알리지 않는 것은 `C1`/`G1`과 같다. HFC 가입 여부와 무관하게 SBI Noti 는
+# SDM 경유 **한 번뿐**이다.
+NOTIFY_SDM_ONLY = {'C1', 'G1', 'D3'}
 
 UPM_ROUNDTRIP = {
  'C1': ('UPDATE T_BAROD_SUBS_CELLINFO (MIN/기종/상태)',
@@ -357,15 +352,12 @@ def mermaid(code, route):
             _, _, resp = UPM_ROUNDTRIP[code]
             return '%sUPM->>BSUBS: %s' % (indent, resp)
 
-        if code in NOTI_HFC_ONLY:
-            # PG.SDM 은 이 코드들에 대해 doNoti() 를 무조건 부른다
-            # (SDM_5G/SubsProcessing.cpp, 2026-08-28 확인) — TID 갱신 직후,
-            # BSUBS 가 폴링을 시작하기도 전에 SDM 자기 워커 루프 안에서 바로
-            # 나간다. 그래서 순서상 BSUBS 쪽보다 먼저 그린다.
-            # BSUBS 자신의 알림은 HFC 가입 상태에서만 나간다(아래 opt) — 나가면
-            # 그 블록 안에서 PCF 까지 끝난다. 두 알림은 서로 배타적이지 않다 —
-            # **HFC 가입 상태에서는 SBI Noti 가 SDM 경유 1번 + BSUBS 경유 1번,
-            # 총 두 번 나간다.**
+        if code in NOTIFY_SDM_ONLY:
+            # SDM 은 위와 똑같이 무조건 알린다. BSUBS 는 HFC 가입 상태면
+            # UPM 왕복(CellInfo 갱신)을 하지만 **SNOTI 로는 알리지 않는다** —
+            # processInfoChgReq/Res 에 sendnotiByRbus/Http 호출이 없다(PG 소스
+            # 확인, 2026-08-24 / 2026-10-16 재확인). SBI Noti 는 SDM 경유
+            # 한 번뿐이다.
             L.append('    SDM->>SNOTI: RBUS NOTI')
             if code not in NO_NOTI:
                 L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
@@ -374,19 +366,9 @@ def mermaid(code, route):
             L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
             L.extend(_bsubs_pre_lines('        '))
             resp_line = _upm_resp_line('        ')
-            if code in NOTIFY_BEFORE_RESPONSE:
-                # UPM 요청을 보내자마자 알린다 — 0x06 응답을 기다리지 않는다.
-                L.append('        BSUBS->>SNOTI: RBUS NOTI')
-                if resp_line:
-                    L.append(resp_line)
-            else:
-                if resp_line:
-                    L.append(resp_line)
-                L.append('        BSUBS->>SNOTI: RBUS NOTI')
-            if code not in NO_NOTI:
-                L.append('        SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
-                L.append('        SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (%s)' % snoti_mdn(code))
-                L.append('        SNOTI->>PCF: SBI Noti (h2c)')
+            if resp_line:
+                L.append(resp_line)
+            L.append('        Note over BSUBS,SNOTI: BSUBS 는 SNOTI 로 알리지 않는다 (sendnotiByRbus/Http 호출 없음)')
             L.append('    end')
         else:
             # 위 opt 에서 지시가 들어갔을 때만 BSUBS 가 집을 것이 생긴다.
@@ -524,35 +506,63 @@ doc = ['# CDS 업무 코드별 콜플로우', '',
        'PDB 판정만 조용히 실패한다. 이름은 `/PG/CFG/ST.cfg` 기준이다.', '',
        '| 프로세스 | 다이어그램의 참여자 | 하는 일 |', '|---|---|---|',
        '| `CDS201` | `PG.CDS` | 전문 수신, `T_CDS_ORDER_HIST` / `T_BAROD_ORDER_HIST` 적재, `0016`·`0017` 응답 |',
-       '| `P_SDM601` | `PG.SDM` | **주 처리** — 이력 폴링 → `T_5G_SUBS_*` 반영 → RBUS NOTI |',
-       '| `R_SDM601` | `PG.SDM` | **쿠폰 만료 처리** — `RDS601` 이 만든 만료 건을 집어 반영 |',
+       '| `P_SDM601` | `PG.SDM` | **주 처리**(골디락스) — 이력 폴링 → `T_5G_SUBS_*` 반영 → RBUS NOTI |',
+       '| `R_SDM601` | `PG.SDM` | **쿠폰 만료 처리**(골디락스) — `RDS601` 이 만든 만료 건을 집어 반영 |',
+       '| `P_SDM501` | `PG.SDM` | `P_SDM601` 과 같은 역할의 **알티베이스용** — `PCRF_SUPPORT=Y` 환경에서 돈다 |',
+       '| `S_SDM501` | `PG.SDM` | 알티베이스용 SDM 프로세스 — 역할 미확인, PG 소스로 확인 필요 |',
+       '| `R_SDM501` | `PG.SDM` | `R_SDM601` 과 같은 역할의 **알티베이스용** 쿠폰 만료 처리 — `PCRF_SUPPORT=Y` 환경에서 돈다 |',
        '| `SNOTI501` | `PG.SNOTI` | 세션 조회 후 PCF 로 SBI Noti |',
        '| `BSUBS201` | `PG.BSUBS` | BAROD(HFC) 처리, UPM 왕복, CellList 적재/삭제 |',
        '| `RDS601` | `PG.RDS` | 예약 큐(`T_5G_RESERVED_JOB`) 폴링 — 쿠폰 만료(`K3`) 생성 |', '',
-       '다이어그램의 `PG.SDM` 은 **한 참여자로 그려져 있지만 실제로는 둘이다.** 업무 코드',
-       '반영은 `P_SDM601`, `K1` 절 아래쪽의 쿠폰 만료 구간만 `R_SDM601` 이 맡는다.',
+       '다이어그램의 `PG.SDM` 은 **한 참여자로 그려져 있지만 실제로는 둘(또는 넷)이다.** 업무 코드',
+       '반영은 `P_SDM601`/`P_SDM501`, `K1` 절 아래쪽의 쿠폰 만료 구간만 `R_SDM601`/`R_SDM501` 이',
+       '맡는다. `5xx`(알티베이스) 는 지금 두 환경(DEV/TB) 모두 `PCRF_SUPPORT=N` 이라 돌지',
+       '않는다 — `../nodes/CDS.md` 의 "HIST 테이블은 두 개다" 절 참조.',
        '',
        '> **쿠폰 만료(`K3`)는 `RDS601` → `R_SDM601` 두 프로세스를 탄다** — 나머지 업무 코드와',
        '> 경로가 다르다. `TC-CDS-011` 이 3분을 기다리다 실패하면 이 둘을 본다.',
        '> 예약이 `STATUS=E` 로만 바뀌고 `T_5G_RESERVED_ORDER_HIST` 에 만료 전문이 안 생기면',
        '> `R_SDM601` 이 집을 것이 없어 쿠폰 행이 영영 남는다 (2026-08-27 관측).', '',
 
-       '## 알림 경로 규칙 (2026-08-19)', '',
-       '위에서부터 차례로 적용한다.', '',
-       '| # | 조건 | 경로 |', '|---|---|---|',
-       '| 1 | `1X` · `1Y` | 무조건 **BSUBS** |',
-       '| 2 | HFC 가입 상태 + `D3` `C1` `G1` `Z1` | **BSUBS** |',
-       '| 3 | 그 외 전부 | **SDM** |', '',
+       '## HIST 규칙 (2026-08-19)', '',
+       'PG.CDS 가 전문을 어느 HIST 테이블에 적재하느냐가 **그 코드를 BSUBS 가 처리하는지**를',
+       '가른다 ([`T_CDS_ORDER_HIST`/`T_BAROD_ORDER_HIST` 적재 조건은 `../nodes/CDS.md` 의',
+       '"HIST 테이블은 두 개다" 절 참조). 위에서부터 차례로 적용한다.', '',
+       '**다만 "처리"와 "알림(SNOTI 통보)"은 별개다 — `C1`/`G1`/`D3` 는 예외다.** `1X`/`1Y`',
+       '는 BSUBS 가 처리하면서 SNOTI 로도 직접 알리지만, `C1`/`G1`/`D3` 는 BSUBS 가',
+       '`T_BAROD_ORDER_HIST` 를 폴링해 UPM 왕복(CellInfo 갱신)까지는 해도 **SNOTI 로',
+       '알리지는 않는다** — SDM 이 무조건 알리는 것과는 별도 경로다. 아래 ⚠️ 참조.', '',
+       '| # | 조건 (업무 코드) | HIST 경로 |', '|---|---|---|',
+       '| 1 | `1X` · `1Y` | 조건 없이 전부 **CDS → BSUBS** (`T_BAROD_ORDER_HIST`) |',
+       '| 2 | HFC 가입 상태 + `D3` `C1` `G1` `Z1` | **CDS → BSUBS** (`T_BAROD_ORDER_HIST`) |',
+       '| 3 | 전부 | 조건 없이 전부 **CDS → SDM** (`T_CDS_ORDER_HIST`) |', '',
+       '규칙 1·3 은 업무 코드만으로 고정되고, 규칙 2 만 HFC 가입 상태로 더 갈린다',
+       '(미가입이면 `T_BAROD_ORDER_HIST` 에 안 쌓여 BSUBS 가 폴링할 것이 없고, 그래서',
+       'SDM 경유가 된다).', '',
        '두 경로는 `PG.SNOTI` 에서 합류해 같은 SBI Noti 로 나간다 — **수신만으로는 구분되지 않는다.**',
        '그래서 슈트는 규칙으로 예상 경로를 계산해 실패 메시지에 싣는다.', '',
        '> ⚠️ 지금 슈트 순서로는 **규칙 2 의 BSUBS 분기를 타는 TC 가 하나도 없다.**',
        '> `1Y`(004)가 HFC 를 해지한 뒤에 `C1`(007) · `G1`(008) · `D3`(018) · `Z1`(019)이',
        '> 돌기 때문에 넷 다 SDM 경유로 판정된다.', '',
-       '> ⚠️ `C1` `G1` `D3` 는 BSUBS 알림(HFC 가입 상태에서만, `SIF.cpp`)과 SDM 알림',
-       '> (`doNoti()`, 코드와 무관하게 무조건)이 **서로 배타적이지 않다** — 그래서 HFC',
-       '> **가입** 상태에서 이 코드를 보내면 SBI Noti 가 BSUBS 경유 1번 + SDM 경유 1번,',
-       '> **총 두 번** 나간다(PG 소스 확인, 2026-08-28). `Verify SBI Noti Sent` 는 "1건',
-       '> 이상 도착"만 보므로 판정에는 영향이 없다.', '',
+       '> ⚠️ **`C1`/`G1`/`D3` 는 BSUBS 가 SNOTI 로 알리지 않는다 (확인, 2026-10-16).**',
+       '> `processInfoChgReq`/`processInfoChgRes`(`C1`/`G1`), `processSubsChgReq`(`D3`)',
+       '> 모두 끝까지 읽어도 `sendnotiByRbus`/`sendnotiByHttp` 호출이 없다 — HFC 가입',
+       '> 상태라도 BSUBS 는 UPM 왕복(CellInfo 갱신)만 하고 끝낸다. SBI Noti 는 SDM 의',
+       '> 무조건 `doNoti()` 경유 **한 번뿐**이다. **"`D3` 는 BSUBS 경유로도 알려 HFC 가입',
+       '> 상태에서 SBI Noti 가 두 번 나간다"던 이전 메모(2026-08-28)는 틀렸다** — BSUBS',
+       '> 자신이 SNOTI 로 알리는 것은 규칙 1(`1X`/`1Y`, 무조건)뿐이다.', '',
+       '> ⚠️ **BSUBS 의 폴링 소스가 CDS 의 쓰기와 비대칭일 수 있다 (의도 확인 필요).**',
+       '> BSUBS `PollingMgr::service` 는 `bSelectAltibase_ == true` 면 **알티베이스만**',
+       '> 폴링한다 — 골디락스는 안 본다. 반면 `T_BAROD_ORDER_HIST` 를 쓰는',
+       '> `UpdateCdsHist` 는 (지금 환경에서는) **두 DB 모두에** INSERT 한다. 쓰기는 둘 다',
+       '> 하는데 읽기는 하나만 보는 구조라, `bSelectAltibase_` 가 쓰기 쪽 상황과 어긋나게',
+       '> 설정되면 BSUBS 가 보지 않는 DB 쪽 반영은 영원히 놓친다.', '',
+       '> | 환경 | `PCRF_SUPPORT` | `ALTIBASE_USE` | 영향 |',
+       '> |---|---|---|---|',
+       '> | DEV | `N` | `N` | 쓰기·읽기 모두 골디락스만 — 일치, 증상 없음 |',
+       '> | TB | `N` | `Y` | 쓰기는 양쪽, 읽기는 골디락스만 — 어긋나지만 골디락스엔 항상 들어가 있어 증상 없음 |', '',
+       '> 두 환경 다 `PCRF_SUPPORT=N` 이라 지금은 증상이 난 적이 없다. `PCRF_SUPPORT=Y` 로',
+       '> 바뀌는 환경이 생기면 그때 `ALTIBASE_USE` 값을 꼭 같이 확인할 것.', '',
        '## 다이어그램 읽는 법', '',
        '주황 밴드(`★ 판정`)로 감싼 구간이 **TC 의 성패를 가르는 자리**다. 그 위의 전문 왕복과',
        'PG 내부 처리는 배경이 없다 — `0017 CommandResult` 가 `SC` 여도 밴드 안이 틀리면 실패다.',

@@ -22,7 +22,7 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 | [docs/nodes/CDS.md](docs/nodes/CDS.md) | CDS 노드 스펙 |
 | [docs/nodes/NWDAF.md](docs/nodes/NWDAF.md) | NWDAF 노드 스펙 |
 | [docs/nodes/RTS.md](docs/nodes/RTS.md) | RTS 노드 스펙 (로밍 데이터 차단 L1/L2 — CDS 문서의 "PG.RDS"와 별개이니 혼동 금지) |
-| [docs/callflow/cds_callflow.md](docs/callflow/cds_callflow.md) | **CDS 업무 코드별 콜플로우** — 알림 경로 규칙(BSUBS/SDM) + 11개 코드(A1 1X 1Y I2 I3 C1 G1 K1 K2 D3 Z1) 콜플로우·Body 필드·판정 기준. `gen_callflow.py` 가 생성 |
+| [docs/callflow/cds_callflow.md](docs/callflow/cds_callflow.md) | **CDS 업무 코드별 콜플로우** — HIST 규칙(BSUBS/SDM) + 11개 코드(A1 1X 1Y I2 I3 C1 G1 K1 K2 D3 Z1) 콜플로우·Body 필드·판정 기준. `gen_callflow.py` 가 생성 |
 | [docs/callflow/nag_callflow.md](docs/callflow/nag_callflow.md) | NAG(HFC/ADOT) 콜플로우 — 듀얼 소켓, Subs-Cellid 의 LRS-PCF 교차 |
 | [docs/callflow/lrs_callflow.md](docs/callflow/lrs_callflow.md) | LRS(세션 정보 조회) 콜플로우 — REQ/ANS + HTTP AIMS, 8890 곁채널 교차 |
 | [docs/callflow/rts_callflow.md](docs/callflow/rts_callflow.md) | RTS L1/L2(로밍 데이터 차단) 콜플로우 |

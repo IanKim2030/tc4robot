@@ -39,7 +39,7 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 
 | 문서 | 내용 |
 |---|---|
-| [callflow/cds_callflow.md](callflow/cds_callflow.md) | **CDS 업무 코드별 콜플로우** — 알림 경로 규칙(BSUBS/SDM) + 11개 코드를 한 파일에 (`gen_callflow.py` 생성) |
+| [callflow/cds_callflow.md](callflow/cds_callflow.md) | **CDS 업무 코드별 콜플로우** — HIST 규칙(BSUBS/SDM) + 11개 코드를 한 파일에 (`gen_callflow.py` 생성) |
 | [callflow/nag_callflow.md](callflow/nag_callflow.md) | NAG(HFC/ADOT 존·셀 조회) 콜플로우 — 듀얼 소켓, LRS-PCF 교차 |
 | [callflow/lrs_callflow.md](callflow/lrs_callflow.md) | LRS(세션 정보 조회) 콜플로우 — REQ/ANS + HTTP AIMS, 8890 곁채널 교차 |
 | [callflow/rts_callflow.md](callflow/rts_callflow.md) | RTS L1/L2(로밍 데이터 차단) 콜플로우 |

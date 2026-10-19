@@ -199,9 +199,16 @@ SDM 을 탄다.
 
 | 업무 코드 | HFC 가입 | HFC 미가입 | 규칙 |
 |---|---|---|---|
-| `1X` · `1Y` | BSUBS | BSUBS | 1 — 무조건 |
-| `D3` · `C1` · `G1` · `Z1` | **BSUBS** | SDM | 2 — 상태로 갈린다 |
-| 그 외 전부 (`A1` `I2` `I3` `K1~K6` `Y9` `SS` `ST` …) | SDM | SDM | 3 |
+| `1X` · `1Y` | BSUBS(`T_BAROD_ORDER_HIST`) | BSUBS(`T_BAROD_ORDER_HIST`) | 1 — 무조건 |
+| `D3` · `C1` · `G1` · `Z1` | **BSUBS(`T_BAROD_ORDER_HIST`)** | SDM(`T_CDS_ORDER_HIST`) | 2 — 상태로 갈린다 |
+| 그 외 전부 (`A1` `I2` `I3` `K1~K6` `Y9` `SS` `ST` …) | SDM(`T_CDS_ORDER_HIST`) | SDM(`T_CDS_ORDER_HIST`) | 3 |
+
+**이 표는 "HIST 테이블 처리" 기준이다 — "SNOTI 로 알림"과는 다르다.** `C1`/`G1`/`D3` 는
+HFC 가입 상태에서 BSUBS 가 `T_BAROD_ORDER_HIST` 를 폴링해 처리(UPM 왕복)는 하지만,
+**SNOTI 로는 알리지 않는다**(확인, 2026-10-16 — 아래 "`C1`/`G1` 도 HFC 가입 상태면 UPM 을
+탄다" 절 참조). 실제 알림은 SDM 의 무조건 `doNoti()` 경유 **한 번뿐**이다. **규칙 2 를
+글자 그대로 만족하는(BSUBS 가 처리와 알림을 모두 하는) 코드는 지금까지 확인된 걸로는
+하나도 없다** — BSUBS 자신이 SNOTI 로 알리는 것은 규칙 1(`1X`/`1Y`, 무조건)뿐이다.
 
 두 경로는 **`PG.SNOTI` 에서 합류**한다. 도구가 PCF 역할로 받는 것은 어느 쪽이든 같은
 SBI Noti 라 **수신만으로는 경로를 구분할 수 없다.** 그래서 슈트는 규칙으로 예상 경로를
@@ -212,6 +219,12 @@ SBI Noti 라 **수신만으로는 경로를 구분할 수 없다.** 그래서 �
 `@{CDS_NOTI_BSUBS_ALWAYS}`(1X·1Y) / `@{CDS_NOTI_BSUBS_IF_HFC}`(D3·C1·G1·Z1) /
 `${CDS_HFC_SUBSCRIBED}`(1X 가 켜고 1Y 가 끈다) → `Expected Noti Route` 키워드.
 
+★ `@{CDS_NOTI_BSUBS_IF_HFC}` 가 계산하는 "예상 경로" 라벨은 `C1`/`G1` 에 대해 위 발견
+이전 그대로다(HFC 가입 상태면 "BSUBS 경유"라고 찍는다) — **`Verify SBI Noti Sent` 는
+"1건 이상 도착"만 보기 때문에 판정(pass/fail) 자체는 영향받지 않지만, 실패 메시지의
+경로 라벨은 지금 틀렸을 수 있다.** 라벨까지 고치려면 `cds_variables.robot` 에서 `C1`/`G1`
+을 이 목록에서 빼고 `Expected Noti Route` 키워드의 분기를 손봐야 한다 — 아직 반영 전.
+
 > ⚠️ **지금 슈트 순서로는 규칙 2 의 BSUBS 분기를 타는 TC 가 하나도 없다.**
 > `1Y`(004)가 HFC 를 해지한 뒤에 `C1`(007) · `G1`(008) · `D3`(018) · `Z1`(019)이 돌기
 > 때문에 넷 다 SDM 경유로 판정된다. 그 분기를 덮으려면 `1Y` 를 뒤로 미루거나 해당 TC
@@ -220,6 +233,44 @@ SBI Noti 라 **수신만으로는 경로를 구분할 수 없다.** 그래서 �
 도구 쪽 목록은 `@{CDS_NOTI_EXEMPT_CODES}`(cds_variables.robot) 하나가 쥔다 —
 **목록이 바뀌면 그 변수만 고치면 되고** TC 는 자기 업무 코드를 넘기기만 한다.
 TID 는 갱신되는데 PCF 반영이 없으면 이 목록부터 의심할 것.
+
+#### HIST 테이블은 두 개다 — 규칙 2 의 HFC 분기가 여기서 결정된다
+
+전문이 PG.CDS 에 들어오면 두 HIST 테이블에 INSERT 될 수 있다. **대상이 다르다.**
+
+| 테이블 | 대상 코드 | 조건 |
+|---|---|---|
+| `T_CDS_ORDER_HIST` | **모든 코드** | 무조건 INSERT |
+| `T_BAROD_ORDER_HIST` | `1X` `1Y` `D3` `C1` `G1` `Z1` | `1X`/`1Y` 는 무조건, `D3`/`C1`/`G1`/`Z1` 은 **`1X`(HFC 가입)로 이미 가입돼 있을 때만** |
+
+**폴링도 테이블 별로 주체가 나뉜다** — SDM 은 `T_CDS_ORDER_HIST` 를, BSUBS 는
+`T_BAROD_ORDER_HIST` 를 폴링한다. 위 규칙 2(`D3`/`C1`/`G1`/`Z1` 이 HFC 가입 상태면
+BSUBS, 아니면 SDM)가 바로 이 INSERT 여부로 갈린다 — HFC 미가입 상태에서 이 네 코드가
+들어오면 `T_BAROD_ORDER_HIST` 에 아무것도 안 쌓이니 BSUBS 가 폴링할 것이 없고, 그래서
+SDM 경로를 탄다.
+
+**INSERT(쓰기)와 SELECT(폴링, 읽기)는 설정이 따로다** — 둘을 섞으면 안 된다.
+
+| 설정 | 의미 | `Y` | `N` |
+|---|---|---|---|
+| `ALTIBASE_USE` | HIST 테이블 **INSERT** 대상 | 알티베이스 **+** 골디락스 양쪽 (`bUseAltibase_=true`, `bUseGdilcks_=true`) | 골디락스만 (`bUseAltibase_=false`, `bUseGdilcks_=true`) — **골디락스 INSERT 는 이 값과 무관하게 항상 켜져 있다** |
+| `PCRF_SUPPORT` | SDM/BSUBS 폴링 **SELECT** 소스 | 알티베이스에서 SELECT (`bSelectAltibase_=true`) | 골디락스에서 SELECT (`bSelectAltibase_=false`) |
+
+즉 `ALTIBASE_USE=N` 이라도 `PCRF_SUPPORT=Y` 로 설정돼 있으면 SDM/BSUBS 는 **알티베이스를
+SELECT 하려 하는데 그 테이블엔 아무것도 안 들어와 있다** — 반영이 영원히 안 보이는
+증상으로 나타난다. 어느 DB에서 조회해도 같은 행이 보이는지 확인하려면 이 두 설정을
+**같이** 봐야 한다.
+
+**실측값(환경별):**
+
+| 환경 | `PCRF_SUPPORT` | `ALTIBASE_USE` | 영향 |
+|---|---|---|---|
+| DEV | `N` | `N` | 쓰기·읽기 모두 골디락스만 — 일치, 증상 없음 |
+| TB | `N` | `Y` | 쓰기는 양쪽, 읽기는 골디락스만 — 어긋나지만 골디락스엔 항상 들어가 있어 증상 없음 |
+
+**두 환경 다 `PCRF_SUPPORT=N` 이라 지금은 위 "영원히 안 보이는" 증상이 실제로 난 적은
+없다.** `PCRF_SUPPORT=Y` 로 바뀌는 환경이 생기면 그때 `ALTIBASE_USE` 값을 꼭 같이
+확인할 것 — `N` 이면 바로 그 증상이 재현된다.
 
 ### 도구 관점에서의 함의
 
@@ -315,6 +366,19 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?
 
 재조회가 필요한 이유는 위 흐름 그대로다 — PG.SDM 이 `T_CDS_ORDER_HIST` 를 **주기적으로
 폴링**해 가입자 테이블에 반영하므로 `CommandResult`(0017) 수신 시점에는 아직 안 들어와 있다.
+
+**SDM 의 폴링 프로세스는 대상 DB 별로 나뉜다** (위 "HIST 테이블은 두 개다" 절의
+`PCRF_SUPPORT` 가 어느 쪽이 실제로 도는지를 정한다).
+
+| 프로세스 | 대상 DB |
+|---|---|
+| `P_SDM501` / `S_SDM501` / `R_SDM501` | 알티베이스 (`PCRF_SUPPORT=Y`) |
+| `P_SDM601` / `R_SDM601` | 골디락스 (`PCRF_SUPPORT=N`) |
+
+`PCRF_SUPPORT=N` 인데 `ALTIBASE_USE=Y` 로 INSERT 는 양쪽에 돼도, SDM 이 실제로 보는
+것은 `6xx`(골디락스) 뿐이다 — `5xx` 쪽 행은 쌓여도 아무도 읽지 않는다. 반대로
+`PCRF_SUPPORT=Y` 인데 `ALTIBASE_USE=N` 이면 `5xx` 가 돌지만 알티베이스엔 애초에
+INSERT 가 안 돼 있어 영원히 빈손으로 폴링한다 — 위 표의 교차 조합이 바로 이 증상이다.
 
 그래서 대기가 **두 단계**다. `ResultAck`(0018)를 보낸 직후부터:
 
@@ -683,15 +747,17 @@ SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 
 `0x08` 응답을 반드시 보내야 한다 — 안 보내면 PG 가 UPM 응답을 기다리다 재시도로 넘어가
 **뒤따르는 TC 의 PDB 판정이 흔들린다.**
 
-### `C1`/`G1` 도 HFC 가입 상태면 UPM 을 탄다 — 코드 종류가 다르다
+### `C1`/`G1`/`D3` 도 HFC 가입 상태면 UPM 을 탄다 — 코드 종류가 다르다
 
-**PG 소스로 확정(2026-08-24)** — `BSUBS/SIF.cpp` `processInfoChgReq`/`processInfoChgRes`,
-`BSUBS/BaroDSubDB.sc` `UpdateInfoChg()`. `1X`/`1Y` 와 **다른 메시지 종류**를 쓴다.
+**PG 소스로 확정(2026-08-24)** — `BSUBS/SIF.cpp` `processInfoChgReq`/`processInfoChgRes`/
+`processSubsChgReq`, `BSUBS/BaroDSubDB.sc` `UpdateInfoChg()`. `1X`/`1Y` 와 **다른 메시지
+종류**를 쓴다.
 
 | 코드 | UPM 메시지 | PDB (BSUBS → UPM 사이) |
 |---|---|---|
 | `1X`/`1Y` | `0x07` Subs-Info-Request / `0x08` Response | 없음 (UPM 응답 뒤 `T_BAROD_SUBS_CELLINFO` 저장·삭제) |
 | `C1`/`G1` | `0x0d` Info-Change-Request / `0x0e` Response | `UPDATE T_BAROD_SUBS_CELLINFO` (UPM 요청 **전**) |
+| `D3` | `0x05` Subs-Change-Request / `0x06` Response | `SELECT`+`INSERT T_BAROD_SUBS_CELLINFO` (새 MDN, UPM 요청 전) |
 
 `C1`(기기변경)은 `MIN`·기종·상태를, `G1`(정보변경)은 기종·상태를 갱신한다 — `UpdateInfoChg()`
 안에서 `jobcode` 로 SQL 이 갈린다(`C1` 만 `MIN` 컬럼을 추가로 쓴다).
@@ -700,12 +766,19 @@ SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 
 때만** 열린다(규칙 2). 지금 슈트 순서로는 그 분기를 타는 TC 가 없다 — "선택적 NOTI" 절 참조.
 `TC-CDS-007`/`008` 은 항상 SDM 경유로만 검증된다.
 
-**⚠ RBUS NOTI 여부는 확인하지 못했다.** 같은 소스에서 `processInfoChgRes` 를 끝까지 읽었으나
-`sendnotiByRbus`/`sendnotiByHttp` 호출이 보이지 않는다 — `1X`/`1Y`(`processSubsInfoRes`)나
-`D3`(`processSubsChgReq`, 요청 직후 무조건 호출)와 다르다. `Z1`(`processSubsDelReq`)도 마찬가지로
-호출이 없다. 규칙 2 는 `C1`/`G1`/`D3`/`Z1` 넷을 묶어 "HFC 가입 시 BSUBS 가 NOTI" 라고 정했는데,
-소스상으로는 **`D3` 만 그 조건을 뚜렷이 만족한다.** 이 다이어그램의 `alt HFC 가입 → BSUBS→SNOTI`
-줄은 아직 그 업무 규칙을 그대로 따른 것이지, 이 소스 확인으로 검증된 것이 아니다.
+**⚠ `C1`/`G1`/`D3` 는 BSUBS 가 SNOTI 로 알리는 기능이 없다 — 확인됨(2026-10-16).**
+`processInfoChgRes`(`C1`/`G1`)뿐 아니라 `processSubsChgReq`(`D3`)도 끝까지 읽어도
+`sendnotiByRbus`/`sendnotiByHttp` 호출이 없다 — **`D3` 가 BSUBS 경유로도 알린다던 이전
+확인(2026-08-28)은 틀렸다.** `1X`/`1Y`(`processSubsInfoRes`)만 BSUBS 자신이 RBUS NOTI
+를 보낸다. `C1`/`G1`/`D3` 는 HFC 가입 상태라도 BSUBS 가 UPM 왕복(CellInfo 갱신)만 하고
+끝낸다 — SBI Noti 는 SDM 의 무조건 `doNoti()` 경유 **한 번뿐**이다. `K1`(쿠폰 가입)은 이
+표와 무관하다 — 애초에 `T_BAROD_ORDER_HIST`/BSUBS 를 전혀 타지 않는 코드다(쿠폰 전용
+흐름, "쿠폰/옵션 계열 판정 기준" 절 참조). `Z1`(`processSubsDelReq`)도 같은 패턴으로
+호출이 안 보였지만 `Z1` 은 애초에 알림 판정 자체를 건너뛰는 코드라("선택적 NOTI" 절)
+별도로 확정하지 않았다. **결론: 규칙 2(`D3`/`C1`/`G1`/`Z1` 이 HFC 가입 상태면 BSUBS 가
+알린다)를 실제로 만족하는 코드는 지금까지 확인된 걸로는 하나도 없다** — BSUBS 자신이
+SNOTI 로 알리는 것은 규칙 1(`1X`/`1Y`, 무조건)뿐이고, 나머지는 HFC 가입 여부와 무관하게
+항상 SDM 경유다.
 
 ### PCF SBI Noti 수신 — 도구가 PCF 역할로 HTTP/2 Listen — 도구가 PCF 역할로 HTTP/2 Listen
 
