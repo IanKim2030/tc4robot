@@ -48,11 +48,14 @@
 #   bash run_tests.sh cds --precheck-ask    # 물어보게 하기 (화면이 있을 때만)
 #   bash run_tests.sh cds --no-precheck     # 확인 자체를 생략
 #
-# CDS 종료 시 정리(cleanup) — 두 대상 번호의 PROFILE/SERVICE/SESSION 을 Suite
-# Teardown 에서 지운다(기본 켜짐 — 다음 실행이 잔존 데이터 없이 시작하게 한다).
-# 예약 큐는 범위 밖(안 지움). ${PDB_CONNSTR_2} 로 두 번째 DB 가 붙어 있으면 그쪽도
-# 같이 지운다.
+# CDS/RTS 종료 시 정리(cleanup) — 공용 플래그다(대상 슈트가 안 쓰는 변수는 무시된다).
+# CDS 는 두 대상 번호의 PROFILE/SERVICE/SESSION 을, RTS 는 ${RTS_TEST_MDN} 의 L1/L2
+# 반영 행(SVC_ID=W_DATA_ROAMING_BLOCK/L_DATA_ROAMING_BLOCK)만 Suite Teardown 에서
+# 지운다(기본 켜짐 — 다음 실행이 잔존 데이터 없이 시작하게 한다). CDS 의 예약 큐는
+# 범위 밖(안 지움). ${PDB_CONNSTR_2} 로 두 번째 DB 가 붙어 있으면 CDS 는 그쪽도 같이
+# 지운다(RTS 는 두 번째 DB 를 쓰지 않는다).
 #   bash run_tests.sh cds --no-cleanup      # 껐다 — 기존처럼 행이 남는다
+#   bash run_tests.sh rts --no-cleanup      # RTS 도 같은 플래그로 끈다
 #
 # CDS 세션(T_SMF_SESSION_INFO) INSERT/DELETE 를 DB 별로 끄기 — PROFILE/SERVICE 는
 # 영향 없다. 둘 다 기본 켜짐(DB1+DB2 이중 적재/이중 삭제). DB2 는 PDB_CONNSTR_2 가
@@ -114,9 +117,10 @@ for arg in "${@:2}"; do
                            TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:report) ;;
         --precheck-fail)   TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:fail) ;;
         --precheck-ask)    TOGGLE_VARS+=(--variable CDS_PRECHECK_MODE:ask) ;;
-        # 종료 시 정리 — Suite Teardown 에서 PROFILE/SERVICE 삭제. 기본 켜짐.
-        --no-cleanup)   TOGGLE_VARS+=(--variable CDS_CLEANUP_ON_TEARDOWN:False) ;;
-        --cleanup)      TOGGLE_VARS+=(--variable CDS_CLEANUP_ON_TEARDOWN:True) ;;
+        # 종료 시 정리 — Suite Teardown 에서 DELETE. 기본 켜짐.
+        # CDS/RTS 공용 플래그다 — 대상 슈트가 안 쓰는 변수는 무시된다.
+        --no-cleanup)   TOGGLE_VARS+=(--variable CDS_CLEANUP_ON_TEARDOWN:False --variable RTS_CLEANUP_ON_TEARDOWN:False) ;;
+        --cleanup)      TOGGLE_VARS+=(--variable CDS_CLEANUP_ON_TEARDOWN:True --variable RTS_CLEANUP_ON_TEARDOWN:True) ;;
         # 예약 시각을 실행 시각 기준으로 (K1/K5/Y9/SS/ST). 오프셋은 변수로 조정한다.
         --start-now)       TOGGLE_VARS+=(--variable CDS_START_TIME_MODE:now) ;;
         --start-fixed)     TOGGLE_VARS+=(--variable CDS_START_TIME_MODE:fixed) ;;

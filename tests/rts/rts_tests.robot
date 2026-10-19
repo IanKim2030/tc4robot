@@ -12,7 +12,7 @@ Documentation
 ...    Suite Setup    : RTS → PG 연결 + Connect Req(1)/Ack(2) 처리
 ...                     → ${RTS_SOCK} 공유, PG 가 준 TID(date/seq) 로 채번 기준 저장
 ...    Test Setup     : Check RTS Socket (소켓 닫히면 Suite 즉시 중단)
-...    Suite Teardown : RTS 연결 종료 (Release 송신)
+...    Suite Teardown : RTS 연결 종료 (Release 송신) + PDB 종료 시 정리 (아래 참조)
 ...    각 TC          : ${RTS_SOCK} 공유 사용 (TC별 연결/해제 없음)
 ...
 ...    [TC 번호 체계]
@@ -34,6 +34,14 @@ Documentation
 ...    ${PDB_CONNSTR}(variables.robot) 하나뿐이다. 그래도 환경 오버라이드로
 ...    접속 문자열이 비게 되는 경우를 대비해, 없으면 실패 대신 Skip 한다 — CDS 처럼
 ...    Suite 전체를 막지 않는다.
+...
+...    [잔존 데이터 사전 확인 / 종료 시 정리] (2026-10-19 추가)
+...    CDS 와 같은 목적이지만 범위는 좁다 — RTS 는 가입자를 만들지 않으니(A1 은
+...    CDS 영역) 자기가 심은 두 SVC_ID 행(T_5G_SUBS_SERVICE, W_DATA_ROAMING_BLOCK/
+...    L_DATA_ROAMING_BLOCK, ${RTS_TEST_MDN})만 본다. Suite Setup 이 리포트만
+...    하고(RTS Precheck Existing Service Rows), Suite Teardown 이 지운다
+...    (Cleanup RTS Service Rows, ${RTS_CLEANUP_ON_TEARDOWN}=${TRUE} 기본).
+...    `run_tests.sh rts --no-cleanup`(CDS 와 공용 플래그)로 끌 수 있다.
 ...
 ...    [PCF SBI Noti]
 ...    `noti` 태그 TC 는 L1/L2 전문이 PCF SBI Noti 도 유발하는지 확인한다(사용자 확인 —

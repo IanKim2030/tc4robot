@@ -71,6 +71,9 @@ Suite RTS Connect
     Set Suite Variable    ${RTS_TID_DATE}    ${ack}[tid_date]
     Set Suite Variable    ${RTS_TID_SEQ}     ${ack}[tid_seq]
     Log    [Suite] RTS Connect 성공 tid=${RTS_TID_DATE}/${RTS_TID_SEQ}    console=True
+    # 사전 확인 — 이전 실행이 지우지 못한 L1/L2 반영 행이 있는지 리포트만 한다
+    # (지우지는 않는다 — Cleanup RTS Service Rows 는 Suite Teardown 전용).
+    RTS Precheck Existing Service Rows
     # PCF SBI Noti 수신 서버 — 도구가 PCF 역할로 Listen. CDS 의 Suite CDS Connect 와
     # 같은 패턴(소켓·DB 와 달리 PG 가 붙어 오는 쪽이라 여기서는 Listen 만 열어 둔다).
     IF    ${SNOTI_PCF_NOTI}
@@ -96,6 +99,8 @@ Suite RTS Disconnect
     # Noti 서버는 데몬 스레드라 안 닫아도 프로세스와 함께 죽지만, 포트를 붙들고 있으면
     # 바로 이어 도는 다음 실행이 bind 에서 실패한다 → 반드시 닫는다(CDS 와 동일 이유).
     Run Keyword If    $RTS_NOTI_SRV is not None    Noti.Noti Server Stop    ${RTS_NOTI_SRV}
+    # 종료 시 정리 — 소켓/Noti 와 별개의 DB 접속이라 순서는 무관하다.
+    Cleanup RTS Service Rows
     Log    [Suite] RTS 연결 종료    console=True
 
 Check RTS Socket
@@ -265,6 +270,74 @@ Verify RTS Service Applied In PDB
     FINALLY
         RtsDb.Db Close    ${conn}
     END
+
+
+# ══════════════════════════════════════════════════════════════════
+# PDB 잔존 데이터 — CDS 의 Precheck/Cleanup 과 같은 목적, 범위는 좁다
+# (RTS 는 가입자를 만들지 않으니 자기가 심은 두 SVC_ID 행만 본다)
+# ══════════════════════════════════════════════════════════════════
+
+RTS Precheck Existing Service Rows
+    [Documentation]
+    ...    CDS 의 Precheck Existing Subscriber Rows 와 같은 목적 — 이전 실행이
+    ...    중간에 끊겨 ${RTS_TEST_MDN} 에 L1/L2 반영 행(T_5G_SUBS_SERVICE,
+    ...    SVC_ID=${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}/${RTS_SVC_ID_L_DATA_ROAMING_BLOCK})이
+    ...    남아 있는지 찾아 **로그만 남긴다.** CDS 처럼 가입자 전체(PROFILE)를 보는
+    ...    게 아니라 서비스 행 두 종류뿐인 좁은 범위라, report/fail/ask 모드 선택
+    ...    없이 리포트만 한다 — 지우는 건 `Cleanup RTS Service Rows`(Suite Teardown)
+    ...    뿐이다.
+    ...    PDB 접속 문자열이 없거나 접속이 안 되면 **조용히 건너뛴다** — 사전 확인은
+    ...    참고 정보일 뿐이라 Suite Setup 을 막으면 안 된다.
+    ${conn_str}=    Resolve RTS DB Connstr
+    IF    not $conn_str
+        RETURN
+    END
+    ${status}    ${conn}=    Run Keyword And Ignore Error    RtsDb.Db Connect    ${conn_str}
+    IF    '${status}' != 'PASS'
+        RETURN
+    END
+    TRY
+        ${count}=    RtsDb.Db Count    ${RTS_DB_SQL_PRECHECK_SERVICE}
+        ...    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}    ${RTS_SVC_ID_L_DATA_ROAMING_BLOCK}
+        IF    ${count} > 0
+            Log    [Suite] RTS 잔존 데이터 ${count}건 — T_5G_SUBS_SERVICE(MDN=${RTS_TEST_MDN}, SVC_ID=W/L_DATA_ROAMING_BLOCK). 이전 실행이 못 지운 행일 수 있습니다(RTS_CLEANUP_ON_TEARDOWN 참고).
+            ...    level=WARN    console=True
+        END
+    EXCEPT    AS    ${err}
+        Log    [Suite] RTS 사전 확인 조회 실패 — ${err}    level=WARN    console=True
+    END
+    RtsDb.Db Close    ${conn}
+
+Cleanup RTS Service Rows
+    [Documentation]
+    ...    **Suite Teardown 전용.** ${RTS_CLEANUP_ON_TEARDOWN}(기본 ${TRUE}) 이면
+    ...    ${RTS_TEST_MDN} 의 L1/L2 반영 행(T_5G_SUBS_SERVICE, SVC_ID=
+    ...    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}/${RTS_SVC_ID_L_DATA_ROAMING_BLOCK})만
+    ...    지운다 — CDS 처럼 PROFILE/전체 SERVICE 를 지우지 않는다. RTS 는 가입자를
+    ...    만든 적이 없으니(A1 은 CDS 영역) 자기가 심은 두 SVC_ID 행만 책임진다.
+    ...    못 지워도 Teardown 전체를 막지 않는다 — 실패해도 WARN 로그만 남기고
+    ...    나머지 Teardown(소켓 종료 등)은 그대로 진행된다.
+    IF    not ${RTS_CLEANUP_ON_TEARDOWN}
+        Log    [Suite] RTS 종료 시 정리 꺼짐 (RTS_CLEANUP_ON_TEARDOWN=${RTS_CLEANUP_ON_TEARDOWN})    console=True
+        RETURN
+    END
+    ${conn_str}=    Resolve RTS DB Connstr
+    IF    not $conn_str
+        RETURN
+    END
+    ${status}    ${conn}=    Run Keyword And Ignore Error    RtsDb.Db Connect    ${conn_str}
+    IF    '${status}' != 'PASS'
+        RETURN
+    END
+    ${del_status}    ${result}=    Run Keyword And Ignore Error    RtsDb.Db Execute
+    ...    ${RTS_DB_SQL_DELETE_SERVICE}
+    ...    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}    ${RTS_SVC_ID_L_DATA_ROAMING_BLOCK}
+    IF    '${del_status}' == 'PASS'
+        Log    [Suite] RTS 종료 시 정리 — T_5G_SUBS_SERVICE ${result}건 삭제 (MDN=${RTS_TEST_MDN})    console=True
+    ELSE
+        Log    [Suite] RTS 종료 시 정리 실패 — ${result}    level=WARN    console=True
+    END
+    RtsDb.Db Close    ${conn}
 
 
 # ══════════════════════════════════════════════════════════════════

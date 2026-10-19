@@ -91,6 +91,19 @@ ${RTS_DATA_SIZE_OVERSIZED}   600
 ${RTS_DB_WAIT}            10s
 ${RTS_DB_WAIT_INTERVAL}   2s
 
+# 사전 확인 / 종료 시 정리 — CDS 의 ${CDS_CLEANUP_ON_TEARDOWN} 과 같은 목적이지만
+# 범위는 좁다. RTS 는 가입자를 만들지 않는다(A1 은 CDS 영역) — 자기가 심은 두
+# SVC_ID 행(W_DATA_ROAMING_BLOCK/L_DATA_ROAMING_BLOCK, ${RTS_TEST_MDN})만 본다.
+# SQL 은 CDS 와 같은 관례대로 리터럴을 여기 두고 키워드는 변수만 참조한다.
+${RTS_CLEANUP_ON_TEARDOWN}   ${TRUE}
+# `run_tests.sh rts --no-cleanup`(CDS 와 공용 플래그)로 끌 수 있다.
+
+${RTS_DB_SQL_PRECHECK_SERVICE}
+...    SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID IN (?, ?)
+
+${RTS_DB_SQL_DELETE_SERVICE}
+...    DELETE FROM T_5G_SUBS_SERVICE WHERE MDN = ? AND SVC_ID IN (?, ?)
+
 # ════════════════════════════════════════════
 # PCF SBI Noti 수신 검증 — CDS 와 같은 메커니즘/대상 포트(사용자 확인: RTS 의
 # L1/L2 도 SBI Noti 를 유발한다). 도구가 PCF 역할로 Listen 하는 h2c 포트는

@@ -123,6 +123,20 @@ SVC_CODE(0)/MDN(2) 만 두 레이어의 오프셋이 우연히 같다. **`RtsHel
 환경 오버라이드로 비어 있으면 `db` 태그 TC 는 실패가 아니라 **Skip** 한다 — CDS 처럼
 슈트 전체를 막지 않는다.
 
+**잔존 데이터 사전 확인 / 종료 시 정리도 CDS 와 같은 목적으로 있다(2026-10-19 추가)
+— 다만 범위가 좁다.** RTS 는 가입자를 만들지 않는다(그건 CDS 의 `A1`영역이다) — 자기가
+심은 두 SVC_ID 행(`T_5G_SUBS_SERVICE`, `W_DATA_ROAMING_BLOCK`/`L_DATA_ROAMING_BLOCK`,
+`${RTS_TEST_MDN}`)만 책임진다. CDS 와 `${RTS_TEST_MDN}`/`${CDS_MDN}` 이 같은 번호
+(`01090010001`)를 쓰므로, 두 슈트를 같은 번호로 섞어 돌리면 CDS 의 종료 정리가
+RTS 가 넣은 행까지 지우거나(정상 범위 — CDS 는 그 MDN 의 모든 SERVICE 행을 지운다),
+RTS 가 먼저 돌고 정리 없이 끝나면 다음 CDS 실행의 사전 확인에 "낯선" 행으로 잡힐 수
+있다.
+
+- `RTS Precheck Existing Service Rows`(Suite Setup) — 리포트만 한다, 모드 선택 없음
+- `Cleanup RTS Service Rows`(Suite Teardown) — `${RTS_CLEANUP_ON_TEARDOWN}`(기본
+  `${TRUE}`)이면 그 두 SVC_ID 행을 DELETE. `run_tests.sh rts --no-cleanup`(CDS 와
+  공용 플래그)로 끌 수 있다.
+
 ## PCF SBI Noti
 
 **L1/L2 도 PCF SBI Noti 를 유발한다(사용자 확인)** — RTS 소스(`RecvCommandRequest`)만으로는
