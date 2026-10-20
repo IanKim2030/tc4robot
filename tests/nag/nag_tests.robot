@@ -3,6 +3,9 @@ Documentation
 ...    NAG 기능 검증 - msg_type 기준 (공유 소켓)
 ...
 ...    Suite Setup  : Ensure PG Process Running(G_BNOTI201/G_LRS201/CDS201)
+...                   → ${PG_SSH_SETTLE}(기본 3s) 대기 — .RUN touch 는 "띄워 달라"는
+...                     신호일 뿐이라 PG 가 실제로 기동을 끝낼 시간이 더 필요하다
+...                     (2026-10-20, variables.robot 참조)
 ...                   → PCF 서버 소켓(${LRS_SERVER_PORT}) Listen → PG.LRS 접속 수락 (${LRS_CONN})
 ...                   → PCF Hello-Request(0x01) 수신 → Hello-Response(0x02) 처리
 ...                   → **그 다음에** NAG → PG.BNOTI(${NAG_PG_PORT}) 소켓 연결 → ${NAG_SOCK} 공유
@@ -27,6 +30,7 @@ Resource    ../../resources/lrs_keywords.robot
 
 Suite Setup      Run Keywords
 ...              Ensure PG Process Running    G_BNOTI201    G_LRS201    CDS201    AND
+...              Sleep    ${PG_SSH_SETTLE}    AND
 ...              Suite LRS Accept    AND
 ...              Handle LRS Hello    AND
 ...              Suite Connect NAG

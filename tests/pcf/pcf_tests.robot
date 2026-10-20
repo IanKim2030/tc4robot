@@ -2,7 +2,9 @@
 Documentation
 ...    PCF 기능 검증 - msg_type 기준 (공유 소켓)
 ...
-...    Suite Setup  : Ensure PG Process Running(CDS201) → NAG 세션 선등록 후 PCF TCP 연결 1회 + Hello 완료
+...    Suite Setup  : Ensure PG Process Running(CDS201) → ${PG_SSH_SETTLE}(기본 3s) 대기
+...                   (.RUN touch 뒤 PG 기동 여유, 2026-10-20) → NAG 세션 선등록 후
+...                   PCF TCP 연결 1회 + Hello 완료
 ...    Test Setup   : PCF + NAG 소켓 상태 확인 (닫히면 Suite 중단)
 ...    각 TC        : ${PCF_SOCK} 공유 사용, TC별 연결/해제 없음
 
@@ -14,6 +16,7 @@ Resource    ../../resources/pcf_keywords.robot
 
 Suite Setup      Run Keywords
 ...              Ensure PG Process Running    CDS201    AND
+...              Sleep    ${PG_SSH_SETTLE}    AND
 ...              Suite Connect With NAG    ${PCF_PG_HOST}    ${PCF_PG_PORT}    ${PCF_TIMEOUT}
 Suite Teardown   Suite Disconnect With NAG
 Test Setup       Check PCF And NAG Socket

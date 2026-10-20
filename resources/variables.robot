@@ -78,6 +78,15 @@ ${PG_SSH_USER}               ${EMPTY}
 ${PG_SSH_KEY_FILE}           ${EMPTY}
 ${PG_SSH_RUN_DIR}            /PG/BIN/PDB_RUN
 
+# .RUN touch 는 "띄워 달라"는 신호일 뿐, PG 가 그 프로세스를 실제로 인식해
+# 기동을 끝내기까지는 시간이 더 걸린다 — touch 직후 곧바로 접속하면 아직
+# 안 올라온 상태라 9999/Connection reset 으로 헤맬 수 있다(2026-10-20).
+# NAG/PCF/LRS 는 Ensure PG Process Running 뒤에 곧바로 소켓을 여는 구조라
+# 이 여유가 없다 — 그래서 그 셋의 Suite Setup 에서만 이 시간만큼 쉰다.
+# CDS/RTS 는 PDB 접속·세션 적재 등 다른 단계가 먼저 끼어들어 자연히 그만큼
+# 지연되므로 별도로 넣지 않았다.
+${PG_SSH_SETTLE}             3s
+
 # ── PCF SBI Noti 수신 검증 (CDS · RTS 공용) ──
 # 도구가 PCF 역할로 h2c 를 Listen 해 PG.SNOTI 가 보내는 SBI Noti 를 받는 판정.
 # **CDS 와 RTS 가 같은 포트(16101)·같은 HttpNotiServer 를 쓴다** — 손잡이도 하나다.

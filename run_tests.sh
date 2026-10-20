@@ -41,6 +41,11 @@
 # ★ 계정 정보를 채워서 "쓰기로 한" 뒤에는 실패를 조용히 넘기지 않는다 —
 #   ssh 가 없거나 접속·명령이 실패하면 그 슈트의 Suite Setup 이
 #   실패해 TC 가 한 건도 돌지 않는다(resources/ssh_keywords.robot 참조).
+# nag/pcf/lrs 는 touch 뒤 ${PG_SSH_SETTLE}(기본 3s, variables.robot)만큼 쉬고
+# 나서 소켓을 연다 — .RUN touch 는 신호일 뿐이라 PG 가 실제 기동을 끝낼
+# 시간이 더 필요하다(2026-10-20). CDS/RTS 는 그 사이 PDB 접속 등 다른 단계가
+# 있어 자연히 그만큼 지연되므로 따로 넣지 않았다.
+#   bash run_tests.sh nag --variable PG_SSH_SETTLE:5s   # 더 느린 환경이면 늘린다
 #
 # CDS 사전 확인 — 두 대상 번호의 잔존 데이터를 네 표에서 센다.
 #   **기본은 리포트만 하고 그대로 진행한다.** 아래는 그 동작을 바꿀 때만 쓴다.
