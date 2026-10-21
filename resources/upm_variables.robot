@@ -34,8 +34,8 @@ ${UPM_HELLO_TIMEOUT}   5                # 규격서 3.1: 연결 후 5초 이내 
 ${UPM_FTP_ENABLE}        ${TRUE}      # FTP 수신 서버 기동 여부
 ${UPM_FTP_HOST}          0.0.0.0      # 모든 인터페이스 Listen
 ${UPM_FTP_PORT}          2121         # TODO: 실환경 PG 가 붙는 포트로 교체 (21은 권한 문제로 회피)
-${UPM_FTP_USER}          pg          # TODO: 실환경 계정으로 교체
-${UPM_FTP_PASSWORD}      pg1234      # TODO: 실환경 계정으로 교체
+${UPM_FTP_USER}          upm          # PG 가 실제로 이 계정명으로 로그인 시도함(2026-10-22 로그 확인)
+${UPM_FTP_PASSWORD}      upm1234      # TODO: 비밀번호는 아직 미확인 — PG 쪽 실제 값으로 교체
 ${UPM_FTP_UPLOAD_DIR}    ${EMPTY}     # 비우면 임시 디렉터리를 자동 생성(FtpServerHelper.py)
 ${UPM_FTP_WAIT}          30s          # 0x0c에 fileinfo 있을 때 파일 수신 대기 시간
 
