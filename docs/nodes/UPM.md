@@ -60,18 +60,31 @@ JSON Body 안의 `tid`(24자리)는 **헤더의 `txn_id`(4바이트 바이너리
 `${UPM_CT_*}` — `01` 가입 / … / `06` 상품·Device 변경. 문자열이다.
 `UPM Code Type Should Be` 로 검증한다.
 
-### fileinfo (0x0c) — ⚠ 스키마 미확인, FTP 수신 서버
+### fileinfo (0x0c) — FTP 수신 서버 (접속 정보 확인됨, fileinfo 스키마는 ⚠ 미확인)
 
 규격 6.6.1/6.6.2 는 0x0c(Subs-Sync-Response) 응답에 "fileinfo 포함 가능"이라고만
-적혀 있다. **그 필드의 실제 스키마는 확인되지 않았다** — 규격 원문도 이 리포에
-없고, 전체 grep 결과 다른 언급도 없다(2026-10-22).
+적혀 있다. **fileinfo 필드 자체의 스키마(파일명/크기 등)는 여전히 확인되지
+않았다** — 규격 원문도 이 리포에 없고, 전체 grep 결과 다른 언급도 없다.
 
-"PG 가 UPM 으로 파일을 보낸다"는 PG 가 FTP Client 로 붙어 Push 한다는 뜻으로
-추정해(사용자 확인) 도구가 **FTP 서버** 역할을 한다 — `resources/FtpServerHelper.py`
-(`HttpNotiServer.py` 와 같은 구조: 지연 임포트 + 데몬 스레드 + 수신 큐, pyftpdlib
-를 감싼다). 서버의 host/port/계정/업로드 디렉터리는 `${UPM_FTP_*}`
-(`upm_variables.robot`)로 **고정 설정**한다 — fileinfo 를 파싱해 접속 정보를
-derive 하지 않는다.
+다만 **FTP 접속 정보는 PG 쪽 FTP 타겟 설정으로 확인됐다**(2026-10-22) — PG 설정의
+`SYSTEM_ID_04=UPMROB` 항목(`${UPM_SYS_ID}`와 일치해 우리 쪽 항목임을 확인)이
+다음을 담고 있었다:
+
+| 키 | 값 | 의미 |
+|---|---|---|
+| `IP_04` | `192.168.15.142` | PG 가 접속할 주소(도구가 도는 호스트) |
+| `PORT_04` | `2121` | `${UPM_FTP_PORT}` |
+| `USER_ID_04` / `PASSWORD_04` | `upm` / `upm1234` | `${UPM_FTP_USER}` / `${UPM_FTP_PASSWORD}` |
+| `REMOTE_PATH_04` | `/PG/FTP/UPM-ROBOT` | 로그인 후 CWD 로 들어오는 경로 — `${UPM_FTP_REMOTE_PATH}` |
+| `LOCAL_PATH_04` | `/PG/FTP/UPM` | PG 쪽 로컬 경로(원본 파일 위치, 참고용) |
+| `USE_SFTP_04` | `N` | 평문 FTP (SFTP 아님) — pyftpdlib 선택과 일치 |
+
+즉 "PG 가 UPM 으로 파일을 보낸다"는 PG 가 FTP Client 로 붙어 Push 한다는 뜻이
+맞았고(사용자 확인), 도구가 **FTP 서버** 역할을 하는 것도 이 설정으로 확정됐다 —
+`resources/FtpServerHelper.py`(`HttpNotiServer.py` 와 같은 구조: 지연 임포트 +
+데몬 스레드 + 수신 큐, pyftpdlib 를 감싼다). `REMOTE_PATH_04` 는 pyftpdlib 가
+**FTP 가상 루트(업로드 디렉터리) 기준 상대 경로**로 해석하므로, 서버 기동 시
+그 서브디렉터리를 미리 만들어 둔다(없으면 로그인 후 CWD 가 550 으로 거부됨).
 
 **전송되는 파일은 2개다(사용자 확인, 2026-10-22)** — 데이터 파일 + "FIN" 파일
 (전송 완료를 알리는 트리거 파일, 레거시 배치 전송에서 흔한 관례). 어느 쪽이

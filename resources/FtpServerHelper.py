@@ -55,7 +55,8 @@ def _load_pyftpdlib():
 
 class FtpServer(object):
     def __init__(self, port, host='0.0.0.0', user='pg', password='pg1234',
-                 directory=None, passive_ports=None, masquerade_address=None):
+                 directory=None, passive_ports=None, masquerade_address=None,
+                 remote_path=None):
         self.host = host
         self.port = int(port)
         self.user = user
@@ -64,6 +65,12 @@ class FtpServer(object):
         self.directory = directory or tempfile.mkdtemp(prefix='upm_ftp_')
         self.passive_ports = passive_ports
         self.masquerade_address = masquerade_address
+        # PG 가 로그인 후 CWD 로 들어오는 경로(예: /PG/FTP/UPM-ROBOT, PG 쪽 FTP
+        # 타겟 설정 REMOTE_PATH_04 로 확인됨, 2026-10-22). pyftpdlib 는 이걸
+        # **FTP 가상 루트(=self.directory) 기준 상대 경로**로 해석하므로, 그
+        # 서브디렉터리가 실제로 없으면 CWD 자체가 550 으로 거부된다 — 그래서
+        # 여기서 미리 만들어 둔다.
+        self.remote_path = remote_path
         self._server = None
         self._thread = None
         self._lock = threading.Lock()
@@ -75,6 +82,12 @@ class FtpServer(object):
 
     def start(self):
         auth_mod, handlers_mod, servers_mod = _load_pyftpdlib()
+
+        if self.remote_path:
+            # 선행 '/' 를 떼고 self.directory 밑에 그대로 만든다 — FTP 가상
+            # 루트가 self.directory 이므로 PG 의 절대경로 CWD 가 바로 먹는다.
+            rel = self.remote_path.lstrip('/').replace('/', os.sep)
+            os.makedirs(os.path.join(self.directory, rel), exist_ok=True)
 
         _authorizer = auth_mod.DummyAuthorizer()
         _authorizer.add_user(self.user, self.password, self.directory,
@@ -192,11 +205,12 @@ class FtpServer(object):
 # ══════════════════════════════════════════════════════════════════
 
 def ftp_server_start(port, host='0.0.0.0', user='upm', password='upm1234',
-                      directory=None, passive_ports=None, masquerade_address=None):
+                      directory=None, passive_ports=None, masquerade_address=None,
+                      remote_path=None):
     """FTP 수신 서버 기동 → 서버 핸들 반환. 핸들은 Suite Variable 로 들고 다닌다."""
     ports = _parse_port_range(passive_ports)
     srv = FtpServer(port, host, user, password, directory or None,
-                     ports, masquerade_address or None)
+                     ports, masquerade_address or None, remote_path or None)
     return srv.start()
 
 

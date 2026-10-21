@@ -14,12 +14,13 @@
 > `${MSG_UPM_*}` 상수를 쓸 것. 또 JSON Body 의 `tid`(24자리 문자열)는 헤더의
 > `txn_id`(4B 바이너리)와 **완전히 별개**다 ([nodes/UPM.md](../nodes/UPM.md#tid--txn_id-와-별개다)).
 
-> ⚠ 0x0c 의 `fileinfo` 필드 스키마는 **미확인**이다 — 규격 6.6.1/6.6.2 원문이 이 리포에
-> 없고, 어떤 키로 파일명/크기 등을 담는지 확인된 바 없다. 도구는 PG 가 FTP Client 로
-> 파일을 Push 한다고 가정해 FTP 서버로 응대하며, fileinfo 내용 대조는 추정값으로만
-> best-effort 수행한다 ([nodes/UPM.md](../nodes/UPM.md#fileinfo-0x0c--스키마-미확인-ftp-수신-서버)).
-> 전송 파일은 **데이터 파일 + FIN 파일 2개**라는 것은 사용자 확인(2026-10-22) — 다만
-> 어느 파일이 FIN 인지(명명 규칙)는 여전히 추정이다.
+> ⚠ 0x0c 의 `fileinfo` **필드 자체의 스키마**(파일명/크기 등)는 여전히 미확인이다 —
+> 규격 6.6.1/6.6.2 원문이 이 리포에 없다. 다만 **FTP 접속 정보(host/port/계정/
+> remote path)는 PG 설정으로 확인됐다**(`SYSTEM_ID_04=UPMROB`, 2026-10-22 —
+> [nodes/UPM.md](../nodes/UPM.md) 의 "fileinfo (0x0c)" 절 참조) — PG 가 FTP
+> Client 로 Push 한다는 방향도 이걸로 확정됐다. 전송 파일은 **데이터 파일 + FIN
+> 파일 2개**라는 것도 사용자 확인(2026-10-22) — 다만 어느 파일이 FIN 인지
+> (명명 규칙)와 fileinfo 내용 대조는 여전히 추정값 best-effort 다.
 
 ## 콜플로우 — 능동 송신 (UPM 슈트, TC-UPM-001~004)
 

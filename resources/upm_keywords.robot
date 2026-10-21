@@ -74,6 +74,7 @@ Suite UPM Connect
         ...    directory=${UPM_FTP_UPLOAD_DIR}
         ...    passive_ports=${UPM_FTP_PASSIVE_PORTS}
         ...    masquerade_address=${UPM_FTP_MASQUERADE_ADDR}
+        ...    remote_path=${UPM_FTP_REMOTE_PATH}
         Set Suite Variable    ${UPM_FTP_SRV}    ${ftp_srv}
     ELSE
         Log    [Suite] UPM FTP 수신 서버 꺼짐 (UPM_FTP_ENABLE=${UPM_FTP_ENABLE})    console=True

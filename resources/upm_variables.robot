@@ -21,22 +21,26 @@ ${UPM_HELLO_TIMEOUT}   5                # 규격서 3.1: 연결 후 5초 이내 
 # ════════════════════════════════════════════
 # UPM FTP 수신 서버 (0x0c Subs-Sync-Response 의 fileinfo 대응)
 #
-# 규격 6.6.1/6.6.2 는 0x0c 응답에 "fileinfo 포함 가능"이라고만 적혀 있다. 그 필드의
-# 실제 스키마(파일명/크기/전송 방식 등)는 ⚠ 미확인 — 규격 원문도 이 리포에 없고
-# 전체 grep 결과 다른 언급도 없다(2026-10-22).
-#
-# "PG 가 UPM 으로 파일을 보낸다"는 PG 가 FTP Client 로 붙어 Push 한다는 뜻으로
-# 추정했다(사용자 확인) — 그래서 도구가 FTP **서버** 역할을 한다. 서버의
-# host/port/계정/업로드 디렉터리는 fileinfo 내용과 무관하게 **여기서 고정**한다 —
-# fileinfo 를 파싱해 접속 정보를 derive 하지 않는다(파싱 대상 자체가 미확인이기
-# 때문). 끄려면: bash run_tests.sh upm --no-ftp (pyftpdlib 설치 없이도 슈트가 돈다)
+# 규격 6.6.1/6.6.2 는 0x0c 응답에 "fileinfo 포함 가능"이라고만 적혀 있다. **fileinfo
+# 필드 자체의 스키마**(파일명/크기 등)는 여전히 ⚠ 미확인이지만, **FTP 접속
+# 정보는 PG 쪽 FTP 타겟 설정으로 확인됐다**(2026-10-22, SYSTEM_ID_04=UPMROB 항목
+# — 이 값이 ${UPM_SYS_ID}와 일치해 우리 쪽 항목임을 확인):
+#   IP_04=192.168.15.142  PORT_04=2121  USER_ID_04=upm  PASSWORD_04=upm1234
+#   REMOTE_PATH_04=/PG/FTP/UPM-ROBOT  LOCAL_PATH_04=/PG/FTP/UPM  USE_SFTP_04=N
+# "PG 가 UPM 으로 파일을 보낸다"는 PG 가 FTP Client 로 붙어 Push 한다는 뜻이었고
+# (사용자 확인), 도구가 FTP **서버** 역할을 하는 것도 이 설정으로 확정됐다.
+# host/port/계정/디렉터리는 fileinfo 내용과 무관하게 **여기서 고정**한다 —
+# fileinfo 를 파싱해 접속 정보를 derive 하지 않는다.
+# 끄려면: bash run_tests.sh upm --no-ftp (pyftpdlib 설치 없이도 슈트가 돈다)
 # ════════════════════════════════════════════
 ${UPM_FTP_ENABLE}        ${TRUE}      # FTP 수신 서버 기동 여부
-${UPM_FTP_HOST}          0.0.0.0      # 모든 인터페이스 Listen
-${UPM_FTP_PORT}          2121         # TODO: 실환경 PG 가 붙는 포트로 교체 (21은 권한 문제로 회피)
-${UPM_FTP_USER}          upm          # PG 가 실제로 이 계정명으로 로그인 시도함(2026-10-22 로그 확인)
-${UPM_FTP_PASSWORD}      upm1234      # TODO: 비밀번호는 아직 미확인 — PG 쪽 실제 값으로 교체
+${UPM_FTP_HOST}          0.0.0.0      # 모든 인터페이스 Listen (PG 는 IP_04=192.168.15.142 로 접속)
+${UPM_FTP_PORT}          2121         # PG 설정 PORT_04 와 일치 확인(2026-10-22)
+${UPM_FTP_USER}          upm          # PG 설정 USER_ID_04 와 일치 확인(2026-10-22, 로그인 시도 로그로 재확인)
+${UPM_FTP_PASSWORD}      upm1234      # PG 설정 PASSWORD_04 와 일치 확인(2026-10-22)
 ${UPM_FTP_UPLOAD_DIR}    ${EMPTY}     # 비우면 임시 디렉터리를 자동 생성(FtpServerHelper.py)
+${UPM_FTP_REMOTE_PATH}   /PG/FTP/UPM-ROBOT   # PG 설정 REMOTE_PATH_04 — 로그인 후 CWD 로 들어오는 경로.
+# FtpServerHelper.py 가 업로드 디렉터리 밑에 이 경로를 미리 만들어 둔다(없으면 CWD 가 550 으로 거부됨).
 ${UPM_FTP_WAIT}          30s          # 0x0c에 fileinfo 있을 때 파일 수신 대기 시간
 
 # 전송 파일은 **2개**다(사용자 확인, 2026-10-22) — 데이터 파일 + "FIN" 파일
