@@ -112,6 +112,9 @@ Receive ZION Request
 
 Send ZION Response
     [Arguments]    ${txn_id}    ${code}=200    ${cause}=${NONE}
+    # ${code} 가 Robot 리터럴("200")로 들어오면 문자열이라 JSON 이
+    # {"code":"200"} 으로 나간다 — PG 가 숫자를 기대하므로 정수로 강제한다.
+    ${code}=    Convert To Integer    ${code}
     ${payload}=    Create Dictionary    code=${code}
     IF    $cause is not None
         Set To Dictionary    ${payload}    cause=${cause}
