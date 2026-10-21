@@ -14,6 +14,11 @@
 > `${MSG_UPM_*}` 상수를 쓸 것. 또 JSON Body 의 `tid`(24자리 문자열)는 헤더의
 > `txn_id`(4B 바이너리)와 **완전히 별개**다 ([nodes/UPM.md](../nodes/UPM.md#tid--txn_id-와-별개다)).
 
+> ⚠ 0x0c 의 `fileinfo` 필드 스키마는 **미확인**이다 — 규격 6.6.1/6.6.2 원문이 이 리포에
+> 없고, 어떤 키로 파일명/크기 등을 담는지 확인된 바 없다. 도구는 PG 가 FTP Client 로
+> 파일을 Push 한다고 가정해 FTP 서버로 응대하며, fileinfo 내용 대조는 추정값으로만
+> best-effort 수행한다 ([nodes/UPM.md](../nodes/UPM.md#fileinfo-0x0c--스키마-미확인-ftp-수신-서버)).
+
 ## 콜플로우 — 능동 송신 (UPM 슈트, TC-UPM-001~004)
 
 ```mermaid
@@ -40,6 +45,10 @@ sequenceDiagram
 
     TOOL->>PG: 0x0b Subs-Sync-Request (code-type=05, tid, event-timestamp) — 전체 동기화 요청
     PG-->>TOOL: 0x0c Subs-Sync-Response (result-code=SC0000, code-type echo, fileinfo 포함 가능)
+    opt fileinfo 포함
+        PG->>TOOL: FTP STOR — 도구가 FTP 서버 역할로 Listen(${UPM_FTP_PORT})
+        Note over TOOL,PG: ★ fileinfo 스키마 ⚠ 미확인 — best-effort 로 "파일이 왔는지"만 확인
+    end
 
     rect rgba(255, 176, 32, 0.14)
     Note over TOOL,PG: ★ 판정 — 각 응답에서 즉시: msg_type(짝수 opcode) + TXN ID 에코 + result-code. PDB 를 보지 않는다

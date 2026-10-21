@@ -9,8 +9,9 @@ Documentation
 ...    Suite Setup    : UPM → PG 연결 + Hello-Request(0x01)/Response(0x02) 처리
 ...                     → ${UPM_SOCK} 공유, ping-interval 저장
 ...                     ※ 규격 3.1: 연결 후 5초 이내 Hello 미송신 시 PG가 종료
+...                     + FTP 수신 서버 기동(${UPM_FTP_ENABLE}, 기본 켜짐 — 아래 참조)
 ...    Test Setup     : Check UPM Socket (소켓 닫히면 Suite 즉시 중단)
-...    Suite Teardown : UPM 연결 종료
+...    Suite Teardown : UPM 연결 종료 + FTP 수신 서버 종료
 ...    각 TC          : ${UPM_SOCK} 공유 사용 (TC별 연결/해제 없음)
 ...
 ...    [메시지 흐름 요약]
@@ -19,6 +20,16 @@ Documentation
 ...
 ...    수동 수신 TC 는 PG 측 실제 이벤트가 발생해야 동작하므로 운영 환경 미준비 시
 ...    참고용으로 주석 처리되어 있음. PG 이벤트 트리거가 가능해지면 주석 해제.
+...
+...    [0x0c fileinfo → FTP 파일 수신] (2026-10-22 추가)
+...    0x0c(Subs-Sync-Response)는 fileinfo 를 포함할 수 있다 — PG 가 FTP Client 로
+...    도구에 파일을 Push 한다고 추정해(사용자 확인), 도구가 FTP **서버**
+...    역할로 받는다(resources/FtpServerHelper.py, pyftpdlib 필요).
+...    ⚠ fileinfo 의 실제 필드 스키마는 미확인이다 — TC-UPM-004 의
+...    `Verify Subs Sync Fileinfo` 는 파일 수신 자체는 엄격히 확인하되, fileinfo
+...    내용과의 대조(파일명 등)는 best-effort 로만 한다. 자세한 내용은
+...    docs/nodes/UPM.md 의 "fileinfo (0x0c)" 절 참조.
+...    끄려면: bash run_tests.sh upm --no-ftp (pyftpdlib 없이도 슈트가 돈다)
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/upm_variables.robot
@@ -92,13 +103,16 @@ TC-UPM-004 Subs-Sync - 전체 동기화 요청 (code-type=05)
     [Documentation]
     ...    규격 6.6.1 / 6.6.2
     ...    UPM → PG 0x0b 송신 → 0x0c 수신, fileinfo 포함 가능, result-code=SC0000
+    ...    fileinfo 있으면 FTP 로 실제 파일 수신까지 best-effort 확인(⚠ fileinfo 스키마 미확인)
     [Tags]    upm    subs-sync    smoke
+    ${since}=    Ftp.Ftp Now
     ${txn}=    Next TXN ID
     ${hdr}    ${body}=    Send Subs Sync Request    ${txn}    sys_id=UPMROB
     Response Msg Type Should Be    ${hdr}    ${12}
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Sync Should Succeed    ${body}
     UPM Code Type Should Be    ${body}    ${UPM_CT_SYNC_ALL}
+    Verify Subs Sync Fileinfo    ${body}    ${since}
 
 
 # ════════════════════════════════════════════════════════════════

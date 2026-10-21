@@ -26,11 +26,16 @@ Library    String
 Library    DateTime
 Library    BuiltIn
 Library    ${CURDIR}/TcpHelper.py    WITH NAME    Tcp
+# PG 가 0x0c(Subs-Sync-Response)의 fileinfo 로 파일을 밀어줄 수 있다 → 도구가 FTP
+# 서버 역할로 받는다(사용자 확인). fileinfo 의 실제 스키마는 ⚠ 미확인.
+# → 의존성: pip install pyftpdlib (UPM_FTP_ENABLE=False 면 불필요)
+Library    ${CURDIR}/FtpServerHelper.py    WITH NAME    Ftp
 Resource   ${CURDIR}/common_keywords.robot
 
 *** Variables ***
 ${UPM_SOCK}      ${NONE}
 ${UPM_TID_SEQ}   ${0}
+${UPM_FTP_SRV}   ${NONE}     # FTP 수신 서버 핸들 (Suite Setup 에서 기동)
 
 
 *** Keywords ***
@@ -60,10 +65,26 @@ Suite UPM Connect
     Set Suite Variable    ${UPM_KEY_LIST}    ${key_list}
     ${key_count}=    Get Length    ${key_list}
     Log    [Suite] UPM Hello 성공 code=${code} ping-interval=${pi} keyList=${key_count}건    console=True
+    # FTP 수신 서버 — PG 가 0x0c 의 fileinfo 로 파일을 밀어줄 때 받는다.
+    # 소켓과 달리 PG 가 **붙어 오는 쪽**이라 여기서는 Listen 만 열어 둔다.
+    IF    ${UPM_FTP_ENABLE}
+        Log    [Suite] UPM FTP 수신 서버 시작 → ${UPM_FTP_HOST}:${UPM_FTP_PORT}    console=True
+        ${ftp_srv}=    Ftp.Ftp Server Start    ${UPM_FTP_PORT}    ${UPM_FTP_HOST}
+        ...    user=${UPM_FTP_USER}    password=${UPM_FTP_PASSWORD}
+        ...    directory=${UPM_FTP_UPLOAD_DIR}
+        ...    passive_ports=${UPM_FTP_PASSIVE_PORTS}
+        ...    masquerade_address=${UPM_FTP_MASQUERADE_ADDR}
+        Set Suite Variable    ${UPM_FTP_SRV}    ${ftp_srv}
+    ELSE
+        Log    [Suite] UPM FTP 수신 서버 꺼짐 (UPM_FTP_ENABLE=${UPM_FTP_ENABLE})    console=True
+    END
 
 Suite UPM Disconnect
-    [Documentation]    UPM Suite Teardown 전용. UPM 소켓 종료.
+    [Documentation]    UPM Suite Teardown 전용. UPM 소켓 종료 + FTP 수신 서버 종료.
     Run Keyword If    $UPM_SOCK is not None    Tcp.Tcp Close    ${UPM_SOCK}
+    # 데몬 스레드라 안 닫아도 프로세스와 함께 죽지만, 포트를 붙들고 있으면 바로
+    # 이어 도는 다음 실행이 bind 에서 실패한다 → 반드시 닫는다(CDS/RTS 와 동일 이유).
+    Run Keyword If    $UPM_FTP_SRV is not None    Ftp.Ftp Server Stop    ${UPM_FTP_SRV}
     Log    [Suite] UPM 연결 종료    console=True
 
 Check UPM Socket
@@ -324,6 +345,55 @@ Subs Sync Should Succeed
     ${rc}=    Get From Dictionary    ${resp_body}    result-code
     Should Be Equal As Strings    ${rc}    ${UPM_RC_SUCCESS}
     ...    msg=Subs-Sync 실패: result-code=${rc}
+
+Guess Fileinfo Filename
+    [Documentation]
+    ...    fileinfo 의 실제 키 이름은 ⚠ 미확인이다. 그럴듯한 후보를 순서대로 찾아보고,
+    ...    하나도 없으면 빈 문자열을 반환한다(파일명 대조를 건너뛰게 한다) — 실제 샘플이
+    ...    확보되면 이 목록만 고치면 된다.
+    [Arguments]    ${fileinfo}
+    FOR    ${key}    IN    filename    fileName    file_name    file-name    name
+        ${ok}=    Run Keyword And Return Status
+        ...    Dictionary Should Contain Key    ${fileinfo}    ${key}
+        IF    ${ok}
+            ${v}=    Get From Dictionary    ${fileinfo}    ${key}
+            RETURN    ${v}
+        END
+    END
+    RETURN    ${EMPTY}
+
+Verify Subs Sync Fileinfo
+    [Documentation]
+    ...    0x0c 응답의 fileinfo(⚠ 스키마 미확인)를 best-effort 로 대조한다.
+    ...    · ${UPM_FTP_ENABLE}=False 면 전부 건너뛴다.
+    ...    · fileinfo 가 없으면("포함 가능"이라 매 응답에 있는 게 아니다) 그냥 지나간다.
+    ...    · fileinfo 가 있으면 FTP 로 실제 파일이 왔는지 기다리고, 없으면 Fail 한다.
+    ...    · 파일명 대조는 **추정**이라 안 맞아도 WARN 로그만 남기고 실패시키지 않는다 —
+    ...      fileinfo 의 실제 모양이 확인되면 Guess Fileinfo Filename 을 고쳐 엄격화할 것.
+    [Arguments]    ${resp_body}    ${since}=${NONE}
+    IF    not ${UPM_FTP_ENABLE}
+        RETURN
+    END
+    ${has_fileinfo}=    Run Keyword And Return Status
+    ...    Dictionary Should Contain Key    ${resp_body}    fileinfo
+    IF    not ${has_fileinfo}
+        Log    [UPM] 0x0c 응답에 fileinfo 없음 — 이 응답은 파일을 보내지 않는 경우로 처리    console=True
+        RETURN
+    END
+    ${fileinfo}=    Get From Dictionary    ${resp_body}    fileinfo
+    Log    [UPM] fileinfo 수신(참고용, 스키마 미확인): ${fileinfo}    console=True
+    ${received}=    Ftp.Ftp Wait    ${UPM_FTP_SRV}    timeout=${UPM_FTP_WAIT}    since=${since}
+    IF    not ${received}
+        ${errs}=    Ftp.Ftp Errors    ${UPM_FTP_SRV}
+        Fail    0x0c 응답에 fileinfo 가 있었는데 FTP 로 파일이 수신되지 않았습니다 (${UPM_FTP_WAIT} 대기). errors=${errs}
+    END
+    ${expected_name}=    Guess Fileinfo Filename    ${fileinfo}
+    IF    "${expected_name}" != "${EMPTY}"
+        ${names}=    Evaluate    [f['filename'] for f in $received]
+        IF    "${expected_name}" not in ${names}
+            Log    [UPM] ⚠ fileinfo 파일명(${expected_name}) ≠ 실제 수신(${names}) — fileinfo 스키마가 추정과 다를 수 있음    console=True    level=WARN
+        END
+    END
 
 
 # ══════════════════════════════════════════════════════════════════

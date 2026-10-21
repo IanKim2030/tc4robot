@@ -34,6 +34,9 @@
 #   bash run_tests.sh rts --no-sbi          # PCF SBI Listen(${RTS_NOTI_PORT}) 자체를 안 함 (h2 불필요)
 #   (--no-sbi/--sbi 는 CDS/RTS 공용 플래그다 — 대상 슈트가 안 쓰는 쪽 변수는 무시된다)
 #
+# UPM 곁가지 연동 (기본은 켜짐 — upm_variables.robot):
+#   bash run_tests.sh upm --no-ftp          # FTP 수신 서버(0x0c fileinfo 대응) 자체를 안 함 (pyftpdlib 불필요)
+#
 # PG 프로세스 기동 보장 (SSH, nag/lrs/pcf/cds/rts 공용) — Suite Setup 이 슈트가
 # 의존하는 PG 프로세스의 .RUN 파일을 touch 한다. 계정 정보(${PG_SSH_USER},
 # resources/variables.robot)가 없으면 이 플래그와 무관하게 원래 건너뛴다.
@@ -115,6 +118,10 @@ for arg in "${@:2}"; do
                         TOGGLE_VARS+=(--variable SNOTI_PCF_NOTI:False) ;;
         --sbi|--http|--noti)
                         TOGGLE_VARS+=(--variable SNOTI_PCF_NOTI:True) ;;
+        # UPM FTP — PG 가 0x0c(Subs-Sync-Response)의 fileinfo 로 파일을 밀어줄 때
+        # 도구가 FTP 서버 역할로 받는다(pyftpdlib 필요). 끄면 pyftpdlib 없이도 슈트가 돈다.
+        --no-ftp)       TOGGLE_VARS+=(--variable UPM_FTP_ENABLE:False) ;;
+        --ftp)          TOGGLE_VARS+=(--variable UPM_FTP_ENABLE:True) ;;
         # 사전 확인 — 잔존 데이터가 있을 때의 처리 방식.
         # 기본은 report(리포트만 하고 진행)라 평소에는 아무것도 줄 필요가 없다.
         --no-precheck)     TOGGLE_VARS+=(--variable CDS_PRECHECK:False) ;;

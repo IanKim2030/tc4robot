@@ -19,6 +19,32 @@ ${UPM_BRANCH_NAME}     SS               # SS=성수, DS=둔산, BR=보라매
 ${UPM_HELLO_TIMEOUT}   5                # 규격서 3.1: 연결 후 5초 이내 Hello 송신
 
 # ════════════════════════════════════════════
+# UPM FTP 수신 서버 (0x0c Subs-Sync-Response 의 fileinfo 대응)
+#
+# 규격 6.6.1/6.6.2 는 0x0c 응답에 "fileinfo 포함 가능"이라고만 적혀 있다. 그 필드의
+# 실제 스키마(파일명/크기/전송 방식 등)는 ⚠ 미확인 — 규격 원문도 이 리포에 없고
+# 전체 grep 결과 다른 언급도 없다(2026-10-22).
+#
+# "PG 가 UPM 으로 파일을 보낸다"는 PG 가 FTP Client 로 붙어 Push 한다는 뜻으로
+# 추정했다(사용자 확인) — 그래서 도구가 FTP **서버** 역할을 한다. 서버의
+# host/port/계정/업로드 디렉터리는 fileinfo 내용과 무관하게 **여기서 고정**한다 —
+# fileinfo 를 파싱해 접속 정보를 derive 하지 않는다(파싱 대상 자체가 미확인이기
+# 때문). 끄려면: bash run_tests.sh upm --no-ftp (pyftpdlib 설치 없이도 슈트가 돈다)
+# ════════════════════════════════════════════
+${UPM_FTP_ENABLE}        ${TRUE}      # FTP 수신 서버 기동 여부
+${UPM_FTP_HOST}          0.0.0.0      # 모든 인터페이스 Listen
+${UPM_FTP_PORT}          2121         # TODO: 실환경 PG 가 붙는 포트로 교체 (21은 권한 문제로 회피)
+${UPM_FTP_USER}          upm          # TODO: 실환경 계정으로 교체
+${UPM_FTP_PASSWORD}      upm1234      # TODO: 실환경 계정으로 교체
+${UPM_FTP_UPLOAD_DIR}    ${EMPTY}     # 비우면 임시 디렉터리를 자동 생성(FtpServerHelper.py)
+${UPM_FTP_WAIT}          30s          # 0x0c에 fileinfo 있을 때 파일 수신 대기 시간
+
+# PG 와 도구 사이에 NAT/방화벽이 있으면 pyftpdlib 가 임의로 고르는 PASV 포트가
+# 막혀 STOR 가 실패할 수 있다. 비워 두면(기본) pyftpdlib 기본 동작(임의 포트)을 쓴다.
+${UPM_FTP_PASSIVE_PORTS}      ${EMPTY}     # 예: 60000-60050
+${UPM_FTP_MASQUERADE_ADDR}    ${EMPTY}     # PASV 응답에 실을 "도구가 PG 쪽에서 보이는 주소"
+
+# ════════════════════════════════════════════
 # UPM 전용 메시지 타입 (HFC 가입자 Cell List 연동, 헤더 Byte1)
 # ════════════════════════════════════════════
 ${MSG_UPM_SUBS_CHANGE_REQ}    ${5}     # 0x05  PG → UPM (번호 변경 NOTI)
