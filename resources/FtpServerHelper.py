@@ -249,19 +249,28 @@ def ftp_connections(server):
     return server.connections() if server is not None else []
 
 
-def ftp_wait(server, timeout=30, filename_contains=None, since=None, poll=0.5):
+def ftp_wait(server, timeout=30, filename_contains=None, since=None, poll=0.5,
+             min_count=1):
     """
-    조건에 맞는 파일이 **1건 이상** 들어올 때까지 기다렸다가 그 목록을 반환한다.
-    시간 안에 안 오면 빈 리스트를 준다(실패 판정은 호출한 키워드가 한다).
+    조건에 맞는 파일이 min_count 건 이상 들어올 때까지 기다렸다가 그 목록을
+    반환한다. 시간 안에 min_count 를 못 채우면 **그때까지 모인 것까지 포함해**
+    빈 리스트가 아니라 **마지막으로 확인한 목록**을 돌려준다 — 몇 건이 왔는지를
+    호출부가 실패 메시지에 쓸 수 있게 하기 위함이다(실패 판정 자체는 호출한
+    키워드가 "min_count 를 채웠는가"로 한다).
+
+    UPM Subs-Sync 는 데이터 파일 + FIN 파일, **2개**를 보낸다(사용자 확인,
+    2026-10-22) — 그래서 min_count 기본값을 1로 둔 채 호출부(upm_keywords.robot)
+    에서 2를 넘긴다.
     """
     deadline = time.time() + _seconds(timeout)
     step = _seconds(poll)
+    found = []
     while True:
         found = ftp_list(server, filename_contains, since)
-        if found:
+        if len(found) >= min_count:
             return found
         if time.time() >= deadline:
-            return []
+            return found
         time.sleep(step)
 
 

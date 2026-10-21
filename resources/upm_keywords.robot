@@ -367,9 +367,14 @@ Verify Subs Sync Fileinfo
     ...    0x0c 응답의 fileinfo(⚠ 스키마 미확인)를 best-effort 로 대조한다.
     ...    · ${UPM_FTP_ENABLE}=False 면 전부 건너뛴다.
     ...    · fileinfo 가 없으면("포함 가능"이라 매 응답에 있는 게 아니다) 그냥 지나간다.
-    ...    · fileinfo 가 있으면 FTP 로 실제 파일이 왔는지 기다리고, 없으면 Fail 한다.
-    ...    · 파일명 대조는 **추정**이라 안 맞아도 WARN 로그만 남기고 실패시키지 않는다 —
-    ...      fileinfo 의 실제 모양이 확인되면 Guess Fileinfo Filename 을 고쳐 엄격화할 것.
+    ...    · fileinfo 가 있으면 FTP 로 **파일 2개**(데이터 파일 + FIN 파일, 사용자
+    ...      확인 2026-10-22)가 왔는지 기다리고, 둘 다 안 차면 Fail 한다 — 몇 건
+    ...      왔는지(0건/1건만)를 메시지에 남겨 "아예 안 옴"과 "데이터만 오고 FIN
+    ...      이 안 옴"을 구분한다.
+    ...    · 어느 쪽이 FIN 인지는 ${UPM_FTP_FIN_PATTERN} 포함 여부로 **추정**한다.
+    ...    · 파일명 대조(fileinfo 안의 이름)는 **추정**이라 안 맞아도 WARN 로그만
+    ...      남기고 실패시키지 않는다 — fileinfo 의 실제 모양이 확인되면
+    ...      Guess Fileinfo Filename 을 고쳐 엄격화할 것.
     [Arguments]    ${resp_body}    ${since}=${NONE}
     IF    not ${UPM_FTP_ENABLE}
         RETURN
@@ -383,9 +388,18 @@ Verify Subs Sync Fileinfo
     ${fileinfo}=    Get From Dictionary    ${resp_body}    fileinfo
     Log    [UPM] fileinfo 수신(참고용, 스키마 미확인): ${fileinfo}    console=True
     ${received}=    Ftp.Ftp Wait    ${UPM_FTP_SRV}    timeout=${UPM_FTP_WAIT}    since=${since}
-    IF    not ${received}
+    ...    min_count=2
+    ${count}=    Get Length    ${received}
+    IF    ${count} < 2
         ${errs}=    Ftp.Ftp Errors    ${UPM_FTP_SRV}
-        Fail    0x0c 응답에 fileinfo 가 있었는데 FTP 로 파일이 수신되지 않았습니다 (${UPM_FTP_WAIT} 대기). errors=${errs}
+        ${names}=    Evaluate    [f['filename'] for f in $received]
+        Fail    0x0c 응답에 fileinfo 가 있었는데 FTP 로 파일 2개(데이터+FIN)가 다 오지 않았습니다 (${UPM_FTP_WAIT} 대기, ${count}건만 수신: ${names}). errors=${errs}
+    END
+    ${fin_files}=    Evaluate    [f['filename'] for f in $received if "${UPM_FTP_FIN_PATTERN}".lower() in f['filename'].lower()]
+    ${data_files}=    Evaluate    [f['filename'] for f in $received if "${UPM_FTP_FIN_PATTERN}".lower() not in f['filename'].lower()]
+    Log    [UPM] FTP 수신 완료 — 데이터 파일(추정): ${data_files} / FIN 파일(추정): ${fin_files}    console=True
+    IF    not ${fin_files}
+        Log    [UPM] ⚠ FIN 패턴(${UPM_FTP_FIN_PATTERN})에 맞는 파일을 못 찾음 — 두 파일 중 어느 쪽이 FIN 인지 구분 실패(패턴이 추정과 다를 수 있음)    console=True    level=WARN
     END
     ${expected_name}=    Guess Fileinfo Filename    ${fileinfo}
     IF    "${expected_name}" != "${EMPTY}"

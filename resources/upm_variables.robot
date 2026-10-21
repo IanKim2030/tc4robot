@@ -39,6 +39,12 @@ ${UPM_FTP_PASSWORD}      upm1234      # TODO: 실환경 계정으로 교체
 ${UPM_FTP_UPLOAD_DIR}    ${EMPTY}     # 비우면 임시 디렉터리를 자동 생성(FtpServerHelper.py)
 ${UPM_FTP_WAIT}          30s          # 0x0c에 fileinfo 있을 때 파일 수신 대기 시간
 
+# 전송 파일은 **2개**다(사용자 확인, 2026-10-22) — 데이터 파일 + "FIN" 파일
+# (전송 완료를 알리는 트리거 파일, 레거시 배치 전송에서 흔한 관례). 어느 쪽이
+# FIN 인지 구분하는 기준은 ⚠ 추정이다 — 파일명에 이 패턴(대소문자 무관)이
+# 포함되면 FIN 으로 본다. 실제 명명 규칙이 확인되면 이 값만 고치면 된다.
+${UPM_FTP_FIN_PATTERN}   FIN
+
 # PG 와 도구 사이에 NAT/방화벽이 있으면 pyftpdlib 가 임의로 고르는 PASV 포트가
 # 막혀 STOR 가 실패할 수 있다. 비워 두면(기본) pyftpdlib 기본 동작(임의 포트)을 쓴다.
 ${UPM_FTP_PASSIVE_PORTS}      ${EMPTY}     # 예: 60000-60050

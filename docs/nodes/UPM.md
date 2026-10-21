@@ -73,19 +73,29 @@ JSON Body 안의 `tid`(24자리)는 **헤더의 `txn_id`(4바이트 바이너리
 (`upm_variables.robot`)로 **고정 설정**한다 — fileinfo 를 파싱해 접속 정보를
 derive 하지 않는다.
 
+**전송되는 파일은 2개다(사용자 확인, 2026-10-22)** — 데이터 파일 + "FIN" 파일
+(전송 완료를 알리는 트리거 파일, 레거시 배치 전송에서 흔한 관례). 어느 쪽이
+FIN 인지는 파일명에 `${UPM_FTP_FIN_PATTERN}`(기본 `FIN`, 대소문자 무관) 이
+포함되는지로 **추정**한다 — 실제 명명 규칙이 확인되면 그 변수만 고치면 된다.
+
 `TC-UPM-004`가 0x0c 수신 후 `Verify Subs Sync Fileinfo`(`upm_keywords.robot`)로
 다음을 best-effort 로 한다:
 
 1. fileinfo 가 없으면 건너뛴다(규격상 "포함 가능"일 뿐 매 응답에 있는 게 아니다).
-2. fileinfo 가 있으면 `${UPM_FTP_WAIT}`(기본 30s) 동안 실제로 파일이 오는지
-   기다린다 — **안 오면 Fail** 한다(이건 엄격하다).
-3. fileinfo 안에서 파일명으로 추정되는 키(`filename`/`fileName`/`file_name`/
+2. fileinfo 가 있으면 `${UPM_FTP_WAIT}`(기본 30s) 동안 **파일 2개**(데이터+FIN)
+   가 다 오는지 기다린다 — 둘 다 못 채우면 **Fail** 한다(이건 엄격하다). 실패
+   메시지에 몇 건이 왔는지(0건/1건만)를 남겨 "아예 안 옴"과 "데이터만 오고
+   FIN 이 안 옴"을 구분한다.
+3. 수신된 두 파일 중 FIN 패턴에 맞는 게 없으면 ⚠ WARN 로그만 남긴다(어느 쪽이
+   FIN 인지 구분 실패 — 패턴이 추정과 다를 수 있음).
+4. fileinfo 안에서 파일명으로 추정되는 키(`filename`/`fileName`/`file_name`/
    `file-name`/`name`, `Guess Fileinfo Filename` 참조)가 있으면 수신 파일명과
    대조하되, **안 맞아도 WARN 로그만 남기고 실패시키지 않는다** — fileinfo 의
    실제 키 이름이 추정과 다를 수 있기 때문이다.
 
-> ⚠ 실제 fileinfo 샘플이 확보되면 `Guess Fileinfo Filename`(upm_keywords.robot)의
-> 후보 키 목록과 이 절을 함께 갱신할 것 — 지금은 전부 추측값이다.
+> ⚠ 실제 fileinfo 샘플과 FIN 파일 명명 규칙이 확보되면 `Guess Fileinfo
+> Filename`/`${UPM_FTP_FIN_PATTERN}`(upm_keywords.robot / upm_variables.robot)과
+> 이 절을 함께 갱신할 것 — 지금은 전부 추측값이다.
 
 끄려면: `bash run_tests.sh upm --no-ftp` (pyftpdlib 없이도 슈트가 돈다).
 

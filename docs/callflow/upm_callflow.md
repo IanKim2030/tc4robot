@@ -18,6 +18,8 @@
 > 없고, 어떤 키로 파일명/크기 등을 담는지 확인된 바 없다. 도구는 PG 가 FTP Client 로
 > 파일을 Push 한다고 가정해 FTP 서버로 응대하며, fileinfo 내용 대조는 추정값으로만
 > best-effort 수행한다 ([nodes/UPM.md](../nodes/UPM.md#fileinfo-0x0c--스키마-미확인-ftp-수신-서버)).
+> 전송 파일은 **데이터 파일 + FIN 파일 2개**라는 것은 사용자 확인(2026-10-22) — 다만
+> 어느 파일이 FIN 인지(명명 규칙)는 여전히 추정이다.
 
 ## 콜플로우 — 능동 송신 (UPM 슈트, TC-UPM-001~004)
 
@@ -46,8 +48,9 @@ sequenceDiagram
     TOOL->>PG: 0x0b Subs-Sync-Request (code-type=05, tid, event-timestamp) — 전체 동기화 요청
     PG-->>TOOL: 0x0c Subs-Sync-Response (result-code=SC0000, code-type echo, fileinfo 포함 가능)
     opt fileinfo 포함
-        PG->>TOOL: FTP STOR — 도구가 FTP 서버 역할로 Listen(${UPM_FTP_PORT})
-        Note over TOOL,PG: ★ fileinfo 스키마 ⚠ 미확인 — best-effort 로 "파일이 왔는지"만 확인
+        PG->>TOOL: FTP STOR (데이터 파일) — 도구가 FTP 서버 역할로 Listen(${UPM_FTP_PORT})
+        PG->>TOOL: FTP STOR (FIN 파일) — 전송 완료 트리거(사용자 확인, 2026-10-22)
+        Note over TOOL,PG: ★ fileinfo 스키마 ⚠ 미확인 — 파일 2개(데이터+FIN) 다 왔는지만 확인,<br/>어느 쪽이 FIN 인지는 파일명 패턴(${UPM_FTP_FIN_PATTERN})으로 추정
     end
 
     rect rgba(255, 176, 32, 0.14)
