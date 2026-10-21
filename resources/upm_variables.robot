@@ -14,9 +14,7 @@ Documentation
 ${UPM_PG_HOST}         ${PG_HOST}
 ${UPM_PG_PORT}         10506            # 규격서 10. 서비스 접속 정보
 ${UPM_TIMEOUT}         10
-${UPM_SYS_ID}          UPM-ROBOT        # sys-id 필드, 32자 이내 (Peer Name).
-# ★ TID(Next UPM TID)의 "장비No" 5자리는 이 값과 별개다 — sys_id 앞 5자를
-#   잘라 쓰는 것뿐이라 sys_id 자체의 길이 제한과 혼동하지 말 것(2026-10-22).
+${UPM_SYS_ID}          UPMROB          # sys-id 필드, 32자 이내 (Peer Name).
 ${UPM_BRANCH_NAME}     SS               # SS=성수, DS=둔산, BR=보라매
 ${UPM_HELLO_TIMEOUT}   5                # 규격서 3.1: 연결 후 5초 이내 Hello 송신
 
