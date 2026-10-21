@@ -370,7 +370,9 @@ Verify Subs Sync Fileinfo
     ...    · fileinfo 가 있으면 FTP 로 **파일 2개**(데이터 파일 + FIN 파일, 사용자
     ...      확인 2026-10-22)가 왔는지 기다리고, 둘 다 안 차면 Fail 한다 — 몇 건
     ...      왔는지(0건/1건만)를 메시지에 남겨 "아예 안 옴"과 "데이터만 오고 FIN
-    ...      이 안 옴"을 구분한다.
+    ...      이 안 옴"을 구분한다. **접속 이력(Ftp Connections)도 같이 봐서**
+    ...      "PG 가 접속 자체를 안 함" 과 "접속은 했는데 파일을 안 보냄"을 가른다
+    ...      (2026-10-22, 실제로 접속 0건/오류 0건인 상황이 재현돼 추가).
     ...    · 어느 쪽이 FIN 인지는 ${UPM_FTP_FIN_PATTERN} 포함 여부로 **추정**한다.
     ...    · 파일명 대조(fileinfo 안의 이름)는 **추정**이라 안 맞아도 WARN 로그만
     ...      남기고 실패시키지 않는다 — fileinfo 의 실제 모양이 확인되면
@@ -393,7 +395,16 @@ Verify Subs Sync Fileinfo
     IF    ${count} < 2
         ${errs}=    Ftp.Ftp Errors    ${UPM_FTP_SRV}
         ${names}=    Evaluate    [f['filename'] for f in $received]
-        Fail    0x0c 응답에 fileinfo 가 있었는데 FTP 로 파일 2개(데이터+FIN)가 다 오지 않았습니다 (${UPM_FTP_WAIT} 대기, ${count}건만 수신: ${names}). errors=${errs}
+        # 접속 자체가 있었는지부터 가른다 — "PG 가 아예 안 붙었다" 와
+        # "붙긴 붙었는데 파일을 안 보냈다"는 원인이 완전히 다르다.
+        ${conns}=    Ftp.Ftp Connections    ${UPM_FTP_SRV}    since=${since}
+        ${conn_count}=    Get Length    ${conns}
+        IF    ${conn_count} == 0
+            ${diag}=    Set Variable    PG 가 FTP 서버(${UPM_FTP_HOST}:${UPM_FTP_PORT})에 접속 자체를 안 함 — 방향/주소/포트 설정부터 의심할 것
+        ELSE
+            ${diag}=    Set Variable    접속은 ${conn_count}건 있었음(${conns}) — 붙었는데 파일을 안 보냄. 계정/권한/타이밍을 의심할 것
+        END
+        Fail    0x0c 응답에 fileinfo 가 있었는데 FTP 로 파일 2개(데이터+FIN)가 다 오지 않았습니다 (${UPM_FTP_WAIT} 대기, ${count}건만 수신: ${names}). ${diag}. errors=${errs}
     END
     ${fin_files}=    Evaluate    [f['filename'] for f in $received if "${UPM_FTP_FIN_PATTERN}".lower() in f['filename'].lower()]
     ${data_files}=    Evaluate    [f['filename'] for f in $received if "${UPM_FTP_FIN_PATTERN}".lower() not in f['filename'].lower()]

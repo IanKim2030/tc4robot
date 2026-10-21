@@ -244,9 +244,16 @@ def ftp_errors(server):
     return server.errors() if server is not None else []
 
 
-def ftp_connections(server):
-    """FTP 제어 접속 이력 목록 — dict(peer, port, at). 수신 건수와 별개다."""
-    return server.connections() if server is not None else []
+def ftp_connections(server, since=None):
+    """FTP 제어 접속 이력 목록 — dict(peer, port, at). 수신 건수와 별개다.
+    since 를 주면 그 시각 이후 접속만 본다(noti_list 의 since= 와 같은 용도)."""
+    if server is None:
+        return []
+    conns = server.connections()
+    if since is not None:
+        s = float(since)
+        conns = [c for c in conns if c['at'] >= s]
+    return conns
 
 
 def ftp_wait(server, timeout=30, filename_contains=None, since=None, poll=0.5,
