@@ -76,17 +76,23 @@ class FtpServer(object):
     def start(self):
         auth_mod, handlers_mod, servers_mod = _load_pyftpdlib()
 
-        authorizer = auth_mod.DummyAuthorizer()
-        authorizer.add_user(self.user, self.password, self.directory,
-                             perm='elradfmwMT')
+        _authorizer = auth_mod.DummyAuthorizer()
+        _authorizer.add_user(self.user, self.password, self.directory,
+                              perm='elradfmwMT')
 
         outer = self
 
         # pyftpdlib 는 핸들러를 **클래스**로 받는다(인스턴스가 아니다) — 그래서
         # start() 호출 시점에 이 FtpServer 인스턴스(outer)를 클로저로 가두는
         # 서브클래스를 그때그때 만든다. 콜백에서 outer 를 통해 수신 이력을 쌓는다.
+        #
+        # ★ 클래스 바디에서 `authorizer = authorizer` 처럼 **같은 이름으로** 바깥
+        #   스코프 값을 읽으면 NameError 가 난다 — 클래스 바디는 함수와 달리
+        #   자유 변수를 클로저로 못 받고, 같은 이름이 그 바디 안에서 대입되는
+        #   순간 컴파일러가 "로컬"로 취급해 버린다(실제로 재현된 버그, 2026-10-22).
+        #   그래서 바깥 변수 이름을 `_authorizer` 로 달리 둬 단순 읽기로 만든다.
         class _CaptureHandler(handlers_mod.FTPHandler):
-            authorizer = authorizer
+            authorizer = _authorizer
             banner = 'tc4robot UPM FTP'
 
             def on_connect(self):
