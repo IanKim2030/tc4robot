@@ -33,7 +33,14 @@ ${UPM_HELLO_TIMEOUT}   5                # 규격서 3.1: 연결 후 5초 이내 
 # fileinfo 를 파싱해 접속 정보를 derive 하지 않는다.
 # 끄려면: bash run_tests.sh upm --no-ftp (pyftpdlib 설치 없이도 슈트가 돈다)
 # ════════════════════════════════════════════
-${UPM_FTP_ENABLE}        ${TRUE}      # FTP 수신 서버 기동 여부
+${UPM_FTP_ENABLE}        ${TRUE}      # FTP(또는 SFTP) 수신 서버 기동 여부
+${UPM_FTP_USE_SFTP}      ${FALSE}     # PG 설정 USE_SFTP_04 — 확인된 값은 N(평문 FTP, 2026-10-22).
+# True 로 두면 FtpServerHelper.py 가 FtpServer(pyftpdlib) 대신
+# SftpServerHelper.SftpServer(paramiko) 를 띄운다 — host/port/계정/
+# remote_path 변수는 전부 그대로 재사용한다. ⚠ 로컬에 Python 이 없어 실제
+# 구동 검증을 못 했다(SftpServerHelper.py 상단 ⚠ 참조) — USE_SFTP_04 가
+# 실제로 Y 인 환경에 쓰기 전에 먼저 수동으로 업로드 왕복을 확인할 것.
+# paramiko 미설치 환경에서도 False(기본)면 영향 없다.
 ${UPM_FTP_HOST}          0.0.0.0      # 모든 인터페이스 Listen (PG 는 IP_04=192.168.15.142 로 접속)
 ${UPM_FTP_PORT}          2121         # PG 설정 PORT_04 와 일치 확인(2026-10-22)
 ${UPM_FTP_USER}          upm         # PG 설정 USER_ID_04 와 일치 확인(2026-10-22, 로그인 시도 로그로 재확인)
@@ -51,6 +58,8 @@ ${UPM_FTP_FIN_PATTERN}   FIN
 
 # PG 와 도구 사이에 NAT/방화벽이 있으면 pyftpdlib 가 임의로 고르는 PASV 포트가
 # 막혀 STOR 가 실패할 수 있다. 비워 두면(기본) pyftpdlib 기본 동작(임의 포트)을 쓴다.
+# ※ FTP 전용이다 — ${UPM_FTP_USE_SFTP}=True 면 SFTP 는 SSH 단일 채널이라
+#   PASV 개념이 없어 이 둘은 무시된다.
 ${UPM_FTP_PASSIVE_PORTS}      ${EMPTY}     # 예: 60000-60050
 ${UPM_FTP_MASQUERADE_ADDR}    ${EMPTY}     # PASV 응답에 실을 "도구가 PG 쪽에서 보이는 주소"
 

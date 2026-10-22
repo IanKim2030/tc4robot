@@ -206,8 +206,22 @@ class FtpServer(object):
 
 def ftp_server_start(port, host='0.0.0.0', user='upm', password='upm1234',
                       directory=None, passive_ports=None, masquerade_address=None,
-                      remote_path=None):
-    """FTP 수신 서버 기동 → 서버 핸들 반환. 핸들은 Suite Variable 로 들고 다닌다."""
+                      remote_path=None, use_sftp=False):
+    """FTP(또는 SFTP) 수신 서버 기동 → 서버 핸들 반환. 핸들은 Suite Variable 로 들고 다닌다.
+
+    use_sftp=True 면 SftpServerHelper.SftpServer 를 대신 띄운다 — PG 설정의
+    USE_SFTP_04 가 Y 인 환경 대비(2026-10-22 확인 당시엔 N, upm_variables.robot
+    참조). 반환 핸들은 files()/errors()/connections()/clear()/stop()/
+    is_running() 을 똑같이 구현하므로(duck-typing), 아래 ftp_list/ftp_wait/
+    ftp_errors/ftp_connections/ftp_clear/ftp_server_stop/ftp_server_is_running
+    은 어느 쪽이 떠 있든 그대로 쓸 수 있다 — 호출부(upm_keywords.robot)가
+    FTP 와 SFTP 를 구분할 필요가 없다.
+    """
+    if use_sftp:
+        import SftpServerHelper
+        srv = SftpServerHelper.SftpServer(port, host, user, password,
+                                           directory or None, remote_path or None)
+        return srv.start()
     ports = _parse_port_range(passive_ports)
     srv = FtpServer(port, host, user, password, directory or None,
                      ports, masquerade_address or None, remote_path or None)

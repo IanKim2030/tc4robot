@@ -114,6 +114,21 @@ FIN 인지는 파일명에 `${UPM_FTP_FIN_PATTERN}`(기본 `FIN`, 대소문자 �
 
 끄려면: `bash run_tests.sh upm --no-ftp` (pyftpdlib 없이도 슈트가 돈다).
 
+**SFTP 대안(2026-10-22 추가)** — PG 설정의 `USE_SFTP_04` 가 확인된 값은 `N`
+(평문 FTP)이지만, 다른 환경에서 `Y` 로 바뀌는 경우에 대비해 `${UPM_FTP_USE_SFTP}`
+(기본 `${FALSE}`)를 True 로 두면 같은 수신 서버를 FTP 대신 SFTP 로 띄운다 —
+`resources/SftpServerHelper.py`(paramiko, 지연 임포트). host/port/계정/
+remote_path 변수는 FTP 와 완전히 같은 것을 재사용하고, 반환되는 서버 핸들도
+FtpServer 와 같은 메서드(files/errors/connections/clear/stop/is_running)를
+구현해 `upm_keywords.robot`/`Verify Subs Sync Fileinfo` 는 어느 쪽이 떠 있든
+그대로 쓴다. 토글: `bash run_tests.sh upm --sftp` / `--no-sftp`.
+
+> ⚠ **실제로 구동해 검증하지 못했다** — pyftpdlib(FTP)와 달리 성숙한 SFTP
+> 서버 전용 라이브러리가 없어 paramiko 저수준 API로 직접 구현했고, 이
+> 작업 환경에 로컬 Python 이 없어 `import paramiko` 조차 실행해 보지
+> 못했다. USE_SFTP_04 가 실제로 `Y` 인 환경을 테스트하기 전에, 반드시
+> 표준 `sftp` 클라이언트 등으로 업로드 왕복을 먼저 확인할 것.
+
 ## TC
 
 현재 **활성 4건 / 주석 1건**. 태그: `upm` `hello` `ping` `cellinfo-noti` `subs-sync` `smoke` `validation`

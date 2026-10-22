@@ -36,6 +36,8 @@
 #
 # UPM 곁가지 연동 (기본은 켜짐 — upm_variables.robot):
 #   bash run_tests.sh upm --no-ftp          # FTP 수신 서버(0x0c fileinfo 대응) 자체를 안 함 (pyftpdlib 불필요)
+#   bash run_tests.sh upm --sftp            # 같은 수신 서버를 SFTP(paramiko)로 띄움 — PG 설정 USE_SFTP_04=Y 대비
+#                                           # (2026-10-22 확인 당시엔 N 이라 기본은 FTP. ⚠ 미검증, SftpServerHelper.py 참조)
 #
 # PG 프로세스 기동 보장 (SSH, nag/lrs/pcf/cds/rts 공용) — Suite Setup 이 슈트가
 # 의존하는 PG 프로세스의 .RUN 파일을 touch 한다. 계정 정보(${PG_SSH_USER},
@@ -122,6 +124,10 @@ for arg in "${@:2}"; do
         # 도구가 FTP 서버 역할로 받는다(pyftpdlib 필요). 끄면 pyftpdlib 없이도 슈트가 돈다.
         --no-ftp)       TOGGLE_VARS+=(--variable UPM_FTP_ENABLE:False) ;;
         --ftp)          TOGGLE_VARS+=(--variable UPM_FTP_ENABLE:True) ;;
+        # 같은 수신 서버를 FTP(pyftpdlib) 대신 SFTP(paramiko)로 띄운다 —
+        # PG 설정 USE_SFTP_04=Y 대비, ⚠ 미검증(SftpServerHelper.py 참조).
+        --sftp)         TOGGLE_VARS+=(--variable UPM_FTP_USE_SFTP:True) ;;
+        --no-sftp)      TOGGLE_VARS+=(--variable UPM_FTP_USE_SFTP:False) ;;
         # 사전 확인 — 잔존 데이터가 있을 때의 처리 방식.
         # 기본은 report(리포트만 하고 진행)라 평소에는 아무것도 줄 필요가 없다.
         --no-precheck)     TOGGLE_VARS+=(--variable CDS_PRECHECK:False) ;;

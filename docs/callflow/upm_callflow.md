@@ -21,6 +21,10 @@
 > Client 로 Push 한다는 방향도 이걸로 확정됐다. 전송 파일은 **데이터 파일 + FIN
 > 파일 2개**라는 것도 사용자 확인(2026-10-22) — 다만 어느 파일이 FIN 인지
 > (명명 규칙)와 fileinfo 내용 대조는 여전히 추정값 best-effort 다.
+>
+> PG 설정의 `USE_SFTP_04` 가 `N`(평문 FTP) 아닌 `Y` 로 바뀌는 환경이면
+> `${UPM_FTP_USE_SFTP}` 로 같은 수신 서버를 SFTP 로 띄울 수 있다 — ⚠ 미검증,
+> [nodes/UPM.md](../nodes/UPM.md) 의 "SFTP 대안" 절 참조.
 
 ## 콜플로우 — 능동 송신 (UPM 슈트, TC-UPM-001~004)
 

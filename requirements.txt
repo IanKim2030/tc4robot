@@ -26,6 +26,12 @@ h2
 # UPM_FTP_ENABLE 을 False 로 두면(또는 --no-ftp) 없어도 슈트가 돈다.
 pyftpdlib
 
+# UPM SFTP 수신 서버(SftpServerHelper.py)용 — pyftpdlib 와 같은 0x0c fileinfo
+# 수신을, PG 설정 USE_SFTP_04=Y 인 환경에 대비한 대안 전송방식으로 쓸 때만
+# 필요하다. SftpServerHelper.py 가 **지연 임포트**하므로 ${UPM_FTP_USE_SFTP}
+# (기본 False)를 안 켜면 설치 안 해도 슈트가 돈다.
+paramiko
+
 # PG 프로세스 .RUN 파일 touch 용(resources/SshHelper.py) — pip 패키지가 아니라
 # **OS 명령 ssh 하나만** 있으면 된다(라이브러리·추가 패키지 없음). 키 인증
 # (${PG_SSH_KEY_FILE})/비밀번호 인증(PG_SSH_PASSWORD) 모두 ssh 하나로 처리한다

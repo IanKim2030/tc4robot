@@ -68,13 +68,14 @@ Suite UPM Connect
     # FTP 수신 서버 — PG 가 0x0c 의 fileinfo 로 파일을 밀어줄 때 받는다.
     # 소켓과 달리 PG 가 **붙어 오는 쪽**이라 여기서는 Listen 만 열어 둔다.
     IF    ${UPM_FTP_ENABLE}
-        Log    [Suite] UPM FTP 수신 서버 시작 → ${UPM_FTP_HOST}:${UPM_FTP_PORT}    console=True
+        Log    [Suite] UPM FTP 수신 서버 시작(SFTP=${UPM_FTP_USE_SFTP}) → ${UPM_FTP_HOST}:${UPM_FTP_PORT}    console=True
         ${ftp_srv}=    Ftp.Ftp Server Start    ${UPM_FTP_PORT}    ${UPM_FTP_HOST}
         ...    user=${UPM_FTP_USER}    password=${UPM_FTP_PASSWORD}
         ...    directory=${UPM_FTP_HOME_DIR}
         ...    passive_ports=${UPM_FTP_PASSIVE_PORTS}
         ...    masquerade_address=${UPM_FTP_MASQUERADE_ADDR}
         ...    remote_path=${UPM_FTP_REMOTE_PATH}
+        ...    use_sftp=${UPM_FTP_USE_SFTP}
         Set Suite Variable    ${UPM_FTP_SRV}    ${ftp_srv}
     ELSE
         Log    [Suite] UPM FTP 수신 서버 꺼짐 (UPM_FTP_ENABLE=${UPM_FTP_ENABLE})    console=True
