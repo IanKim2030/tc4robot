@@ -38,7 +38,7 @@ ${UPM_FTP_HOST}          0.0.0.0      # 모든 인터페이스 Listen (PG 는 IP
 ${UPM_FTP_PORT}          2121         # PG 설정 PORT_04 와 일치 확인(2026-10-22)
 ${UPM_FTP_USER}          upm         # PG 설정 USER_ID_04 와 일치 확인(2026-10-22, 로그인 시도 로그로 재확인)
 ${UPM_FTP_PASSWORD}      upm1234     # PG 설정 PASSWORD_04 와 일치 확인(2026-10-22)
-${UPM_FTP_UPLOAD_DIR}    ${EMPTY}     # 비우면 임시 디렉터리를 자동 생성(FtpServerHelper.py)
+${UPM_FTP_HOME_DIR}      ${EMPTY}     # 비우면 임시 디렉터리를 자동 생성(FtpServerHelper.py)
 ${UPM_FTP_REMOTE_PATH}   /PG/FTP/UPM-ROBOT   # PG 설정 REMOTE_PATH_04 — 로그인 후 CWD 로 들어오는 경로.
 # FtpServerHelper.py 가 업로드 디렉터리 밑에 이 경로를 미리 만들어 둔다(없으면 CWD 가 550 으로 거부됨).
 ${UPM_FTP_WAIT}          30s          # 0x0c에 fileinfo 있을 때 파일 수신 대기 시간

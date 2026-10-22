@@ -71,7 +71,7 @@ Suite UPM Connect
         Log    [Suite] UPM FTP 수신 서버 시작 → ${UPM_FTP_HOST}:${UPM_FTP_PORT}    console=True
         ${ftp_srv}=    Ftp.Ftp Server Start    ${UPM_FTP_PORT}    ${UPM_FTP_HOST}
         ...    user=${UPM_FTP_USER}    password=${UPM_FTP_PASSWORD}
-        ...    directory=${UPM_FTP_UPLOAD_DIR}
+        ...    directory=${UPM_FTP_HOME_DIR}
         ...    passive_ports=${UPM_FTP_PASSIVE_PORTS}
         ...    masquerade_address=${UPM_FTP_MASQUERADE_ADDR}
         ...    remote_path=${UPM_FTP_REMOTE_PATH}
