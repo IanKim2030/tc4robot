@@ -33,6 +33,27 @@ import time
 import traceback
 
 _pyftpdlib = None
+_sftp_module = None
+
+
+def _load_sftp_module():
+    """SftpServerHelper.py 를 같은 디렉터리에서 직접 로드한다.
+
+    Robot 이 `Library ${CURDIR}/FtpServerHelper.py` 로 이 파일을 임포트할 때
+    항상 이 파일의 디렉터리를 sys.path 에 넣어 주는 건 아니다 — 평범한
+    `import SftpServerHelper` 가 실 환경에서 `ModuleNotFoundError` 로 실패한
+    전례가 있다(2026-10-22). sys.path 상태에 의존하지 않도록 __file__ 기준
+    경로로 직접 로드한다.
+    """
+    global _sftp_module
+    if _sftp_module is None:
+        import importlib.util
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'SftpServerHelper.py')
+        spec = importlib.util.spec_from_file_location('SftpServerHelper', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _sftp_module = module
+    return _sftp_module
 
 
 def _load_pyftpdlib():
@@ -218,9 +239,9 @@ def ftp_server_start(port, host='0.0.0.0', user='upm', password='upm1234',
     FTP 와 SFTP 를 구분할 필요가 없다.
     """
     if use_sftp:
-        import SftpServerHelper
-        srv = SftpServerHelper.SftpServer(port, host, user, password,
-                                           directory or None, remote_path or None)
+        sftp_mod = _load_sftp_module()
+        srv = sftp_mod.SftpServer(port, host, user, password,
+                                   directory or None, remote_path or None)
         return srv.start()
     ports = _parse_port_range(passive_ports)
     srv = FtpServer(port, host, user, password, directory or None,
