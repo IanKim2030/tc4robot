@@ -179,7 +179,7 @@ ${CDS_SESSION_UDR_NOTI_URI}
 ...    http://${CDS_SESSION_PCF_ADDR}/npcf-event-exposure/v1/nudr-smf-notify/${CDS_SESSION_SM_POLICY_ID}
 
 # ── 2번 세션 — D3(번호변경) 이후의 번호 ─────────────────────────
-# TC-CDS-012(D3)이 성공하면 가입자가 ${CDS_NEW_MDN} 로 바뀌고, TC-CDS-017(Z1)는
+# TC-CDS-012(D3)이 성공하면 가입자가 ${CDS_NEW_MDN} 로 바뀌고, TC-CDS-013(Z1)는
 # 그 번호로 해지 전문을 보낸다. **그 번호에도 세션이 있어야** PG.SNOTI 가 알림
 # 상대를 찾는다 — 없으면 D3·Z1 의 알림이 조용히 안 나간다.
 # 그래서 Suite Setup 이 세션을 **두 건** 심는다(둘 다 멱등).

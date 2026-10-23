@@ -29,8 +29,9 @@ Documentation
 ...      TC-CDS-009 ~ 011 : Download Command — 쿠폰 계열
 ...                         009 K1 가입 → 010 K2 해지 / 011 K1 가입 → RDS 만료
 ...      TC-CDS-012       : Download Command — 번호변경(D3)
-...      TC-CDS-013 ~ 016 : Download Command — **HFC 가입 상태**의 C1/G1/D3 (013 1X 재가입 → 014 C1 → 015 G1 → 016 D3)
-...      TC-CDS-017       : Download Command — 해지(Z1), 체인의 끝
+...      TC-CDS-013 ~ 014 : 변경된 번호로 해지(Z1) → 같은 번호로 재가입(A1) — HFC 구간의 전제
+...      TC-CDS-015 ~ 018 : Download Command — **HFC 가입 상태**의 C1/G1/D3 (015 1X → 016 C1 → 017 G1 → 018 D3)
+...      TC-CDS-019       : Download Command — 해지(Z1), 정리 (체인의 끝)
 ...
 ...    [PDB 조회] `db` 태그가 붙은 TC 는 전문 흐름(SC)에 더해 PDB 반영까지 판정한다.
 ...    판정 대상은 대부분 가입자 테이블(T_5G_SUBS_*)이고, 쿠폰 가입(009)만
@@ -39,7 +40,7 @@ Documentation
 ...      003 1X HFC가입  : SERVICE(SVC_ID=ZONE_SVC_D, SVC_TYPE=D, JOB_CODE=1X) 1건 이상
 ...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (구 TC-UPM-301)
 ...                        + **PCF SBI Noti 1건 수신** (Cell List — 가입자 Noti 는 안 나온다)
-...      ★ SBI Noti 판정은 **A1(002) / Z1(017)를 뺀 전 TC** 에 붙어 있다.
+...      ★ SBI Noti 판정은 **A1(002) / Z1(013, 019)를 뺀 전 TC** 에 붙어 있다.
 ...        그 둘만 PG 가 PCF 로 알림을 보내지 않는다(@{CDS_NOTI_EXEMPT_CODES}).
 ...      004 1Y HFC해지  : SERVICE(SVC_ID=ZONE_SVC_D) 0건
 ...                        + **UPM Subs-Info(0x07) 수신 → 0x08 응답** (1X 와 같은 구간)
@@ -54,7 +55,8 @@ Documentation
 ...      011 K1 쿠폰만료 : 자기 핀으로 가입시킨 뒤 **PG.RDS 가 지울 때까지 기다려** 0건
 ...                        도구가 만료 전문을 보내지 않는 유일한 TC 다 (slow 태그)
 ...      012 D3 번호변경 : 007 과 같은 전후 비교 (옛 번호 기준 → 새 번호 + JOB_CODE=D3)
-...      017 Z1 가입해지 : PROFILE / SERVICE(SVC_ID 무관) 모두 0건
+...      013 Z1 / 019 Z1 가입해지 : PROFILE / SERVICE(SVC_ID 무관) 모두 0건
+...      014 A1 재가입   : 013 으로 해지한 같은 번호에 다시 가입 — 002 와 같은 PDB 3건 판정
 ...      "1건 이상"은 건수를 못 박지 않는다는 뜻이다 — 존·부가 서비스가 여러 건일 수 있다.
 ...      전후 비교형(007/008/012)은 `Command Download Flow` **앞**에서 기준선을 먼저 뜬다.
 ...      ★ 예약 큐에 적재되는 JOB_CODE 는 인입 코드와 다르다 — K1 이 K3 로 들어간다.
@@ -103,7 +105,7 @@ Documentation
 ...      · **이 슈트에서 유일하게 PDB 에 쓰는 자리다**(나머지는 전부 SELECT).
 ...        autocommit 이 꺼져 있어 commit 하지 않으면 다음 조회의 rollback 이 지운다.
 ...      · **두 건을 심는다.** 기본 번호(${CDS_MDN})와 D3 이후 번호(${CDS_NEW_MDN}) 각각이다 —
-...        012(D3)이 번호를 바꾸면 017(Z1)가 새 번호로 전문을 보내므로, 그 번호에도
+...        012(D3)이 번호를 바꾸면 013(Z1)가 새 번호로 전문을 보내므로, 그 번호에도
 ...        세션이 없으면 D3·Z1 의 알림이 조용히 안 나간다.
 ...      · 멱등이다 — 같은 SM_POLICY_ID 가 있으면 넣지 않는다. 그래서 두 세션은
 ...        **SM_POLICY_ID 가 서로 달라야 한다**(같으면 둘째가 건너뛰어진다).
@@ -130,7 +132,7 @@ Documentation
 ...      CDS 전문만 돌리려면: bash run_tests.sh cds --no-upm
 ...      (robot 을 직접 부르면 --variable CDS_UPM_VERIFY:False — UPM 접속 자체를 건너뛴다)
 ...
-...    [PCF Noti 수신] A1(002) / Z1(017)를 뺀 전 TC 가 해당한다. `noti` 태그.
+...    [PCF Noti 수신] A1(002) / Z1(013, 019)를 뺀 전 TC 가 해당한다. `noti` 태그.
 ...      SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. 도구가 PCF 역할로
 ...      ${CDS_NOTI_PORT} 를 Listen 해 **BSUBS→PCF Cell List 한 건**을 받는다
 ...      (UPM 0x08 응답 뒤). 전문(SC)·PDB 로는 안 보이는 구간이다.
@@ -149,7 +151,7 @@ Documentation
 ...        나간다) `Expected Noti Route` 가 예상 경로를 계산해 실패 메시지에 싣는다.
 ...        상태는 ${CDS_HFC_SUBSCRIBED} 가 쥐고 003 이 켜고 004 가 끈다.
 ...        ★ 007/008/012 는 004(1Y)가 먼저 해지해 버려 SDM 경유로 판정된다. 규칙 2 의 BSUBS 분기는
-...          013(1X 재가입) 뒤의 014/015/016(C1/G1/D3)이 탄다 — 전부 007/008/012 의 HFC 가입판.
+...          015(1X 재가입) 뒤의 016/017/018(C1/G1/D3)이 탄다 — 전부 007/008/012 의 HFC 가입판.
 ...        ★ 007/008/012(C1/G1/D3)는 BSUBS 알림(HFC 가입 상태에서만)과 SDM 알림(코드와
 ...          무관하게 무조건, PG.SDM 의 doNoti() — SDM_5G/SubsProcessing.cpp, 2026-08-28
 ...          확인)이 **서로 배타적이지 않다.** 그래서 언젠가 HFC **가입** 상태에서 이
@@ -184,13 +186,13 @@ Documentation
 ...      009 K1 → 010 K2  : 같은 핀(${CDS_COUPON_PIN_K1})의 쿠폰 가입 → 해지 쌍
 ...      011 K1 만료      : 자기 핀(${CDS_COUPON_PIN_K3})으로 **TC 안에서** 가입까지 만든다
 ...      012 D3 번호변경  : 성공하면 ${CDS_ACTIVE_MDN} 을 ${CDS_NEW_MDN} 으로 갱신
-...      017 Z1 해지      : 가입자 자체를 해지 (체인의 끝). PDB 에서 사라졌는지까지 본다
+...      013/019 Z1 해지 : 가입자 자체를 해지 (체인의 끝). PDB 에서 사라졌는지까지 본다
 ...    해지 TC(010)를 단독 실행하면 짝이 되는 가입이 없어 "0건"으로 그냥 통과한다 —
 ...    삭제 판정이 `MDN + R17 + CNUM` 으로만 걸려, 원래 없었던 것과 구분되지 않는다.
 ...    011 은 그 함정을 피하려고 가입을 자기가 만든다. 핀도 010 과 달리 쓴다.
 ...
 ...    D3 를 건너뛰거나 실패하면 ${CDS_ACTIVE_MDN} 이 기본값(${CDS_MDN})으로 남아
-...    017 가 원래 번호를 대상으로 동작한다 — 단독 실행도 그대로 된다.
+...    013 가 원래 번호를 대상으로 동작한다 — 단독 실행도 그대로 된다.
 ...    특정 번호를 지정하려면: --variable CDS_ACTIVE_MDN:01090010002
 
 Resource    ../../resources/variables.robot
@@ -530,7 +532,7 @@ TC-CDS-012 D3 (번호변경)
     [Documentation]
     ...    0015(D3 번호변경) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    성공하면 가입자의 현재 번호가 new_mdn 으로 바뀌므로 ${CDS_ACTIVE_MDN} 을 갱신한다.
-    ...    이후 TC-CDS-017(Z1)가 이 값을 대상으로 동작한다.
+    ...    이후 TC-CDS-013(Z1)가 이 값을 대상으로 동작한다.
     ...
     ...    [성공 판단 기준] C1/G1 과 같은 전후 비교인데 **번호가 바뀌는 것이 다르다.**
     ...      수행 전: MDN = 바뀌기 전 번호(${CDS_ACTIVE_MDN})
@@ -543,22 +545,50 @@ TC-CDS-012 D3 (번호변경)
     Verify Service Counts Preserved In PDB    ${CDS_NEW_MDN}    ${CDS_CODE_D3}    ${before}
     Verify SBI Noti Sent    ${CDS_CODE_D3}
 
+TC-CDS-013 Z1 (가입해지) - 번호변경 후 변경된 번호
+    [Documentation]
+    ...    012(D3)로 바뀐 번호(${CDS_ACTIVE_MDN})로 0015(Z1) 송신 → 0016 ACK → 0017 Result → 0018 ResultACK
+    ...    HFC 구간(015~018)에 들어가기 전에 가입자를 **한 번 정리**하고, 014(A1)로 같은 번호에 다시 가입시킨다.
+    ...    이때 HFC 는 미가입(004 가 해지) 이라 알림은 SDM 경로, Z1 은 SBI Noti 예외 코드다.
+    ...
+    ...    [성공 판단 기준] TC-CDS-019 와 같다 — PROFILE / SERVICE(SVC_ID 무관) 모두 **0건**.
+    ...    ※ 0건은 "원래 없었다"와 구분되지 않는다 — 012 로 가입자가 있는 상태에서 도는 것을 전제로 한다.
+    [Tags]    cds    command    validation    db
+    Command Download Flow    ${CDS_CODE_Z1}    mdn=${CDS_ACTIVE_MDN}
+    Verify Subscriber Removed From PDB    ${CDS_ACTIVE_MDN}
+
+TC-CDS-014 A1 (신규가입) - 해지한 번호로 재가입
+    [Documentation]
+    ...    013(Z1)으로 해지한 같은 번호(${CDS_ACTIVE_MDN})에 0015(A1) 송신 → 0016 ACK → 0017 Result → 0018 ResultACK
+    ...    HFC 구간(015~018)이 쓸 가입자를 다시 만든다. min 은 번호에 맞춰 고른다
+    ...    (활성 번호가 ${CDS_NEW_MDN} 이면 ${CDS_NEW_MIN}, 아니면 ${CDS_MIN}).
+    ...
+    ...    [성공 판단 기준] TC-CDS-002 와 같다 — PROFILE 1건 + SERVICE(DATA_USAGE_LEVEL / _2) 각 1건.
+    [Tags]    cds    command    validation    db
+    IF    "${CDS_ACTIVE_MDN}" == "${CDS_NEW_MDN}"
+        ${min}=    Set Variable    ${CDS_NEW_MIN}
+    ELSE
+        ${min}=    Set Variable    ${CDS_MIN}
+    END
+    Command Download Flow    ${CDS_CODE_A1}    mdn=${CDS_ACTIVE_MDN}    min=${min}
+    Verify Subscriber Provisioned In PDB    ${CDS_ACTIVE_MDN}
+
 
 # ════════════════════════════════════════════════════════════════
-# HFC 가입 상태에서 C1 / G1 / D3 (TC-CDS-013 ~ 016)
+# HFC 가입 상태에서 C1 / G1 / D3 (TC-CDS-015 ~ 018)
 #
 # 007/008/012 는 004(1Y)가 HFC 를 해지한 **뒤**에 돌아 SDM 경로만 탄다.
 # 여기서는 HFC 를 다시 가입시킨 상태에서 같은 코드를 보내 **BSUBS 분기(규칙 2)**
 # 와 PG.BSUBS → UPM 왕복을 본다.
 #   C1 / G1 : 0x0d Info-Change-Request → 0x0e   (UPM TC-311 이 못 돌던 구간)
 #   D3      : 0x05 Subs-Change-Request → 0x06   (UPM TC-321 이 못 돌던 구간)
-# 대상은 ${CDS_ACTIVE_MDN} — 012(D3)가 번호를 바꿨으면 바뀐 번호다.
-# 016(D3)는 번호를 **원래 번호로 되돌린다**(옛 번호 ↔ 새 번호 세션은 둘 다 사전 적재돼 있다).
+# 대상은 ${CDS_ACTIVE_MDN} — 012(D3)가 번호를 바꿨고 013(Z1)→014(A1)로 그 번호에 다시 가입시켜 둔 상태다.
+# 018(D3)는 번호를 **원래 번호로 되돌린다**(옛 번호 ↔ 새 번호 세션은 둘 다 사전 적재돼 있다).
 # ════════════════════════════════════════════════════════════════
 
-TC-CDS-013 1X (HFC 재가입 - C1/G1/D3 선행)
+TC-CDS-015 1X (HFC 재가입 - C1/G1/D3 선행)
     [Documentation]
-    ...    TC-CDS-014 ~ 016 의 전제를 만든다 — 활성 번호(${CDS_ACTIVE_MDN})를 HFC **가입** 상태로 되돌린다.
+    ...    TC-CDS-016 ~ 018 의 전제를 만든다 — 활성 번호(${CDS_ACTIVE_MDN})를 HFC **가입** 상태로 되돌린다.
     ...    TC-CDS-003 과 같은 판정이되 대상 번호만 다르다(PDB 존 서비스 1건 이상 + UPM 0x07 → 0x08).
     ...    성공하면 ${CDS_HFC_SUBSCRIBED} 를 켜 이후 알림 경로를 BSUBS 로 본다.
     ...    ※ 앞선 1Y(004)로 해지돼 있어야 가입이 받아들여진다. 단독 실행하면 기가입 상태에 따라 달라진다.
@@ -571,7 +601,7 @@ TC-CDS-013 1X (HFC 재가입 - C1/G1/D3 선행)
     Verify PCF Noti Received    label=Cell List (BSUBS→PCF)
     ...    path=${CDS_NOTI_PATH_CELL}    body=${CDS_ACTIVE_MDN}    since=${since}
 
-TC-CDS-014 C1 (기기변경) - HFC 가입 상태
+TC-CDS-016 C1 (기기변경) - HFC 가입 상태
     [Documentation]
     ...    HFC 가입 상태에서 0015(C1) 송신 → 0016 ACK → 0017 Result → 0018 ResultACK
     ...
@@ -590,12 +620,12 @@ TC-CDS-014 C1 (기기변경) - HFC 가입 상태
     Verify UPM Info Change Notified    mdn=${CDS_ACTIVE_MDN}
     Verify SBI Noti Sent    ${CDS_CODE_C1}    since=${since}
 
-TC-CDS-015 G1 (정보변경) - HFC 가입 상태
+TC-CDS-017 G1 (정보변경) - HFC 가입 상태
     [Documentation]
     ...    HFC 가입 상태에서 0015(G1) 송신 → 0016 ACK → 0017 Result → 0018 ResultACK
     ...    G1 은 바뀐 정보(OS 버전)를 싣는다.
     ...
-    ...    [성공 판단 기준] TC-CDS-014(C1)와 같은 세 구간이다.
+    ...    [성공 판단 기준] TC-CDS-016(C1)와 같은 세 구간이다.
     ...      1) PDB : 수행 전 SVC_ID 별 행 수 == 수행 후 JOB_CODE='G1' 집계
     ...      2) UPM : Info-Change-Request(0x0d) 수신 → 0x0e 응답
     ...      3) PCF : SBI Noti 도착
@@ -607,7 +637,7 @@ TC-CDS-015 G1 (정보변경) - HFC 가입 상태
     Verify UPM Info Change Notified    mdn=${CDS_ACTIVE_MDN}
     Verify SBI Noti Sent    ${CDS_CODE_G1}    since=${since}
 
-TC-CDS-016 D3 (번호변경) - HFC 가입 상태
+TC-CDS-018 D3 (번호변경) - HFC 가입 상태
     [Documentation]
     ...    HFC 가입 상태에서 0015(D3) 송신 → 0016 ACK → 0017 Result → 0018 ResultACK
     ...    성공하면 ${CDS_ACTIVE_MDN} 을 바뀐 번호로 갱신한다(이후 Z1 의 대상).
@@ -639,7 +669,7 @@ TC-CDS-016 D3 (번호변경) - HFC 가입 상태
     Verify UPM Subs Change Notified    mdn=${from_mdn}    new_mdn=${to_mdn}
     Verify SBI Noti Sent    ${CDS_CODE_D3}    since=${since}
 
-TC-CDS-017 Z1 (가입해지)
+TC-CDS-019 Z1 (가입해지 - 정리)
     [Documentation]
     ...    0015(Z1 해지) 송신 → 0016 ACK(SC) → 0017 Result → 0018 ResultACK
     ...    규격 Z1 필드 15개(A1 에서 min·addSvc 를 뺀 집합)를 기본값으로 전달한다.
