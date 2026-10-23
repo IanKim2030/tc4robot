@@ -1158,7 +1158,9 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 | 001 | ProcessState 상태확인 |
 | 002~008 | Download Command — 업무 코드별 (원래 번호) |
 | 009~012 | Download Command — **번호변경(D3) 후 체인** |
-| 013~014 | SubsData · UpLoad (현재 비활성) |
+| 013~016 | Download Command — **HFC 가입 상태**의 1X 재가입 → C1 → G1 → D3 (UPM 0x0d/0x05 왕복, BSUBS 분기) |
+| 017 | Z1 해지 (체인의 끝) |
+| (미배정) | SubsData · UpLoad (현재 비활성) |
 
 접속·해제는 TC 가 아니라 Suite Setup/Teardown 이다([접속](#접속--듀얼-소켓-rchannel-이-먼저) 참조).
 그래서 `connect` · `release` 태그는 더 이상 쓰이지 않는다.
@@ -1168,7 +1170,7 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 `cds_variables.robot` 에 값만 채우면 해당 필드를 선언한 모든 코드에 즉시 반영된다.
 채우지 않으면 그 필드들은 공백으로 나가고 **PG 는 그래도 `SC` 를 준다.**
 
-### TC 간 의존성 — `TC-CDS-012` ~ `013` 은 하나의 체인이다
+### TC 간 의존성 — `TC-CDS-012` ~ `017` 은 하나의 체인이다
 
 **이 슈트에서 유일하게 앞 TC 의 결과에 의존하는 구간이다.** 나머지 TC 는 서로 독립이다.
 
@@ -1179,11 +1181,12 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 | TC | 코드 | 하는 일 |
 |---|---|---|
 | 012 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
-| 013 | `Z1` 해지 | **바뀐 번호로** 가입자 자체를 해지 — **체인의 끝** |
+| 013~016 | HFC 가입 상태 `1X`→`C1`→`G1`→`D3` | 016 이 번호를 반대편으로 되돌리고 `${CDS_ACTIVE_MDN}` 갱신 |
+| 017 | `Z1` 해지 | **바뀐 번호로** 가입자 자체를 해지 — **체인의 끝** |
 
 `${CDS_ACTIVE_MDN}`(`cds_variables.robot`) 이 "현재 유효 MDN" 을 들고 있다.
 
-| 상황 | `${CDS_ACTIVE_MDN}` | `013`(Z1) 의 대상 |
+| 상황 | `${CDS_ACTIVE_MDN}` | `017`(Z1) 의 대상 |
 |---|---|---|
 | D3 성공 | `Set Suite Variable` 로 `${CDS_NEW_MDN}` 교체 | **변경된 번호** |
 | D3 실패 | `Command Download Flow` 가 먼저 죽어 갱신 미실행 | 원래 번호 |
@@ -1194,9 +1197,9 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 
 ```bash
 # 체인 전체
-python -m robot --test "TC-CDS-012*" --test "TC-CDS-013*" tests/cds/
+python -m robot --test "TC-CDS-012*" --test "TC-CDS-017*" tests/cds/
 # 번호를 직접 지정 (D3 없이 특정 가입자로)
-python -m robot --test "TC-CDS-013*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
+python -m robot --test "TC-CDS-017*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
 ```
 
 `--variable` 은 최우선이라 `${CDS_ACTIVE_MDN}` 을 직접 덮는다. `CDS_MDN` 을 덮어도

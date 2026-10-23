@@ -669,7 +669,7 @@ Ensure CDS Sessions In PDB
     [Documentation]
     ...    TC 수행 전에 필요한 5G 세션을 **두 건** 심는다.
     ...      1) 기본 번호   ${CDS_MDN}     — 슈트 대부분이 쓰는 가입자
-    ...      2) D3 이후 번호 ${CDS_NEW_MDN} — TC-CDS-012 가 번호를 바꾸면 013(Z1)가
+    ...      2) D3 이후 번호 ${CDS_NEW_MDN} — TC-CDS-012 가 번호를 바꾸면 017(Z1)가
     ...                                       그 번호로 해지 전문을 보낸다
     ...
     ...    왜 둘인가 — PG.SNOTI 는 세션 표를 보고 알림 상대를 정한다. D3 이후 번호에
@@ -1026,6 +1026,76 @@ Verify UPM Subs Info Notified
     # 콘솔에는 안 찍는다. 어느 mdn 으로 왕복했는지는 log.html 에서 본다 —
     # 0x08 을 안 보내면 뒤따르는 TC 의 PDB 판정이 흔들려서 기록은 남겨야 한다.
     Log    [UPM] Subs-Info 0x07 수신 → 0x08 응답 완료 (mdn=${body}[mdn])
+
+# ── C1/G1/D3 (HFC 가입 상태) → UPM Info-Change / Subs-Change ────────
+#
+# HFC **가입** 상태에서 C1·G1·D3 를 보내면 PG.BSUBS 가 UPM 으로 밀어 준다
+# (docs/callflow/cds_callflow.md 의 C1/G1/D3 콜플로우 opt ZONE_SVC_D 블록).
+#   C1 / G1 : 0x0d Info-Change-Request  (code-type=06) → 0x0e 응답
+#   D3      : 0x05 Subs-Change-Request  (code-type=04, mdn + new-mdn) → 0x06 응답
+# HFC 미가입이면 이 구간이 없다 — 그래서 소켓에 아무것도 안 와 수신이 타임아웃한다.
+# 응답을 안 돌려주면 PG 가 재시도로 넘어가 뒤따르는 판정이 흔들리는 점은 1X 와 같다.
+
+Verify UPM Info Change Notified
+    [Documentation]
+    ...    C1/G1 (HFC 가입 상태) 뒤 PG.BSUBS → UPM Info-Change-Request(0x0d) 를 받아
+    ...    검증하고 Info-Change-Response(0x0e, result-code=${UPM_RC_SUCCESS}) 로 답한다.
+    ...    검증 항목: code-type=${UPM_CT_INFO_CHANGE} / mdn·branch-name·event-timestamp 형식 /
+    ...    tid 존재 / ${mdn} 을 주면 전문을 보낸 가입자와 일치.
+    ...    ${CDS_UPM_VERIFY}=${FALSE} 면 통째로 건너뛴다.
+    [Arguments]    ${mdn}=${NONE}
+    IF    not ${CDS_UPM_VERIFY}
+        Log    [UPM] 연동 검증 꺼짐 — 0x0d 수신을 건너뜁니다    console=True
+        RETURN
+    END
+    ${ok}=    Tcp.Is Connected    ${UPM_SOCK}
+    Should Be True    ${ok}
+    ...    msg=UPM 소켓이 닫혀 있습니다 — Info-Change(0x0d)를 받을 수 없습니다
+    ${hdr}    ${body}=    Receive Info Change Request
+    UPM Code Type Should Be              ${body}    ${UPM_CT_INFO_CHANGE}
+    UPM MDN Should Be Valid              ${body}
+    UPM Branch Name Should Be Valid      ${body}
+    UPM Event Timestamp Should Be Valid  ${body}
+    Dictionary Should Contain Key    ${body}    tid
+    IF    $mdn is not None
+        Should Be Equal As Strings    ${body}[mdn]    ${mdn}
+        ...    msg=Info-Change(0x0d)의 mdn 이 전문을 보낸 가입자와 다릅니다 (기대=${mdn}, 실제=${body}[mdn])
+    END
+    Send Info Change Response    ${hdr}[txn_id]    ${body}    result_code=${UPM_RC_SUCCESS}
+    Log    [UPM] Info-Change 0x0d 수신 → 0x0e 응답 완료 (mdn=${body}[mdn])
+
+Verify UPM Subs Change Notified
+    [Documentation]
+    ...    D3 (HFC 가입 상태) 뒤 PG.BSUBS → UPM Subs-Change-Request(0x05) 를 받아 검증하고
+    ...    Subs-Change-Response(0x06, result-code=${UPM_RC_SUCCESS}) 로 답한다.
+    ...    검증 항목: code-type=${UPM_CT_MDN_CHANGE} / mdn·new-mdn·branch-name·event-timestamp /
+    ...    tid 존재 / ${mdn}·${new_mdn} 을 주면 전문의 옛 번호·새 번호와 일치.
+    ...    ${CDS_UPM_VERIFY}=${FALSE} 면 통째로 건너뛴다.
+    [Arguments]    ${mdn}=${NONE}    ${new_mdn}=${NONE}
+    IF    not ${CDS_UPM_VERIFY}
+        Log    [UPM] 연동 검증 꺼짐 — 0x05 수신을 건너뜁니다    console=True
+        RETURN
+    END
+    ${ok}=    Tcp.Is Connected    ${UPM_SOCK}
+    Should Be True    ${ok}
+    ...    msg=UPM 소켓이 닫혀 있습니다 — Subs-Change(0x05)를 받을 수 없습니다
+    ${hdr}    ${body}=    Receive Subs Change Request
+    UPM Code Type Should Be              ${body}    ${UPM_CT_MDN_CHANGE}
+    UPM MDN Should Be Valid              ${body}
+    UPM Branch Name Should Be Valid      ${body}
+    UPM Event Timestamp Should Be Valid  ${body}
+    Dictionary Should Contain Key    ${body}    tid
+    Dictionary Should Contain Key    ${body}    new-mdn
+    IF    $mdn is not None
+        Should Be Equal As Strings    ${body}[mdn]    ${mdn}
+        ...    msg=Subs-Change(0x05)의 mdn(옛 번호)이 다릅니다 (기대=${mdn}, 실제=${body}[mdn])
+    END
+    IF    $new_mdn is not None
+        Should Be Equal As Strings    ${body}[new-mdn]    ${new_mdn}
+        ...    msg=Subs-Change(0x05)의 new-mdn 이 다릅니다 (기대=${new_mdn}, 실제=${body}[new-mdn])
+    END
+    Send Subs Change Response    ${hdr}[txn_id]    ${body}    result_code=${UPM_RC_SUCCESS}
+    Log    [UPM] Subs-Change 0x05 수신 → 0x06 응답 완료 (mdn=${body}[mdn] → ${body}[new-mdn])
 
 
 # ── PCF Noti 수신 (도구가 PCF 역할, HTTP/2 h2c) ──────────────────
