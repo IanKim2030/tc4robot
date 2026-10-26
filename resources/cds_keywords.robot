@@ -127,6 +127,11 @@ Suite CDS Connect
     #    ${CDS_UPM_VERIFY}=${FALSE} 면 통째로 건너뛴다(그러면 UPM 의존이 사라진다).
     IF    ${CDS_UPM_VERIFY}
         Suite UPM Connect
+        # TC 가 오래 걸려도 PG 가 UPM 소켓을 끊지 않도록 Ping 을 주기 송신한다.
+        # 주기는 Hello-Response 의 ping-interval 의 절반(여유). 닫힘은 Tcp Close 가 정리한다.
+        ${ka}=    Evaluate    max(1, float($UPM_PING_INTERVAL) / 2)
+        Tcp.Keepalive Start    ${UPM_SOCK}    ${ka}
+        Log    [Suite] UPM Keep-Alive Ping 시작 (${ka}초 주기)    console=True
     ELSE
         Log    [Suite] UPM 연동 검증 꺼짐 (CDS_UPM_VERIFY=${CDS_UPM_VERIFY})    console=True
     END
@@ -177,15 +182,30 @@ Suite CDS Disconnect
 
 CDS Test Setup
     [Documentation]
-    ...    **모든 TC 의 Test Setup.** 두 가지를 한다.
+    ...    **모든 TC 의 Test Setup.** 세 가지를 한다.
     ...      1) Schannel/Rchannel 생존 확인 (`Check CDS Sockets`)
-    ...      2) PCF SBI 수신 상태 리셋 (`Reset PCF Noti For Test`)
+    ...      2) UPM Ping 왕복 — 소켓 유지 (`Keep UPM Alive`)
+    ...      3) PCF SBI 수신 상태 리셋 (`Reset PCF Noti For Test`)
     ...
     ...    2번을 **모든 TC 에서** 하는 것이 요점이다. 알림을 실제로 판정하는 TC 는
     ...    일부뿐이지만(현재 TC-CDS-003), 리셋을 그 TC 안에서만 하면 그 전에 다른
     ...    TC 가 유발한 알림이 큐에 남아 있다가 자기 결과로 오인된다.
     Check CDS Sockets
+    Keep UPM Alive
     Reset PCF Noti For Test
+
+Keep UPM Alive
+    [Documentation]
+    ...    UPM 소켓 Keep-Alive. PG 는 Ping 이 끊기면 UPM 소켓을 닫는다 — CDS 슈트는
+    ...    UPM 에 접속만 해 두고 TC 를 오래 돌리므로 **매 TC 시작마다** Ping(0x03) → 0x04 를 왕복한다.
+    ...    ${CDS_UPM_VERIFY}=${FALSE}(--no-upm) 면 UPM 에 접속하지 않았으므로 건너뛴다.
+    IF    not ${CDS_UPM_VERIFY}
+        RETURN
+    END
+    ${ok}=    Tcp.Is Connected    ${UPM_SOCK}
+    Run Keyword If    not ${ok}
+    ...    Fatal Error    UPM 소켓이 닫혀 있습니다. 이후 TC를 실행할 수 없습니다.
+    UPM Ping Roundtrip
 
 Reset PCF Noti For Test
     [Documentation]
@@ -1009,6 +1029,7 @@ Verify UPM Subs Info Notified
     ${ok}=    Tcp.Is Connected    ${UPM_SOCK}
     Should Be True    ${ok}
     ...    msg=UPM 소켓이 닫혀 있습니다 — HFC 전문의 Subs-Info(0x07)를 받을 수 없습니다
+    UPM Ping Roundtrip
     ${hdr}    ${body}=    Receive Subs Info Request
     UPM MDN Should Be Valid              ${body}
     UPM Branch Name Should Be Valid      ${body}
@@ -1051,6 +1072,7 @@ Verify UPM Info Change Notified
     ${ok}=    Tcp.Is Connected    ${UPM_SOCK}
     Should Be True    ${ok}
     ...    msg=UPM 소켓이 닫혀 있습니다 — Info-Change(0x0d)를 받을 수 없습니다
+    UPM Ping Roundtrip
     ${hdr}    ${body}=    Receive Info Change Request
     UPM Code Type Should Be              ${body}    ${UPM_CT_INFO_CHANGE}
     UPM MDN Should Be Valid              ${body}
@@ -1079,6 +1101,7 @@ Verify UPM Subs Change Notified
     ${ok}=    Tcp.Is Connected    ${UPM_SOCK}
     Should Be True    ${ok}
     ...    msg=UPM 소켓이 닫혀 있습니다 — Subs-Change(0x05)를 받을 수 없습니다
+    UPM Ping Roundtrip
     ${hdr}    ${body}=    Receive Subs Change Request
     UPM Code Type Should Be              ${body}    ${UPM_CT_MDN_CHANGE}
     UPM MDN Should Be Valid              ${body}

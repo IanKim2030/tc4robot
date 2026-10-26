@@ -43,6 +43,7 @@ def tcp_connect(host: str, port, timeout=30):
 
 def tcp_close(sock):
     """TCP 연결 종료"""
+    keepalive_stop(sock)
     try:
         sock.close()
     except Exception:
@@ -297,16 +298,17 @@ def send_message(sock, msg_type: int, txn_id: int, payload=None) -> None:
         body_bytes = body_str.encode('utf-8')
     header = build_header(msg_type, len(body_bytes), txn_id, byte0=0x00)
     try:
-        sock.sendall(header + body_bytes)
+        ka = _KEEPALIVE.get(sock)
+        if ka:
+            with ka['lock']:
+                sock.sendall(header + body_bytes)
+        else:
+            sock.sendall(header + body_bytes)
     except (OSError, BrokenPipeError) as e:
         raise ConnectionClosed(f"소켓 전송 오류: {e}") from e
 
 
-def receive_message(sock) -> tuple:
-    """
-    NAG/PCF용: 헤더(8B) + JSON Body 수신
-    반환: (header_dict, body_dict)  Body 없으면 body_dict = {}
-    """
+def _receive_one(sock) -> tuple:
     hdr_bytes = _recv_exact(sock, 8)
     hdr       = parse_header(hdr_bytes)
     body_len  = hdr['body_length']
@@ -316,6 +318,71 @@ def receive_message(sock) -> tuple:
     else:
         body = {}
     return hdr, body
+
+
+def receive_message(sock) -> tuple:
+    """
+    NAG/PCF용: 헤더(8B) + JSON Body 수신
+    반환: (header_dict, body_dict)  Body 없으면 body_dict = {}
+
+    keepalive_start 가 걸린 소켓이면 Keep-Alive 가 유발한 Ping-Response(0x04)는
+    버리고 다음 메시지를 돌려준다 — 호출자가 보낸 Ping 의 응답이 아니기 때문이다.
+    (Ping 왕복을 직접 확인하려면 receive_message_raw 를 쓴다)
+    """
+    while True:
+        hdr, body = _receive_one(sock)
+        if hdr['msg_type'] == 0x04 and sock in _KEEPALIVE:
+            continue
+        return hdr, body
+
+
+def receive_message_raw(sock) -> tuple:
+    """receive_message 와 같지만 Keep-Alive 응답(0x04)도 걸러내지 않는다."""
+    return _receive_one(sock)
+
+
+# ── UPM Keep-Alive: TC 가 오래 걸려도 PG 가 소켓을 끊지 않도록 Ping 을 주기 송신 ──
+#
+# 송신 전용 스레드다. 응답(0x04)은 읽지 않고 소켓 버퍼에 쌓아 두며, 수신은 항상
+# 메인(테스트) 스레드만 한다 → 읽기 경합이 없다. 쌓인 0x04 는 receive_message 가 버린다.
+# 메인 스레드의 송신(0x08 응답 등)과 섞이지 않도록 소켓별 락을 공유한다.
+
+import threading
+
+_KEEPALIVE = {}          # sock -> {'stop': Event, 'thread': Thread, 'lock': Lock}
+_KA_TXN_BASE = 0x70000000
+
+
+def keepalive_start(sock, interval, msg_type=3, payload='\r\n') -> None:
+    """interval(초)마다 Ping(msg_type) 을 보내는 스레드를 띄운다. 이미 있으면 무시."""
+    if sock in _KEEPALIVE:
+        return
+    interval = max(1.0, float(interval))
+    stop = threading.Event()
+    lock = threading.Lock()
+    state = {'stop': stop, 'lock': lock}
+
+    def _run():
+        seq = 0
+        while not stop.wait(interval):
+            seq += 1
+            try:
+                with lock:
+                    sock.sendall(build_header(msg_type, len(payload), _KA_TXN_BASE + seq)
+                                 + payload.encode('utf-8'))
+            except OSError:
+                return       # 소켓이 닫힘 — 판정은 Check ... Socket 이 한다
+
+    t = threading.Thread(target=_run, name='tcp-keepalive', daemon=True)
+    state['thread'] = t
+    _KEEPALIVE[sock] = state
+    t.start()
+
+
+def keepalive_stop(sock) -> None:
+    state = _KEEPALIVE.pop(sock, None)
+    if state:
+        state['stop'].set()
 
 
 # ── LRS: 고정길이 ASCII Body 송수신 ──────────────────────────────

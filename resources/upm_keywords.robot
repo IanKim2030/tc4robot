@@ -106,6 +106,15 @@ Send UPM Message
     Tcp.Send Message    ${UPM_SOCK}    ${msg_type}    ${txn_id}    ${payload}
 
 Receive UPM Message
+    [Documentation]
+    ...    UPM 소켓에서 한 건 수신한다. `UPM Ping Roundtrip` 이 Ping-Response 를 기다리다
+    ...    먼저 받아 둔 PG 요청(${UPM_PENDING})이 있으면 소켓보다 그쪽을 먼저 돌려준다.
+    ${pending}=    Get Variable Value    ${UPM_PENDING}    ${NONE}
+    IF    $pending
+        ${item}=    Evaluate    $pending.pop(0)
+        Log    [RX-UPM] (보관분) type=0x${item}[0][msg_type] txn=${item}[0][txn_id]
+        RETURN    ${item}[0]    ${item}[1]
+    END
     ${hdr}    ${body}=    Tcp.Receive Message    ${UPM_SOCK}
     Log    [RX-UPM] type=0x${hdr}[msg_type] txn=${hdr}[txn_id]
     RETURN    ${hdr}    ${body}
@@ -195,6 +204,29 @@ Send UPM Ping
     ...           ELSE    Set Variable    ${txn_id}
     ${hdr}    ${body}=    Send And Receive UPM    ${3}    ${txn_id}    \r\n
     RETURN    ${hdr}    ${body}
+
+UPM Ping Roundtrip
+    [Documentation]
+    ...    Ping(0x03)을 보내고 Ping-Response(0x04)를 받아 sys-id 를 검증한다.
+    ...    PG 가 먼저 밀어 둔 요청(0x07/0x0d/0x05 등)이 소켓에 있으면 0x04 가 나올 때까지
+    ...    읽으면서 ${UPM_PENDING} 에 보관한다 — 뒤이은 `Receive UPM Message` 가 먼저 꺼낸다.
+    ${txn_id}=    Next TXN ID
+    Send UPM Message    ${3}    ${txn_id}    \r\n
+    ${pending}=    Create List
+    FOR    ${i}    IN RANGE    10
+        ${hdr}    ${body}=    Tcp.Receive Message Raw    ${UPM_SOCK}
+        Log    [RX-UPM] type=0x${hdr}[msg_type] txn=${hdr}[txn_id]
+        IF    ${hdr}[msg_type] == 4    BREAK
+        ${item}=    Create List    ${hdr}    ${body}
+        Append To List    ${pending}    ${item}
+    END
+    Should Be Equal As Numbers    ${hdr}[msg_type]    ${4}
+    ...    msg=Ping-Response(0x04) 기대, 실제=${hdr}[msg_type]
+    UPM Ping Should Succeed    ${body}
+    ${old}=    Get Variable Value    ${UPM_PENDING}    ${NONE}
+    ${old}=    Evaluate    list($old or []) + $pending
+    Set Suite Variable    ${UPM_PENDING}    ${old}
+    Log    [UPM] Ping → Ping-Response 완료 (sys-id=${body}[sys-id], 보관 ${pending.__len__()}건)
 
 UPM Ping Should Succeed
     [Documentation]
