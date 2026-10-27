@@ -6,7 +6,7 @@ Documentation
 ...    PG 내부 공식 명칭은 RTS 다 — CDS 문서의 PG.RDS(쿠폰 예약작업 폴러)와는
 ...    별개 인터페이스이므로 혼동하지 말 것 (docs/nodes/RTS.md 참조).
 ...
-...    이번 범위는 SVC_CODE=L1(로밍 데이터 차단 ON)/L2(차단 해제)뿐이다.
+...    이번 범위는 SVC_CODE=L1(WCDMA)/L2(LTE) 로밍 데이터 차단·해제(플래그 Y/N)뿐이다.
 ...    L3/L4(mVoIP 차단)·L5~LE(QoS)는 PG 소스에 분기가 있으나 미사용 확인됨 — TODO.
 
 *** Variables ***
@@ -56,11 +56,11 @@ ${RTS_REASON_NO_COUNT}          ${99}    # E_NO_COUNT
 # ════════════════════════════════════════════
 # SVC_CODE — 이번 범위(L1/L2)만 정식 지원
 # 업무단 반영(T_5G_SUBS_SERVICE INSERT) 대상 SVC_ID 는 사용자 확인 — 코드별로 다르다.
-# (L1/L2 를 단순 ON/OFF 토글 쌍으로 단정하지 않는다 — SVC_ID 가 서로 다른 걸 보면
-#  코드마다 별개의 차단 유형일 가능성이 있다. 정확한 의미는 확인 필요.)
+# L1/L2 는 ON/OFF 쌍이 아니라 **망 종류**다(사용자 확인, 2026-10-27) —
+#  L1 = WCDMA(W_), L2 = LTE(L_). 차단/해제는 코드가 아니라 로밍 플래그(Y/N)로 가른다.
 # ════════════════════════════════════════════
-${RTS_SVC_L1}   L1    # → T_5G_SUBS_SERVICE INSERT (SVC_ID=W_DATA_ROAMING_BLOCK)
-${RTS_SVC_L2}   L2    # → T_5G_SUBS_SERVICE INSERT (SVC_ID=L_DATA_ROAMING_BLOCK)
+${RTS_SVC_L1}   L1    # WCDMA → T_5G_SUBS_SERVICE SVC_ID=W_DATA_ROAMING_BLOCK
+${RTS_SVC_L2}   L2    # LTE   → T_5G_SUBS_SERVICE SVC_ID=L_DATA_ROAMING_BLOCK
 # L3/L4 = mVoIP 차단, L5/L7/L9/LD/LJ/LL = QoS Param — PG 소스엔 분기가 있으나
 # 미사용 확인됨(사용자 확인). TODO — 필요해지면 RtsHelper.pack_rts_order_body 를
 # offset15(mvoip)/offset16(qos) 까지 채우도록 확장할 것.

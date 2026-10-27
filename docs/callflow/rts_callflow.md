@@ -3,7 +3,7 @@
 | 항목 | 값 |
 |---|---|
 | SVC_CODE | `L1`(→ SVC_ID=`W_DATA_ROAMING_BLOCK`) / `L2`(→ SVC_ID=`L_DATA_ROAMING_BLOCK`) |
-| 테스트 케이스 | `TC-RTS-001`(L1) / `TC-RTS-002`(L2) |
+| 테스트 케이스 | `TC-RTS-001`(WCDMA 차단) / `002`(WCDMA 해제) / `003`(LTE 차단) / `004`(LTE 해제) |
 | 알림 경로 | `PG.SDM_5G` → `PG.SNOTI` → PCF (SBI Noti) — 사용자 확인 |
 | 알림 판정 | `Verify RTS SBI Noti Sent` 가 도착을 확인 |
 | UPM 연동 | 없음 |
@@ -12,9 +12,9 @@
 > ⚠ RTS 는 CDS 문서의 "PG.RDS"(쿠폰 예약작업 폴러)와 **별개 인터페이스**다. 이름이 비슷해서
 > 생긴 혼동으로 이 노드가 추가됐다 — 절대 같은 것으로 취급하지 말 것 ([nodes/RTS.md](../nodes/RTS.md)).
 
-> L1/L2 는 SVC_ID 가 서로 다른 걸 보면 단순 ON/OFF 토글 쌍이 아니라 **별개의 차단 유형**일
-> 가능성이 있다 — 정확한 의미는 확인 필요. 아래 다이어그램은 두 코드가 구조적으로 동일해서
-> 하나로 합쳐 그렸다(달라지는 값만 표에 분리).
+> L1/L2 는 ON/OFF 쌍이 아니라 **망 종류**다(사용자 확인, 2026-10-27) — L1=WCDMA, L2=LTE.
+> 차단/해제는 코드가 아니라 로밍 플래그(`Y`/`N`)로 가른다. 아래 다이어그램은 두 코드가
+> 구조적으로 동일해서 하나로 합쳐 그렸다(달라지는 값만 표에 분리).
 
 ## PG 프로세스 목록
 
@@ -71,10 +71,12 @@ sequenceDiagram
 
 ## 코드별 값
 
-| SVC_CODE | 로밍 플래그(와이어 offset14) | DB 저장 오프셋(85) | 반영 SVC_ID |
-|---|---|---|---|
-| `L1` | `Y` | `Y` | `W_DATA_ROAMING_BLOCK` |
-| `L2` | `N` | `N` | `L_DATA_ROAMING_BLOCK` |
+| TC | SVC_CODE(망) | 동작 | 로밍 플래그(와이어 offset14 / DB 오프셋 85) | SVC_ID |
+|---|---|---|---|---|
+| 001 | `L1` (WCDMA) | 차단 | `Y` / `Y` | `W_DATA_ROAMING_BLOCK` 1건 이상 확인 |
+| 002 | `L1` (WCDMA) | 해제 | `N` / `N` | 확인 안 함(해제 시 행 처리 미확인) |
+| 003 | `L2` (LTE) | 차단 | `Y` / `Y` | `L_DATA_ROAMING_BLOCK` 1건 이상 확인 |
+| 004 | `L2` (LTE) | 해제 | `N` / `N` | 확인 안 함(해제 시 행 처리 미확인) |
 
 **와이어(수신) 오프셋과 DB 저장 오프셋이 다르다** — 각각 14 / 85. `T_RTS_ORDER_HIST.ORDER_DATA`
 는 PG 가 265B 로 재조립해 넣는 별도 버퍼라서 그렇다. 상세는 [nodes/RTS.md](../nodes/RTS.md#wire-인코딩--★-이중-오프셋-구조-이-노드의-핵심-함정) 참조.
@@ -86,15 +88,15 @@ sequenceDiagram
 잘못돼도 INSERT 자체는 성공하면 `SC`가 나온다는 점은 CDS 와 같다. 가입자 서비스 테이블 반영은
 `PG.SDM_5G` 가 나중에 폴링해서 하므로 **PDB 로만 판정된다.**
 
-- `T_RTS_ORDER_HIST.ORDER_DATA[85]`(SQL `SUBSTR(ORDER_DATA, 86, 1)`) = 요청한 로밍 플래그 — **프로토콜 계층**(TC-RTS-001 만)
-- `T_5G_SUBS_SERVICE`(MDN, SVC_ID) = **1건 이상** — **업무 계층**(TC-RTS-001/002 공통, 사용자 확인)
+- `T_RTS_ORDER_HIST.ORDER_DATA[85]`(SQL `SUBSTR(ORDER_DATA, 86, 1)`) = 요청한 로밍 플래그 — **프로토콜 계층**(TC-RTS-001~004 공통)
+- `T_5G_SUBS_SERVICE`(MDN, SVC_ID) = **1건 이상** — **업무 계층**(차단 TC-RTS-001/003 만, 사용자 확인). 해제 TC-RTS-002/004 는 행 처리(삭제/잔존)가 확인되지 않아 보지 않는다
 - `Verify RTS SBI Noti Sent` — PCF SBI Noti 도착 여부(사용자 확인)
 
 `PG.SDM_5G` 가 정확히 어떤 프로세스인지(`SDM_5G/OrderDataReader.cpp` 가 `T_RTS_ORDER_HIST`를
 읽는 코드는 확인했으나 그 이후 처리 전체는 조사 범위 밖이었다)와 반영까지 걸리는 지연 시간은
 **확인 필요** — 현재 `${RTS_DB_WAIT}`/`${RTS_NOTI_WAIT}` 는 CDS 값을 참고한 추정치다.
 
-**TC-RTS-003(negative, 패킷 크기 검증)**은 위 콜플로우를 타지 않는다 — Data Size 헤더 필드를
+**TC-RTS-005(negative, 패킷 크기 검증)**은 위 콜플로우를 타지 않는다 — Data Size 헤더 필드를
 실제 Body 보다 크게 거짓 신고해 `RTS201` 단계에서 곧바로 Order Ack(FA, REASON=`E_WRONG_SIZE`
 =12)로 거부되는 것을 기대하므로, `InsertOrder` 이후의 PDB/Noti 흐름 자체가 발생하지 않아야
 정상이다. 상세는 [nodes/RTS.md](../nodes/RTS.md) 참조.
@@ -102,4 +104,4 @@ sequenceDiagram
 ## 관련 문서
 
 - [RTS 노드 스펙](../nodes/RTS.md) — 인코딩 표, 이중 오프셋, 함정, 확인 필요
-- `tests/rts/rts_tests.robot` — `TC-RTS-001` / `TC-RTS-002` / `TC-RTS-003`(negative)
+- `tests/rts/rts_tests.robot` — `TC-RTS-001`~`004`(WCDMA/LTE 차단·해제) / `TC-RTS-005`(negative)

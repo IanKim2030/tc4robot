@@ -15,7 +15,7 @@ Documentation
 ...      Suite Teardown : Suite RTS Disconnect (Release 송신 후 소켓 종료, Noti 서버 종료)
 ...
 ...    [범위]
-...      SVC_CODE=L1(로밍 데이터 차단 ON)/L2(차단 해제)만 다룬다.
+...      SVC_CODE=L1(WCDMA)/L2(LTE) 로밍 데이터 차단·해제(플래그 Y/N)만 다룬다.
 ...      L3~LE 는 PG 소스에 분기가 있으나 미사용 확인됨 — 이 슈트에서 다루지 않는다.
 
 Library    Collections
@@ -387,24 +387,33 @@ Verify RTS SBI Noti Sent
     Log    [Noti] SBI Noti(${code}) ${n}건 수신 — ${found}[0][method] ${found}[0][path]
     RETURN    ${found}
 
-Send RTS L1 Order And Verify Reflection
+Send RTS Order And Verify Reflection
     [Documentation]
-    ...    TC-RTS-001 본문. Order(L1) 송신 → ACK → PCF SBI Noti 도착 → PDB 프로토콜/업무
-    ...    계층 반영을 한 번에 확인한다.
+    ...    TC-RTS-001~004(WCDMA/LTE 차단·해제) 공통 본문. Order 송신 → ACK → PCF SBI Noti
+    ...    도착 → PDB 프로토콜 계층(ORDER_HIST) → (svc_id 지정 시) 업무 계층 반영을
+    ...    한 번에 확인한다.
+    ...      ${code}          : ${RTS_SVC_L1}(WCDMA) / ${RTS_SVC_L2}(LTE)
+    ...      ${roaming_block} : ${RTS_ROAMING_BLOCK_ON}(차단) / ${RTS_ROAMING_BLOCK_OFF}(해제)
+    ...      ${svc_id}        : 업무 계층에서 1건 이상 있어야 할 SVC_ID. 비우면(${NONE})
+    ...                         T_5G_SUBS_SERVICE 확인을 건너뛴다 — **해제 시 이 행이 지워지는지/
+    ...                         그대로 남는지가 PG 동작으로 확인되지 않아** 해제 TC 는 단정하지 않는다.
     ...
     ...    ★ 뒤쪽 확인(Noti 도착·PDB 업무 계층 반영)은 PG.SDM_5G → PG.SNOTI 비동기 반영에
     ...      의존하는데, 그 전파 지연값(${RTS_NOTI_WAIT}/${RTS_DB_WAIT})이 아직 추정치다
-    ...      (docs/nodes/RTS.md 참조). 그래서 TC-RTS-001 은 이 키워드 전체를
+    ...      (docs/nodes/RTS.md 참조). 그래서 각 TC 는 이 키워드 전체를
     ...      `Wait Until Keyword Succeeds` 로 감싸 **실패하면 한 번 더 통째로 재시도**한다
     ...      (${RTS_TC001_RETRY_COUNT}, 2026-10-01). 재시도는 `Next RTS TID` 로 새 TID 를
     ...      받아 Order 를 다시 보낸다 — 소켓(${RTS_SOCK})은 손대지 않으므로 "소켓은
     ...      슈트당 1회" 규칙과 무관하고, TID 는 단조 증가만 요구돼 다른 TC 에도 영향 없다.
+    [Arguments]    ${code}    ${roaming_block}    ${svc_id}=${NONE}
     ${since}=    RTS Noti Timestamp
     ${tid_date}    ${tid_seq}=    Next RTS TID
     ${hdr}    ${ack}=    Send RTS Order
-    ...    ${RTS_SVC_L1}    ${RTS_TEST_MDN}    ${RTS_ROAMING_BLOCK_ON}
+    ...    ${code}    ${RTS_TEST_MDN}    ${roaming_block}
     ...    ${tid_date}    ${tid_seq}
     RTS Order Should Succeed    ${ack}
-    Verify RTS SBI Noti Sent    ${RTS_SVC_L1}    since=${since}
-    Verify RTS Order In PDB    ${tid_date}    ${tid_seq}    ${RTS_ROAMING_BLOCK_ON}
-    Verify RTS Service Applied In PDB    ${RTS_TEST_MDN}    ${RTS_SVC_ID_W_DATA_ROAMING_BLOCK}
+    Verify RTS SBI Noti Sent    ${code}    since=${since}
+    Verify RTS Order In PDB    ${tid_date}    ${tid_seq}    ${roaming_block}
+    IF    $svc_id is not None
+        Verify RTS Service Applied In PDB    ${RTS_TEST_MDN}    ${svc_id}
+    END

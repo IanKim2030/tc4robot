@@ -69,7 +69,7 @@ GenRts.py(레거시 시뮬레이터)의 레이아웃과 "DB 저장 오프셋 85"
 
 | offset | 필드 | 폭 | 비고 |
 |---|---|---|---|
-| 0 | SVC_CODE | 2B ASCII | `"L1"`/`"L2"` — 업무단 반영 SVC_ID 가 코드마다 다르다(아래 DB 절). 단순 ON/OFF 토글 쌍으로 단정하지 않는다 |
+| 0 | SVC_CODE | 2B ASCII | `"L1"`=WCDMA / `"L2"`=LTE (사용자 확인, 2026-10-27) — 업무단 반영 SVC_ID 가 망마다 다르다(아래 DB 절). ON/OFF 쌍이 아니며 차단/해제는 로밍 플래그(Y/N)로 가른다 |
 | 2 | MDN | 12B | 공백 우측 패딩, 11자리 권장(아래 MDN 함정 참조) |
 | 14 | 로밍 차단 | 1B | L1/L2 전용, `'Y'`/`'N'` |
 | 15 | mVoIP 차단 | 1B | L3/L4 전용 — **이번 범위 아님** |
@@ -98,7 +98,7 @@ SVC_CODE(0)/MDN(2) 만 두 레이어의 오프셋이 우연히 같다. **`RtsHel
 | 2 | `${RTS_REASON_INTERNAL_ERROR}` | DB insert 실패 |
 | 3 | `${RTS_REASON_REVERSE_TID}` | TID 가 이전보다 낮음 |
 | 4 | `${RTS_REASON_DUP_TID}` | TID 중복 |
-| 12 | `${RTS_REASON_WRONG_SIZE}` | Data Size 필드 불일치로 추정(TC-RTS-003 이 최초로 검증 시도 — 실 PG 결과로 확정 전) |
+| 12 | `${RTS_REASON_WRONG_SIZE}` | Data Size 필드 불일치로 추정(TC-RTS-005 가 최초로 검증 시도 — 실 PG 결과로 확정 전) |
 | 54 | `${RTS_REASON_NOT_DEFINE}` | — |
 | 99 | `${RTS_REASON_NO_COUNT}` | — |
 
@@ -162,11 +162,11 @@ L1 은 추가로 `T_RTS_ORDER_HIST` 프로토콜 계층 확인도 겸한다.
 
 판정 기준 — 4단계로 신뢰도가 올라간다:
 1. **ACK RESULT="SC"+REASON=0**: `RecvCommandRequest` 는 `InsertOrder` 가 실제로 성공했을 때만 `SC`를 주므로 CDS `CommandResult`보다 신뢰도가 높다. 다만 Body 내용(SVC/로밍 플래그)이 잘못돼도 INSERT 자체는 성공하면 `SC`가 나온다는 점은 CDS 와 같다.
-2. **`T_RTS_ORDER_HIST` 조회(TC-RTS-001)**: `SUBSTR(ORDER_DATA, 86, 1)`(DB 오프셋 85, SQL 1-index)로 실제 반영된 로밍 플래그를 확인한다 — 와이어 인코딩 회귀를 잡는 계층.
+2. **`T_RTS_ORDER_HIST` 조회(TC-RTS-001~004)**: `SUBSTR(ORDER_DATA, 86, 1)`(DB 오프셋 85, SQL 1-index)로 실제 반영된 로밍 플래그를 확인한다 — 와이어 인코딩 회귀를 잡는 계층.
 3. **`T_5G_SUBS_SERVICE` 조회(둘 다, 권장)**: `SELECT COUNT(*) ... WHERE MDN=? AND SVC_ID=?` 1건 이상 — "전문이 가입자에게 실제로 적용됐는가"의 가장 신뢰 가능한 근거. CDS 의 `Verify Zone Service Subscribed In PDB` 와 같은 패턴("1건 이상이면 성공", 정확한 건수는 안 박음).
 4. **PCF SBI Noti 조회(둘 다, 사용자 확인)**: `Verify RTS SBI Noti Sent` — 위 PCF SBI Noti 절 참조.
 
-**TC-RTS-003(negative)**: Data Size 헤더 필드를 실제 Body(17B)보다 크게(`${RTS_DATA_SIZE_
+**TC-RTS-005(negative)**: Data Size 헤더 필드를 실제 Body(17B)보다 크게(`${RTS_DATA_SIZE_
 OVERSIZED}`=600, 512 초과) 거짓 신고하고 실제 바이트는 정상 그대로 보낸다(`Send RTS Order
 With Wrong Data Size`, `RtsHelper.send_rts_wrong_size`). Order Ack 가 RESULT=FA,
 REASON=`${RTS_REASON_WRONG_SIZE}`(12, `E_WRONG_SIZE`)를 돌려주는지로 판정한다 — 이 REASON
@@ -185,10 +185,10 @@ Order 부터 `PG.SDM_5G` 폴링·`T_5G_SUBS_SERVICE` 반영·SBI Noti 까지 한
 - **MDN 10자리 재배치** — 위 참조.
 - **Keepalive Ack 는 Order Ack 과 폭이 다르다** — 2B(REASON 만) vs 4B(RESULT+REASON). `RtsHelper.py` 의 ack 파서를 msg_id 별로 분리해 둔 이유.
 - **Release(9) 에 PG 응답이 없다** — `RecvReleaseRequest` 가 로그만 남기고 `false`를 반환할 뿐이라, `Suite RTS Disconnect` 는 ACK 를 기다리지 않고 바로 소켓을 닫는다.
-- **TC-RTS-001 은 실패하면 한 번 더 전체를 재시도한다(2026-10-01)** — Noti 도착·PDB 업무 계층 반영의 전파 지연값(`${RTS_NOTI_WAIT}`/`${RTS_DB_WAIT}`)이 위 "확인 필요"대로 아직 추정치라, 타이밍이 빠듯하면 간헐적으로 실패할 수 있어서다. `${RTS_TC001_RETRY_COUNT}`(기본 `2x`)로 조정한다 — `rts_keywords.robot` 의 `Send RTS L1 Order And Verify Reflection` 참조.
+- **TC-RTS-001~004 는 실패하면 한 번 더 전체를 재시도한다(2026-10-01, 처음엔 001 만)** — Noti 도착·PDB 업무 계층 반영의 전파 지연값(`${RTS_NOTI_WAIT}`/`${RTS_DB_WAIT}`)이 위 "확인 필요"대로 아직 추정치라, 타이밍이 빠듯하면 간헐적으로 실패할 수 있어서다. `${RTS_TC001_RETRY_COUNT}`(기본 `2x`)로 조정한다 — `rts_keywords.robot` 의 `Send RTS Order And Verify Reflection` 참조.
 
 ## 확인 필요
 
-- **L1/L2 가 `T_5G_SUBS_SERVICE` 에 반영되는 것은 사용자 확인으로 확정**(L1→`W_DATA_ROAMING_BLOCK`, L2→`L_DATA_ROAMING_BLOCK`, 위 TC 판정 기준 3 참조). 다만 `W_`/`L_` 접두사가 정확히 어떤 차단 범위를 뜻하는지, L1/L2 가 서로의 반대(ON/OFF 토글) 관계인지는 아직 불명확 — RTS 소스(`RecvCommandRequest`)는 두 코드를 대칭적으로 처리할 뿐 의미까지는 알려주지 않는다. 반영 지연 시간(비동기 폴링 주기)도 미확인 — 현재 `${RTS_DB_WAIT}`=10초는 CDS 값을 그대로 가져온 추정치다.
+- **L1/L2 가 `T_5G_SUBS_SERVICE` 에 반영되는 것은 사용자 확인으로 확정**(L1→`W_DATA_ROAMING_BLOCK`, L2→`L_DATA_ROAMING_BLOCK`, 위 TC 판정 기준 3 참조). `W_`=WCDMA / `L_`=LTE, L1/L2 는 ON/OFF 쌍이 아닌 망 종류(사용자 확인, 2026-10-27). **남은 불명확점: 해제(플래그 `N`) 시 `T_5G_SUBS_SERVICE` 행이 지워지는지 남는지** — 해제 TC(002/004)가 이 때문에 SERVICE 를 보지 않는다. 또 L1+`N` / L2+`N` 조합이 실제로 해제로 처리되는지도 실 PG 로 확인 전이다. RTS 소스(`RecvCommandRequest`)는 두 코드를 대칭적으로 처리할 뿐 의미까지는 알려주지 않는다. 반영 지연 시간(비동기 폴링 주기)도 미확인 — 현재 `${RTS_DB_WAIT}`=10초는 CDS 값을 그대로 가져온 추정치다.
 - **L3~LE(mVoIP/QoS)** — 코드에는 분기가 있으나 미사용 확인됨. 필요해지면 `pack_rts_order_body` 를 offset15/16 까지 채우도록 확장.
 - **PCF SBI Noti 본문 내용** — L1/L2 가 SBI Noti 를 유발한다는 것 자체는 확인됐으나, 본문에 MDN 이 그대로 들어가는지는 CDS 와 마찬가지로 미확인. 확인되면 `Verify RTS SBI Noti Sent` 호출에 `body=${RTS_TEST_MDN}` 처럼 좁힐 수 있다.
