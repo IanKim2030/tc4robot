@@ -1,0 +1,29 @@
+-- ══════════════════════════════════════════════════════════════════
+-- config/db_seed/stg.sql — stg 환경 실행 전 DB 설정 정보 확인 → 없으면 INSERT
+--
+-- run_tests.sh 가 본 실행(nag/pcf/.../all/smoke) 전에 setup/db_seed.robot 으로
+-- 한 번 돌린다. 노드와 무관한 공통 한 세트다.
+-- 환경별 파일이다 — run_tests.sh 의 환경 인자로 고른다 (dev 기본, IP 지정도 dev).
+--   bash run_tests.sh nag       → config/db_seed/dev.sql
+--   bash run_tests.sh nag stg   → config/db_seed/stg.sql
+--   (파일이 없는 환경 — prd/local — 은 DB 접속 없이 건너뛴다)
+--   bash run_tests.sh nag --no-db-seed      # 생략
+--   bash run_tests.sh nag --db-seed-check   # 확인만 (INSERT 안 함)
+--
+-- [형식] SELECT 로 시작하는 문장이 블록을 연다. 다음 SELECT 전까지의 문장이
+--        그 블록의 INSERT 다. SELECT 결과(1행 1열 정수)가 0 일 때만 INSERT 한다.
+--   -- @name: 블록 이름 (선택 — 로그에 찍힌다)
+--   SELECT COUNT(*) FROM <표> WHERE <키 조건>;
+--   INSERT INTO <표> (...) VALUES (...);
+--
+-- ★ 값은 리터럴로 쓴다 — 바인드 파라미터(?)는 지원하지 않는다.
+-- ★ 표 이름에 스키마 접두사("PDB.")를 붙이지 말 것 — 실환경에서
+--   schema 'PDB' does not exist 로 거부된 전례가 있다.
+-- ★ 블록이 하나도 없으면 DB 에 접속하지 않고 지나간다.
+-- ★ ${PDB_CONNSTR_2} 가 채워져 있으면 두 번째 DB 에도 같은 확인·INSERT 를 한다.
+-- ══════════════════════════════════════════════════════════════════
+
+-- 예시 (주석을 풀고 실제 표·값으로 바꿀 것)
+-- -- @name: 예시 설정
+-- SELECT COUNT(*) FROM T_XXX_CFG WHERE KEY_COL = 'A';
+-- INSERT INTO T_XXX_CFG (KEY_COL, VAL) VALUES ('A', '1');

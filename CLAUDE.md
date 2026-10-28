@@ -58,6 +58,9 @@ bash run_tests.sh cds --start-now          # 예약 START_TIME 을 실행 시각
                                            # --upm / --sbi 로 반대로 강제 ON
                                            # PDB 는 못 끈다 (Suite Setup 고정)
 
+bash run_tests.sh nag --no-db-seed          # 실행 전 DB 설정 시드(config/db_seed/<env>.sql, IP 지정은 dev) 생략
+bash run_tests.sh nag --db-seed-check       # 시드 확인만 (INSERT 안 함). 시드 실패 시 본 실행 안 함
+
 bash run_tests.sh nag stg                   # 환경 지정 (dev 기본 / stg / prd)
 bash run_tests.sh all prd                   # prd 는 PG_ALLOW_PRD=1 필요
 bash run_tests.sh all 192.168.1.1           # PG_HOST 만 오버라이드

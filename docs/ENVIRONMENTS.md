@@ -140,6 +140,40 @@ export PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
 골디락스 DSN-less 가 `IM012 DRIVER keyword syntax error` 로 거부된 이력은
 [nodes/CDS.md](nodes/CDS.md) 의 PDB 조회 절에 있다.
 
+## 실행 전 DB 설정 시드 (`config/db_seed/<env>.sql`)
+
+`run_tests.sh` 는 대상(nag/…/all/smoke)과 무관하게 **본 실행 전에** `setup/db_seed.robot`
+을 따로 한 번 돌린다. PG 가 읽는 설정 행이 없으면 넣고 시작하기 위한 단계다. 노드와는
+무관하고 **환경별로 파일이 따로 있다.**
+
+| 실행 | 시드 파일 |
+|---|---|
+| `bash run_tests.sh nag` / `nag dev` / `nag 192.168.1.1` | `config/db_seed/dev.sql` |
+| `bash run_tests.sh nag stg` | `config/db_seed/stg.sql` |
+| `prd` / `local` | `config/db_seed/<env>.sql` — 없으면 DB 접속 없이 건너뜀 |
+
+```sql
+-- @name: 블록 이름 (선택)
+SELECT COUNT(*) FROM T_XXX_CFG WHERE KEY_COL = 'A';     -- 블록을 연다 (1행 1열 정수)
+INSERT INTO T_XXX_CFG (KEY_COL, VAL) VALUES ('A', '1'); -- 위 결과가 0 일 때만 실행
+```
+
+- SELECT 로 시작하는 문장이 블록을 열고, 다음 SELECT 전까지가 그 블록의 INSERT 다.
+  INSERT 뒤에는 같은 SELECT 로 다시 세어 1건 이상인지 본다.
+- 값은 리터럴로 쓴다(바인드 파라미터 없음). 표 이름에 `PDB.` 접두사를 붙이지 않는다.
+- 블록이 하나도 없으면 DB 에 접속하지 않는다 — DB 를 안 쓰는 환경도 그대로 돈다.
+- 접속은 본 실행과 같은 `${PDB_CONNSTR}` 이다(같은 `--variablefile`/`--variable` 을 넘긴다).
+  `${PDB_CONNSTR_2}` 가 있으면 두 번째 DB 에도 같은 확인·INSERT 를 한다.
+- **시드가 실패하면 본 실행을 하지 않는다.** 로그는 `results/<TS>/db_seed/log.html`.
+
+```bash
+bash run_tests.sh nag --no-db-seed      # 시드 단계 생략
+bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT 안 함
+python -m robot setup/db_seed.robot     # robot 을 직접 돌릴 때는 먼저 수동으로 (기본 dev.sql)
+python -m robot --variablefile config/env/stg.py \
+    --variable DB_SEED_FILE:config/db_seed/stg.sql setup/db_seed.robot   # stg
+```
+
 ## prd 가드
 
 `config/env/prd.py` 는 환경변수 없이는 실행을 거부한다.

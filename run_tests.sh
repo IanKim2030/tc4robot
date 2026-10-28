@@ -52,6 +52,13 @@
 # 있어 자연히 그만큼 지연되므로 따로 넣지 않았다.
 #   bash run_tests.sh nag --variable PG_SSH_SETTLE:5s   # 더 느린 환경이면 늘린다
 #
+# 실행 전 DB 설정 시드 — 모든 대상 공통. 본 실행 전에 setup/db_seed.robot 을
+# 따로 한 번 돌려 config/db_seed/<env>.sql 의 블록마다 확인 SELECT → 0건이면 INSERT 한다.
+# 파일은 환경 인자로 고른다: (없음)/IP → dev.sql, stg → stg.sql. 파일이 없으면 건너뛴다.
+# 블록이 없으면 DB 에 접속하지 않는다. **시드가 실패하면 본 실행을 하지 않는다.**
+#   bash run_tests.sh nag --no-db-seed      # 시드 단계 생략
+#   bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT 안 함
+#
 # CDS 사전 확인 — 두 대상 번호의 잔존 데이터를 네 표에서 센다.
 #   **기본은 리포트만 하고 그대로 진행한다.** 아래는 그 동작을 바꿀 때만 쓴다.
 #   bash run_tests.sh cds --precheck-fail   # 잔존 데이터면 중단
@@ -100,6 +107,7 @@
 
 TARGET=${1:-smoke}
 EXTRA_ARGS=()
+DB_SEED=1
 
 # CDS 슈트의 곁가지 연동을 켜고 끄는 플래그 → --variable 로 변환한다.
 # 기본값은 cds_variables.robot 이 쥔다(둘 다 ${TRUE}). 여기서는 **준 것만** 덮는다.
@@ -162,6 +170,9 @@ for arg in "${@:2}"; do
         # nag/lrs/cds/rts 공용 플래그다 — 대상 슈트가 안 쓰면 그대로 무시된다.
         --no-ssh-ensure)   TOGGLE_VARS+=(--variable PG_SSH_ENSURE:False) ;;
         --ssh-ensure)      TOGGLE_VARS+=(--variable PG_SSH_ENSURE:True) ;;
+        # 실행 전 DB 설정 시드(setup/db_seed.robot, config/db_seed/<env>.sql).
+        --no-db-seed)      DB_SEED=0 ;;
+        --db-seed-check)   TOGGLE_VARS+=(--variable DB_SEED_CHECK_ONLY:True) ;;
         *)              EXTRA_ARGS+=("${arg}") ;;
     esac
 done
@@ -222,6 +233,37 @@ if [ -d "${GOLDILOCKS_HOME}/lib" ]; then
         *":${GOLDILOCKS_HOME}/lib:"*) ;;
         *) export LD_LIBRARY_PATH="${GOLDILOCKS_HOME}/lib:${LD_LIBRARY_PATH}" ;;
     esac
+fi
+
+# ── 실행 전 DB 설정 시드 ──────────────────────────────────────────
+# 본 실행과 같은 환경 파일·변수를 넘겨 접속 문자열 우선순위를 맞춘다. 위의
+# LD_LIBRARY_PATH 설정 뒤여야 한다(골디락스 문자셋 라이브러리).
+# 시드 파일은 환경별이다 — config/db_seed/<env>.sql. IP 직접 지정은 dev 로 본다.
+# 파일이 없으면(prd/local 등) DB 에 접속하지 않고 건너뛴다.
+case "${ENV_NAME}" in
+    host=*) SEED_ENV="dev" ;;
+    *)      SEED_ENV="${ENV_NAME}" ;;
+esac
+SEED_FILE="config/db_seed/${SEED_ENV}.sql"
+if [ "${DB_SEED}" = "1" ]; then
+    echo "▶ DB 설정 시드 확인 (${SEED_FILE})"
+    python3 -m robot \
+        --outputdir "${OUT}/db_seed" \
+        --loglevel DEBUG \
+        --console dotted \
+        --variable "DB_SEED_FILE:${SEED_FILE}" \
+        "${VAR_OVERRIDE[@]}" \
+        "${TOGGLE_VARS[@]}" \
+        setup/db_seed.robot
+    SEED_RC=$?
+    if [ ${SEED_RC} -ne 0 ]; then
+        echo "" >&2
+        echo "★ DB 설정 시드가 실패해 본 실행을 하지 않습니다 (rc=${SEED_RC})." >&2
+        echo "  로그: ${OUT}/db_seed/log.html" >&2
+        echo "  시드 없이 돌리려면 --no-db-seed 를 붙이십시오." >&2
+        exit ${SEED_RC}
+    fi
+    echo ""
 fi
 
 BASE_CMD=(python3 -m robot
