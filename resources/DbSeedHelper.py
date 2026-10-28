@@ -9,14 +9,20 @@ DbSeedHelper.py  —  실행 전 DB 설정 시드 파일(config/db_seed/<env>.sq
 
 [파일 형식]
   `;` 로 끝나는 SQL 문장을 나열한다. **SELECT 로 시작하는 문장이 블록을 연다.**
-  다음 SELECT 가 나오기 전까지의 문장들이 그 블록의 INSERT 다.
+  다음 SELECT 가 나오기 전까지의 INSERT / UPDATE 문이 그 블록에 속한다.
+  여러 줄에 걸쳐 써도 된다 — 문장은 `;` 로만 나뉜다.
 
     -- @name: NAG 클라이언트 등록
     SELECT COUNT(*) FROM T_XXX_CFG WHERE KEY_COL = 'A';
     INSERT INTO T_XXX_CFG (KEY_COL, VAL) VALUES ('A', '1');
+    UPDATE T_XXX_CFG SET VAL = '1' WHERE KEY_COL = 'A';
 
-  SELECT 는 `COUNT(*)` 처럼 **1행 1열 정수**를 돌려줘야 한다. 0 이면 INSERT 를
-  실행하고, 아니면 건너뛴다(멱등).
+  SELECT 는 `COUNT(*)` 처럼 **1행 1열 정수**를 돌려줘야 한다. 실행 조건은 문장
+  종류로 정해진다.
+    0건      → INSERT 만 실행 (UPDATE 는 건너뜀)
+    1건 이상 → UPDATE 만 실행 (INSERT 는 건너뜀)
+  INSERT 만 있는 블록은 "없으면 넣기", UPDATE 만 있는 블록은 "있으면 고치기",
+  둘 다 있으면 upsert 다. 그 밖의 문장(DELETE 등)은 형식 오류로 거부한다.
   `-- @name:` 주석은 선택이다. 없으면 SELECT 문 앞부분을 이름으로 쓴다.
 
   따옴표('...' / "...") 안의 `;` 와 `--` 는 문장 구분·주석으로 보지 않는다
@@ -27,6 +33,7 @@ import os
 import re
 
 _NAME_RE = re.compile(r'^\s*--\s*@name\s*:\s*(.*?)\s*$')
+_TARGET_RE = re.compile(r'^\s*(INSERT\s+INTO|UPDATE)\s+([^\s(]+)', re.IGNORECASE)
 
 
 class DbSeedError(Exception):
@@ -111,11 +118,13 @@ def load_seed_blocks(path):
 
     blocks = []
     for stmt, name, line in stmts:
-        if stmt.split(None, 1)[0].upper() == 'SELECT':
+        verb = stmt.split(None, 1)[0].upper()
+        if verb == 'SELECT':
             blocks.append({
                 'name': name or ' '.join(stmt.split())[:60],
                 'check': stmt,
                 'inserts': [],
+                'updates': [],
                 'line': line,
             })
         elif not blocks:
@@ -123,11 +132,27 @@ def load_seed_blocks(path):
                 '%s:%d — 확인용 SELECT 없이 시작하는 문장입니다. 블록은 SELECT 로 '
                 '열어야 합니다: %s' % (path, line, stmt[:80])
             )
-        else:
+        elif verb == 'INSERT':
             blocks[-1]['inserts'].append(stmt)
-    for b in blocks:
-        if not b['inserts']:
+        elif verb == 'UPDATE':
+            blocks[-1]['updates'].append(stmt)
+        else:
             raise DbSeedError(
-                '%s:%d — SELECT 뒤에 넣을 문장이 없습니다 (%s)' % (path, b['line'], b['name'])
+                '%s:%d — 블록 안에는 INSERT / UPDATE 만 쓸 수 있습니다 (%s): %s'
+                % (path, line, verb, stmt[:80])
+            )
+    for b in blocks:
+        if not b['inserts'] and not b['updates']:
+            raise DbSeedError(
+                '%s:%d — SELECT 뒤에 INSERT / UPDATE 문이 없습니다 (%s)'
+                % (path, b['line'], b['name'])
             )
     return blocks
+
+
+def describe_statement(sql):
+    """로그용 한 줄 요약 — `INSERT INTO T_X` / `UPDATE T_X`. 못 알아보면 앞부분 60자."""
+    m = _TARGET_RE.match(sql)
+    if m:
+        return '%s %s' % (' '.join(m.group(1).upper().split()), m.group(2))
+    return ' '.join(sql.split())[:60]

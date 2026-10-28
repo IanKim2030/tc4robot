@@ -53,11 +53,12 @@
 #   bash run_tests.sh nag --variable PG_SSH_SETTLE:5s   # 더 느린 환경이면 늘린다
 #
 # 실행 전 DB 설정 시드 — 모든 대상 공통. 본 실행 전에 setup/db_seed.robot 을
-# 따로 한 번 돌려 config/db_seed/<env>.sql 의 블록마다 확인 SELECT → 0건이면 INSERT 한다.
+# 따로 한 번 돌려 config/db_seed/<env>.sql 의 블록마다 확인 SELECT → 0건이면 INSERT,
+# 1건 이상이면 (블록에 있으면) UPDATE 한다. 실행한 문장은 콘솔·log.html 에 남는다.
 # 파일은 환경 인자로 고른다: (없음)/IP → dev.sql, stg → stg.sql. 파일이 없으면 건너뛴다.
 # 블록이 없으면 DB 에 접속하지 않는다. **시드가 실패하면 본 실행을 하지 않는다.**
 #   bash run_tests.sh nag --no-db-seed      # 시드 단계 생략
-#   bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT 안 함
+#   bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT/UPDATE 안 함
 #
 # CDS 사전 확인 — 두 대상 번호의 잔존 데이터를 네 표에서 센다.
 #   **기본은 리포트만 하고 그대로 진행한다.** 아래는 그 동작을 바꿀 때만 쓴다.

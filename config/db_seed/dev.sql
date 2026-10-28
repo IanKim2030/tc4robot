@@ -10,23 +10,27 @@
 --   bash run_tests.sh nag --no-db-seed      # 생략
 --   bash run_tests.sh nag --db-seed-check   # 확인만 (INSERT 안 함)
 --
--- [형식] SELECT 로 시작하는 문장이 블록을 연다. 다음 SELECT 전까지의 문장이
---        그 블록의 INSERT 다. SELECT 결과(1행 1열 정수)가 0 일 때만 INSERT 한다.
+-- [형식] SELECT 로 시작하는 문장이 블록을 연다. 다음 SELECT 전까지의 INSERT / UPDATE
+--        문이 그 블록에 속한다. 여러 줄에 걸쳐 써도 된다(문장은 `;` 로만 나뉜다).
 --   -- @name: 블록 이름 (선택 — 로그에 찍힌다)
 --   SELECT COUNT(*) FROM <표> WHERE <키 조건>;
---   INSERT INTO <표> (...) VALUES (...);
+--   INSERT INTO <표> (...) VALUES (...);        -- 0건일 때만 실행 (뒤에 재확인)
+--   UPDATE <표> SET ... WHERE <키 조건>;         -- 1건 이상일 때만 실행
+--   INSERT 만 있으면 "없으면 넣기", UPDATE 만 있으면 "있으면 고치기", 둘 다면 upsert.
+--   실행한 INSERT/UPDATE 는 문장마다 콘솔(대상 표·영향 행 수)과 log.html(전체 SQL)에 남는다.
 --
 -- ★ 값은 리터럴로 쓴다 — 바인드 파라미터(?)는 지원하지 않는다.
 -- ★ 표 이름에 스키마 접두사("PDB.")를 붙이지 말 것 — 실환경에서
 --   schema 'PDB' does not exist 로 거부된 전례가 있다.
 -- ★ 블록이 하나도 없으면 DB 에 접속하지 않고 지나간다.
--- ★ ${PDB_CONNSTR_2} 가 채워져 있으면 두 번째 DB 에도 같은 확인·INSERT 를 한다.
+-- ★ ${PDB_CONNSTR_2} 가 채워져 있으면 두 번째 DB 에도 같은 확인·INSERT·UPDATE 를 한다.
 -- ══════════════════════════════════════════════════════════════════
 
 -- 예시 (주석을 풀고 실제 표·값으로 바꿀 것)
 -- -- @name: 예시 설정
 -- SELECT COUNT(*) FROM T_XXX_CFG WHERE KEY_COL = 'A';
 -- INSERT INTO T_XXX_CFG (KEY_COL, VAL) VALUES ('A', '1');
+-- UPDATE T_XXX_CFG SET VAL = '1' WHERE KEY_COL = 'A';
 
 SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='01090020001';
 INSERT INTO T_SESSION_INFO

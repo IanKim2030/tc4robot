@@ -14,7 +14,9 @@ Documentation
 ...    본 실행과 같다.
 ...
 ...    블록마다 확인 SELECT(1행 1열 정수)가 0 이면 INSERT 하고, 다시 세어 1 이상인지
-...    본다. 0 이 아니면 건너뛴다(멱등). 블록이 하나도 없으면 DB 에 접속하지 않는다.
+...    본다. 1 이상이면 그 블록의 UPDATE 를 실행한다(없으면 건너뛴다 — 멱등).
+...    실행한 INSERT/UPDATE 는 문장마다 콘솔·log.html 에 남는다.
+...    블록이 하나도 없으면 DB 에 접속하지 않는다.
 ...    ${PDB_CONNSTR_2} 가 있으면 두 번째 DB 에도 같은 일을 한다.
 ...
 ...    ★ `python -m robot tests/...` 로 직접 돌리면 이 단계는 돌지 않는다.
@@ -36,7 +38,7 @@ ${SEED_DB_CONN_2}    ${None}
 
 *** Test Cases ***
 DB 설정 정보 확인 및 적재
-    [Documentation]    ${DB_SEED_FILE} 의 블록마다 확인 SELECT → 0건이면 INSERT → 재확인.
+    [Documentation]    ${DB_SEED_FILE} 의 블록마다 확인 SELECT → 0건이면 INSERT(재확인) / 1건 이상이면 UPDATE.
     ${exists}=    Run Keyword And Return Status    File Should Exist    ${DB_SEED_FILE}
     IF    not ${exists}
         Log    [Seed] 이 환경의 시드 파일이 없습니다 — DB 접속 없이 지나갑니다 (${DB_SEED_FILE})    console=True
@@ -75,13 +77,37 @@ Open Seed DB Connections
 
 Apply Seed Blocks
     [Documentation]
-    ...    한 DB 에 블록 전체를 적용한다. 확인만 모드에서 빠진 블록이 있으면 WARN 으로
-    ...    남기고 실패하지 않는다(본 실행은 진행된다).
+    ...    한 DB 에 블록 전체를 적용한다. 확인 SELECT 결과로 갈린다.
+    ...      0건      → INSERT 실행 → 같은 SELECT 로 다시 세어 1건 이상인지 확인
+    ...      1건 이상 → UPDATE 실행 (UPDATE 문이 없으면 "있음" 으로 건너뜀)
+    ...    실행한 INSERT/UPDATE 는 문장마다 대상 표·영향 행 수를 콘솔에, 전체 SQL 을
+    ...    log.html 에 남긴다. 끝에 DB 별 요약(있음/INSERT/UPDATE 건수)을 찍는다.
+    ...    확인만 모드에서는 아무것도 실행하지 않는다 — INSERT 대상은 WARN, UPDATE
+    ...    대상은 콘솔 로그로만 남기고 실패하지 않는다(본 실행은 진행된다).
     [Arguments]    ${conn}    ${db}    ${blocks}
+    ${n_keep}=    Set Variable    ${0}
+    ${n_ins}=     Set Variable    ${0}
+    ${n_upd}=     Set Variable    ${0}
     FOR    ${b}    IN    @{blocks}
         ${existing}=    SeedDb.Db Count    ${conn}    ${b}[check]
         IF    ${existing} > 0
-            Log    [Seed] 있음 (${db}) — ${b}[name] (${existing}건)    console=True
+            IF    not $b['updates']
+                Log    [Seed] 있음 (${db}) — ${b}[name] (${existing}건)    console=True
+                ${n_keep}=    Evaluate    ${n_keep} + 1
+                CONTINUE
+            END
+            IF    ${DB_SEED_CHECK_ONLY}
+                Log    [Seed] 있음 (${db}) — ${b}[name] (${existing}건) — 확인만 모드라 UPDATE 하지 않았습니다    console=True
+                CONTINUE
+            END
+            FOR    ${sql}    IN    @{b}[updates]
+                Execute Seed Statement    ${conn}    ${db}    ${b}[name]    UPDATE    ${sql}
+            END
+            ${n_upd}=    Evaluate    ${n_upd} + 1
+            CONTINUE
+        END
+        IF    not $b['inserts']
+            Log    [Seed] 없음 (${db}) — ${b}[name] — INSERT 문이 없는 블록이라 건너뜁니다    console=True
             CONTINUE
         END
         IF    ${DB_SEED_CHECK_ONLY}
@@ -89,12 +115,31 @@ Apply Seed Blocks
             CONTINUE
         END
         FOR    ${sql}    IN    @{b}[inserts]
-            SeedDb.Db Execute    ${conn}    ${sql}
+            Execute Seed Statement    ${conn}    ${db}    ${b}[name]    INSERT    ${sql}
         END
         ${after}=    SeedDb.Db Count    ${conn}    ${b}[check]
         Should Be True    ${after} >= 1
         ...    msg=[Seed] ${db} — ${b}[name] INSERT 후 확인 SELECT 기대=1건 이상, 실제=${after} (확인 SELECT 와 INSERT 가 같은 행을 가리키는지 볼 것)
-        Log    [Seed] 적재 (${db}) — ${b}[name]    console=True
+        Log    [Seed] INSERT 확인 (${db}) — ${b}[name] — 확인 SELECT ${after}건    console=True
+        ${n_ins}=    Evaluate    ${n_ins} + 1
+    END
+    Log    [Seed] 요약 (${db}) — 있음 ${n_keep} / INSERT ${n_ins} / UPDATE ${n_upd} (블록 기준)    console=True
+
+Execute Seed Statement
+    [Documentation]
+    ...    INSERT/UPDATE 한 문장을 실행(commit)하고 로그를 남긴다.
+    ...      콘솔    : 대상 표와 영향 행 수 한 줄
+    ...      log.html : 전체 SQL
+    ...    UPDATE 가 0행이면 WARN 이다(실패는 아니다) — 드라이버가 영향 행 수를 안
+    ...    주는 경우도 0 으로 보이기 때문이다. 확인 SELECT 와 UPDATE 의 WHERE 가 같은
+    ...    행을 가리키는지 볼 것.
+    [Arguments]    ${conn}    ${db}    ${name}    ${kind}    ${sql}
+    ${target}=    Seed.Describe Statement    ${sql}
+    ${rows}=      SeedDb.Db Execute    ${conn}    ${sql}
+    Log    [Seed] ${kind} (${db}) — ${name} — ${target} — ${rows}행    console=True
+    Log    [Seed] ${kind} 실행 SQL (${db}, ${name}):\n${sql}
+    IF    '${kind}' == 'UPDATE' and ${rows} == 0
+        Log    [Seed] UPDATE 영향 행 0 (${db}) — ${name} — ${target}. 확인 SELECT 와 WHERE 가 같은 행을 가리키는지 볼 것    level=WARN
     END
 
 Close Seed DB Connections

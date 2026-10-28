@@ -155,20 +155,31 @@ export PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
 ```sql
 -- @name: 블록 이름 (선택)
 SELECT COUNT(*) FROM T_XXX_CFG WHERE KEY_COL = 'A';     -- 블록을 연다 (1행 1열 정수)
-INSERT INTO T_XXX_CFG (KEY_COL, VAL) VALUES ('A', '1'); -- 위 결과가 0 일 때만 실행
+INSERT INTO T_XXX_CFG (KEY_COL, VAL) VALUES ('A', '1'); -- 위 결과가 0건일 때만 실행
+UPDATE T_XXX_CFG SET VAL = '1' WHERE KEY_COL = 'A';     -- 위 결과가 1건 이상일 때만 실행
 ```
 
-- SELECT 로 시작하는 문장이 블록을 열고, 다음 SELECT 전까지가 그 블록의 INSERT 다.
-  INSERT 뒤에는 같은 SELECT 로 다시 세어 1건 이상인지 본다.
+- SELECT 로 시작하는 문장이 블록을 열고, 다음 SELECT 전까지의 INSERT / UPDATE 가 그
+  블록에 속한다. 여러 줄에 걸쳐 써도 된다(문장은 `;` 로만 나뉜다). 그 밖의 문장은 거부한다.
+
+  | 확인 SELECT | 실행 | 실행 후 |
+  |---|---|---|
+  | 0건 | INSERT 만 | 같은 SELECT 로 다시 세어 1건 이상인지 (아니면 FAIL) |
+  | 1건 이상 | UPDATE 만 (없으면 "있음" 으로 건너뜀) | 영향 행 0 이면 WARN |
+
+  INSERT 만 있으면 "없으면 넣기", UPDATE 만 있으면 "있으면 고치기", 둘 다 있으면 upsert 다.
+  UPDATE 는 매 실행마다 값을 덮어쓴다 — TC 가 바꿔 둔 값도 시작 전에 되돌린다.
+- 실행한 INSERT/UPDATE 는 문장마다 콘솔에 대상 표·영향 행 수가, `log.html` 에 전체 SQL 이
+  남는다. 끝에 DB 별 요약(있음/INSERT/UPDATE 블록 수)을 찍는다.
 - 값은 리터럴로 쓴다(바인드 파라미터 없음). 표 이름에 `PDB.` 접두사를 붙이지 않는다.
 - 블록이 하나도 없으면 DB 에 접속하지 않는다 — DB 를 안 쓰는 환경도 그대로 돈다.
 - 접속은 본 실행과 같은 `${PDB_CONNSTR}` 이다(같은 `--variablefile`/`--variable` 을 넘긴다).
-  `${PDB_CONNSTR_2}` 가 있으면 두 번째 DB 에도 같은 확인·INSERT 를 한다.
+  `${PDB_CONNSTR_2}` 가 있으면 두 번째 DB 에도 같은 확인·INSERT·UPDATE 를 한다.
 - **시드가 실패하면 본 실행을 하지 않는다.** 로그는 `results/<TS>/db_seed/log.html`.
 
 ```bash
 bash run_tests.sh nag --no-db-seed      # 시드 단계 생략
-bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT 안 함
+bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT/UPDATE 안 함
 python -m robot setup/db_seed.robot     # robot 을 직접 돌릴 때는 먼저 수동으로 (기본 dev.sql)
 python -m robot --variablefile config/env/stg.py \
     --variable DB_SEED_FILE:config/db_seed/stg.sql setup/db_seed.robot   # stg

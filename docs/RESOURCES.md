@@ -50,8 +50,8 @@ KIND/DSN/DRIVER/HOST/PORT 조립 경로는 제거했다. 골디락스는 DSN 을
 문자열은 항상 마스킹된다(`PWD=****`).
 
 위 6종과 별개로 `DbSeedHelper.py`(`Seed`)가 있다 — 실행 전 DB 설정 시드
-(`setup/db_seed.robot`)가 `config/db_seed/<env>.sql` 을 "확인 SELECT + INSERT" 블록으로 나누는
-`load_seed_blocks` 하나뿐이다. 접속·조회·INSERT 는 `CdsDbHelper` 를 그대로 쓴다.
+(`setup/db_seed.robot`)가 `config/db_seed/<env>.sql` 을 "확인 SELECT + INSERT/UPDATE" 블록으로 나누는
+`load_seed_blocks` 와 로그용 요약 `describe_statement` 뿐이다. 접속·조회·INSERT 는 `CdsDbHelper` 를 그대로 쓴다.
 형식은 [ENVIRONMENTS.md](ENVIRONMENTS.md#실행-전-db-설정-시드-configdb_seedenvsql).
 
 **Body 인코딩이 3계열로 갈리는 게 이 리포의 핵심 복잡도다.** JSON(NAG/PCF/UPM) /

@@ -67,7 +67,7 @@ ${PDB_CONNSTR_2}             ${EMPTY}
 # run_tests.sh 는 환경 인자로 파일을 골라 --variable 로 덮는다(IP 지정은 dev).
 # 아래 기본값(dev)은 robot 을 직접 돌릴 때만 쓰인다.
 #   bash run_tests.sh nag --no-db-seed      # 생략 (run_tests.sh 가 아예 안 부른다)
-#   bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT 안 함
+#   bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT/UPDATE 안 함
 # ${PDB_CONNSTR_2} 가 있으면 두 번째 DB 에도 같은 확인·INSERT 를 한다.
 ${DB_SEED_FILE}              ${CURDIR}/../config/db_seed/dev.sql
 ${DB_SEED_CHECK_ONLY}        ${FALSE}
