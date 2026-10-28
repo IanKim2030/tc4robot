@@ -14,7 +14,7 @@ Documentation
 ${UPM_PG_HOST}         ${PG_HOST}
 ${UPM_PG_PORT}         10506            # 규격서 10. 서비스 접속 정보
 ${UPM_TIMEOUT}         10
-${UPM_SYS_ID}          UPMROB          # sys-id 필드, 32자 이내 (Peer Name).
+${UPM_SYS_ID}          UPM-R0          # sys-id 필드, 32자 이내 (Peer Name).
 ${UPM_BRANCH_NAME}     SS               # SS=성수, DS=둔산, BR=보라매
 ${UPM_HELLO_TIMEOUT}   5                # 규격서 3.1: 연결 후 5초 이내 Hello 송신
 
@@ -35,16 +35,10 @@ ${UPM_HELLO_TIMEOUT}   5                # 규격서 3.1: 연결 후 5초 이내 
 # ════════════════════════════════════════════
 ${UPM_FTP_ENABLE}        ${TRUE}      # FTP(또는 SFTP) 수신 서버 기동 여부
 ${UPM_FTP_USE_SFTP}      ${FALSE}     # PG 설정 USE_SFTP_04 — 확인된 값은 N(평문 FTP, 2026-10-22).
-# True 로 두면 FtpServerHelper.py 가 FtpServer(pyftpdlib) 대신
-# SftpServerHelper.SftpServer(paramiko) 를 띄운다 — host/port/계정/
-# remote_path 변수는 전부 그대로 재사용한다. ⚠ 로컬에 Python 이 없어 실제
-# 구동 검증을 못 했다(SftpServerHelper.py 상단 ⚠ 참조) — USE_SFTP_04 가
-# 실제로 Y 인 환경에 쓰기 전에 먼저 수동으로 업로드 왕복을 확인할 것.
-# paramiko 미설치 환경에서도 False(기본)면 영향 없다.
 ${UPM_FTP_HOST}          0.0.0.0      # 모든 인터페이스 Listen (PG 는 IP_04=192.168.15.142 로 접속)
 ${UPM_FTP_PORT}          2121         # PG 설정 PORT_04 와 일치 확인(2026-10-22)
-${UPM_FTP_USER}          upm         # PG 설정 USER_ID_04 와 일치 확인(2026-10-22, 로그인 시도 로그로 재확인)
-${UPM_FTP_PASSWORD}      upm1234     # PG 설정 PASSWORD_04 와 일치 확인(2026-10-22)
+${UPM_FTP_USER}          upm          # PG 설정 USER_ID_04 와 일치 확인(2026-10-22, 로그인 시도 로그로 재확인)
+${UPM_FTP_PASSWORD}      upm          # PG 설정 PASSWORD_04 와 일치 확인(2026-10-22)
 ${UPM_FTP_HOME_DIR}      ${EMPTY}     # 비우면 임시 디렉터리를 자동 생성(FtpServerHelper.py)
 ${UPM_FTP_REMOTE_PATH}   /PG/FTP/UPM-ROBOT   # PG 설정 REMOTE_PATH_04 — 로그인 후 CWD 로 들어오는 경로.
 # FtpServerHelper.py 가 업로드 디렉터리 밑에 이 경로를 미리 만들어 둔다(없으면 CWD 가 550 으로 거부됨).

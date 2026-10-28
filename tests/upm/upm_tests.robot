@@ -99,7 +99,7 @@ TC-UPM-003 CellInfo-Noti - code-type=02 Cell List 변경
 # 0x0b/0x0c  Subs-Sync (UPM → PG.SUBS)  전체 가입자 동기화 요청
 # ════════════════════════════════════════════════════════════════
 
-TC-UPM-004 Subs-Sync - 전체 동기화 요청 (code-type=05)
+TC-UPM-004 Subs-Sync - 전체 동기화 요청 FTP (code-type=05)
     [Documentation]
     ...    규격 6.6.1 / 6.6.2
     ...    UPM → PG 0x0b 송신 → 0x0c 수신, fileinfo 포함 가능, result-code=SC0000
@@ -107,7 +107,7 @@ TC-UPM-004 Subs-Sync - 전체 동기화 요청 (code-type=05)
     [Tags]    upm    subs-sync    smoke
     ${since}=    Ftp.Ftp Now
     ${txn}=    Next TXN ID
-    ${hdr}    ${body}=    Send Subs Sync Request    ${txn}    sys_id=UPM-RO
+    ${hdr}    ${body}=    Send Subs Sync Request    ${txn}    sys_id=UPM-R0
     Response Msg Type Should Be    ${hdr}    ${12}
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Sync Should Succeed    ${body}
