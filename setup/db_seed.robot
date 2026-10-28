@@ -79,6 +79,7 @@ Apply Seed Blocks
     [Documentation]
     ...    한 DB 에 블록 전체를 적용한다. 확인 SELECT 결과로 갈린다.
     ...      0건      → INSERT 실행 → 같은 SELECT 로 다시 세어 1건 이상인지 확인
+    ...                 (INSERT 문이 없는 UPDATE 전용 블록이면 "UPDATE 조건 아님" 으로 건너뜀)
     ...      1건 이상 → UPDATE 실행 (UPDATE 문이 없으면 "있음" 으로 건너뜀)
     ...    실행한 INSERT/UPDATE 는 문장마다 대상 표·영향 행 수를 콘솔에, 전체 SQL 을
     ...    log.html 에 남긴다. 끝에 DB 별 요약(있음/INSERT/UPDATE 건수)을 찍는다.
@@ -107,7 +108,8 @@ Apply Seed Blocks
             CONTINUE
         END
         IF    not $b['inserts']
-            Log    [Seed] 없음 (${db}) — ${b}[name] — INSERT 문이 없는 블록이라 건너뜁니다    console=True
+            # UPDATE 전용 블록 — 0건은 "갱신할 것 없음" 이라 정상이다(예: TID 보정)
+            Log    [Seed] 없음 (${db}) — ${b}[check_desc] — 0건 — UPDATE 조건에 해당하지 않아 건너뜁니다    console=True
             CONTINUE
         END
         IF    ${DB_SEED_CHECK_ONLY}
