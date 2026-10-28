@@ -67,14 +67,15 @@ JSON Body 안의 `tid`(24자리)는 **헤더의 `txn_id`(4바이트 바이너리
 않았다** — 규격 원문도 이 리포에 없고, 전체 grep 결과 다른 언급도 없다.
 
 다만 **FTP 접속 정보는 PG 쪽 FTP 타겟 설정으로 확인됐다**(2026-10-22) — PG 설정의
-`SYSTEM_ID_04=UPMROB` 항목(`${UPM_SYS_ID}`와 일치해 우리 쪽 항목임을 확인)이
+`SYSTEM_ID_04=UPM-R0` 항목(`${UPM_SYS_ID}`와 일치해 우리 쪽 항목임을 확인. 2026-10-28 UPMROB → UPM-R0,
+PASSWORD_04 upm1234 → upm 으로 변경)이
 다음을 담고 있었다:
 
 | 키 | 값 | 의미 |
 |---|---|---|
 | `IP_04` | `192.168.15.142` | PG 가 접속할 주소(도구가 도는 호스트) |
 | `PORT_04` | `2121` | `${UPM_FTP_PORT}` |
-| `USER_ID_04` / `PASSWORD_04` | `upm` / `upm1234` | `${UPM_FTP_USER}` / `${UPM_FTP_PASSWORD}` |
+| `USER_ID_04` / `PASSWORD_04` | `upm` / `upm` | `${UPM_FTP_USER}` / `${UPM_FTP_PASSWORD}` |
 | `REMOTE_PATH_04` | `/PG/FTP/UPM-ROBOT` | 로그인 후 CWD 로 들어오는 경로 — `${UPM_FTP_REMOTE_PATH}` |
 | `LOCAL_PATH_04` | `/PG/FTP/UPM` | PG 쪽 로컬 경로(원본 파일 위치, 참고용) |
 | `USE_SFTP_04` | `N` | 평문 FTP (SFTP 아님) — pyftpdlib 선택과 일치 |

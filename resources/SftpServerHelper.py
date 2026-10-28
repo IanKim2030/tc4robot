@@ -2,7 +2,7 @@
 """
 UPM SFTP 수신 서버 — FtpServerHelper.py 의 대안 전송방식.
 
-PG 쪽 FTP 타겟 설정(SYSTEM_ID_04=UPMROB)의 `USE_SFTP_04` 항목이 2026-10-22
+PG 쪽 FTP 타겟 설정(SYSTEM_ID_04=UPM-R0, 2026-10-28 UPMROB 에서 변경)의 `USE_SFTP_04` 항목이 2026-10-22
 확인 당시 `N`(평문 FTP)이라 주 구현은 FtpServerHelper.py(pyftpdlib) 다. 이
 모듈은 다른 환경(stg/prd)에서 그 값이 `Y` 로 바뀌는 경우에 대비한 SFTP
 버전이다 — `${UPM_FTP_USE_SFTP}` 를 True 로 두면 FtpServerHelper.ftp_server_start()
@@ -61,7 +61,7 @@ def _load_paramiko():
 
 
 class SftpServer(object):
-    def __init__(self, port, host='0.0.0.0', user='upm', password='upm1234',
+    def __init__(self, port, host='0.0.0.0', user='upm', password='upm',
                  directory=None, remote_path=None):
         self.host = host
         self.port = int(port)

@@ -16,7 +16,7 @@
 
 > ⚠ 0x0c 의 `fileinfo` **필드 자체의 스키마**(파일명/크기 등)는 여전히 미확인이다 —
 > 규격 6.6.1/6.6.2 원문이 이 리포에 없다. 다만 **FTP 접속 정보(host/port/계정/
-> remote path)는 PG 설정으로 확인됐다**(`SYSTEM_ID_04=UPMROB`, 2026-10-22 —
+> remote path)는 PG 설정으로 확인됐다**(`SYSTEM_ID_04=UPM-R0`(2026-10-28 변경, 이전 UPMROB), 2026-10-22 —
 > [nodes/UPM.md](../nodes/UPM.md) 의 "fileinfo (0x0c)" 절 참조) — PG 가 FTP
 > Client 로 Push 한다는 방향도 이걸로 확정됐다. 전송 파일은 **데이터 파일 + FIN
 > 파일 2개**라는 것도 사용자 확인(2026-10-22) — 다만 어느 파일이 FIN 인지

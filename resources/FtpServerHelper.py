@@ -225,7 +225,7 @@ class FtpServer(object):
 # Robot 이 직접 부르는 함수들 (라이브러리 인터페이스)
 # ══════════════════════════════════════════════════════════════════
 
-def ftp_server_start(port, host='0.0.0.0', user='upm', password='upm1234',
+def ftp_server_start(port, host='0.0.0.0', user='upm', password='upm',
                       directory=None, passive_ports=None, masquerade_address=None,
                       remote_path=None, use_sftp=False):
     """FTP(또는 SFTP) 수신 서버 기동 → 서버 핸들 반환. 핸들은 Suite Variable 로 들고 다닌다.
