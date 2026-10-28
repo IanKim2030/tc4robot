@@ -165,12 +165,12 @@ UPDATE T_XXX_CFG SET VAL = '1' WHERE KEY_COL = 'A';     -- 위 결과가 1건 �
   | 확인 SELECT | 실행 | 실행 후 |
   |---|---|---|
   | 0건 | INSERT 만 | 같은 SELECT 로 다시 세어 1건 이상인지 (아니면 FAIL) |
-  | 1건 이상 | UPDATE 만 (없으면 "SELECT" 로그만 남기고 건너뜀) | 영향 행 0 이면 WARN |
+  | 1건 이상 | UPDATE 만 (없으면 "있음" 으로 건너뜀) | 영향 행 0 이면 WARN |
 
   INSERT 만 있으면 "없으면 넣기", UPDATE 만 있으면 "있으면 고치기", 둘 다 있으면 upsert 다.
   UPDATE 는 매 실행마다 값을 덮어쓴다 — TC 가 바꿔 둔 값도 시작 전에 되돌린다.
 - 실행한 INSERT/UPDATE 는 문장마다 콘솔에 대상 표·영향 행 수가, `log.html` 에 전체 SQL 이
-  남는다. 끝에 DB 별 요약(SELECT/INSERT/UPDATE 블록 수)을 찍는다.
+  남는다. 끝에 DB 별 요약(있음/INSERT/UPDATE 블록 수)을 찍는다.
 - 값은 리터럴로 쓴다(바인드 파라미터 없음). 표 이름에 `PDB.` 접두사를 붙이지 않는다.
 - 블록이 하나도 없으면 DB 에 접속하지 않는다 — DB 를 안 쓰는 환경도 그대로 돈다.
 - 접속은 본 실행과 같은 `${PDB_CONNSTR}` 이다(같은 `--variablefile`/`--variable` 을 넘긴다).

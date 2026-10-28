@@ -34,6 +34,7 @@ import re
 
 _NAME_RE = re.compile(r'^\s*--\s*@name\s*:\s*(.*?)\s*$')
 _TARGET_RE = re.compile(r'^\s*(INSERT\s+INTO|UPDATE)\s+([^\s(]+)', re.IGNORECASE)
+_CHECK_RE = re.compile(r'\bFROM\s+([^\s(]+)(?:\s+WHERE\s+(.*))?\Z', re.IGNORECASE | re.DOTALL)
 
 
 class DbSeedError(Exception):
@@ -120,9 +121,11 @@ def load_seed_blocks(path):
     for stmt, name, line in stmts:
         verb = stmt.split(None, 1)[0].upper()
         if verb == 'SELECT':
+            check_desc = describe_check(stmt)
             blocks.append({
-                'name': name or ' '.join(stmt.split())[:60],
+                'name': name or check_desc,
                 'check': stmt,
+                'check_desc': check_desc,
                 'inserts': [],
                 'updates': [],
                 'line': line,
@@ -156,3 +159,15 @@ def describe_statement(sql):
     if m:
         return '%s %s' % (' '.join(m.group(1).upper().split()), m.group(2))
     return ' '.join(sql.split())[:60]
+
+
+def describe_check(sql):
+    """확인 SELECT 의 로그용 요약 — `SELECT T_X (WHERE 조건)`. WHERE 가 없으면
+    `SELECT T_X`. 못 알아보면 문장 전체(공백만 정리)를 그대로 쓴다 — 자르지 않는다.
+    """
+    m = _CHECK_RE.search(sql)
+    if not m:
+        return ' '.join(sql.split())
+    if m.group(2):
+        return 'SELECT %s (%s)' % (m.group(1), ' '.join(m.group(2).split()))
+    return 'SELECT %s' % m.group(1)

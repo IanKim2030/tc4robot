@@ -79,9 +79,9 @@ Apply Seed Blocks
     [Documentation]
     ...    한 DB 에 블록 전체를 적용한다. 확인 SELECT 결과로 갈린다.
     ...      0건      → INSERT 실행 → 같은 SELECT 로 다시 세어 1건 이상인지 확인
-    ...      1건 이상 → UPDATE 실행 (UPDATE 문이 없으면 "SELECT" 로그만 남기고 건너뜀)
+    ...      1건 이상 → UPDATE 실행 (UPDATE 문이 없으면 "있음" 으로 건너뜀)
     ...    실행한 INSERT/UPDATE 는 문장마다 대상 표·영향 행 수를 콘솔에, 전체 SQL 을
-    ...    log.html 에 남긴다. 끝에 DB 별 요약(SELECT/INSERT/UPDATE 건수)을 찍는다.
+    ...    log.html 에 남긴다. 끝에 DB 별 요약(있음/INSERT/UPDATE 건수)을 찍는다.
     ...    확인만 모드에서는 아무것도 실행하지 않는다 — INSERT 대상은 WARN, UPDATE
     ...    대상은 콘솔 로그로만 남기고 실패하지 않는다(본 실행은 진행된다).
     [Arguments]    ${conn}    ${db}    ${blocks}
@@ -92,12 +92,12 @@ Apply Seed Blocks
         ${existing}=    SeedDb.Db Count    ${conn}    ${b}[check]
         IF    ${existing} > 0
             IF    not $b['updates']
-                Log    [Seed] SELECT (${db}) — ${b}[name] — ${existing}건    console=True
+                Log    [Seed] 있음 (${db}) — ${b}[check_desc] — ${existing}건    console=True
                 ${n_keep}=    Evaluate    ${n_keep} + 1
                 CONTINUE
             END
             IF    ${DB_SEED_CHECK_ONLY}
-                Log    [Seed] SELECT (${db}) — ${b}[name] — ${existing}건 — 확인만 모드라 UPDATE 하지 않았습니다    console=True
+                Log    [Seed] 있음 (${db}) — ${b}[check_desc] — ${existing}건 — 확인만 모드라 UPDATE 하지 않았습니다    console=True
                 CONTINUE
             END
             FOR    ${sql}    IN    @{b}[updates]
@@ -123,7 +123,7 @@ Apply Seed Blocks
         Log    [Seed] INSERT 확인 (${db}) — ${b}[name] — 확인 SELECT ${after}건    console=True
         ${n_ins}=    Evaluate    ${n_ins} + 1
     END
-    Log    [Seed] 요약 (${db}) — SELECT ${n_keep} / INSERT ${n_ins} / UPDATE ${n_upd} (블록 기준)    console=True
+    Log    [Seed] 요약 (${db}) — 있음 ${n_keep} / INSERT ${n_ins} / UPDATE ${n_upd} (블록 기준)    console=True
 
 Execute Seed Statement
     [Documentation]
