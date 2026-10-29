@@ -89,6 +89,14 @@ NWDAF_MIN_5G         = NWDAF_MDN_5G[1:]
 
 # UPM
 UPM_MDN              = '01090050001'   # UPM FTP 업로드용 가입자 번호 
+UPM_SYS_ID           = 'UPM-R0'
+UPM_BRANCH_NAME      = 'SS'
+UPM_FTP_PORT         = 2222
+UPM_FTP_USER         = 'test'
+UPM_FTP_PASSWORD     = 'test123'
+UPM_FTP_HOME_DIR     = '/home/kky/FTP'
+UPM_FTP_REMOTE_PATH  = '/UPM-R0'
+UPM_FTP_USE_SFTP     = False   # or True
 
 # ── 가입자 데이터 (공용 축) ──────────────────────────────────────
 # 위 노드별 번호의 기본값이 상속하는 값. 노드별로 갈리면 위 *_MDN 을 쓴다.
@@ -175,13 +183,4 @@ PG_SSH_USER        = 'pg'
 #CDS_NOTI_PORT      = 11301
 #RDS_NOTI_PORT      = 11301
 
-# UPM
-UPM_SYS_ID         = 'UPM-R0'
-UPM_BRANCH_NAME    = 'SS'
-UPM_FTP_PORT       = 2222
-UPM_FTP_USER       = 'test'
-UPM_FTP_PASSWORD   = 'test123'
-UPM_FTP_HOME_DIR    = '/home/kky/FTP'
-UPM_FTP_REMOTE_PATH = '/UPM-R0'
-UPM_FTP_USE_SFTP   = False   # or True
 
