@@ -50,7 +50,7 @@ PG_HOST = '192.168.15.141'      # 모든 노드가 상속하는 기본 호스트
 # 기본값(*_variables.robot): NAG/PCF/LRS = ${SUBS_MDN_LTE}(01020300553),
 #                            CDS/RTS     = 01090010001
 # 주석으로 둔 노드는 기본값을 쓴다.
-# NAG_MDN            = '01020300553'   # NAG Subs-Cellid 등 (${TEST_MDN_NORMAL})
+# NAG_MDN            = '01020300553'   # NAG Subs-Cellid 등 (${NAG_MDN_NORMAL})
 # PCF_MDN            = '01020300553'   # PCF ZONE 알림 (${PCF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
 # LRS_MDN            = '01020300553'   # LRS SESSION-INFO 조회 + 8890 LTE 세션 (${LRS_SI_MDN}/${LRS_MDN_LTE})
 
@@ -58,7 +58,7 @@ CDS_MDN            = '01090020001'     # CDS 기본 가입자
 CDS_NEW_MDN        = '01090020002'     # CDS D3 번호변경 신규 번호
 RTS_MDN            = '01090020001'     # RTS 로밍 데이터 차단 (${RTS_TEST_MDN}) — 11자리 유지
 
-NAG_MDN            = '01090020001'   # NAG Subs-Cellid 등 (${TEST_MDN_NORMAL})
+NAG_MDN            = '01090020001'   # NAG Subs-Cellid 등 (${NAG_MDN_NORMAL})
 PCF_MDN            = '01090020001'   # PCF ZONE 알림 (${PCF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
 LRS_MDN            = '01090020001'   # LRS SESSION-INFO 조회 + 8890 LTE 세션 (${LRS_SI_MDN}/${LRS_MDN_LTE})
 

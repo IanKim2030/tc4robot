@@ -79,7 +79,7 @@ TC-NAG-003 Subs-Zone-Status - 정상 (mobile-ip 포함)
     ${txn}=    Next TXN ID
     ${hdr}    ${body}=    Send Subs Zone Status
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
-    ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}    txn_id=${txn}
+    ...    ${NAG_MDN_NORMAL}    ${NAG_MOBILE_IP}    txn_id=${txn}
     Response Msg Type Should Be    ${hdr}    ${10}
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Zone Status Should Succeed    ${body}
@@ -90,14 +90,14 @@ TC-NAG-004 Subs-Zone-Status - mobile-ip 미포함 (Optional)
     [Documentation]    mobile-ip 없이 mdn만 요청 (Optional 필드)
     [Tags]    nag    subs-zone
     ${hdr}    ${body}=    Send Subs Zone Status
-    ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NORMAL}
+    ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${NAG_MDN_NORMAL}
     Response Should Be Success    ${body}
 
 TC-NAG-005 Subs-Zone-Status - HFC 미가입 (402)
     [Documentation]    미가입 MDN → code=402, cause 포함
     [Tags]    nag    subs-zone    negative
     ${hdr}    ${body}=    Send Subs Zone Status
-    ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NO_SS}
+    ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${NAG_MDN_NO_HFC}
     Response Code Should Be    ${body}    402
     Dictionary Should Contain Key    ${body}    cause
 
@@ -105,7 +105,7 @@ TC-NAG-006 Subs-Zone-Status - 세션 없음 (402)
     [Documentation]    세션 없는 MDN → code=402 또는 403, cause 포함
     [Tags]    nag    subs-zone    negative
     ${hdr}    ${body}=    Send Subs Zone Status
-    ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${TEST_MDN_NO_SESSION}
+    ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}    ${NAG_MDN_NO_SESSION}
     ${code}=    Get From Dictionary    ${body}    code
     Should Be True    '${code}' in ['402', '403']    msg=code 기대 402/403, 실제=${code}
     Dictionary Should Contain Key    ${body}    cause
@@ -121,7 +121,7 @@ TC-NAG-007 Subs-Cellid - 정상 및 응답 필드 검증
     [Tags]    nag    subs-cellid    adot    smoke    validation
     ${txn}=    Send Subs Cellid Request
     ...    ${NAG_SYS_ID}    ${NAG_BRANCH_NAME}
-    ...    ${TEST_MDN_NORMAL}    ${TEST_MOBILE_IP}
+    ...    ${NAG_MDN_NORMAL}    ${NAG_MOBILE_IP}
     # PG 가 LRS-PCF 채널로 Location-Info-Request(0x05) 를 보내오면 0x06 으로 응답해야
     # PG 가 0x0c Subs-Cellid-Response 를 반환한다.
     Handle LRS Location Info

@@ -80,7 +80,7 @@ Dictionary Should Contain Key    ${body}    cause
 
 현재 **7건**. 태그: `nag` `hello` `ping` `zion` `subs-zone` `subs-cellid` `adot` `smoke` `negative` `validation`
 
-bad-input MDN 은 전용 변수를 쓴다 — `${TEST_MDN_NO_SS}`(HFC 미가입) / `${TEST_MDN_NO_SESSION}`(세션 없음).
+bad-input MDN 은 전용 변수를 쓴다 — `${NAG_MDN_NO_HFC}`(HFC 미가입) / `${NAG_MDN_NO_SESSION}`(세션 없음).
 
 ## 함정
 

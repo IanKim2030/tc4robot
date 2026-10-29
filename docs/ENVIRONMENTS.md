@@ -59,10 +59,10 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 | `${SUBS_MDN_LTE}` | `${NAG_MDN}` `${PCF_MDN}` `${LRS_MDN}`(아래 노드별 대상 번호의 기본값) `${NWDAF_TEST_MDN}` |
 | `${SUBS_MIN_LTE}` | `${NWDAF_TEST_MIN}` |
 | `${SUBS_MDN_5G}` / `${SUBS_MIN_5G}` | `${LRS_MDN_5G}` `${NWDAF_TEST_MDN_5G}` `${NWDAF_TEST_MIN_5G}` |
-| `${SUBS_MDN_NO_HFC}` | `${TEST_MDN_NO_SS}` `${LRS_MDN_NO_SESSION}` |
-| `${SUBS_MDN_NO_SESSION}` | `${TEST_MDN_NO_SESSION}` |
-| `${SUBS_APN_LTE}` / `${SUBS_APN_5G}` | `${TEST_APN}` `${LRS_APN_LTE}` `${LRS_APN_5G}` |
-| `${SUBS_MOBILE_IP}` | `${TEST_MOBILE_IP}` `${LRS_SI_CLIENT_IP}` |
+| `${SUBS_MDN_NO_HFC}` | `${NAG_MDN_NO_HFC}` `${LRS_MDN_NO_SESSION}` |
+| `${SUBS_MDN_NO_SESSION}` | `${NAG_MDN_NO_SESSION}` |
+| `${SUBS_APN_LTE}` / `${SUBS_APN_5G}` | `${NAG_APN}` `${LRS_APN_LTE}` `${LRS_APN_5G}` |
+| `${SUBS_MOBILE_IP}` | `${NAG_MOBILE_IP}` `${LRS_SI_CLIENT_IP}` |
 | `${NET_CELL_ID}` / `${NET_PGW_IP}` | `${NWDAF_TEST_CELL_ID}` `${NWDAF_TEST_PGW_IP}` |
 | `${NET_SI_FROM_IP}` | `${LRS_SI_FROM_IP}` — **PG 에 등록된 IP 여야 함** (아니면 403) |
 
@@ -73,7 +73,7 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 
 | 노드 | 환경 파일 이름 | 기본값 | 실제로 쓰는 변수 |
 |---|---|---|---|
-| NAG | `NAG_MDN` | `${SUBS_MDN_LTE}` | `${TEST_MDN_NORMAL}` |
+| NAG | `NAG_MDN` | `${SUBS_MDN_LTE}` | `${NAG_MDN_NORMAL}` |
 | PCF | `PCF_MDN` | `${SUBS_MDN_LTE}` | `${PCF_TEST_MDN}` |
 | LRS | `LRS_MDN` | `${SUBS_MDN_LTE}` | `${LRS_SI_MDN}` `${LRS_MDN_LTE}` |
 | CDS | `CDS_MDN` / `CDS_NEW_MDN` | `01090010001` / `01090010002` | 그대로 |

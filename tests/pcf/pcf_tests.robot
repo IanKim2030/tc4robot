@@ -60,10 +60,10 @@ TC-NAG-010 Zone-InOut - Zone IN (LTE)
     ${txn}=    Next TXN ID
     ${hdr}    ${body}=    Send PCF Zone InOut
     ...    sys_id=${PCF_SYS_ID}         branch_name=${PCF_BRANCH_NAME}
-    ...    mdn=${PCF_TEST_MDN}          client_host=${TEST_CLIENT_HOST}
-    ...    mobile_ip=10.10.10.10        cell_info=${TEST_CELL_INFO}
+    ...    mdn=${PCF_TEST_MDN}          client_host=${NAG_CLIENT_HOST}
+    ...    mobile_ip=10.10.10.10        cell_info=${NAG_CELL_INFO}
     ...    ta_code=3113                 rat_type=L
-    ...    zone_info=I                  apn=${TEST_APN}
+    ...    zone_info=I                  apn=${NAG_APN}
     ...    service_id=${PCF_SERVICE_ID}
     ...    txn_id=${txn}
     Response Msg Type Should Be    ${hdr}    ${6}
@@ -98,7 +98,7 @@ TC-NAG-012 Zone-InOut - Zone OUT (5G)
     ${hdr}    ${body}=    Send PCF Zone InOut
     ...    sys_id=SPCF0001              branch_name=${PCF_BRANCH_NAME}
     ...    mdn=${PCF_TEST_MDN}          client_host=smf01.5gsktelecom.net
-    ...    mobile_ip=${TEST_MOBILE_IP}  cell_info=${TEST_CELL_INFO}
+    ...    mobile_ip=${NAG_MOBILE_IP}   cell_info=${NAG_CELL_INFO}
     ...    ta_code=0                    rat_type=S
     ...    zone_info=O                  apn=5g.sktelecom.com
     ...    service_id=${PCF_SERVICE_ID}
@@ -127,7 +127,7 @@ TC-NAG-014 Zone-InOut - Zone IN (3G, 타사망)
     [Tags]    pcf    zone-inout
     ${hdr}    ${body}=    Send PCF Zone InOut
     ...    sys_id=${PCF_SYS_ID}         branch_name=${PCF_BRANCH_NAME}
-    ...    mdn=${PCF_TEST_MDN}          client_host=${TEST_CLIENT_HOST}
+    ...    mdn=${PCF_TEST_MDN}          client_host=${NAG_CLIENT_HOST}
     ...    mobile_ip=10.10.10.10        cell_info=45006-9999:99
     ...    ta_code=008461               rat_type=W
     ...    zone_info=I                  apn=shi.sktelecom.com
@@ -160,10 +160,10 @@ TC-NAG-016 Zone-InOut - TXN ID 에코
     ${txn}=    Next TXN ID
     ${hdr}    ${body}=    Send PCF Zone InOut
     ...    sys_id=${PCF_SYS_ID}         branch_name=${PCF_BRANCH_NAME}
-    ...    mdn=${PCF_TEST_MDN}          client_host=${TEST_CLIENT_HOST}
-    ...    mobile_ip=10.10.10.10        cell_info=${TEST_CELL_INFO}
+    ...    mdn=${PCF_TEST_MDN}          client_host=${NAG_CLIENT_HOST}
+    ...    mobile_ip=10.10.10.10        cell_info=${NAG_CELL_INFO}
     ...    ta_code=3113                 rat_type=L
-    ...    zone_info=I                  apn=${TEST_APN}
+    ...    zone_info=I                  apn=${NAG_APN}
     ...    service_id=${PCF_SERVICE_ID}
     ...    txn_id=${txn}
     TXN ID Should Match    ${txn}    ${hdr}

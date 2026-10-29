@@ -117,7 +117,7 @@ sequenceDiagram
 ```
 
 `mobile-ip` 는 Optional 이다 — `TC-NAG-004` 가 빼고 보내 그대로 성공하는지만 본다.
-MDN 은 케이스별 전용 변수를 쓴다: `${TEST_MDN_NORMAL}` / `${TEST_MDN_NO_SS}`(미가입) / `${TEST_MDN_NO_SESSION}`(세션 없음).
+MDN 은 케이스별 전용 변수를 쓴다: `${NAG_MDN_NORMAL}` / `${NAG_MDN_NO_HFC}`(미가입) / `${NAG_MDN_NO_SESSION}`(세션 없음).
 
 > `TC-NAG-006` 은 402 **또는** 403 을 통과시킨다. 규격상 403(세션 없음)이 맞지만 실제 PG 가
 > 402 를 주는 경우가 있어 둘 다 받는다 — 어느 쪽이 맞는지는 **확인 필요**.
