@@ -66,9 +66,18 @@ JSON Body 안의 `tid`(24자리)는 **헤더의 `txn_id`(4바이트 바이너리
 적혀 있다. **fileinfo 필드 자체의 스키마(파일명/크기 등)는 여전히 확인되지
 않았다** — 규격 원문도 이 리포에 없고, 전체 grep 결과 다른 언급도 없다.
 
+> **현재 dev 는 `UPM-R2`(SFTP) 다 (2026-10-29 전환).** `${UPM_SYS_ID}` 기본값과
+> `config/env/dev.py` 가 `UPM-R2` 이고, dev.py 가 SFTP 접속값을 쥔다 —
+> `UPM_FTP_USE_SFTP=True` · `UPM_FTP_PORT=2222` · `UPM_FTP_REMOTE_PATH=/UPM-R2`
+> (평문 FTP 용 `UPM-R1` 설정은 dev.py 에 주석으로 남아 있다). 시드의
+> `T_BAROD_PEER_TABLE` 도 `SYSTEM_ID='UPM-R2'` 로 넣는다.
+> ★ **비밀번호는 공개 리포라 커밋하지 않는다** — 실행 호스트의 dev.py 에 직접
+> 두거나 `--variable UPM_FTP_PASSWORD:...` 로 준다. 리포의 값은 자리표시다.
+> 아래 표는 **이전 `UPM-R0`(평문 FTP) 항목의 기록**이다.
+
 다만 **FTP 접속 정보는 PG 쪽 FTP 타겟 설정으로 확인됐다**(2026-10-22) — PG 설정의
-`SYSTEM_ID_04=UPM-R0` 항목(`${UPM_SYS_ID}`와 일치해 우리 쪽 항목임을 확인. 2026-10-28 UPMROB → UPM-R0,
-PASSWORD_04 upm1234 → upm 으로 변경)이
+`SYSTEM_ID_04=UPM-R0` 항목(당시 `${UPM_SYS_ID}`와 일치해 우리 쪽 항목임을 확인. 2026-10-28 UPMROB → UPM-R0,
+PASSWORD_04 upm1234 → upm 으로 변경, 2026-10-29 dev 는 UPM-R2 로 전환)이
 다음을 담고 있었다:
 
 | 키 | 값 | 의미 |

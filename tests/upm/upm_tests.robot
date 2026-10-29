@@ -107,7 +107,7 @@ TC-UPM-004 Subs-Sync - 전체 동기화 요청 FTP (code-type=05)
     [Tags]    upm    subs-sync    smoke
     ${since}=    Ftp.Ftp Now
     ${txn}=    Next TXN ID
-    ${hdr}    ${body}=    Send Subs Sync Request    ${txn}    sys_id=UPM-R0
+    ${hdr}    ${body}=    Send Subs Sync Request    ${txn}
     Response Msg Type Should Be    ${hdr}    ${12}
     TXN ID Should Match    ${txn}    ${hdr}
     Subs Sync Should Succeed    ${body}

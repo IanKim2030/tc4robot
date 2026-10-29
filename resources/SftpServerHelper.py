@@ -2,6 +2,7 @@
 """
 UPM SFTP 수신 서버 — FtpServerHelper.py 의 대안 전송방식.
 
+(2026-10-29 부터 dev 는 UPM-R2 로 이 SFTP 서버를 쓴다 — config/env/dev.py.)
 PG 쪽 FTP 타겟 설정(SYSTEM_ID_04=UPM-R0, 2026-10-28 UPMROB 에서 변경)의 `USE_SFTP_04` 항목이 2026-10-22
 확인 당시 `N`(평문 FTP)이라 주 구현은 FtpServerHelper.py(pyftpdlib) 다. 이
 모듈은 다른 환경(stg/prd)에서 그 값이 `Y` 로 바뀌는 경우에 대비한 SFTP

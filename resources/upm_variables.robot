@@ -24,7 +24,8 @@ ${UPM_HELLO_TIMEOUT}   5                # 규격서 3.1: 연결 후 5초 이내 
 # 규격 6.6.1/6.6.2 는 0x0c 응답에 "fileinfo 포함 가능"이라고만 적혀 있다. **fileinfo
 # 필드 자체의 스키마**(파일명/크기 등)는 여전히 ⚠ 미확인이지만, **FTP 접속
 # 정보는 PG 쪽 FTP 타겟 설정으로 확인됐다**(2026-10-22, SYSTEM_ID_04=UPM-R0 항목 — 2026-10-28 UPMROB 에서 변경
-# — 이 값이 ${UPM_SYS_ID}와 일치해 우리 쪽 항목임을 확인):
+# — 당시 ${UPM_SYS_ID}와 일치해 우리 쪽 항목임을 확인. 2026-10-29 dev 는 UPM-R2(SFTP) 로
+#   전환 — 접속값은 config/env/dev.py 가 덮는다. 아래 기본값은 UPM-R0 시절 기록):
 #   IP_04=192.168.15.142  PORT_04=2121  USER_ID_04=upm  PASSWORD_04=upm (2026-10-28 upm1234 에서 변경)
 #   REMOTE_PATH_04=/PG/FTP/UPM-ROBOT  LOCAL_PATH_04=/PG/FTP/UPM  USE_SFTP_04=N
 # "PG 가 UPM 으로 파일을 보낸다"는 PG 가 FTP Client 로 붙어 Push 한다는 뜻이었고
