@@ -72,6 +72,10 @@ CDS_SESSION_IMSI     = '45005' + CDS_MIN
 CDS_SESSION_IMSI_NEW = '45005' + CDS_NEW_MIN
 
 
+
+NAG_MOBILE_IP      = '2001:0d88:131f:0000::/64'   # NAG LTE 세션 IMSI 45005+1090020001
+
+
 # ── 가입자 데이터 (공용 축) ──────────────────────────────────────
 # 위 노드별 번호의 기본값이 상속하는 값. 노드별로 갈리면 위 *_MDN 을 쓴다.
 # SUBS_MDN_LTE         = '01020300553'   # NAG/PCF/LRS/NWDAF 기본
