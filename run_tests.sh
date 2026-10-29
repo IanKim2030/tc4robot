@@ -92,10 +92,12 @@
 #     접속 문자열이 없으면 전문 TC 까지 포함해 슈트 전체가 서지 않는다.
 #
 # 환경 지정 (2번째 인자):
-#   bash run_tests.sh nag              # dev (기본)
+#   bash run_tests.sh nag              # dev (기본) — config/env/dev.py 를 읽는다
 #   bash run_tests.sh nag stg          # config/env/stg.py 적용
 #   bash run_tests.sh all prd          # PG_ALLOW_PRD=1 필요
-#   bash run_tests.sh all 192.168.1.1  # IP 직접 지정 (PG_HOST 오버라이드)
+#   bash run_tests.sh all 192.168.1.1  # IP 직접 지정 (dev.py + PG_HOST 오버라이드)
+#   노드별 대상 번호(MDN)는 config/env/<env>.py 의 NAG_MDN / PCF_MDN / LRS_MDN /
+#   CDS_MDN·CDS_NEW_MDN / RTS_MDN 에서 정한다.
 #
 # 단일 TC 실행:
 #   robot --test "TC-NAG-010*"   tests/nag/
@@ -183,7 +185,14 @@ OUT="results/${TS}"
 mkdir -p "${OUT}"
 
 # 2번째 인자: 환경명(dev|stg|prd|local) 또는 IP
+# 인자가 없거나 IP 만 주면 dev 로 보고 config/env/dev.py 를 읽는다 — dev 의 실제
+# 값(노드별 대상 번호 NAG_MDN/…/RTS_MDN, PDB, UPM FTP 등)은 그 파일이 쥔다.
+# (예전에는 인자 없이 돌리면 dev.py 를 안 읽어 *_variables.robot 기본값이 쓰였다)
+DEV_ENV_FILE="config/env/dev.py"
 VAR_OVERRIDE=()
+if [ -f "${DEV_ENV_FILE}" ]; then
+    VAR_OVERRIDE=("--variablefile" "${DEV_ENV_FILE}")
+fi
 ENV_NAME="dev"
 if [ -n "${EXTRA_ARGS[0]}" ]; then
     case "${EXTRA_ARGS[0]}" in
@@ -198,9 +207,10 @@ if [ -n "${EXTRA_ARGS[0]}" ]; then
             EXTRA_ARGS=("${EXTRA_ARGS[@]:1}")
             ;;
         [0-9]*)
-            # 각 노드 HOST 는 ${PG_HOST} 를 상속하므로 하나만 넘기면 된다
+            # 각 노드 HOST 는 ${PG_HOST} 를 상속하므로 하나만 넘기면 된다.
+            # dev.py 는 그대로 읽고 PG_HOST 만 덮는다(--variable 이 --variablefile 을 이긴다).
             ENV_NAME="host=${EXTRA_ARGS[0]}"
-            VAR_OVERRIDE=("--variable" "PG_HOST:${EXTRA_ARGS[0]}")
+            VAR_OVERRIDE+=("--variable" "PG_HOST:${EXTRA_ARGS[0]}")
             EXTRA_ARGS=("${EXTRA_ARGS[@]:1}")
             ;;
     esac

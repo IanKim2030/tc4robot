@@ -3,10 +3,10 @@
 ## 실행
 
 ```bash
-bash run_tests.sh nag              # dev (기본)
+bash run_tests.sh nag              # dev (기본) — config/env/dev.py 를 읽는다
 bash run_tests.sh nag stg          # stg
 bash run_tests.sh all prd          # prd — PG_ALLOW_PRD=1 필요
-bash run_tests.sh all 192.168.1.1  # IP 만 바꾸기 (PG_HOST 오버라이드)
+bash run_tests.sh all 192.168.1.1  # IP 만 바꾸기 (dev.py + PG_HOST 오버라이드)
 
 # run_tests.sh 우회
 python -m robot --variablefile config/env/stg.py tests/nag/
@@ -19,14 +19,16 @@ python -m robot --variablefile config/env/stg.py tests/nag/
 ```
 resources/variables.robot        ← dev 기준 기본값의 단일 출처
 resources/<iface>_variables.robot ← 위 값을 참조만 한다
-config/env/dev.py                ← 비어 있음. 덮을 수 있는 값의 카탈로그
-config/env/stg.py                ← dev 와 다른 값만
-config/env/prd.py                ← dev 와 다른 값만 + 실행 가드
+config/env/dev.py                ← dev 실제 값(노드별 MDN·PDB·UPM FTP 등) + 덮을 수 있는 값의 카탈로그. git 에 있다
+config/env/stg.py                ← (gitignore) dev 와 다른 값만
+config/env/prd.py                ← (gitignore) dev 와 다른 값만 + 실행 가드
 config/env/local.py              ← (gitignore) 개인 오버라이드, 선택
 ```
 
-`resources/variables.robot` 이 dev 값을 갖고 있으므로 **인자 없이 실행하면 dev 로 동작한다.**
-`python -m robot tests/nag/` 같은 기존 사용법이 그대로 유효하다.
+`run_tests.sh` 는 **환경 인자가 없거나 IP 만 줘도 `config/env/dev.py` 를 읽는다**(2026-10-29 —
+예전에는 인자 없이 돌리면 dev.py 를 건너뛰어 dev.py 의 값이 무시됐다).
+`python -m robot tests/nag/` 처럼 직접 돌리면 dev.py 를 읽지 않으므로
+`--variablefile config/env/dev.py` 를 붙인다.
 
 ## 변수 우선순위
 
@@ -54,7 +56,7 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 | 변수 | 전파 대상 |
 |---|---|
 | `${PG_HOST}` | `${NAG_PG_HOST}` `${PCF_PG_HOST}` `${UPM_PG_HOST}` `${NWDAF_HOST}` `${CDS_PG_HOST}` `${LRS_CLIENT_HOST}` |
-| `${SUBS_MDN_LTE}` | `${TEST_MDN_NORMAL}`(NAG) `${PCF_TEST_MDN}` `${LRS_SI_MDN}` `${LRS_MDN_LTE}` `${NWDAF_TEST_MDN}` |
+| `${SUBS_MDN_LTE}` | `${NAG_MDN}` `${PCF_MDN}` `${LRS_MDN}`(아래 노드별 대상 번호의 기본값) `${NWDAF_TEST_MDN}` |
 | `${SUBS_MIN_LTE}` | `${NWDAF_TEST_MIN}` |
 | `${SUBS_MDN_5G}` / `${SUBS_MIN_5G}` | `${LRS_MDN_5G}` `${NWDAF_TEST_MDN_5G}` `${NWDAF_TEST_MIN_5G}` |
 | `${SUBS_MDN_NO_HFC}` | `${TEST_MDN_NO_SS}` `${LRS_MDN_NO_SESSION}` |
@@ -63,6 +65,22 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 | `${SUBS_MOBILE_IP}` | `${TEST_MOBILE_IP}` `${LRS_SI_CLIENT_IP}` |
 | `${NET_CELL_ID}` / `${NET_PGW_IP}` | `${NWDAF_TEST_CELL_ID}` `${NWDAF_TEST_PGW_IP}` |
 | `${NET_SI_FROM_IP}` | `${LRS_SI_FROM_IP}` — **PG 에 등록된 IP 여야 함** (아니면 403) |
+
+### 노드별 대상 번호 (MDN)
+
+노드마다 시험 가입자를 따로 쓸 수 있게 **노드별 MDN 변수**가 있다. 환경 파일에서 이 이름으로
+덮는다 — dev 는 `config/env/dev.py` 의 "노드별 대상 번호" 절에 모여 있다.
+
+| 노드 | 환경 파일 이름 | 기본값 | 실제로 쓰는 변수 |
+|---|---|---|---|
+| NAG | `NAG_MDN` | `${SUBS_MDN_LTE}` | `${TEST_MDN_NORMAL}` |
+| PCF | `PCF_MDN` | `${SUBS_MDN_LTE}` | `${PCF_TEST_MDN}` |
+| LRS | `LRS_MDN` | `${SUBS_MDN_LTE}` | `${LRS_SI_MDN}` `${LRS_MDN_LTE}` |
+| CDS | `CDS_MDN` / `CDS_NEW_MDN` | `01090010001` / `01090010002` | 그대로 |
+| RTS | `RTS_MDN` | `01090010001` | `${RTS_TEST_MDN}` |
+
+dev.py 는 CDS 의 `CDS_MIN` / `CDS_NEW_MIN`(MDN 앞 0 제거)과 세션 IMSI(`45005` + MIN)를
+MDN 에서 계산한다 — MDN 만 바꾸면 따라온다. 다른 환경 파일도 같은 식으로 쓰면 된다.
 
 노드 식별자(`*_SYS_ID` / `*_BRANCH_NAME`)와 포트는 노드마다 값이 달라 통합하지 않았다.
 필요하면 환경 파일에서 **노드별로 직접 지정**한다.
@@ -75,8 +93,9 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 # config/env/stg.py
 PG_HOST = '10.20.30.40'
 
-SUBS_MDN_LTE = '01011112222'    # 노드 5곳에 자동 전파
+SUBS_MDN_LTE = '01011112222'    # NAG/PCF/LRS/NWDAF 에 자동 전파
 SUBS_MIN_LTE = '1011112222'
+CDS_MDN      = '01090020001'    # 노드별 대상 번호는 개별 지정
 
 CDS_DST_SYS_ID = 'PG02'         # 노드별 개별 지정
 NAG_PG_PORT    = 8012

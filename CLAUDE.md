@@ -61,7 +61,7 @@ bash run_tests.sh cds --start-now          # 예약 START_TIME 을 실행 시각
 bash run_tests.sh nag --no-db-seed          # 실행 전 DB 설정 시드(config/db_seed/<env>.sql, IP 지정은 dev) 생략
 bash run_tests.sh nag --db-seed-check       # 시드 확인만 (INSERT/UPDATE 안 함). 시드 실패 시 본 실행 안 함
 
-bash run_tests.sh nag stg                   # 환경 지정 (dev 기본 / stg / prd)
+bash run_tests.sh nag stg                   # 환경 지정 (dev 기본 / stg / prd). 인자 없어도 config/env/dev.py 를 읽는다
 bash run_tests.sh all prd                   # prd 는 PG_ALLOW_PRD=1 필요
 bash run_tests.sh all 192.168.1.1           # PG_HOST 만 오버라이드
 
@@ -84,7 +84,8 @@ UPM Subs-Change). 숫자를 직접 쓰지 말고 `${MSG_<IFACE>_*}` 를 쓴다.
 
 **`txn_id` 는 0이 될 수 없다** — 규격 제약. `Next TXN ID` 가 강제한다.
 
-**값 변경은 `*_variables.robot` 에서** — TC 에 리터럴을 넣지 않는다.
+**값 변경은 `*_variables.robot` 에서** — TC 에 리터럴을 넣지 않는다. 환경별 값(노드별 대상 번호
+`NAG_MDN`/`PCF_MDN`/`LRS_MDN`/`CDS_MDN`/`RTS_MDN` 등)은 `config/env/<env>.py` 에서 덮는다.
 
 **NWDAF TLV 태그는 이중 관리** — `TlvHelper.py` 와 `nwdaf_variables.robot` 양쪽을 고쳐야 한다.
 

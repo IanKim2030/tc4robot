@@ -38,7 +38,7 @@ ${LRS_SI_REQ_ID}           wapgw03-01-6-00039
 ${LRS_SI_PGW_GROUP_ID}     ${EMPTY}
 ${LRS_SI_CLIENT_IP}        ${SUBS_MOBILE_IP}    # 조회 대상 단말 IP
 ${LRS_SI_MIN}              ${EMPTY}
-${LRS_SI_MDN}              ${SUBS_MDN_LTE}
+${LRS_SI_MDN}              ${LRS_MDN}          # 노드 대상 번호 — lrs_server_variables.robot 의 ${LRS_MDN}
 ${LRS_SI_IMSI}             ${EMPTY}
 ${LRS_SI_WRONG_CONTENT_LENGTH}    ${10000}    # 실제 AIMS_REQ 길이보다 크게 고정 — Body 미충족 유발(TC-LRS-003)
 

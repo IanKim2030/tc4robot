@@ -75,7 +75,9 @@ ${RTS_ROAMING_BLOCK_OFF}   N
 # 테스트 데이터
 # ════════════════════════════════════════════
 # 11자리 유지 — attachMDN 의 10자리 재배치 분기(RtsHelper.py 모듈 docstring 참조)를 피한다.
-${RTS_TEST_MDN}   01090010001
+# 환경별 값은 config/env/<env>.py 의 RTS_MDN 에서 덮는다.
+${RTS_MDN}        01090010001
+${RTS_TEST_MDN}   ${RTS_MDN}
 
 # 패킷 크기 검증(E_WRONG_SIZE=12) negative TC 전용 — 헤더 Data Size 필드만 이 값으로
 # 거짓 신고하고 실제 Body(17B, RTS_WIRE_BODY_SIZE)는 그대로 보낸다. 512 초과로 잡는다.

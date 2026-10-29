@@ -42,7 +42,9 @@ ${CODE_HAVE_TO_FAILOVER}      ${9999}
 # ════════════════════════════════════════════
 # NAG/PCF 테스트 데이터
 # ════════════════════════════════════════════
-${TEST_MDN_NORMAL}        ${SUBS_MDN_LTE}
+# 노드 대상 번호 — 환경별 값은 config/env/<env>.py 의 NAG_MDN 에서 덮는다.
+${NAG_MDN}                ${SUBS_MDN_LTE}
+${TEST_MDN_NORMAL}        ${NAG_MDN}
 ${TEST_MDN_NO_SS}         ${SUBS_MDN_NO_HFC}       # HFC 미가입 → code=402
 ${TEST_MDN_NO_SESSION}    ${SUBS_MDN_NO_SESSION}   # 세션 없음 → code=403
 ${TEST_MOBILE_IP}         ${SUBS_MOBILE_IP}

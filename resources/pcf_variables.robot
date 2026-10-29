@@ -22,7 +22,9 @@ ${PCF_BRANCH_NAME}     SS
 # PCF 테스트 데이터
 # (슈트 파일이 아니라 여기 둔다 — 환경 파일이 덮을 수 있도록)
 # ════════════════════════════════════════════
-${PCF_TEST_MDN}        ${SUBS_MDN_LTE}
+# 노드 대상 번호 — 환경별 값은 config/env/<env>.py 의 PCF_MDN 에서 덮는다.
+${PCF_MDN}             ${SUBS_MDN_LTE}
+${PCF_TEST_MDN}        ${PCF_MDN}
 ${PCF_SERVICE_ID}      ZN100001
 
 # ════════════════════════════════════════════

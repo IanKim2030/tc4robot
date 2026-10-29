@@ -60,7 +60,10 @@ ${LRS_SYS_ID}              PG01            # TODO: 실환경 SYS_ID
 ${LRS_BRANCH_NAME}         SS              # TODO: 실환경 BRANCH_NAME
 
 # LTE 정상 세션 (PDB T_SESSION_INFO_XX 에 존재하는 MDN)
-${LRS_MDN_LTE}             ${SUBS_MDN_LTE}
+# 노드 대상 번호 — 환경별 값은 config/env/<env>.py 의 LRS_MDN 에서 덮는다.
+# SESSION-INFO 조회(${LRS_SI_MDN})와 8890 곁채널 LTE 세션이 같이 쓴다.
+${LRS_MDN}                 ${SUBS_MDN_LTE}
+${LRS_MDN_LTE}             ${LRS_MDN}
 ${LRS_DST_HOST_LTE}        ltepcrf01       # TODO: T_SESSION_INFO_XX.DESTINATION_HOST
 ${LRS_APN_LTE}             ${SUBS_APN_LTE}
 ${LRS_SVC_ID_LTE}          000001
