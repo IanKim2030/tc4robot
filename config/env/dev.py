@@ -89,13 +89,17 @@ NWDAF_MIN_5G         = NWDAF_MDN_5G[1:]
 
 # UPM
 UPM_MDN              = '01090050001'   # UPM FTP 업로드용 가입자 번호 
-UPM_SYS_ID           = 'UPM-R0'
+
 UPM_BRANCH_NAME      = 'SS'
 UPM_FTP_PORT         = 2222
 UPM_FTP_USER         = 'ncnalarm'
 UPM_FTP_PASSWORD     = 'test123'
 UPM_FTP_HOME_DIR     = '/home/kky/FTP'
-UPM_FTP_REMOTE_PATH  = '/UPM-R0'
+#UPM_SYS_ID           = 'UPM-R1'    # FTP SYSID
+#UPM_FTP_REMOTE_PATH  = '/UPM-R1'
+#UPM_FTP_USE_SFTP     = False # or True
+UPM_SYS_ID           = 'UPM-R2'    # SFTP SYSID
+UPM_FTP_REMOTE_PATH  = '/UPM-R2'
 UPM_FTP_USE_SFTP     = True   # or True
 
 # ── 가입자 데이터 (공용 축) ──────────────────────────────────────
