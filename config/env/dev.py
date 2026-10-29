@@ -63,7 +63,7 @@ NAG_MDN            = '01090030001'   # HFC 가입
 NAG_MDN_NO_HFC     = '01090030002'   # HFC 미가입
 NAG_MDN_NO_SESSION = '01090030003'   # 세션 없음
 
-PCF_MDN            = '01090020001'   # PCF ZONE 알림 (${PCF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
+PCF_MDN            = NAG_MDN         # PCF ZONE 알림 (${PCF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
 LRS_MDN            = '01090020001'   # LRS SESSION-INFO 조회 + 8890 LTE 세션 (${LRS_SI_MDN}/${LRS_MDN_LTE})
 
 # CDS 의 MIN / 세션 IMSI 는 위 MDN 에서 만든다 — MDN 만 바꾸면 따라온다.
