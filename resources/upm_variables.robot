@@ -107,8 +107,4 @@ ${UPM_PRODUCT_TYPE}        03                 # 01=3G, 02=LTE, 03=5G
 ${UPM_CELL_INFO}           9999:99
 ${UPM_TA_CODE}             11111
 ${UPM_ADDR}                서울시 강남구 청담동 77 1
-#${UPM_ADDR_SI}             서울시
-#${UPM_ADDR_GU}             강남구
-#${UPM_ADDR_DONG}           청담동
-#${UPM_ADDR_BUNJI1}         77
-#${UPM_ADDR_BUNJI2}         1
+
