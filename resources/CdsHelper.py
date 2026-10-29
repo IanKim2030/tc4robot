@@ -313,7 +313,9 @@ def _fill_command_fields(code, kw, f):
     elif v == '1X':
         s('mdn', 'prod_id', 'limit', 'product_type', 'addr')
     elif v == '1Y':
-        s('mdn', 'prod_id', 'product_type')
+        # limit 이 레거시 코드에 빠져 있었다(2026-10-29 사용자 확인 — 1Y 도 limitSubsFlag 필요).
+        # 쌍이 되는 1X 와 같은 자리다. 1Y 규격 목록 전체는 여전히 미확보.
+        s('mdn', 'prod_id', 'limit', 'product_type')
     elif v == 'D3':
         s('mdn', 'new_mdn', 'min', 'new_min', 'prod_id', 'data_prod_id',
           'network', 'tablet_yn', 'os_ver', 'device_model', 'ca', 'aprf',

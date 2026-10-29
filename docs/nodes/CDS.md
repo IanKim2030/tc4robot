@@ -1024,7 +1024,7 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 | `D3` 번호변경 | 8 | `opCode` `mdn` `newMdn` `min` `newMin` `produId` `limitSubsFlag` `produGenType` |
 | `I2` `I3` | 9 | `opCode` `mdn` `min` `produId` `roamStopId` `roamStopProviId` `YoungHarmInfoBlock` `limitSubsFlag` `produGenType` |
 | `1X` HFC가입 | 6 | `opCode` `mdn` `produId` `limitSubsFlag` `addr` `produGenType` |
-| `1Y` HFC해지 | **미확인** | 아래 [업무 코드](#업무-코드) 참조 |
+| `1Y` HFC해지 | **미확인** (코드: `mdn` `produId` `limitSubsFlag` `produGenType`) | 아래 [업무 코드](#업무-코드) 참조 |
 
 `A1` `G1` `C1` `Z1` 는 **단말·망 필드 전체**(`netId` `tabPcYn` `osVer` `termModelCode`
 `aprfTermAttri` `mvnoCompa` `catMsType` `lteCatgy` `5gCatgy` `devceType`)를 쓰는 계열이고,
@@ -1143,10 +1143,11 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 **허용 목록(`A1` `D3` `Z1` `G1` `C1` `Q1~Q9` `H1~H6`) 쪽이 낡았다.** 목록에 없다는 이유로
 코드를 지우지 말 것.
 
-**⚠ `1Y`(HFC해지) 필드 집합 미확인** — 현재 분기는 `mdn` `produId` `produGenType` 3개뿐이라
-쌍이 되는 `1X` 에 있는 **`limitSubsFlag` 가 빠져 있다.** 거의 모든 코드가 `limitSubsFlag` 를
-채우므로 누락이 의심되지만 `1Y` 규격을 확보하지 못해 그대로 두었다. Z1 에서 같은 유형의
-누락이 실제로 있었으므로(위 함정 절) **1Y 목록을 구하면 반드시 대조할 것.**
+**⚠ `1Y`(HFC해지) 필드 집합 미확인** — 분기는 `mdn` `produId` `limitSubsFlag` `produGenType`
+4개다. 원래 `limitSubsFlag` 가 빠져 공백으로 나갔는데, **1Y 도 limit 이 필요하다는 사용자
+확인(2026-10-29)으로 추가했다**(값은 다른 코드와 같은 `${CDS_LIMIT}`). 쌍이 되는 `1X` 에
+있는 `addr` 는 여전히 없다. Z1 에서 같은 유형의 누락이 실제로 있었으므로(위 함정 절)
+**1Y 목록을 구하면 반드시 대조할 것.**
 
 ## TC
 
