@@ -3,7 +3,7 @@ Documentation
 ...    UPM 인터페이스 변수 (접속 정보 / 메시지 타입 / code-type / 테스트 데이터)
 ...
 ...    HFC 가입자 Cell List 연동. PG = Server, UPM = Client.
-...    ${UPM_TEST_*} 는 실환경 PG/PDB 와 매칭되는 값으로 교체해야 한다.
+...    ${UPM_*} 는 실환경 PG/PDB 와 매칭되는 값으로 교체해야 한다.
 
 *** Variables ***
 
@@ -100,15 +100,15 @@ ${UPM_HELLO_CODE_FAILOVER}  ${9999} # UPM 미접속 / 종료 시 PG 가 반환
 # UPM 테스트 데이터 (HFC 가입자)
 # TODO: 실환경 PG/PDB 와 매칭되는 값으로 교체
 # ════════════════════════════════════════════
-${UPM_TEST_MDN}            01090010001
-${UPM_TEST_SERVICE_ID}     ZN100001
-${UPM_TEST_DEVICE_TYPE}    S                  # W=3G, L=LTE, N=NSA, S=SA
-${UPM_TEST_PRODUCT_TYPE}   03                 # 01=3G, 02=LTE, 03=5G
-${UPM_TEST_CELL_INFO}      9999:99
-${UPM_TEST_TA_CODE}        11111
-${UPM_TEST_ADDR}           서울시 강남구 청담동 77 1
-#${UPM_TEST_ADDR_SI}        서울시
-#${UPM_TEST_ADDR_GU}        강남구
-#${UPM_TEST_ADDR_DONG}      청담동
-#${UPM_TEST_ADDR_BUNJI1}    77
-#${UPM_TEST_ADDR_BUNJI2}    1
+${UPM_MDN}                 01090010001
+${UPM_SERVICE_ID}          ZN100001
+${UPM_DEVICE_TYPE}         S                  # W=3G, L=LTE, N=NSA, S=SA
+${UPM_PRODUCT_TYPE}        03                 # 01=3G, 02=LTE, 03=5G
+${UPM_CELL_INFO}           9999:99
+${UPM_TA_CODE}             11111
+${UPM_ADDR}                서울시 강남구 청담동 77 1
+#${UPM_ADDR_SI}             서울시
+#${UPM_ADDR_GU}             강남구
+#${UPM_ADDR_DONG}           청담동
+#${UPM_ADDR_BUNJI1}         77
+#${UPM_ADDR_BUNJI2}         1

@@ -1040,7 +1040,7 @@ Verify UPM Subs Info Notified
         Should Be Equal As Strings    ${body}[mdn]    ${mdn}
         ...    msg=Subs-Info(0x07)의 mdn 이 HFC 전문을 보낸 가입자와 다릅니다 (기대=${mdn}, 실제=${body}[mdn])
     END
-    ${cell}=     Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+    ${cell}=     Build Cell Item    ${UPM_CELL_INFO}    ${UPM_TA_CODE}
     ${cells}=    Create List    ${cell}
     Send Subs Info Response    ${hdr}[txn_id]    ${body}
     ...    cell_list=${cells}    result_code=${UPM_RC_SUCCESS}

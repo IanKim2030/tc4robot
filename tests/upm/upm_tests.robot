@@ -85,8 +85,8 @@ TC-UPM-002 Ping - 정상 응답
 TC-UPM-003 CellInfo-Noti - code-type=02 Cell List 변경
     [Documentation]    규격 6.4.1 code-type 목록: 02=Cell List 변경
     [Tags]    upm    cellinfo-noti
-    ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
-    ${subs}=    Build Subs Item    ${UPM_TEST_MDN}    ${cell}
+    ${cell}=    Build Cell Item    ${UPM_CELL_INFO}    ${UPM_TA_CODE}
+    ${subs}=    Build Subs Item    ${UPM_MDN}    ${cell}
     ${arr}=     Create List    ${subs}
     ${txn}=    Next TXN ID
     ${hdr}    ${body}=    Send CellInfo Noti    ${arr}    ${txn}    ${UPM_CT_CELL_CHANGE}
@@ -179,6 +179,6 @@ TC-UPM-004 Subs-Sync - 전체 동기화 요청 FTP (code-type=05)
 #     ${hdr}    ${body}=    Receive Subs Info Request
 #     UPM Code Type Should Be    ${body}    ${UPM_CT_TERMINATE}
 #     UPM MDN Should Be Valid    ${body}
-#     ${cell}=    Build Cell Item    ${UPM_TEST_CELL_INFO}    ${UPM_TEST_TA_CODE}
+#     ${cell}=    Build Cell Item    ${UPM_CELL_INFO}    ${UPM_TA_CODE}
 #     ${cells}=   Create List    ${cell}
 #     Send Subs Info Response    ${hdr}[txn_id]    ${body}    cell_list=${cells}
