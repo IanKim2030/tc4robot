@@ -119,12 +119,12 @@ Build COMMON1
     ...    pcef_type 은 0x01(PGW) 또는 0x10(eNB).
     [Arguments]
     ...    ${pcef_type}
-    ...    ${mdn}=${NWDAF_TEST_MDN}
-    ...    ${min}=${NWDAF_TEST_MIN}
-    ...    ${pgw_ip}=${NWDAF_TEST_PGW_IP}
+    ...    ${mdn}=${NWDAF_MDN}
+    ...    ${min}=${NWDAF_MIN}
+    ...    ${pgw_ip}=${NWDAF_PGW_IP}
     ...    ${qos_control_type}=${NWDAF_QCT_SUBSCRIBER}
-    ...    ${rct_3m_usage}=${NWDAF_TEST_RCT_3M_USAGE}
-    ...    ${rct_1m_usage}=${NWDAF_TEST_RCT_1M_USAGE}
+    ...    ${rct_3m_usage}=${NWDAF_RCT_3M_USAGE}
+    ...    ${rct_1m_usage}=${NWDAF_RCT_1M_USAGE}
     ...    ${create_date}=${NONE}
     ...    ${create_time}=${NONE}
     ${date}=    Run Keyword If    $create_date is None    Get Create Date
@@ -142,9 +142,9 @@ Build pcefQoSCtrl
     ...    pcefQoSCtrl (2절, PCEF_TYPE 비트 0x01) TLV bytes 리스트 반환.
     ...    QOS_POLICY 는 고정길이 NUL 패딩, TIMER 는 uint32 BE 로 송신된다 (PG 참조 구현 기준).
     [Arguments]
-    ...    ${qos_policy}=${NWDAF_TEST_QOS_POLICY}
+    ...    ${qos_policy}=${NWDAF_QOS_POLICY}
     ...    ${status}=${NWDAF_STATUS_NORMAL}
-    ...    ${timer}=${NWDAF_TEST_TIMER}
+    ...    ${timer}=${NWDAF_TIMER}
     ...    ${quick_support}=${NWDAF_QUICK_NOW}
     ...    ${policy_len}=${NWDAF_LEN_QOS_POLICY}
     ${tlvs}=    Tlv.Build Pcef Qos Ctrl    ${qos_policy}    ${status}    ${timer}    ${quick_support}
@@ -180,8 +180,8 @@ Build enodebQoSCtl
     ...    ${enb_arp}=${NWDAF_ENB_ARP_BAND_35}
     ...    ${arp_capability}=${NWDAF_ENABLE}
     ...    ${arp_vulnerability}=${NWDAF_ENABLE}
-    ...    ${qci}=${NWDAF_TEST_QCI}
-    ...    ${timer}=${NWDAF_TEST_TIMER}
+    ...    ${qci}=${NWDAF_QCI}
+    ...    ${timer}=${NWDAF_TIMER}
     ...    ${qci_len}=${NONE}
     ${tlvs}=    Tlv.Build Enb Qos Ctrl    ${support_type}    ${arp_qci_flag}
     ...    ${enb_arp}    ${arp_capability}    ${arp_vulnerability}
@@ -195,12 +195,12 @@ Build COMMON2
     [Arguments]
     ...    ${network}=${NWDAF_NET_LTE}
     ...    ${control_unit}=${NWDAF_CU_CELL}
-    ...    ${cell_id}=${NWDAF_TEST_CELL_ID}
-    ...    ${dn_usage}=${NWDAF_TEST_DN_USAGE}
-    ...    ${using_user}=${NWDAF_TEST_USING_USER}
-    ...    ${cell_avg_usage}=${NWDAF_TEST_CELL_AVG_USAGE}
-    ...    ${heavy_user}=${NWDAF_TEST_HEAVY_USER}
-    ...    ${user_usage}=${NWDAF_TEST_USER_USAGE}
+    ...    ${cell_id}=${NWDAF_CELL_ID}
+    ...    ${dn_usage}=${NWDAF_DN_USAGE}
+    ...    ${using_user}=${NWDAF_USING_USER}
+    ...    ${cell_avg_usage}=${NWDAF_CELL_AVG_USAGE}
+    ...    ${heavy_user}=${NWDAF_HEAVY_USER}
+    ...    ${user_usage}=${NWDAF_USER_USAGE}
     ...    ${user_ratio}=${NWDAF_ENABLE}
     ${tlvs}=    Tlv.Build Common2    ${network}    ${control_unit}    ${cell_id}
     ...    ${dn_usage}    ${using_user}    ${cell_avg_usage}
@@ -260,12 +260,12 @@ Send Subscriber QoS Notification PGW
     [Documentation]
     ...    PCEF_TYPE=0x01 (P-GW/SMF). COMMON1 + pcefQoSCtrl + COMMON2 송신.
     [Arguments]
-    ...    ${mdn}=${NWDAF_TEST_MDN}
-    ...    ${min}=${NWDAF_TEST_MIN}
-    ...    ${qos_policy}=${NWDAF_TEST_QOS_POLICY}
+    ...    ${mdn}=${NWDAF_MDN}
+    ...    ${min}=${NWDAF_MIN}
+    ...    ${qos_policy}=${NWDAF_QOS_POLICY}
     ...    ${status}=${NWDAF_STATUS_NORMAL}
     ...    ${quick_support}=${NWDAF_QUICK_NOW}
-    ...    ${cell_id}=${NWDAF_TEST_CELL_ID}
+    ...    ${cell_id}=${NWDAF_CELL_ID}
     ...    ${network}=${NWDAF_NET_LTE}
     ${c1}=    Build COMMON1     ${NWDAF_PCEF_PGW}    mdn=${mdn}    min=${min}
     ${qc}=    Build pcefQoSCtrl    qos_policy=${qos_policy}    status=${status}    quick_support=${quick_support}
@@ -280,12 +280,12 @@ Send Subscriber QoS Notification LTE DPI
     ...    PCEF_TYPE = 0x01|0x02 (P-GW + DPI) → COMMON1 + pcefQoSCtrl + dpiQoSCtrl + COMMON2 송신.
     ...    PCEF_TYPE 이 비트마스크이므로 두 QoS 섹션이 한 전문에 함께 실린다.
     [Arguments]
-    ...    ${mdn}=${NWDAF_TEST_MDN}
-    ...    ${min}=${NWDAF_TEST_MIN}
-    ...    ${qos_policy}=${NWDAF_TEST_QOS_POLICY}
+    ...    ${mdn}=${NWDAF_MDN}
+    ...    ${min}=${NWDAF_MIN}
+    ...    ${qos_policy}=${NWDAF_QOS_POLICY}
     ...    ${status}=${NWDAF_STATUS_NORMAL}
     ...    ${category_policy}=${NONE}
-    ...    ${cell_id}=${NWDAF_TEST_CELL_ID}
+    ...    ${cell_id}=${NWDAF_CELL_ID}
     ...    ${network}=${NWDAF_NET_LTE}
     ${c1}=    Build COMMON1    ${NWDAF_PCEF_PGW_DPI}    mdn=${mdn}    min=${min}
     ${qc}=    Build pcefQoSCtrl    qos_policy=${qos_policy}    status=${status}
@@ -299,10 +299,10 @@ Send DPI Only QoS Notification
     [Documentation]
     ...    PCEF_TYPE = 0x02 (DPI 단독). COMMON1 + dpiQoSCtrl + COMMON2 송신.
     [Arguments]
-    ...    ${mdn}=${NWDAF_TEST_MDN}
-    ...    ${min}=${NWDAF_TEST_MIN}
+    ...    ${mdn}=${NWDAF_MDN}
+    ...    ${min}=${NWDAF_MIN}
     ...    ${category_policy}=${NONE}
-    ...    ${cell_id}=${NWDAF_TEST_CELL_ID}
+    ...    ${cell_id}=${NWDAF_CELL_ID}
     ...    ${network}=${NWDAF_NET_LTE}
     ${c1}=    Build COMMON1    ${NWDAF_PCEF_DPI}    mdn=${mdn}    min=${min}
     ${dpi}=   Build dpiQoSCtrl    category_policy=${category_policy}
@@ -315,13 +315,13 @@ Send Subscriber QoS Notification ENB
     [Documentation]
     ...    PCEF_TYPE=0x10 (eNB). COMMON1 + enodebQoSCtl + COMMON2 송신.
     [Arguments]
-    ...    ${mdn}=${NWDAF_TEST_MDN}
-    ...    ${min}=${NWDAF_TEST_MIN}
+    ...    ${mdn}=${NWDAF_MDN}
+    ...    ${min}=${NWDAF_MIN}
     ...    ${support_type}=${NWDAF_SUPPORT_APPLY}
     ...    ${arp_qci_flag}=${NWDAF_ARPQCI_QCI}
     ...    ${enb_arp}=${NWDAF_ENB_ARP_BAND_35}
-    ...    ${qci}=${NWDAF_TEST_QCI}
-    ...    ${cell_id}=${NWDAF_TEST_CELL_ID}
+    ...    ${qci}=${NWDAF_QCI}
+    ...    ${cell_id}=${NWDAF_CELL_ID}
     ...    ${network}=${NWDAF_NET_LTE}
     ${c1}=    Build COMMON1    ${NWDAF_PCEF_ENB}    mdn=${mdn}    min=${min}
     ${qc}=    Build enodebQoSCtl    support_type=${support_type}    arp_qci_flag=${arp_qci_flag}

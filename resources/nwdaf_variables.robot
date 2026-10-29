@@ -118,28 +118,28 @@ ${NWDAF_DISABLE}          ${1}
 # NWDAF 테스트 데이터
 # TODO: 실환경 PG/PDB 와 매칭되는 값으로 교체
 # ════════════════════════════════════════════
-${NWDAF_TEST_MIN}              ${SUBS_MIN_LTE}
-${NWDAF_TEST_MDN}              ${SUBS_MDN_LTE}
-${NWDAF_TEST_MIN_5G}           ${SUBS_MIN_5G}
-${NWDAF_TEST_MDN_5G}           ${SUBS_MDN_5G}
-${NWDAF_TEST_PGW_IP}           ${NET_PGW_IP}
-${NWDAF_TEST_CELL_ID}          ${NET_CELL_ID}
-${NWDAF_TEST_QOS_POLICY}       QoS200K
-${NWDAF_TEST_QOS_POLICY_400K}  QoS400K_NoGBR
-${NWDAF_TEST_QOS_POLICY_NOQOS}    NoQoS_NoGBR
-${NWDAF_TEST_QCI}              ${9}
-${NWDAF_TEST_QCI_ALT}          ${6}        # QCI 값 변형 검증용
-${NWDAF_TEST_TIMER}            ${300}      # 초 단위 (5분)
+${NWDAF_MIN}                   ${SUBS_MIN_LTE}
+${NWDAF_MDN}                   ${SUBS_MDN_LTE}
+${NWDAF_MIN_5G}                ${SUBS_MIN_5G}
+${NWDAF_MDN_5G}                ${SUBS_MDN_5G}
+${NWDAF_PGW_IP}                ${NET_PGW_IP}
+${NWDAF_CELL_ID}               ${NET_CELL_ID}
+${NWDAF_QOS_POLICY}            QoS200K
+${NWDAF_QOS_POLICY_400K}       QoS400K_NoGBR
+${NWDAF_QOS_POLICY_NOQOS}      NoQoS_NoGBR
+${NWDAF_QCI}                   ${9}
+${NWDAF_QCI_ALT}               ${6}        # QCI 값 변형 검증용
+${NWDAF_TIMER}                 ${300}      # 초 단위 (5분)
 ${NWDAF_TIMER_UNUSED}          ${0}        # 규격 2.4 '0=미사용'
-${NWDAF_TEST_CATEGORY}         A           # dpiQoSCtrl CATEGORY (참조 구현은 'A'~'F' 6쌍)
+${NWDAF_CATEGORY}              A           # dpiQoSCtrl CATEGORY (참조 구현은 'A'~'F' 6쌍)
 ${NWDAF_DPI_TEST_TIMER}        ${250}      # PG 참조 구현 예시값
-${NWDAF_TEST_RCT_3M_USAGE}     ${500}      # KB
-${NWDAF_TEST_RCT_1M_USAGE}     ${150}      # KB
-${NWDAF_TEST_DN_USAGE}         ${1000}     # KB
-${NWDAF_TEST_USING_USER}       ${200}
-${NWDAF_TEST_CELL_AVG_USAGE}   ${500}      # KB
-${NWDAF_TEST_HEAVY_USER}       ${50}
-${NWDAF_TEST_USER_USAGE}       ${50000}    # KB (Heavy+Medium+Light 합)
+${NWDAF_RCT_3M_USAGE}          ${500}      # KB
+${NWDAF_RCT_1M_USAGE}          ${150}      # KB
+${NWDAF_DN_USAGE}              ${1000}     # KB
+${NWDAF_USING_USER}            ${200}
+${NWDAF_CELL_AVG_USAGE}        ${500}      # KB
+${NWDAF_HEAVY_USER}            ${50}
+${NWDAF_USER_USAGE}            ${50000}    # KB (Heavy+Medium+Light 합)
 
 # ── datalength(과대 길이) negative TC 전용 (TC-NWDAF-034~037) ──
 # PG 소스 확정값(SCMQosDefine.hpp: LEN_CATEGORY=29, LEN_QOS_POLICY=50, LEN_QCI=3)

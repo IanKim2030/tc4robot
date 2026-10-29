@@ -96,21 +96,21 @@ TC-NWDAF-003 eNB 최소 Notification (Smoke)
 
 TC-NWDAF-004 5G 가입자 PGW Notification
     [Documentation]
-    ...    5G 가입자(MIN=${NWDAF_TEST_MIN_5G}, MDN=${NWDAF_TEST_MDN_5G}) 대상
+    ...    5G 가입자(MIN=${NWDAF_MIN_5G}, MDN=${NWDAF_MDN_5G}) 대상
     ...    PCEF_TYPE=0x01 (P-GW/SMF) + NETWORK=5G Notification 송신 → 성공 검증.
     [Tags]    nwdaf    nwdaf_smoke    nwdaf_pgw    nwdaf_5g
     ${mid}=    Send Subscriber QoS Notification PGW
-    ...    mdn=${NWDAF_TEST_MDN_5G}    min=${NWDAF_TEST_MIN_5G}    network=${NWDAF_NET_5G}
+    ...    mdn=${NWDAF_MDN_5G}    min=${NWDAF_MIN_5G}    network=${NWDAF_NET_5G}
     Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
 
 
 TC-NWDAF-005 5G 가입자 eNB Notification
     [Documentation]
-    ...    5G 가입자(MIN=${NWDAF_TEST_MIN_5G}, MDN=${NWDAF_TEST_MDN_5G}) 대상
+    ...    5G 가입자(MIN=${NWDAF_MIN_5G}, MDN=${NWDAF_MDN_5G}) 대상
     ...    PCEF_TYPE=0x10 (eNB) + NETWORK=5G Notification 송신 → 성공 검증.
     [Tags]    nwdaf    nwdaf_smoke    nwdaf_enb    nwdaf_5g
     ${mid}=    Send Subscriber QoS Notification ENB
-    ...    mdn=${NWDAF_TEST_MDN_5G}    min=${NWDAF_TEST_MIN_5G}    network=${NWDAF_NET_5G}
+    ...    mdn=${NWDAF_MDN_5G}    min=${NWDAF_MIN_5G}    network=${NWDAF_NET_5G}
     Should Be True    0 <= ${mid} <= 0xFFF    msg=Message Id 범위 위반: ${mid}
 
 
