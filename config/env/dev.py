@@ -87,6 +87,8 @@ NWDAF_MDN_5G         = '01090040002'          # NWDAF 5G QoS 알림 (${NWDAF_TES
 NWDAF_MIN_5G         = NWDAF_MDN_5G[1:]
 
 
+
+
 # ── 가입자 데이터 (공용 축) ──────────────────────────────────────
 # 위 노드별 번호의 기본값이 상속하는 값. 노드별로 갈리면 위 *_MDN 을 쓴다.
 # SUBS_MDN_LTE         = '01020300553'   # NAG/PCF/LRS/NWDAF 기본
