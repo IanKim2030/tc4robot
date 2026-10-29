@@ -54,30 +54,37 @@ PG_HOST = '192.168.15.141'      # 모든 노드가 상속하는 기본 호스트
 # PCF_MDN            = '01020300553'   # PCF ZONE 알림 (${PCF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
 # LRS_MDN            = '01020300553'   # LRS SESSION-INFO 조회 + 8890 LTE 세션 (${LRS_SI_MDN}/${LRS_MDN_LTE})
 
-CDS_MDN            = '01090020001'     # CDS 기본 가입자
-CDS_NEW_MDN        = '01090020002'     # CDS D3 번호변경 신규 번호
-RTS_MDN            = '01090020001'     # RTS 로밍 데이터 차단 (${RTS_TEST_MDN}) — 11자리 유지
-
-
-NAG_MDN            = '01090030001'   # HFC 가입
-NAG_MDN_NO_HFC     = '01090030002'   # HFC 미가입
-NAG_MDN_NO_SESSION = '01090030003'   # 세션 없음
-
-PCF_MDN            = NAG_MDN         # PCF ZONE 알림 (${PCF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
-LRS_MDN            = '01090020001'   # LRS SESSION-INFO 조회 + 8890 LTE 세션 (${LRS_SI_MDN}/${LRS_MDN_LTE})
-
-# CDS 의 MIN / 세션 IMSI 는 위 MDN 에서 만든다 — MDN 만 바꾸면 따라온다.
-#   MIN  = MDN 앞자리 0 을 뺀 10자리      (01090020001 → 1090020001)
-#   IMSI = 45005(MCC+MNC) + MIN           (cds_variables.robot 의 규칙과 같다)
-# 실환경 IMSI 가 이 규칙과 다르면 아래 줄을 지우고 값을 직접 쓴다.
+# PG.CDS <-> CDS
+CDS_MDN              = '01090020001'     # CDS 기본 가입자
+CDS_NEW_MDN          = '01090020002'     # CDS D3 번호변경 신규 번호
 CDS_MIN              = CDS_MDN[1:]
 CDS_NEW_MIN          = CDS_NEW_MDN[1:]
 CDS_SESSION_IMSI     = '45005' + CDS_MIN
 CDS_SESSION_IMSI_NEW = '45005' + CDS_NEW_MIN
 
 
+# PG.RDS <-> RDS
+RTS_MDN              = CDS_MDN           # RTS 로밍 데이터 차단 (${RTS_TEST_MDN}) — 11자리 유지
 
-NAG_MOBILE_IP      = '2001:0d88:131f:0000::/64'   # NAG LTE 세션 IMSI 45005+1090020001
+
+# PG.BNOTI <-> NAG/PCF 
+NAG_MDN              = '01090030001'   # HFC 가입
+NAG_MDN_NO_HFC       = '01090030002'   # HFC 미가입
+NAG_MDN_NO_SESSION   = '01090030003'   # 세션 없음
+NAG_MOBILE_IP        = '2001:0d88:131f:0000::/64'   # NAG LTE 세션 IMSI 45005+1090020001
+
+PCF_MDN              = NAG_MDN         
+
+
+# PG.LRS <-> LRS
+LRS_MDN              = CDS_MDN        
+
+
+# PG.NWQOS <-> NWDAF
+NWDAF_MDN            = '01090040001'          # NWDAF QoS 알림 (${NWDAF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
+NWDAF_MIN            = NWDAF_MDN[1:]
+NWDAF_MDN_5G         = '01090040002'          # NWDAF 5G QoS 알림 (${NWDAF_TEST_MDN_5G}) — NAG 세션 선등록과 같은 번호
+NWDAF_MIN_5G         = NWDAF_MDN_5G[1:]
 
 
 # ── 가입자 데이터 (공용 축) ──────────────────────────────────────
