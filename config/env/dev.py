@@ -58,7 +58,7 @@ CDS_MDN            = '01090020001'     # CDS 기본 가입자
 CDS_NEW_MDN        = '01090020002'     # CDS D3 번호변경 신규 번호
 RTS_MDN            = '01090020001'     # RTS 로밍 데이터 차단 (${RTS_TEST_MDN}) — 11자리 유지
 
-NAG_MDN            = '01090020001'   # NAG Subs-Cellid 등 (${NAG_MDN_NORMAL})
+NAG_MDN            = '01090030001'   # NAG Subs-Cellid 등 (${NAG_MDN_NORMAL})
 PCF_MDN            = '01090020001'   # PCF ZONE 알림 (${PCF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
 LRS_MDN            = '01090020001'   # LRS SESSION-INFO 조회 + 8890 LTE 세션 (${LRS_SI_MDN}/${LRS_MDN_LTE})
 
