@@ -6,13 +6,18 @@ Suite Setup 이 슈트가 의존하는 PG 프로세스가 죽어 있으면 .RUN 
 touch 해 깨운다. 대상 프로세스 이름은 각 노드 콜플로우 문서의
 "PG 프로세스 목록" 표를 따른다(예: docs/callflow/cds_callflow.md).
 
-같은 접속 경로로 임의 명령 한 줄도 실행한다(`run_remote_command`) — DB 시드가
-INSERT 를 한 건이라도 했을 때 setup/db_seed.robot 이 ${DB_SEED_SSH_CMDS} 를
+임의 명령 한 줄도 실행한다(`run_remote_command`) — DB 시드가 INSERT 를 한 건이라도
+했을 때 setup/db_seed.robot 이 ${DB_SEED_SSH_CMDS}(dev: stopMP app → startMP app)를
 차례로 보낸다(PG 가 설정을 다시 읽게 하는 용도).
 
-[파이썬 SSH 라이브러리를 안 쓴다 — 시스템 ssh 를 그대로 부른다]
-  touch 한 줄 보내는 게 전부라 paramiko 같은 라이브러리가 필요 없다.
-  `subprocess` 로 시스템 `ssh` 를 그대로 호출한다 — 추가 pip 설치가 없다.
+[접속 방식이 둘이다 — 2026-11-04]
+  · .RUN touch(`ensure_pg_process_running`) — 시스템 `ssh` 를 subprocess 로 부른다.
+    추가 pip 설치가 없다(아래 askpass 절).
+  · 원격 명령(`run_remote_command`, stopMP/startMP) — **paramiko** 로 붙는다(사용자 지정).
+    종료코드·stdout·stderr 를 채널에서 직접 받는다. paramiko 는 **지연 임포트**한다 —
+    시드 후속 명령을 안 쓰면(INSERT 0건 / 명령 비어 있음 / --no-db-seed-ssh) 없어도 된다.
+    인증·호스트 키 정책은 시스템 ssh 경로와 맞췄다(키 우선, 없으면 PG_SSH_PASSWORD,
+    호스트 키는 묻지 않고 받음).
 
 [비밀번호 인증 — sshpass 없이 SSH_ASKPASS 로 자동 주입한다, 2026-10-07]
   실행 환경이 **폐쇄망이라 sshpass 같은 패키지를 새로 설치하기 까다롭다**
@@ -65,6 +70,7 @@ INSERT 를 한 건이라도 했을 때 setup/db_seed.robot 이 ${DB_SEED_SSH_CMD
 """
 import os
 import shutil
+import socket
 import stat
 import subprocess
 import tempfile
@@ -72,6 +78,9 @@ import tempfile
 _SSH_TIMEOUT = 15          # subprocess 전체 타임아웃(초) — 접속 타임아웃보다 여유를 둔다
 _SSH_CONNECT_TIMEOUT = 10  # ssh -o ConnectTimeout
 _ASKPASS_ENV = 'PG_SSH_ASKPASS_SECRET'  # 비밀번호를 담는 환경변수 — askpass 스크립트가 참조
+_SSH_PORT = 22
+
+_paramiko = None
 
 
 class SshEnsureError(Exception):
@@ -174,18 +183,64 @@ def ensure_pg_process_running(host, user, run_dir, processes, key_file=''):
         print('[SSH] touch %s/%s.RUN' % (run_dir, name))
 
 
-def run_remote_command(host, user, command, key_file='', timeout=60):
-    """command 한 줄을 ssh 로 실행하고 stdout 을 돌려준다 (DB 시드 후속 명령용).
+def _load_paramiko():
+    """paramiko 를 한 번만 임포트해 캐시한다. 없으면 안내 메시지로 실패."""
+    global _paramiko
+    if _paramiko is None:
+        try:
+            import paramiko
+        except ImportError:
+            raise SshEnsureError(
+                '원격 명령(stopMP/startMP)에는 paramiko 패키지가 필요합니다 — '
+                'pip install paramiko. 시드 후속 명령을 쓰지 않으려면 --no-db-seed-ssh.'
+            )
+        _paramiko = paramiko
+    return _paramiko
+
+
+def run_remote_command(host, user, command, key_file='', timeout=60, port=_SSH_PORT):
+    """command 한 줄을 paramiko 로 실행하고 stdout 을 돌려준다 (DB 시드 후속 명령용).
 
     ensure_pg_process_running 과 달리 user 가 비어 있으면 **실패**다 — 이 함수는
     호출부(setup/db_seed.robot)가 "명령이 설정돼 있다"고 판단한 뒤에만 부르므로,
     여기까지 와서 계정이 없으면 설정 누락이다. 종료코드 0 이 아니면 `SshEnsureError`.
+
+    key_file 이 있으면 키 인증, 없으면 환경변수 PG_SSH_PASSWORD 로 비밀번호 인증이다
+    (비밀번호는 Robot 인자로 받지 않는다 — 모듈 docstring 참조). timeout 은 명령
+    출력을 기다리는 시간(초)이다 — 그 사이 아무 출력도 종료도 없으면 실패한다.
+    비대화형 exec 이라 원격 `.profile` 은 읽지 않는다(시스템 ssh 와 같다).
     """
+    what = '원격 명령(%s@%s: %s)' % (user, host, command)
     if not user:
         raise SshEnsureError(
             'PG_SSH_USER 가 비어 있어 원격 명령을 실행할 수 없습니다 — '
             'config/env/<env>.py 에 PG_SSH_USER 를 넣으십시오: %s' % command
         )
-    result = _run_ssh(host, user, command, key_file, float(timeout),
-                      '원격 명령(%s@%s: %s)' % (user, host, command))
-    return result.stdout.decode(errors='replace').strip()
+    paramiko = _load_paramiko()
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # = StrictHostKeyChecking=no
+    auth = {'key_filename': key_file} if key_file else {
+        'password': os.environ.get('PG_SSH_PASSWORD', ''),
+        'look_for_keys': False, 'allow_agent': False,   # = PubkeyAuthentication=no
+    }
+    try:
+        try:
+            client.connect(host, port=int(port), username=user,
+                           timeout=_SSH_CONNECT_TIMEOUT,
+                           banner_timeout=_SSH_CONNECT_TIMEOUT,
+                           auth_timeout=_SSH_CONNECT_TIMEOUT, **auth)
+            _, stdout, stderr = client.exec_command(command, timeout=float(timeout))
+            out = stdout.read().decode(errors='replace').strip()
+            err = stderr.read().decode(errors='replace').strip()
+            rc = stdout.channel.recv_exit_status()
+        except socket.timeout:
+            raise SshEnsureError('%s 실패 — %s초 동안 응답이 없습니다(timeout)' % (what, timeout))
+        except Exception as e:
+            raise SshEnsureError('%s 실패 — %s: %s' % (what, type(e).__name__, e))
+    finally:
+        client.close()
+
+    if rc != 0:
+        raise SshEnsureError('%s 실패(종료코드 %d) — %s' % (what, rc, err or out))
+    return out

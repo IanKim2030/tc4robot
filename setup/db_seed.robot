@@ -148,7 +148,7 @@ Run Seed SSH Commands
         RETURN
     END
     IF    not ${DB_SEED_SSH_ENABLE}
-        Log    [Seed] INSERT ${n_ins}건 — 원격 명령은 꺼져 있어 건너뜁니다 (--no-db-seed-ssh)    console=True
+        Log    [Seed] INSERT ${n_ins}건 — 원격 명령은 꺼져 있어 건너뜁니다 (DB_SEED_SSH_ENABLE=False — 켜려면 --db-seed-ssh)    console=True
         RETURN
     END
     ${n_cmd}=    Get Length    ${DB_SEED_SSH_CMDS}

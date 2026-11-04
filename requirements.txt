@@ -30,6 +30,10 @@ pyftpdlib
 # 수신을, PG 설정 USE_SFTP_04=Y 인 환경에 대비한 대안 전송방식으로 쓸 때만
 # 필요하다. SftpServerHelper.py 가 **지연 임포트**하므로 ${UPM_FTP_USE_SFTP}
 # (기본 False)를 안 켜면 설치 안 해도 슈트가 돈다.
+# DB 시드 후속 원격 명령(stopMP/startMP, SshHelper.run_remote_command)도 paramiko 로
+# 붙는다 — 역시 지연 임포트라 그 명령이 실제로 나갈 때만 필요하다.
+# ★ Python 3.6 은 pip 를 21.3.1 이상으로 먼저 올릴 것(pip install 'pip==21.3.1') —
+#   구 pip 는 cryptography/pynacl wheel 을 못 받고 소스 빌드로 빠져 실패한다.
 paramiko
 
 # PG 프로세스 .RUN 파일 touch 용(resources/SshHelper.py) — pip 패키지가 아니라

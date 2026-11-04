@@ -60,7 +60,7 @@ SBI Noti 상세는 [shared/SBI_NOTI.md](shared/SBI_NOTI.md).
 | 모듈 | Robot 별칭 | 담당 | 주요 함수 |
 |---|---|---|---|
 | `DbSeedHelper.py` | `Seed` | 실행 전 DB 설정 시드 — `config/db_seed/<env>.sql` 을 "확인 SELECT + INSERT/UPDATE" 블록으로 나누고 `${변수}` 를 Robot 변수 값으로 치환한다. 접속·실행은 `PdbHelper` | `load_seed_blocks` `describe_statement` `describe_check` |
-| `SshHelper.py` | `Ssh` | 시스템 `ssh` 호출 — `.RUN` touch, 시드 후속 명령. 비밀번호는 `SSH_ASKPASS` 로 주입 | `ensure_pg_process_running` `run_remote_command` |
+| `SshHelper.py` | `Ssh` | `.RUN` touch 는 시스템 `ssh`(비밀번호는 `SSH_ASKPASS` 주입), 시드 후속 명령(stopMP/startMP)은 `paramiko`(지연 임포트) | `ensure_pg_process_running` `run_remote_command` |
 
 시드 형식은 [shared/PDB.md](shared/PDB.md#실행-전-db-설정-시드-configdb_seedenvsql), SSH 는 [shared/SSH.md](shared/SSH.md).
 

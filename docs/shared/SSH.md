@@ -1,25 +1,35 @@
 # SSH — PG 서버 원격 조작 (프로세스 기동 보장 · 시드 후속 명령)
 
-도구가 PG 서버(`${PG_HOST}`)에 SSH 로 붙어 명령을 실행하는 곳은 둘이다. 접속 경로는 하나다 —
-[resources/SshHelper.py](../../resources/SshHelper.py) 가 **시스템 `ssh` 를 subprocess 로 그대로 부른다**
-(파이썬 SSH 라이브러리 없음, pip 설치 없음).
+도구가 PG 서버(`${PG_HOST}`)에 SSH 로 붙어 명령을 실행하는 곳은 둘이다. 모듈은
+[resources/SshHelper.py](../../resources/SshHelper.py) 하나지만 **접속 방식이 다르다**(2026-11-04).
 
-| 용도 | 언제 | 키워드 / 함수 |
-|---|---|---|
-| PG 프로세스 기동 보장 | 각 슈트 Suite Setup | `Ensure PG Process Running` ([ssh_keywords.robot](../../resources/ssh_keywords.robot)) → `ensure_pg_process_running` |
-| 시드 INSERT 후 원격 명령 | `setup/db_seed.robot` 끝 | `Run Seed SSH Commands` → `run_remote_command` |
+| 용도 | 언제 | 키워드 / 함수 | 접속 |
+|---|---|---|---|
+| PG 프로세스 기동 보장 | 각 슈트 Suite Setup | `Ensure PG Process Running` ([ssh_keywords.robot](../../resources/ssh_keywords.robot)) → `ensure_pg_process_running` | 시스템 `ssh`(subprocess) — pip 설치 없음 |
+| 시드 INSERT 후 원격 명령 | `setup/db_seed.robot` 끝 | `Run Seed SSH Commands` → `run_remote_command` | **paramiko** — `pip install paramiko` 필요 |
+
+paramiko 는 지연 임포트라, 시드 후속 명령이 실제로 나갈 때만 필요하다(INSERT 0건 /
+`DB_SEED_SSH_CMDS` 비어 있음 / `--no-db-seed-ssh` 면 없어도 된다). 없는데 나가야 하면
+`pip install paramiko` 안내와 함께 시드가 실패한다. 의존 패키지(`cryptography` `bcrypt`
+`pynacl`)가 바이너리라, Python 3.6 에서는 **pip 21.3.1 이상으로 올린 뒤** 설치해야 wheel 을
+받는다(구 pip 9 는 pynacl 소스 빌드로 빠져 실패한다 — 2026-11-04 Rocky8 실측).
 
 ## 계정 · 인증
 
 | 변수 | 기본값 | 설명 |
 |---|---|---|
 | `${PG_SSH_USER}` | 빈 값 | 비어 있으면 기동 보장을 **조용히 건너뛴다**. dev/stg 는 `pg` |
-| `${PG_SSH_KEY_FILE}` | 빈 값 | 채우면 키 인증(`-i`, `BatchMode=yes`). 키가 우선이다 |
+| `${PG_SSH_KEY_FILE}` | 빈 값 | 채우면 키 인증(`-i`, `BatchMode=yes` / paramiko `key_filename`). 키가 우선이다 |
 | 환경변수 `PG_SSH_PASSWORD` | — | 비밀번호 인증. **Robot 변수로 받지 않는다**(log.html 에 평문으로 남기 때문) |
 
-비밀번호는 `sshpass` 없이 OpenSSH 내장 `SSH_ASKPASS` 로 주입한다 — 폐쇄망이라 패키지를 추가로
-설치하기 어려워서다. 비밀번호 리터럴은 임시 askpass 스크립트에도 남지 않고, 스크립트는
-실행 직후 지운다. 호스트 키 확인은 생략한다(`StrictHostKeyChecking=no`).
+두 경로가 같은 계정·같은 규칙을 쓴다. 호스트 키 확인은 생략한다(`StrictHostKeyChecking=no` /
+paramiko `AutoAddPolicy`). 비밀번호 인증일 때는 키·에이전트를 시도하지 않는다.
+
+- **시스템 ssh 경로**: 비밀번호는 `sshpass` 없이 OpenSSH 내장 `SSH_ASKPASS` 로 주입한다.
+  비밀번호 리터럴은 임시 askpass 스크립트에도 남지 않고, 스크립트는 실행 직후 지운다.
+- **paramiko 경로**: 비밀번호를 `PG_SSH_PASSWORD` 에서 바로 넘긴다. 종료코드·stdout·stderr 를
+  채널에서 직접 받는다. 접속·배너·인증 타임아웃은 10초, 명령은 `${DB_SEED_SSH_TIMEOUT}`(60초) —
+  그 사이 출력도 종료도 없으면 실패한다.
 
 > ⚠ 예전에 SSH 비밀번호가 평문으로 커밋된 사고가 있었다 — [ENVIRONMENTS.md](../ENVIRONMENTS.md#자격증명).
 
@@ -54,9 +64,13 @@ PG 가 기동을 끝낼 시간이 더 필요하다(2026-10-20). CDS/RTS 는 그 
 다시 읽게 하려는 것이다. 명령마다 ssh 세션을 따로 열고, 명령 사이에 `${DB_SEED_SSH_GAP}` 만큼 쉰다.
 
 ```python
-# config/env/dev.py
-DB_SEED_SSH_CMDS = ['stopMP app', 'startMP app']
-DB_SEED_SSH_GAP  = '5s'
+# config/env/stg.py — 켬
+DB_SEED_SSH_ENABLE = True
+DB_SEED_SSH_CMDS   = ['stopMP app', 'startMP app']
+DB_SEED_SSH_GAP    = '5s'
+
+# config/env/dev.py — 끔 (명령은 남겨 둬서 --db-seed-ssh 로 한 번만 켤 수 있다)
+DB_SEED_SSH_ENABLE = False
 ```
 
 | 변수 | 기본값 | 설명 |
@@ -64,7 +78,7 @@ DB_SEED_SSH_GAP  = '5s'
 | `@{DB_SEED_SSH_CMDS}` | 비어 있음 | 비어 있으면 건너뛴다 |
 | `${DB_SEED_SSH_GAP}` | `5s` | 명령 사이 대기(마지막 명령 뒤에는 안 쉰다) |
 | `${DB_SEED_SSH_TIMEOUT}` | `60` | 명령 하나의 ssh 타임아웃(초) |
-| `${DB_SEED_SSH_ENABLE}` | `${TRUE}` | `--no-db-seed-ssh` 로 끈다 |
+| `${DB_SEED_SSH_ENABLE}` | `${TRUE}` | **dev.py 는 `False`(끔), stg.py 는 `True`(켬)**. 실행 때 `--db-seed-ssh` / `--no-db-seed-ssh` 로 환경 파일 값을 덮는다 |
 
 INSERT 0건이거나 확인만 모드(`--db-seed-check`)면 실행하지 않는다. 여기서는 `${PG_SSH_USER}`
 가 비어 있으면 **실패**다 — 명령을 채워 쓰기로 한 뒤라서다. 명령이 실패(종료코드≠0)하면

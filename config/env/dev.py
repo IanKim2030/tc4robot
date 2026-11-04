@@ -173,6 +173,8 @@ PG_SSH_USER        = 'pg'
 # DB 시드가 INSERT 를 1건 이상 했을 때 PG 서버에 SSH 로 차례로 실행할 명령
 # (명령 사이 DB_SEED_SSH_GAP 대기). 비우면 건너뛴다 — variables.robot 참조.
 # PG 가 새로 넣은 설정 행을 다시 읽게 app 을 내렸다 올린다.
+# ★ dev 는 끔 — 명령 목록은 남겨 두었으니 한 번만 돌리려면 --db-seed-ssh 로 켠다.
+DB_SEED_SSH_ENABLE = False
 DB_SEED_SSH_CMDS   = ['stopMP app', 'startMP app']
 DB_SEED_SSH_GAP    = '5s'
 
