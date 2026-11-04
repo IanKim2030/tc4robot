@@ -17,18 +17,36 @@ python -m robot --variablefile config/env/stg.py tests/nag/
 ## 구조
 
 ```
-resources/variables.robot        ← dev 기준 기본값의 단일 출처
-resources/<iface>_variables.robot ← 위 값을 참조만 한다
-config/env/dev.py                ← dev 실제 값(노드별 MDN·PDB·UPM FTP 등) + 덮을 수 있는 값의 카탈로그. git 에 있다
-config/env/stg.py                ← (gitignore) dev 와 다른 값만
-config/env/prd.py                ← (gitignore) dev 와 다른 값만 + 실행 가드
+resources/variables.robot        ← 공용 변수(상수·토글·공용 기본값). **환경값은 없다**
+resources/<iface>_variables.robot ← 노드 변수. 공용 값은 참조만 한다
+config/env/dev.py                ← dev 환경값(필수) + 덮을 수 있는 값의 카탈로그. git 에 있다
+config/env/stg.py                ← (gitignore) stg 환경값(필수) + 기본값과 다른 값
+config/env/prd.py                ← (gitignore) prd 환경값(필수) + 실행 가드
 config/env/local.py              ← (gitignore) 개인 오버라이드, 선택
 ```
 
-`run_tests.sh` 는 **환경 인자가 없거나 IP 만 줘도 `config/env/dev.py` 를 읽는다**(2026-10-29 —
-예전에는 인자 없이 돌리면 dev.py 를 건너뛰어 dev.py 의 값이 무시됐다).
-`python -m robot tests/nag/` 처럼 직접 돌리면 dev.py 를 읽지 않으므로
-`--variablefile config/env/dev.py` 를 붙인다.
+### 환경값은 환경 파일에만 둔다 (2026-11-03)
+
+환경마다 달라지는 값 — **`PG_HOST` · `TOOL_HOST` · `PDB_CONNSTR` · `SUBS_MDN_LTE` /
+`SUBS_MIN_LTE` / `SUBS_MDN_5G` / `SUBS_MIN_5G`** — 은 `resources/variables.robot` 에 기본값이 없다.
+예전에는 dev 값이 기본값으로 있어서, stg/prd 환경 파일이 빠뜨린 키가 **dev 값으로 조용히
+채워졌다**(prd 에서 dev DB·dev 번호로 도는 사고 자리). 지금은 빠뜨리면 그 변수를 쓰는 곳에서
+`Variable '${...}' not found` 로 바로 실패한다. `PDB_CONNSTR` 만은 환경변수 `PG_PDB_CONNSTR`
+로도 줄 수 있다.
+
+`run_tests.sh` 는 **환경 인자가 없거나 IP 만 줘도 `config/env/dev.py` 를 읽는다**(2026-10-29).
+`python -m robot tests/nag/` 처럼 직접 돌리면 환경 파일을 읽지 않으므로 **반드시**
+`-V config/env/dev.py`(`--variablefile`) 를 붙인다 — 안 붙이면 위 변수가 없어 실패한다.
+
+### 이름이 바뀐 변수 — 구 이름도 계속 먹는다
+
+| 새 이름 (variables.robot) | 구 이름 (노드 변수) | 동작 |
+|---|---|---|
+| `${SBI_NOTI_PORT}` / `${SBI_NOTI_HOST}` | `${CDS_NOTI_PORT}` `${RTS_NOTI_PORT}` / `${CDS_NOTI_HOST}` `${RTS_NOTI_HOST}` | 노드 변수의 기본값이 새 이름이다. 구 이름으로 덮으면 그 노드만 바뀐다 |
+| `${PDB_TIMEOUT}` / `${PDB_AUTOCOMMIT}` | `${CDS_DB_TIMEOUT}` / `${CDS_DB_AUTOCOMMIT}` | 위와 같다 |
+| `${TOOL_HOST}` | (`cds_variables.robot` 의 `192.168.15.142` 리터럴) | `${CDS_SESSION_PCF_ADDR}`/`SMF_ADDR` 가 이 값으로 만들어진다 |
+| `resources/PdbHelper.py` · `PdbError` | `CdsDbHelper.py` · `CdsDbError` | 예외는 별칭으로 남겼다. 파일 이름은 리포 안 import 를 전부 고쳤다 |
+| 환경변수 `PG_PDB_CONNSTR` | `PG_CDS_DB_CONNSTR` | 폴백으로 계속 읽는다 |
 
 ## 변수 우선순위
 
@@ -43,8 +61,9 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 
 ## 환경 축 변수
 
-`resources/variables.robot` 에 모여 있다. 노드별 변수는 이를 참조만 하므로
-**환경 파일에서 아래 하나만 바꾸면 관련 노드 전부에 전파된다.**
+이름은 `resources/variables.robot` 에 모여 있다(환경값은 위 규칙대로 값 없이 이름만 —
+값은 환경 파일). 노드별 변수는 이를 참조만 하므로 **환경 파일에서 아래 하나만 바꾸면
+관련 노드 전부에 전파된다.**
 
 **여기 두는 기준은 "두 노드 이상이 공유하는 값"이다.** 한 노드만 쓰는 환경 값은
 해당 `<iface>_variables.robot` 에 **값을 직접** 둔다 — 예로 CDS 가입자는
@@ -56,6 +75,9 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 | 변수 | 전파 대상 |
 |---|---|
 | `${PG_HOST}` | `${NAG_PG_HOST}` `${PCF_PG_HOST}` `${UPM_PG_HOST}` `${NWDAF_HOST}` `${CDS_PG_HOST}` `${LRS_CLIENT_HOST}` |
+| `${TOOL_HOST}` | `${CDS_SESSION_PCF_ADDR}` `${CDS_SESSION_SMF_ADDR}` ([shared/SBI_NOTI.md](shared/SBI_NOTI.md)) |
+| `${SBI_NOTI_PORT}` / `${SBI_NOTI_HOST}` | `${CDS_NOTI_PORT}` `${RTS_NOTI_PORT}` / `${CDS_NOTI_HOST}` `${RTS_NOTI_HOST}` |
+| `${PDB_TIMEOUT}` / `${PDB_AUTOCOMMIT}` | `${CDS_DB_TIMEOUT}` / `${CDS_DB_AUTOCOMMIT}` ([shared/PDB.md](shared/PDB.md)) |
 | `${SUBS_MDN_LTE}` | `${NAG_MDN}` `${PCF_MDN}` `${LRS_MDN}`(아래 노드별 대상 번호의 기본값) `${NWDAF_MDN}` |
 | `${SUBS_MIN_LTE}` | `${NWDAF_MIN}` |
 | `${SUBS_MDN_5G}` / `${SUBS_MIN_5G}` | `${LRS_MDN_5G}` `${NWDAF_MDN_5G}` `${NWDAF_MIN_5G}` |
@@ -91,10 +113,16 @@ MDN 에서 계산한다 — MDN 만 바꾸면 따라온다. 다른 환경 파일
 
 ```python
 # config/env/stg.py
-PG_HOST = '10.20.30.40'
-
+# ── 필수 (variables.robot 에 기본값 없음) ──
+PG_HOST      = '10.20.30.40'
+TOOL_HOST    = '10.20.30.50'    # 도구 호스트 — PG 가 되돌아 접속하는 주소
+PDB_CONNSTR  = 'DSN=PDB;UID=pgtest;PWD=...'   # 또는 환경변수 PG_PDB_CONNSTR
 SUBS_MDN_LTE = '01011112222'    # NAG/PCF/LRS/NWDAF 에 자동 전파
 SUBS_MIN_LTE = '1011112222'
+SUBS_MDN_5G  = '01011113333'
+SUBS_MIN_5G  = '1011113333'
+
+# ── 선택 ──
 CDS_MDN      = '01090020001'    # 노드별 대상 번호는 개별 지정
 
 CDS_DST_SYS_ID = 'PG02'         # 노드별 개별 지정
@@ -104,105 +132,11 @@ NAG_PG_PORT    = 8012
 Robot 은 변수 파일의 **모듈 전역 이름을 그대로 변수로 읽는다.** `PG_HOST = ...` 가
 `${PG_HOST}` 가 된다. 언더스코어로 시작하는 이름은 무시된다.
 
-## CDS PDB 접속 (TC-CDS-002 / TC-CDS-013)
+## PDB 접속 · 실행 전 DB 설정 시드
 
-`db` 태그가 붙은 두 TC 는 전문 흐름에 더해 **PDB 반영까지** 판정한다 —
-`TC-CDS-002`(A1 신규가입)는 행이 생겼는지, `TC-CDS-013`(Z1 가입해지)는 행이
-사라졌는지를 본다. 접속 문자열은 `variables.robot` 의 `${PDB_CONNSTR}` 하나뿐이다 — CDS·RTS 공용이다.
-
-★ **CDS 슈트는 Suite Setup 에서 PDB 에 붙는다.** 그래서 이 값이 틀리면 이 두 TC 뿐
-아니라 **전문 송수신 TC 까지 포함해 CDS 슈트 전체가 서지 않는다**(`--exclude db`
-로도 피할 수 없다 — Suite Setup 은 태그와 무관하게 실행된다).
-
-**완성된 ODBC 접속 문자열을 통째로 준다.** 도구는 조립하지 않는다 — 받은 값을 그대로
-`pyodbc` 에 넘긴다. 골디락스는 `odbc.ini`(Linux) / ODBC 데이터 원본 관리자(Windows)에
-DSN 을 등록해 두고 이름만 참조하는 것이 정석이다(드라이버 경로·호스트·포트·
-`ALTERNATE_SERVERS` 를 DSN 이 갖는다).
-
-```python
-# config/env/stg.py
-PDB_CONNSTR = 'DSN=PDB;UID=pgtest;PWD=...'
-```
-
-**세션 사전 적재를 두 DB 모두에 넣어야 하면 `PDB_CONNSTR_2` 도 채운다** — 환경에 따라
-골디락스+알티베이스 이중화가 있는 경우와 DB 한 곳뿐인 경우가 섞여 있어서다. 비워
-두면(기본) 기존처럼 DB 한 곳에만 넣는다. 반영 판정(SELECT)은 항상 `PDB_CONNSTR`
-(첫 번째 DB) 기준이다. 레거시 환경변수 폴백은 없다 — 새로 쓸 때는 `PG_PDB_CONNSTR_2`.
-상세는 `docs/nodes/CDS.md` "두 번째 DB" 절.
-
-```python
-# config/env/stg.py — stg 가 골디락스+알티베이스 이중화라면
-PDB_CONNSTR   = 'DSN=GOLD_PDB;UID=pgtest;PWD=...'
-PDB_CONNSTR_2 = 'Server=...;PORT=...;DBName=...;UID=pgtest;PWD=...'
-```
-
-DSN 없이 직접 쓸 수도 있다. 다만 `.so` **경로에 중괄호를 붙이면 안 되고** 호스트 키는
-`SERVER` 가 아니라 `HOST` 다 — 둘 다 골디락스 실측이다.
-
-```python
-PDB_CONNSTR = ('DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;'
-                  'HOST=10.20.30.40;PORT=22581;UID=pgtest;PWD=...;CHARSET=UHC;')
-```
-
-**비밀번호가 이 문자열 안에 들어가므로 파일에 적지 않는 쪽이 낫다.** 환경변수가
-Robot 변수보다 우선한다.
-
-```bash
-export PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
-# PowerShell: $env:PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
-# 구 이름 PG_CDS_DB_CONNSTR 도 폴백으로 계속 읽는다.
-```
-
-어느 쪽이든 **Python 이 직접 읽는다**(Robot 키워드 인자로 넘기지 않는다) — 그래서
-`log.html` 에는 마스킹된 문자열(`PWD=****`)만 남는다.
-
-골디락스 DSN-less 가 `IM012 DRIVER keyword syntax error` 로 거부된 이력은
-[nodes/CDS.md](nodes/CDS.md) 의 PDB 조회 절에 있다.
-
-## 실행 전 DB 설정 시드 (`config/db_seed/<env>.sql`)
-
-`run_tests.sh` 는 대상(nag/…/all/smoke)과 무관하게 **본 실행 전에** `setup/db_seed.robot`
-을 따로 한 번 돌린다. PG 가 읽는 설정 행이 없으면 넣고 시작하기 위한 단계다. 노드와는
-무관하고 **환경별로 파일이 따로 있다.**
-
-| 실행 | 시드 파일 |
-|---|---|
-| `bash run_tests.sh nag` / `nag dev` / `nag 192.168.1.1` | `config/db_seed/dev.sql` |
-| `bash run_tests.sh nag stg` | `config/db_seed/stg.sql` |
-| `prd` / `local` | `config/db_seed/<env>.sql` — 없으면 DB 접속 없이 건너뜀 |
-
-```sql
--- @name: 블록 이름 (선택)
-SELECT COUNT(*) FROM T_XXX_CFG WHERE KEY_COL = 'A';     -- 블록을 연다 (1행 1열 정수)
-INSERT INTO T_XXX_CFG (KEY_COL, VAL) VALUES ('A', '1'); -- 위 결과가 0건일 때만 실행
-UPDATE T_XXX_CFG SET VAL = '1' WHERE KEY_COL = 'A';     -- 위 결과가 1건 이상일 때만 실행
-```
-
-- SELECT 로 시작하는 문장이 블록을 열고, 다음 SELECT 전까지의 INSERT / UPDATE 가 그
-  블록에 속한다. 여러 줄에 걸쳐 써도 된다(문장은 `;` 로만 나뉜다). 그 밖의 문장은 거부한다.
-
-  | 확인 SELECT | 실행 | 실행 후 |
-  |---|---|---|
-  | 0건 | INSERT 만 | 같은 SELECT 로 다시 세어 1건 이상인지 (아니면 FAIL) |
-  | 1건 이상 | UPDATE 만 (없으면 "있음" 으로 건너뜀) | 영향 행 0 이면 WARN |
-
-  INSERT 만 있으면 "없으면 넣기", UPDATE 만 있으면 "있으면 고치기", 둘 다 있으면 upsert 다.
-  UPDATE 는 매 실행마다 값을 덮어쓴다 — TC 가 바꿔 둔 값도 시작 전에 되돌린다.
-- 실행한 INSERT/UPDATE 는 문장마다 콘솔에 대상 표·영향 행 수가, `log.html` 에 전체 SQL 이
-  남는다. 끝에 DB 별 요약(있음/INSERT/UPDATE 블록 수)을 찍는다.
-- 값은 리터럴로 쓴다(바인드 파라미터 없음). 표 이름에 `PDB.` 접두사를 붙이지 않는다.
-- 블록이 하나도 없으면 DB 에 접속하지 않는다 — DB 를 안 쓰는 환경도 그대로 돈다.
-- 접속은 본 실행과 같은 `${PDB_CONNSTR}` 이다(같은 `--variablefile`/`--variable` 을 넘긴다).
-  `${PDB_CONNSTR_2}` 가 있으면 두 번째 DB 에도 같은 확인·INSERT·UPDATE 를 한다.
-- **시드가 실패하면 본 실행을 하지 않는다.** 로그는 `results/<TS>/db_seed/log.html`.
-
-```bash
-bash run_tests.sh nag --no-db-seed      # 시드 단계 생략
-bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT/UPDATE 안 함
-python -m robot setup/db_seed.robot     # robot 을 직접 돌릴 때는 먼저 수동으로 (기본 dev.sql)
-python -m robot --variablefile config/env/stg.py \
-    --variable DB_SEED_FILE:config/db_seed/stg.sql setup/db_seed.robot   # stg
-```
+[shared/PDB.md](shared/PDB.md) 로 옮겼다 — 접속 문자열(`PDB_CONNSTR`, 환경변수 `PG_PDB_CONNSTR`),
+두 번째 DB, 골디락스/알티베이스 함정, `config/db_seed/<env>.sql` 형식과 시드 옵션이 거기 있다.
+시드 INSERT 뒤 PG 원격 명령(`stopMP app` → `startMP app`)은 [shared/SSH.md](shared/SSH.md).
 
 ## prd 가드
 
@@ -218,7 +152,7 @@ prd 실행 전에 대상 가입자와 `--include` 태그를 반드시 확인할 
 
 ## 새 환경 추가
 
-1. `config/env/<name>.py` 생성 — dev 와 다른 값만
+1. `config/env/<name>.py` 생성 — 필수 환경값(위 "환경값은 환경 파일에만 둔다") + 기본값과 다른 값
 2. `run_tests.sh` 의 `case` 에 `<name>` 추가
 3. 이 문서에 한 줄 추가
 

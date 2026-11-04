@@ -24,10 +24,16 @@ Documentation
 ...
 ...    생략: bash run_tests.sh <대상> --no-db-seed
 ...    확인만: bash run_tests.sh <대상> --db-seed-check
+...
+...    [INSERT 후 원격 명령] INSERT 가 한 블록이라도 있었으면(DB1+DB2 합산)
+...    PG 서버(${PG_HOST})에 SSH 로 접속해 ${DB_SEED_SSH_CMDS} 를 차례로 실행하고,
+...    명령 사이에 ${DB_SEED_SSH_GAP} 만큼 쉰다. 명령이 비어 있으면 건너뛴다.
+...    명령이 실패하면 시드가 실패한다(본 실행 안 함). 끄기: --no-db-seed-ssh
 
 Resource    ../resources/variables.robot
-Library     ../resources/CdsDbHelper.py    WITH NAME    SeedDb
+Library     ../resources/PdbHelper.py    WITH NAME    SeedDb
 Library     ../resources/DbSeedHelper.py    WITH NAME    Seed
+Library     ../resources/SshHelper.py    WITH NAME    Ssh
 Library     OperatingSystem
 
 Suite Teardown    Close Seed DB Connections
@@ -52,10 +58,12 @@ DB 설정 정보 확인 및 적재
     END
     Log    [Seed] 시드 블록 ${count}건 (${DB_SEED_FILE}, 확인만=${DB_SEED_CHECK_ONLY})    console=True
     Open Seed DB Connections
-    Apply Seed Blocks    ${SEED_DB_CONN}    DB1    ${blocks}
+    ${n_ins}=    Apply Seed Blocks    ${SEED_DB_CONN}    DB1    ${blocks}
     IF    $SEED_DB_CONN_2 is not None
-        Apply Seed Blocks    ${SEED_DB_CONN_2}    DB2    ${blocks}
+        ${n_ins_2}=    Apply Seed Blocks    ${SEED_DB_CONN_2}    DB2    ${blocks}
+        ${n_ins}=    Evaluate    ${n_ins} + ${n_ins_2}
     END
+    Run Seed SSH Commands    ${n_ins}
 
 *** Keywords ***
 Open Seed DB Connections
@@ -126,6 +134,41 @@ Apply Seed Blocks
         ${n_ins}=    Evaluate    ${n_ins} + 1
     END
     Log    [Seed] 요약 (${db}) — 있음 ${n_keep} / INSERT ${n_ins} / UPDATE ${n_upd} (블록 기준)    console=True
+    RETURN    ${n_ins}
+
+Run Seed SSH Commands
+    [Documentation]
+    ...    INSERT 블록이 1건 이상이면 PG 서버에 SSH 로 ${DB_SEED_SSH_CMDS} 를 차례로
+    ...    실행한다. 명령마다 ssh 세션을 따로 열고, 명령 사이에 ${DB_SEED_SSH_GAP} 만큼
+    ...    쉰다(마지막 명령 뒤에는 쉬지 않는다). 다음 중 하나면 건너뛴다:
+    ...      · INSERT 0건  · ${DB_SEED_SSH_ENABLE}=${FALSE}  · ${DB_SEED_SSH_CMDS} 비어 있음
+    ...    명령이 실패하면 SshEnsureError 로 이 TC 가 실패한다 — 본 실행을 하지 않는다.
+    [Arguments]    ${n_ins}
+    IF    ${n_ins} == 0
+        RETURN
+    END
+    IF    not ${DB_SEED_SSH_ENABLE}
+        Log    [Seed] INSERT ${n_ins}건 — 원격 명령은 꺼져 있어 건너뜁니다 (--no-db-seed-ssh)    console=True
+        RETURN
+    END
+    ${n_cmd}=    Get Length    ${DB_SEED_SSH_CMDS}
+    IF    ${n_cmd} == 0
+        Log    [Seed] INSERT ${n_ins}건 — DB_SEED_SSH_CMDS 가 비어 있어 원격 명령을 건너뜁니다    console=True
+        RETURN
+    END
+    Log    [Seed] INSERT ${n_ins}건 — ${PG_SSH_USER}@${PG_HOST} 에 원격 명령 ${n_cmd}개 실행 (간격 ${DB_SEED_SSH_GAP})    console=True
+    FOR    ${i}    ${cmd}    IN ENUMERATE    @{DB_SEED_SSH_CMDS}    start=1
+        IF    ${i} > 1
+            Log    [Seed] ${DB_SEED_SSH_GAP} 대기    console=True
+            Sleep    ${DB_SEED_SSH_GAP}
+        END
+        Log    [Seed] SSH ${i}/${n_cmd} — ${cmd}    console=True
+        ${out}=    Ssh.Run Remote Command    ${PG_HOST}    ${PG_SSH_USER}    ${cmd}
+        ...    key_file=${PG_SSH_KEY_FILE}    timeout=${DB_SEED_SSH_TIMEOUT}
+        IF    $out
+            Log    [Seed] SSH ${i}/${n_cmd} 출력:\n${out}    console=True
+        END
+    END
 
 Execute Seed Statement
     [Documentation]

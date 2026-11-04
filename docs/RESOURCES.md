@@ -13,21 +13,23 @@ resources/<iface>_variables.robot     ← 노드별 상수 / 테스트 데이터
         │ 사용
         ▼
 resources/common_keywords.robot       ← 공용 키워드 (TXN ID, 응답 검증)
-resources/variables.robot             ← 공용 상수 (PG_HOST, Hello/Ping opcode)
-        │ 사용 (WITH NAME Tcp / Cds / CdsDb / Tlv)
+resources/ssh_keywords.robot          ← PG 프로세스 기동 보장 (.RUN touch)
+resources/variables.robot             ← 공용 변수 (Hello/Ping opcode, PDB·SBI·SSH 설정). 환경값은 없다
+        │ 사용 (WITH NAME …)
         ▼
-resources/TcpHelper.py                ← 원시 소켓 + 8옥텟 헤더
-resources/CdsHelper.py                ← 48옥텟 CDS 전문
-resources/TlvHelper.py                ← NWDAF TLV 바이너리
-resources/HttpHelper.py               ← LRS Session-Info (HTTP/XML)
-resources/CdsDbHelper.py              ← CDS PDB 조회 (ODBC/pyodbc, RTS 도 재사용)
-resources/RtsHelper.py                ← 32옥텟 RTS 전문 (로밍 데이터 차단 L1/L2)
+resources/*.py                        ← Python 헬퍼 11종 (아래 표)
 ```
 
-임포트 순서가 중요하다. `variables.robot` 이 `${PG_HOST}` 를 정의하고 노드별 변수 파일이
-이를 참조하므로 **`variables.robot` 을 항상 먼저 임포트**한다. 모든 슈트가 이 순서를 지킨다.
+임포트 순서가 중요하다. 노드별 변수 파일이 `variables.robot` 의 공용 변수(`${SBI_NOTI_PORT}` 등)와
+환경 파일의 환경값(`${PG_HOST}` 등)을 참조하므로 **`variables.robot` 을 항상 먼저 임포트**한다.
+모든 슈트가 이 순서를 지킨다.
 
-## Python 헬퍼 6종
+## Python 헬퍼 11종
+
+성격이 셋이다 — **전문 헬퍼**(PG 로 전문을 만들어 보낸다) 6종, **수신 서버**(PG 가 붙어 오는 것을
+받는다) 3종, **인프라**(DB 시드·SSH) 2종.
+
+### 전문 헬퍼
 
 | 모듈 | Robot 별칭 | 담당 | 주요 함수 |
 |---|---|---|---|
@@ -35,24 +37,32 @@ resources/RtsHelper.py                ← 32옥텟 RTS 전문 (로밍 데이터 
 | `CdsHelper.py` | `Cds` | 48옥텟 CDS 고정전문. 소켓은 `TcpHelper` 재사용 | `pack_cds_header` `parse_cds_header` `send_cds` `receive_cds` `pack_ack` `unpack_ack` `pack_command_body` `unpack_command_body` |
 | `TlvHelper.py` | `Tlv` | NWDAF TLV. 소켓까지 자체 구현 | `build_nwdaf_header` `parse_nwdaf_header` `pack_tlv` `unpack_tlv_stream` `tlv_find` `tlv_find_all` `build_common1` `build_pcef_qos_ctrl` `build_dpi_qos_ctrl` `build_enb_qos_ctrl` `build_common2` `send_nwdaf_notification` `send_nwdaf_raw` `receive_nwdaf_message` `hex_dump` |
 | `HttpHelper.py` | — | LRS Session-Info 전용 | `build_aims_req` `parse_xml_fields` `post_session_info` |
-| `CdsDbHelper.py` | `CdsDb` (RTS 는 `RtsDb`) | CDS PDB(골디락스/알티베이스) 조회 + 쓰기(세션 사전 적재 INSERT, 종료 시 정리 DELETE). ODBC. RTS 슈트도 같은 모듈을 다른 별칭으로 재사용(DSN 공유 여부는 확인 필요, `docs/nodes/RTS.md`). `${PDB_CONNSTR_2}` 로 두 번째 DB(쓰기 이중 적용)도 지원 | `masked_conn_str` `db_connect` `db_end_transaction` `db_close` `db_count` `db_group_counts` `db_execute` `session_insert_sql` `has_second_db` |
+| `PdbHelper.py` | `CdsDb` · `RtsDb` · `SeedDb` | PDB(골디락스/알티베이스) 조회 + 쓰기(세션 사전 적재 INSERT, 종료 시 정리 DELETE). ODBC. CDS·RTS·시드가 같은 모듈을 별칭만 달리 쓴다. `${PDB_CONNSTR_2}` 로 두 번째 DB 도 지원. 예외 `PdbError`(구 `CdsDbError` 별칭) | `masked_conn_str` `db_connect` `db_end_transaction` `db_close` `db_count` `db_group_counts` `db_execute` `session_insert_sql` `has_second_db` |
 | `RtsHelper.py` | `Rts` | 32옥텟 RTS 고정전문(로밍 데이터 차단 L1/L2). 소켓은 `TcpHelper` 재사용 | `pack_rts_header` `parse_rts_header` `send_rts` `receive_rts` `pack_rts_order_body` `unpack_rts_order_body` `unpack_connect_ack` `unpack_order_ack` `unpack_keepalive_ack` |
 
-`CdsDbHelper` 만 성격이 다르다 — 전문을 만들지 않고 **PG 가 DB 에 반영했는지를 본다**.
-접속 방식은 **완성 문자열 하나뿐**이다(`${PDB_CONNSTR}`, CDS·RTS 공용) — 도구가 조립하지 않는다.
-KIND/DSN/DRIVER/HOST/PORT 조립 경로는 제거했다. 골디락스는 DSN 을 `odbc.ini` 에 등록해
-두고 이름만 참조하는 것이 정석이며, 그 이유와 `IM012` 이력은
-[nodes/CDS.md](nodes/CDS.md) 에 있다.
-`pyodbc` 는 **지연 임포트**한다(모듈 최상단에 두면 pyodbc 없는 환경에서 CDS 슈트 전체가
-로드되지 않는다). 접속 문자열은 비밀번호를 담고 있어 키워드 인자로 받지 않고 환경변수
-`PG_PDB_CONNSTR` → `PG_CDS_DB_CONNSTR`(구 이름) → Robot 변수 `${PDB_CONNSTR}` 순으로 Python 이 직접 읽는다 —
-인자로 넘기면 `log.html` 의 Arguments 에 평문으로 남기 때문이다. 로그에 찍는 접속
-문자열은 항상 마스킹된다(`PWD=****`).
+`PdbHelper` 만 성격이 다르다 — 전문을 만들지 않고 **PG 가 DB 에 반영했는지를 본다**.
+접속 문자열(조립하지 않음, 비밀번호를 인자로 받지 않음, 마스킹)·함정은 [shared/PDB.md](shared/PDB.md).
+`pyodbc` 는 **지연 임포트**한다(모듈 최상단에 두면 pyodbc 없는 환경에서 슈트 전체가 로드되지 않는다).
 
-위 6종과 별개로 `DbSeedHelper.py`(`Seed`)가 있다 — 실행 전 DB 설정 시드
-(`setup/db_seed.robot`)가 `config/db_seed/<env>.sql` 을 "확인 SELECT + INSERT/UPDATE" 블록으로 나누는
-`load_seed_blocks` 와 로그용 요약 `describe_statement` 뿐이다. 접속·조회·INSERT 는 `CdsDbHelper` 를 그대로 쓴다.
-형식은 [ENVIRONMENTS.md](ENVIRONMENTS.md#실행-전-db-설정-시드-configdb_seedenvsql).
+### 수신 서버 — PG 가 도구로 붙어 온다
+
+| 모듈 | Robot 별칭 | 담당 | 주요 함수 |
+|---|---|---|---|
+| `HttpNotiServer.py` | `Noti` | PCF SBI Noti(h2c) Listen — CDS·RTS 공용. `h2` 지연 임포트 | `noti_server_start` `noti_server_stop` `noti_wait` `noti_count` `noti_list` `noti_errors` `noti_clear` `noti_wait_connection` `noti_link_report` |
+| `FtpServerHelper.py` | `Ftp` | UPM `0x0c` fileinfo 에 대응하는 FTP 수신 서버(`pyftpdlib`). `use_sftp=True` 면 아래 SFTP 서버를 대신 띄운다 | `ftp_server_start` `ftp_server_stop` `ftp_wait` `ftp_count` `ftp_list` `ftp_errors` `ftp_clear` |
+| `SftpServerHelper.py` | (직접 import 안 함) | SFTP 수신 서버(`paramiko`). `FtpServerHelper` 가 파일 경로로 로드한다 — 이름 import 가 실환경에서 `ModuleNotFoundError` 였다 | `SftpServer.start` `stop` `files` `errors` |
+
+LRS 8890 곁채널 Listen 은 별도 모듈이 아니라 `TcpHelper` 의 서버 모드(`server_start`/`server_accept`)다.
+SBI Noti 상세는 [shared/SBI_NOTI.md](shared/SBI_NOTI.md).
+
+### 인프라
+
+| 모듈 | Robot 별칭 | 담당 | 주요 함수 |
+|---|---|---|---|
+| `DbSeedHelper.py` | `Seed` | 실행 전 DB 설정 시드 — `config/db_seed/<env>.sql` 을 "확인 SELECT + INSERT/UPDATE" 블록으로 나누고 `${변수}` 를 Robot 변수 값으로 치환한다. 접속·실행은 `PdbHelper` | `load_seed_blocks` `describe_statement` `describe_check` |
+| `SshHelper.py` | `Ssh` | 시스템 `ssh` 호출 — `.RUN` touch, 시드 후속 명령. 비밀번호는 `SSH_ASKPASS` 로 주입 | `ensure_pg_process_running` `run_remote_command` |
+
+시드 형식은 [shared/PDB.md](shared/PDB.md#실행-전-db-설정-시드-configdb_seedenvsql), SSH 는 [shared/SSH.md](shared/SSH.md).
 
 **Body 인코딩이 3계열로 갈리는 게 이 리포의 핵심 복잡도다.** JSON(NAG/PCF/UPM) /
 고정길이 ASCII(LRS 8890 채널) / TLV 바이너리(NWDAF) / 48B 고정전문(CDS).
@@ -75,13 +85,17 @@ KIND/DSN/DRIVER/HOST/PORT 조립 경로는 제거했다. 골디락스는 DSN 을
 
 ## `variables.robot`
 
-공용 단일 소스. **값 변경은 TC 가 아니라 이 파일에서 한다.**
+공용 단일 소스. **값 변경은 TC 가 아니라 이 파일(또는 환경 파일)에서 한다.**
 
-- **환경 축 변수** — `${PG_HOST}`, 가입자(`${SUBS_MDN_LTE}` 등), 망 데이터(`${NET_CELL_ID}` 등).
-  노드별 변수 파일이 이를 **참조만** 하므로 여기 하나를 바꾸면 관련 노드 전부에 전파된다.
-  **여기 두는 기준은 "두 노드 이상이 공유하는 값"** 이다. 한 노드 전용 환경 값은 해당
-  `<iface>_variables.robot` 에 값을 직접 둔다(예: CDS 가입자 `${CDS_MDN}`).
-  환경별 오버라이드는 [ENVIRONMENTS.md](ENVIRONMENTS.md) 참조
+- **환경 축 변수** — `${PG_HOST}`, `${TOOL_HOST}`, `${PDB_CONNSTR}`, 가입자(`${SUBS_MDN_LTE}` 등)는
+  **이름만 공용이고 값은 `config/env/<env>.py` 에만 있다**(이 파일엔 기본값이 없다).
+  망 데이터(`${NET_CELL_ID}` 등)는 여기 기본값이 있다. 노드별 변수 파일이 이를 **참조만**
+  하므로 하나를 바꾸면 관련 노드 전부에 전파된다. **기준은 "두 노드 이상이 공유하는 값"** 이다.
+  한 노드 전용 값은 해당 `<iface>_variables.robot` 에 직접 둔다(예: CDS 가입자 `${CDS_MDN}`).
+  규칙과 구 이름 대응표는 [ENVIRONMENTS.md](ENVIRONMENTS.md)
+- **공용 설정** — PDB(`${PDB_TIMEOUT}` `${PDB_AUTOCOMMIT}` `${PDB_CONNSTR_2}`),
+  SBI Noti(`${SNOTI_PCF_NOTI}` `${SBI_NOTI_PORT}` `${SBI_NOTI_HOST}`), SSH(`${PG_SSH_*}`),
+  시드(`${DB_SEED_*}`)
 - `${MSG_HELLO_REQ}`(0x01) / `${MSG_HELLO_RESP}`(0x02) / `${MSG_PING_REQ}`(0x03) /
   `${MSG_PING_RESP}`(0x04) — 여기 있는 4개만 노드 공용이다
 

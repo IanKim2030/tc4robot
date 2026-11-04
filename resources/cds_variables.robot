@@ -59,8 +59,8 @@ ${CDS_UPM_VERIFY}         ${TRUE}          # 1X/1Y → UPM Subs-Info(0x07/0x08) 
 #
 # ★ PG 가 이 주소로 보내도록 설정돼 있어야 한다. 포트가 다르면 여기서 맞출 것.
 #   LTE 가입자는 SBI 가 아니라 RBUS 라 아무것도 안 들어온다(docs/nodes/CDS.md).
-${CDS_NOTI_PORT}          16101            # 도구가 Listen 할 포트 (PG 설정과 일치해야 함)
-${CDS_NOTI_HOST}          0.0.0.0          # 모든 인터페이스 Listen
+${CDS_NOTI_PORT}          ${SBI_NOTI_PORT}   # 공용값(variables.robot, 16101) — RTS 와 같은 서버
+${CDS_NOTI_HOST}          ${SBI_NOTI_HOST}   # 모든 인터페이스 Listen
 ${CDS_NOTI_WAIT}          30s              # Noti 도착 대기 시간
 
 # ── PG 의 PCF SBI 접속 대기 (기본 꺼짐) ─────────────────────────
@@ -168,8 +168,8 @@ ${CDS_SESSION_SM_POLICY_ID}    01010101000-02-1734647401033301310030053503330333
 #   (${CDS_NOTI_PORT}=16101). PG 는 이 URI 를 보고 붙으므로, 여기가 틀리면
 #   Suite Setup 의 PCF SBI 접속 대기가 그대로 타임아웃된다.
 #   ${CDS_NOTI_HOST}(0.0.0.0)는 bind 주소라 못 쓴다 — PG 에서 **닿는** 주소여야 한다.
-${CDS_SESSION_PCF_ADDR}   192.168.15.142:${CDS_NOTI_PORT}   # 도구(PCF 역할)가 보이는 주소
-${CDS_SESSION_SMF_ADDR}   192.168.15.142:80                 # NOTI_URI 쪽(SMF 상태 통보)
+${CDS_SESSION_PCF_ADDR}   ${TOOL_HOST}:${CDS_NOTI_PORT}   # 도구(PCF 역할)가 보이는 주소
+${CDS_SESSION_SMF_ADDR}   ${TOOL_HOST}:80                 # NOTI_URI 쪽(SMF 상태 통보)
 
 ${CDS_SESSION_RES_URI}
 ...    http://${CDS_SESSION_PCF_ADDR}/npcf-smpolicycontrol/v1/sm-policies/${CDS_SESSION_SM_POLICY_ID}
@@ -512,11 +512,13 @@ ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      #
 # ★ 접속 문자열은 여기 없다 — variables.robot 의 ${PDB_CONNSTR} 하나다.
 #   RTS 와 같은 DB 라 두 벌로 두면 한쪽만 고쳐 어긋난다.
 
-${CDS_DB_TIMEOUT}         5               # 접속·쿼리 타임아웃(초)
+# 기본값은 공용 ${PDB_TIMEOUT} / ${PDB_AUTOCOMMIT}(variables.robot)이다.
+# 구 이름으로 덮어도 계속 먹는다(예: --variable CDS_DB_TIMEOUT:10).
+${CDS_DB_TIMEOUT}         ${PDB_TIMEOUT}      # 접속·쿼리 타임아웃(초)
 
 # 트랜잭션 자동 커밋. **기본은 끔(${FALSE})**
-# 나중에 TC가 끝나면 Rollback 할지 결정 필요 
-${CDS_DB_AUTOCOMMIT}      ${FALSE}
+# 나중에 TC가 끝나면 Rollback 할지 결정 필요
+${CDS_DB_AUTOCOMMIT}      ${PDB_AUTOCOMMIT}
 
 # ── 조회 동작 ────────────────────────────────────────────────────
 # 환경변수 : export GOLDILOCKS_HOME=/PG/goldilocks_home

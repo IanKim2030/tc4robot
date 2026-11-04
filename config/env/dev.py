@@ -14,6 +14,7 @@ git 에 들어 있다(다른 환경 파일은 .gitignore) — 원격 시험 호�
 
 # ── 접속 ─────────────────────────────────────────────────────────
 PG_HOST = '192.168.15.141'      # 모든 노드가 상속하는 기본 호스트
+TOOL_HOST = '192.168.15.142'    # 도구가 도는 호스트 — PG 가 되돌아 접속하는 주소(SBI Noti 등)
 
 # 노드별 호스트가 갈릴 때만 개별 지정 (기본은 PG_HOST 상속)
 # CDS_PG_HOST      = '...'
@@ -71,6 +72,8 @@ RTS_MDN              = CDS_MDN           # RTS 로밍 데이터 차단 (${RTS_TE
 NAG_MDN              = '01090030001'   # HFC 가입
 NAG_MDN_NO_HFC       = '01090030002'   # HFC 미가입
 NAG_MDN_NO_SESSION   = '01090030003'   # 세션 없음
+NAG_MIN              = NAG_MDN[1:]          # db_seed/dev.sql 세션 MSISDN 등에 쓴다
+NAG_MIN_NO_HFC       = NAG_MDN_NO_HFC[1:]
 NAG_MOBILE_IP        = '2001:0d88:131f:0000::/64'   # NAG LTE 세션 IMSI 45005+1090020001
 
 PCF_MDN              = NAG_MDN         
@@ -88,12 +91,13 @@ NWDAF_MIN_5G         = NWDAF_MDN_5G[1:]
 
 
 # UPM
-UPM_MDN              = '01090050001'   # UPM FTP 업로드용 가입자 번호 
+UPM_MDN              = '01090050001'   # UPM FTP 업로드용 가입자 번호
+UPM_MIN              = UPM_MDN[1:]     # db_seed/dev.sql 세션 MSISDN 등에 쓴다
 
 UPM_BRANCH_NAME      = 'SS'
 UPM_FTP_PORT         = 2222
 UPM_FTP_USER         = 'ncnalarm'
-UPM_FTP_PASSWORD     = 'test123'
+UPM_FTP_PASSWORD     = 'upm?4321?'
 UPM_FTP_HOME_DIR     = '/home/kky/FTP'
 #UPM_SYS_ID           = 'UPM-R1'    # FTP SYSID
 #UPM_FTP_REMOTE_PATH  = '/UPM-R1'
@@ -102,12 +106,14 @@ UPM_SYS_ID           = 'UPM-R2'    # SFTP SYSID
 UPM_FTP_REMOTE_PATH  = '/UPM-R2'
 UPM_FTP_USE_SFTP     = True   # or True
 
+
 # ── 가입자 데이터 (공용 축) ──────────────────────────────────────
 # 위 노드별 번호의 기본값이 상속하는 값. 노드별로 갈리면 위 *_MDN 을 쓴다.
-# SUBS_MDN_LTE         = '01020300553'   # NAG/PCF/LRS/NWDAF 기본
-# SUBS_MIN_LTE         = '1020300553'
-# SUBS_MDN_5G          = '01093742433'
-# SUBS_MIN_5G          = '1093742433'
+# ★ 필수 — variables.robot 에 기본값이 없다(환경값은 환경 파일에만 둔다).
+SUBS_MDN_LTE         = '01020300553'   # NAG/PCF/LRS/NWDAF 기본
+SUBS_MIN_LTE         = '1020300553'
+SUBS_MDN_5G          = '01093742433'
+SUBS_MIN_5G          = '1093742433'
 # SUBS_MDN_NO_HFC      = '00000000000'   # HFC 미가입 → code 402
 # SUBS_MDN_NO_SESSION  = '99999999999'   # 세션 없음 → code 403
 
@@ -135,39 +141,20 @@ UPM_FTP_USE_SFTP     = True   # or True
 # CDS_DEVICE_TYPE      = '...'   # devceType(1)     W=3G L=LTE N=NSA S=SA
 # CDS_PROD_TYPE        = '...'   # produGenType(2)  01=3G 02=LTE 03=5G
 
-# ── CDS PDB 조회 (전문 반영 판정, TC-CDS-002) ────────────────────
-# 대상 DB 는 환경에 따라 골디락스 또는 알티베이스다.
-# 접속 방식 3가지 중 **하나만** 채운다 (우선순위: CONNSTR > DSN > DRIVER/HOST/PORT).
-# CDS_DB_KIND     = 'goldilocks'   # goldilocks | altibase — 세 방식 모두에서 필요
-#
-# 2) DSN 방식 (골디락스 권장) — odbc.ini / ODBC 데이터 원본 관리자에 등록된 이름
-# CDS_DB_DSN      = 'PDB'
-#
-# 3) DSN-less — DSN 없이 직접 조립
-# CDS_DB_DRIVER   = '/PG/goldilocks_home/lib/libgoldilockscs-ul64.so'
-# CDS_DB_HOST     = '192.168.15.185'
-# CDS_DB_PORT     = '22581'
-# CDS_DB_NAME     = 'PDB'
-#
-# 공용
-# CDS_DB_USER     = '...'          # odbc.ini 에 UID 가 있으면 DSN 방식에선 생략 가능
-# CDS_DB_PASSWORD = '...'          # ★ 여기 적지 말고 환경변수 PG_CDS_DB_PASSWORD 권장
-# CDS_DB_EXTRA    = '...'          # 덧붙일 키워드. 비우면 종류별 기본값(골디락스 CHARSET=UHC)
-#
-# 1) 최종 우회 — 이 값이 있으면 위 값은 전부 무시된다
-# PDB_CONNSTR     = 'DSN=PDB;UID=pdb;PWD=...;'   # CDS·RTS 공용
-PDB_CONNSTR       = 'DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;'
+# ── PDB 접속 (CDS · RTS · 시드 공용) ─────────────────────────────
+# 완성된 ODBC 문자열을 통째로 준다 — 도구가 조립하지 않는다(예전 CDS_DB_KIND/DSN/
+# HOST/... 조립 변수는 제거됐다). 비밀번호를 파일에 안 두려면 환경변수 PG_PDB_CONNSTR.
+#   DSN 방식      : 'DSN=PDB;UID=pdb;PWD=...;'
+#   DSN-less 방식 : 'DRIVER=<.so 절대경로>;HOST=...;PORT=...;UID=...;PWD=...;CHARSET=UHC;'
+PDB_CONNSTR       ='DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;'
 
 # 두 번째 DB (선택) — CDS 세션 사전 적재만 두 DB 모두에 넣고 싶을 때(예: 골디락스+
-# 알티베이스 이중화). 비우면(기본) 한 DB에만 넣는다. docs/nodes/CDS.md "두 번째 DB" 절.
+# 알티베이스 이중화). 비우면(기본) 한 DB에만 넣는다. docs/shared/PDB.md "두 번째 DB" 절.
 # PDB_CONNSTR_2   = 'Server=...;PORT=...;DBName=...;UID=...;PWD=...;'   # 알티베이스 예시
 
-# CDS_DB_TIMEOUT  = 10             # 접속·쿼리 타임아웃(초)
+# PDB_TIMEOUT     = 10             # 접속·쿼리 타임아웃(초) — 구 이름 CDS_DB_TIMEOUT 도 먹는다
 #
-# 조회 동작 — 드라이버가 `?` 바인딩/와이드 문자를 못 받을 때 쓴다
-# CDS_DB_BIND     = 'auto'         # auto | param | literal
-# CDS_DB_ENCODING = 'utf-8'        # ★ 비우지 말 것 — 비우면 pyodbc 가 와이드(UTF-16)로
-#                                  #   보내는데 두 DB 드라이버가 이를 못 받는 경우가 있다
+# CDS 반영 판정
 # CDS_DB_WAIT     = '30s'          # 반영 대기 (SDM 폴링이 늦을 수 있다)
 # CDS_DB_WAIT_INTERVAL = '2s'
 # CDS_DB_TBL_PROFILE = 'T_5G_SUBS_PROFILE'
@@ -182,6 +169,12 @@ PDB_CONNSTR       = 'DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST
 # NET_SI_FROM_IP   = '112.172.129.68'    # PG 에 등록된 IP 여야 함 (아니면 403)
 
 PG_SSH_USER        = 'pg'
+
+# DB 시드가 INSERT 를 1건 이상 했을 때 PG 서버에 SSH 로 차례로 실행할 명령
+# (명령 사이 DB_SEED_SSH_GAP 대기). 비우면 건너뛴다 — variables.robot 참조.
+# PG 가 새로 넣은 설정 행을 다시 읽게 app 을 내렸다 올린다.
+DB_SEED_SSH_CMDS   = ['stopMP app', 'startMP app']
+DB_SEED_SSH_GAP    = '5s'
 
 # CDS / RTS — 대상 번호는 위 "노드별 대상 번호" 절로 옮겼다.
 #CDS_NOTI_PORT      = 11301

@@ -125,8 +125,8 @@ ${RTS_DB_SQL_DELETE_PROFILE}
 # 켜고 끄는 손잡이는 **공용**이다 — variables.robot 의 ${SNOTI_PCF_NOTI}.
 # 아래 대기 시간만 RTS 가 따로 쥔다(CDS 보다 짧다).
 # ════════════════════════════════════════════
-${RTS_NOTI_HOST}              0.0.0.0          # bind 주소 — PG 에서 닿는 주소가 아니다
-${RTS_NOTI_PORT}              16101            # CDS 의 ${CDS_NOTI_PORT} 와 동일값 (같은 서버를 쓴다)
+${RTS_NOTI_HOST}              ${SBI_NOTI_HOST}   # bind 주소 — PG 에서 닿는 주소가 아니다
+${RTS_NOTI_PORT}              ${SBI_NOTI_PORT}   # 공용값(variables.robot, 16101) — CDS 와 같은 서버
 ${RTS_NOTI_WAIT}              12s              # Noti 도착 대기 시간
 ${RTS_NOTI_MONITOR_INTERVAL}  1s
 

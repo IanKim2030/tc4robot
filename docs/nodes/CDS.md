@@ -353,13 +353,13 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?
 | 항목 | 내용 |
 |---|---|
 | 대상 DB | 환경에 따라 **골디락스** 또는 **알티베이스** |
-| 드라이버 | ODBC (`pyodbc`). `resources/CdsDbHelper.py` 가 직접 쓴다 — `DatabaseLibrary` 는 쓰지 않는다 |
+| 드라이버 | ODBC (`pyodbc`). `resources/PdbHelper.py`(공용, [shared/PDB.md](../shared/PDB.md)) 가 직접 쓴다 — `DatabaseLibrary` 는 쓰지 않는다 |
 | 접속 방식 | **완성된 ODBC 문자열 하나뿐** — `${PDB_CONNSTR}`(RTS 와 공용). 도구가 조립하지 않는다 |
 | 비밀번호 | 접속 문자열 안에. 환경변수 `PG_PDB_CONNSTR`(구 `PG_CDS_DB_CONNSTR` 폴백) 우선, 없으면 `${PDB_CONNSTR}` |
-| 두 번째 DB (선택) | `${PDB_CONNSTR_2}`(환경변수 `PG_PDB_CONNSTR_2`)를 채우면 **쓰기(세션 사전 적재 + 종료 시 정리)** 를 두 DB 모두에 한다(골디락스+알티베이스 이중화 환경 대응). 비어 있으면(기본) 한 DB만 쓴다. 조회·판정은 항상 첫 번째 DB 기준 — 아래 "두 번째 DB — 쓰기(세션 적재 + 종료 시 정리)만 이중 적용한다" 절 |
+| 두 번째 DB (선택) | `${PDB_CONNSTR_2}`(환경변수 `PG_PDB_CONNSTR_2`)를 채우면 **쓰기(세션 사전 적재 + 종료 시 정리)** 를 두 DB 모두에 한다(골디락스+알티베이스 이중화 환경 대응). 비어 있으면(기본) 한 DB만 쓴다. 조회·판정은 항상 첫 번째 DB 기준 — [shared/PDB.md](../shared/PDB.md#두-번째-db--pdb_connstr_2) |
 | 세션 DB 별 on/off (선택) | `${CDS_SESSION_DB1}`/`${CDS_SESSION_DB2}`(둘 다 기본 `${TRUE}`). `T_SMF_SESSION_INFO` 의 INSERT/DELETE 만 DB1/DB2 각각 따로 끌 수 있다(PROFILE/SERVICE 는 영향 없음). `--no-session-db1`/`--no-session-db2` |
 | 접속 시점 | **Suite Setup**(`Suite CDS Connect`)에서 소켓에 이어 1회. DB 가 안 붙으면 전문 송수신 TC 까지 포함해 슈트 전체가 서지 않는다 |
-| 트랜잭션 | `autocommit` **끔**(`${CDS_DB_AUTOCOMMIT}`=`${FALSE}`). 조회 직전마다 rollback — 아래 절 |
+| 트랜잭션 | `autocommit` **끔**(`${CDS_DB_AUTOCOMMIT}` ← 공용 `${PDB_AUTOCOMMIT}`=`${FALSE}`). 조회 직전마다 rollback — [shared/PDB.md](../shared/PDB.md#함정--autocommitfalse-는-재조회를-무력화할-수-있다) |
 | 종료 시 정리 (선택) | `${CDS_CLEANUP_ON_TEARDOWN}`(기본 `${TRUE}`). Suite Teardown 에서 두 대상 번호의 `T_5G_SUBS_PROFILE`/`T_5G_SUBS_SERVICE`/`T_SMF_SESSION_INFO` 를 지운다(예약 큐만 그대로 둔다) — 아래 "종료 시 정리" 절. 끄려면 `--no-cleanup` |
 | 종료 | `Suite CDS Disconnect` (해제 → 종료 시 정리 → PDB 접속 종료) |
 | 반영 대기 | `${CDS_DB_SETTLE}`(1s) 쉰 뒤, `${CDS_DB_WAIT}`(30s) 동안 `${CDS_DB_WAIT_INTERVAL}`(2s) 간격 재조회 |
@@ -400,52 +400,10 @@ Verify Zone Service Subscribed In PDB    ${CDS_MDN}    settle=10s
 
 `settle=0` 이면 쉬지 않고 곧바로 조회한다.
 
-#### 접속 문자열 — 조립하지 않는다
+#### 접속 문자열 · 두 번째 DB — 공용 문서로 옮겼다
 
-`${PDB_CONNSTR}` 에 완성된 ODBC 문자열을 넣으면 **그대로** `pyodbc` 로 간다.
-DSN 을 `odbc.ini`(Linux) / ODBC 데이터 원본 관리자(Windows)에 등록해 두고 이름만
-참조하는 것이 골디락스 정석이다.
-
-```python
-PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'
-```
-
-`${CDS_DB_KIND}` `${CDS_DB_DSN}` `${CDS_DB_DRIVER}` `HOST`/`PORT`/`NAME`/`USER`/
-`PASSWORD`/`EXTRA` 로 **조립하던 경로는 제거했다.** 조립 로직(`_KIND_SPEC`,
-`build_conn_str`, `_fmt_driver`)도 함께 없앴다. 골디락스에서 DSN-less 조립이 거부됐고
-(아래 절), 실환경 `odbc.ini` 에 문자열로 옮기기 번거로운 항목이 있어 결국 전부 DSN
-등록 + 완성 문자열로 수렴했기 때문이다.
-
-DB 마다 키워드 표기가 다르다는 사실 자체는 **여전히 유효하다** — 이제 문자열을 직접
-쓰는 사람이 알아야 한다.
-
-| 항목 | 골디락스 | 알티베이스 |
-|---|---|---|
-| 호스트 | `HOST` | `Server` |
-| 포트 | `PORT` | `PORT` |
-| DB 이름 | `DATABASE` | `DBName` |
-| 계정 / 비밀번호 | `UID` / `PWD` | `UID` / `PWD` |
-
-골디락스 값은 실환경 `odbc.ini` 실측(2026-08-06)이고 **알티베이스 값은 아직 미검증**이다.
-
-#### 두 번째 DB — 쓰기(세션 적재 + 종료 시 정리)만 이중 적용한다
-
-환경에 따라 골디락스·알티베이스를 **둘 다** 두고 세션 정보(`T_SMF_SESSION_INFO`)를
-양쪽에 넣어야 하는 경우와, DB 한 곳만 있는 경우가 섞여 있다. `${PDB_CONNSTR_2}`
-(환경변수 `PG_PDB_CONNSTR_2`, 레거시 폴백 없음)를 채우면 `Ensure CDS Session In PDB`
-(세션 사전 적재)와 `Cleanup CDS Subscriber Rows`(아래 절, 종료 시 정리)가
-`${CDS_DB_CONN}`(첫 번째)과 `${CDS_DB_CONN_2}`(두 번째) **양쪽에 같은 SQL** 을
-실행한다. 비어 있으면(기본) 첫 번째 DB에만 적용한다 — 기존 동작 그대로다.
-
-```python
-# config/env/<env>.py
-PDB_CONNSTR   = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'        # 골디락스
-PDB_CONNSTR_2 = 'Server=...;PORT=...;DBName=...;UID=...;PWD=...'  # 알티베이스
-```
-
-★ **이중 적용 대상은 쓰기(INSERT/DELETE) 뿐이다.** 가입자 프로파일/서비스 반영 판정
-(`Verify Subscriber Provisioned In PDB` 등 `SELECT` 계열)은 여전히 **첫 번째 DB만** 본다
-— PG.SDM 이 어느 DB를 반영 대상으로 보는지는 하나로 고정돼 있다는 전제다.
+접속 문자열(조립하지 않는다), DB 별 키워드 표기, `${PDB_CONNSTR_2}` 이중 적용은
+[shared/PDB.md](../shared/PDB.md) 에 있다. 아래는 CDS 에만 있는 세션 토글과 종료 시 정리다.
 
 #### 세션 테이블만 DB 별로 따로 끄기 — `${CDS_SESSION_DB1}` / `${CDS_SESSION_DB2}`
 
@@ -495,162 +453,10 @@ bash run_tests.sh cds --no-cleanup    # 껐다(전체) — 기존처럼 행이 �
 bash run_tests.sh cds --no-session-db2   # 세션만 DB2 에서 안 지움(PROFILE/SERVICE 는 그대로)
 ```
 
-#### 함정 — 골디락스 DSN-less 는 `IM012` 로 거부됐다
+#### PDB 함정 — 공용 문서로 옮겼다
 
-```
-DRIVER={/PG/goldilocks_home/lib/libgoldilockscs-ul64.so};SERVER=...;PORT=22581;...
-→ IM012 [SUNJESOFT][ODBC][GOLDILOCKS]DRIVER keyword syntax error (19043)
-```
-
-두 가지가 겹쳐 있었다. **DSN 없이 문자열을 직접 쓸 때 그대로 적용된다.**
-
-1. **`.so` 경로에 중괄호를 붙이면 안 된다.** ODBC 표준은 `DRIVER={이름}` 이지만 GOLDILOCKS
-   드라이버 매니저가 이를 거부한다. 경로는 맨몸으로 쓰고, 드라이버 '이름'일 때만 감싼다
-   (이름에는 공백이 흔해 중괄호가 필요하다).
-2. **호스트 키워드가 `SERVER` 가 아니라 `HOST`** 다 (`odbc.ini` 실측).
-
-둘을 알고도 **골디락스는 DSN 등록이 정석**이다. 실환경 `odbc.ini` 에
-`ALTERNATE_SERVERS`(186~188 폴백) · `LOCALITY_AWARE_TRANSACTION` · `LOCATOR_DSN` 이
-들어 있어 접속 문자열로 그대로 옮기기 번거롭기 때문이다. 스탠자 전문은
-`cds_variables.robot` 의 PDB 절 주석에 남겨 뒀다. 조립 경로를 지우고 완성 문자열
-하나만 남긴 것도 이 결론의 연장이다.
-
-#### 함정 — `?` 바인딩이 진단 없이 죽는다
-
-접속이 붙은 뒤 조회에서 다음이 나왔다(골디락스, 2026-08-06).
-
-```
-('HY000', 'The driver did not supply an error!')
-sql=SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN = ?  params=('01090010001',)
-```
-
-**주 원인은 문자 인코딩이다.** 골디락스·알티베이스 ODBC 드라이버는 유니코드
-(`SQL_WVARCHAR`) 바인딩을 지원하지 않는 경우가 있는데, pyodbc 는 기본적으로 문자열을
-와이드로 보낸다. 두 번째 요인은 바인딩 자체다 — pyodbc 는 `?` 를 바인딩할 때
-`SQLDescribeParam` 으로 파라미터 타입을 묻는데, 이를 구현하지 않은 드라이버에서는
-역시 진단 없이 SQL_ERROR 만 돌아온다.
-
-**현재 대응은 접속 문자열의 `CHARSET=` + `?` 바인딩 고정이다.**
-
-| 요인 | 예전 | 지금 |
-|---|---|---|
-| 문자 인코딩 | `${CDS_DB_ENCODING}`(기본 `utf-8`) → `conn.setencoding` / `setdecoding` | **`${PDB_CONNSTR}` 의 `CHARSET=`** (골디락스는 `UHC`). 변수·코드 모두 제거 |
-| 파라미터 바인딩 | `${CDS_DB_BIND}` 로 `auto`/`param`/`literal` 선택, 리터럴 폴백 있음 | **`?` 고정**(`param` 상당). `setinputsizes` 로 `SQLDescribeParam` 회피. 모드 선택·리터럴 경로 제거 |
-
-★ **둘은 같은 것이 아니다.** `CHARSET=` 은 **드라이버**가 서버와 주고받는 문자셋이고,
-`setencoding` 은 **pyodbc** 가 Python `str` 을 어느 SQL 타입으로 바인딩하는지다.
-`CHARSET=` 만으로 이 HY000 이 안 나는지는 **실환경에서 확인해야 한다** — 리터럴 폴백이
-없으므로 재발하면 조회가 그대로 실패한다. 그때 pyodbc 쪽을 되살리려면 `db_connect` 의
-`pyodbc.connect(...)` 직후에 세 줄을 넣으면 된다.
-
-```python
-conn.setencoding(encoding='utf-8')
-conn.setdecoding(pyodbc.SQL_CHAR,  encoding='utf-8')
-conn.setdecoding(pyodbc.SQL_WCHAR, encoding='utf-8')
-```
-
-(PG 참조 샘플은 두 DB 모두에 이 설정을 무조건 적용한다.)
-
-#### 함정 — 알티베이스는 host variable 을 `SELECT` 목록에 놓으면 거부한다 (2026-09-30)
-
-세션 사전 적재(`Ensure CDS Session In PDB`)를 알티베이스(DB2)에 실행하면 다음이 났다.
-
-```
-('HY000', "[HY000] Invalid use of host variables \n0001 : INSERT INTO T_SMF_SESSION_INFO (...)
-SELECT ?, ?, 2, ?, ?, ?, '5g.sktelecom.com', ... FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM T_SMF_SESSION_INFO WHERE SM_POLICY_ID = ?)")
-```
-
-**원인**: 예전 `session_insert_sql()`은 `INSERT INTO ... SELECT ?, ?, ... FROM DUAL
-WHERE NOT EXISTS (...)` 한 문장으로 멱등(같은 `SM_POLICY_ID`면 0행)을 DB 안에서
-보장했다. 바인드 파라미터(`?`, 알티베이스 용어로 host variable)가 `WHERE SM_POLICY_ID
-= ?` 처럼 **실제 컬럼과 비교되는 자리**면 문제없지만(이 리포의 다른 모든 `?` 바인딩이
-이 형태다), `SELECT ?, ?, ... FROM DUAL` 처럼 **컬럼 없는 `DUAL` 의 SELECT 목록에
-바로 놓인 `?`**는 컴파일러가 타입을 정할 근거가 없다. 골디락스는 관대하게 받아주지만
-알티베이스는 컴파일 단계에서 거부한다.
-
-`_try_setinputsizes`(클라이언트가 드라이버에 타입을 미리 알려 `SQLDescribeParam` 호출을
-피하는 장치, 위 절 참조)로는 못 고친다 — 이건 **서버(알티베이스)의 SQL 컴파일 거부**라
-클라이언트 힌트가 닿지 않는다.
-
-**대응**: 멱등 판단을 SQL 밖(Robot 키워드)으로 옮겼다. `session_insert_sql()`은 이제
-`WHERE NOT EXISTS` 없는 평범한 `INSERT INTO ... VALUES (...)` 만 만들고(모든 `?` 가
-INSERT 대상 컬럼과 위치대로 짝지어져 타입 추론이 명확하다), `cds_keywords.robot` 의
-`Insert CDS Session Row` 가 실행 전에 `SELECT COUNT(*) ... WHERE SM_POLICY_ID = ?`
-로 먼저 존재를 확인하고 없을 때만 INSERT 한다.
-
-#### 함정 — 같은 HY000 인데 원인이 다르다 (2026-08-18)
-
-위 증상이 **글자 하나 다르지 않게** 재발했다. 그런데 원인은 바인딩도 인코딩도 아니었다.
-**`?` 를 쓰지 않는 `SELECT 1` 조차 같은 에러로 죽었다** — 즉 문장이 하나도 실행되지 않는
-상태였고, 바인딩을 아무리 손봐도 고쳐지지 않았을 것이다.
-
-진짜 메시지는 접속 문자열에서 **`CHARSET=` 을 빼자** 나왔다.
-
-```
-('HY000', '[SUNJESOFT][ODBC][GOLDILOCKS]failed to open library
-          (libgoldilockscvtUHC_64.so)\n (11087) (SQLExecDirectW)')
-```
-
-★ **`CHARSET=` 이 있으면 골디락스가 진단 레코드를 삼킨다.** 이게 이 함정의 핵심이다 —
-"진단 없는 HY000" 을 만나면 **가장 먼저 `CHARSET=` 을 빼고 한 번 돌려 볼 것.** 그러면
-드라이버가 진짜 원인을 말해 준다. 2026-08-06 건도 같은 이유로 원인이 안 보였을 수 있다.
-
-원인은 환경이었다. 드라이버 본체는 `DRIVER=` 의 절대경로로 로드되지만,
-**문자셋 변환 라이브러리는 런타임에 이름만으로 `dlopen`** 되므로 탐색 경로에 있어야 한다.
-
-```
-LD_LIBRARY_PATH = /opt/gcc-8.3.0/lib64:/lib:      ← $GOLDILOCKS_HOME/lib 이 없다
-GOLDILOCKS_HOME = (설정 안 됨)
-```
-
-그래서 **접속(`pyodbc.connect`)과 `getinfo` 는 성공하는데 SELECT 만 전부 실패한다.**
-접속이 됐다고 조회가 되는 것이 아니다 — 진단할 때 이 둘을 나눠 볼 것.
-
-조치:
-
-```bash
-export GOLDILOCKS_HOME=/PG/goldilocks_home
-export LD_LIBRARY_PATH=$GOLDILOCKS_HOME/lib:$LD_LIBRARY_PATH
-```
-
-`run_tests.sh` 가 이미 넣어 준다(이미 설정돼 있으면 건드리지 않는다).
-**`robot` 을 직접 부르면 셸에서 먼저 export 해야 한다.**
-Python 안에서 `os.environ` 으로 넣는 것은 소용없다 — glibc 가 프로세스 시작 시점에
-`LD_LIBRARY_PATH` 를 읽어 두기 때문에 **robot 을 띄우기 전**이어야 한다.
-
-##### 원인을 가르는 순서
-
-| 검사 | 실패하면 |
-|---|---|
-| `pyodbc.connect` | 호스트·포트·계정·드라이버 파일 경로 |
-| `getinfo(SQL_DBMS_NAME)` | 위와 같음 (여기까지 되면 접속은 정상이다) |
-| `SELECT 1 FROM DUAL` | **환경** — 변환 라이브러리, `LD_LIBRARY_PATH` |
-| `SELECT COUNT(*) FROM <표>` (파라미터 없이) | 테이블·권한·스키마 |
-| `... WHERE MDN = ?` | 비로소 **바인딩** (`SQLDescribeParam`) |
-
-위에서부터 하나씩 좁히면 바인딩을 의심할 자리가 마지막이라는 것이 드러난다.
-`CHARSET=` 을 뺀 접속을 한 벌 더 두고 비교하는 것도 잊지 말 것.
-
-#### 함정 — `autocommit=False` 는 재조회를 무력화할 수 있다
-
-`autocommit` 은 **꺼져 있다**(`${CDS_DB_AUTOCOMMIT}` 기본 `${FALSE}`, PG 참조 샘플과 동일).
-이 헬퍼는 조회만 하므로 커밋할 것이 없지만, **끈 상태에서는 `SELECT` 도 트랜잭션을 연다.**
-`Verify Subscriber Provisioned In PDB` 는 30초간 재조회하는데, 그 트랜잭션을 그대로 두면
-재조회가 **첫 조회의 스냅샷에 갇혀 SDM 이 나중에 반영한 행을 영영 못 본다** — 재시도가
-통째로 무력화된다.
-
-그래서 `db_count` 는 조회 직전마다 `db_end_transaction(conn)` 으로 트랜잭션을 끊는다.
-
-```python
-def db_end_transaction(conn):
-    if conn is None or getattr(conn, 'autocommit', True):
-        return            # autocommit 이면 열린 트랜잭션이 없다
-    conn.rollback()       # 되돌릴 변경이 없다 — 새 스냅샷을 뜨는 것이 목적
-```
-
-**autocommit 을 끈 채 이 rollback 을 빼면 증상이 바로 재현된다.** 반대로 `${TRUE}` 로
-켜면 rollback 은 no-op 이 되고 결과는 같아야 한다.
+IM012 / `?` 바인딩 HY000 / 알티베이스 host variable / `CHARSET=` 이 삼키는 HY000 / autocommit 스냅샷
+다섯 가지는 CDS 만의 문제가 아니라 [shared/PDB.md](../shared/PDB.md#함정) 에 있다.
 
 `T_CDS_ORDER_HIST` · `T_CDS_ORDER_TID` 대조는 아직 붙이지 않았다 — 전문 단위 적재를
 보려면 그쪽이 맞다.
@@ -780,7 +586,7 @@ SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 
 SNOTI 로 알리는 것은 규칙 1(`1X`/`1Y`, 무조건)뿐이고, 나머지는 HFC 가입 여부와 무관하게
 항상 SDM 경유다.
 
-### PCF SBI Noti 수신 — 도구가 PCF 역할로 HTTP/2 Listen — 도구가 PCF 역할로 HTTP/2 Listen
+### PCF SBI Noti 수신 — 무엇을 기다리나
 
 SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. `1X` 흐름에서 PCF 방향 화살표는
 원래 둘인데, **그중 하나는 실제로 나가지 않는다.**
@@ -797,48 +603,9 @@ SA(5G) 가입자는 PG 가 PCF 로 **SBI Noti** 를 보낸다. `1X` 흐름에서
 Cell List 는 `CommandResult(0017)` 보다 늦게 오고, **전문(SC)·PDB 어느 쪽으로도 보이지 않는다.**
 그래서 `HttpNotiServer.py` 가 `${CDS_NOTI_PORT}` 를 Listen 해 실제 도착을 판정한다.
 
-**프로토콜이 HTTP/2 평문(h2c)이다.** 3GPP SBI 라 표준 `http.server` 로는 첫 프리페이스에서
-막힌다 — `h2` 패키지(sans-IO 스택)로 프레임을 직접 처리한다. `pip install h2`.
-
-> **`No keyword with name 'Noti.Noti Server Start' found`** 가 뜬다면 `h2` 미설치다.
-> 예전에는 `HttpNotiServer.py` 가 최상단에서 `import h2` 를 해서, 패키지가 없으면
-> **라이브러리 자체가 안 올라오고** Robot 이 저 메시지로 보고했다 — 진짜 원인이 전혀
-> 드러나지 않았다. 지금은 지연 임포트라 서버를 띄울 때 `pip install h2` 안내와 함께
-> 실패하고, `${SNOTI_PCF_NOTI}=False` 면 `h2` 없이도 슈트가 그대로 돈다.
-> 시험 장비가 개발 PC 와 다르면 **그 장비에** 설치해야 한다.
-지원하는 건 **prior-knowledge** 방식뿐이라, PG 가 HTTP/1.1 Upgrade 로 붙으면 받지 못하고
-`noti_errors()` 에 "h2c prior-knowledge 가 아닌 접속" 이 남는다 — 알림이 안 잡히면 여기부터 볼 것.
-
-함정이 셋이다.
-
-**LTE 가입자면 아무것도 안 온다.** SBI 가 아니라 RBUS 로 나가기 때문이다(위 LTE/SA 대조표).
-이 판정은 SA 전제다.
-
-**링크는 별도 스레드가 감시한다.** accept 루프와 무관하게 도는 감시 스레드가
-`${CDS_NOTI_MONITOR_INTERVAL}`(기본 1s)마다 "지금 몇 개 붙어 있는지" 표본을 뜬다.
-누적 접속 이력만으로는 **슈트 중간에 PG 가 끊긴 것을 알 수 없기 때문**이다 — 이력은
-그대로 남아 "접속 있음" 으로 보인다. 알림이 안 오면 `Verify PCF Noti Received` 가
-**그 TC 동안의 링크 상태**를 실패 메시지에 붙인다.
-
-```
-{'live': 0, 'connected': False, 'total_connects': 1,
- 'connects_since': 0, 'disconnects_since': 1, 'samples_with_no_link': 3, ...}
-```
-
-`disconnects_since` 가 0이 아니면 전문이 아니라 **링크가 끊겼던 것**이다.
-
-`${CDS_NOTI_REQUIRE_LINK}`(기본 `${FALSE}`)를 켜면 알림을 기다리기 전에 링크가
-살아 있는지부터 본다. 기본이 꺼짐인 이유는 **PG 가 알림마다 새로 붙는 구현일 수
-있어서**다 — 그러면 평소 연결 수가 0이라 켜 두면 멀쩡한 흐름을 막는다.
-
-**수신 상태는 TC 마다 리셋된다.** `Test Setup`(`CDS Test Setup`)이 소켓 생존 확인과
-함께 쌓인 알림·오류를 비우고 TC 시작 시각을 찍는다. **알림을 판정하는 TC 는 일부뿐
-이지만 리셋은 전 TC 에서 한다** — 판정 TC 안에서만 비우면 그 전에 다른 TC 가 유발한
-알림이 큐에 남아 자기 결과로 오인된다. 접속 이력은 지우지 않는다(지우면 링크 진단이
-불가능해진다).
-
-**PG 가 이 주소로 보내도록 설정돼 있어야 한다.** 도구가 붙는 게 아니라 PG 가 붙어 오는
-방향이라, 포트만 열어 둔다고 오지 않는다.
+공용 부분 — h2c/prior-knowledge, `h2` 설치, 링크 감시 스레드, TC 별 수신 상태 리셋, 포트·`${TOOL_HOST}`
+— 은 [shared/SBI_NOTI.md](../shared/SBI_NOTI.md) 에 있다. **LTE 가입자면 아무것도 안 온다**(RBUS 로 나간다).
+아래는 CDS 에만 있는 대기 정책과 경로 필터다.
 
 **Suite Setup 은 Listen 만 열고 바로 TC 를 시작한다 — 접속을 기다리지 않는다.**
 PG 는 상시 붙어 있는 것이 아니라 **보낼 알림이 생겼을 때 비로소 다이얼한다**(세션의
@@ -849,9 +616,6 @@ PG 는 상시 붙어 있는 것이 아니라 **보낼 알림이 생겼을 때 �
 `${CDS_NOTI_WAIT_CONNECT}=True`(`--sbi-wait`)로 켜면 예전처럼 Suite Setup 이 접속을
 기다렸다 시작한다. PG 가 **상시 접속을 유지하는** 환경에서 "아예 붙지도 않았다" 를
 슈트 시작 시점에 잡고 싶을 때만 쓴다.
-
-접속 성립(프리페이스 + 서버 SETTINGS)은 요청 수신과 **따로 센다** — PG 가 붙어만
-두고 알림은 나중에 보내는 경우도 구분해야 하기 때문이다.
 
 끄는 손잡이가 둘이고 층이 다르다.
 

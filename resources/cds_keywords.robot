@@ -27,7 +27,7 @@ Library    String
 Library    DateTime
 Library    BuiltIn
 Library    ${CURDIR}/CdsHelper.py    WITH NAME    Cds
-Library    ${CURDIR}/CdsDbHelper.py    WITH NAME    CdsDb
+Library    ${CURDIR}/PdbHelper.py    WITH NAME    CdsDb
 # 도구가 PCF 역할로 SBI Noti(HTTP/2 h2c)를 받는다 → 의존성: pip install h2
 Library    ${CURDIR}/HttpNotiServer.py    WITH NAME    Noti
 Resource   ${CURDIR}/common_keywords.robot
@@ -559,7 +559,7 @@ Command Download Flow
 # 종료는 Suite CDS Disconnect 가 한다.
 # → 그 대가로 DB 접속 정보가 없으면 전문 송수신 TC 까지 포함해 슈트가 서지 않는다.
 #
-# 트랜잭션은 **autocommit 을 끈 상태**로 연다(CdsDbHelper.db_connect). 조회 직전마다
+# 트랜잭션은 **autocommit 을 끈 상태**로 연다(PdbHelper.db_connect). 조회 직전마다
 # rollback 으로 트랜잭션을 끊어야 재조회가 새 스냅샷을 본다 — 그건 Db Count 가 한다.
 # ══════════════════════════════════════════════════════════════════
 
@@ -723,7 +723,7 @@ Insert CDS Session Row
     ...    ★ 예전에는 `INSERT ... SELECT ... FROM DUAL WHERE NOT EXISTS(...)` 한
     ...      문장으로 멱등을 DB 에 맡겼다. 알티베이스가 이 형태를 `Invalid use of
     ...      host variables` 로 거부해(2026-09-30) 멱등 판단을 여기(호출자)로
-    ...      옮겼다 — `CdsDbHelper.session_insert_sql` 의 docstring 참조.
+    ...      옮겼다 — `PdbHelper.session_insert_sql` 의 docstring 참조.
     [Arguments]    ${conn}    ${sql}    ${label}
     ...            ${sm_policy_id}    ${supi}    ${gpsi}    ${mdn}    ${ip}
     ...            ${res_uri}    ${noti_uri}    ${udr_noti_uri}
@@ -732,7 +732,7 @@ Insert CDS Session Row
         Log    [Suite] 세션이 이미 있어 넣지 않았습니다 (${label}) — SM_POLICY_ID=${sm_policy_id}    console=True
         RETURN
     END
-    # 인자 순서는 CdsDbHelper.SESSION_PARAM_ORDER 와 같아야 한다. 바꾸면 양쪽을 같이 고칠 것.
+    # 인자 순서는 PdbHelper.SESSION_PARAM_ORDER 와 같아야 한다. 바꾸면 양쪽을 같이 고칠 것.
     CdsDb.Db Execute    ${conn}    ${sql}
     ...    ${sm_policy_id}    ${supi}    ${gpsi}    ${mdn}    ${ip}
     ...    ${res_uri}    ${noti_uri}    ${udr_noti_uri}

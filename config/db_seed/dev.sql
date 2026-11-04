@@ -19,7 +19,15 @@
 --   INSERT 만 있으면 "없으면 넣기", UPDATE 만 있으면 "있으면 고치기", 둘 다면 upsert.
 --   실행한 INSERT/UPDATE 는 문장마다 콘솔(대상 표·영향 행 수)과 log.html(전체 SQL)에 남는다.
 --
--- ★ 값은 리터럴로 쓴다 — 바인드 파라미터(?)는 지원하지 않는다.
+-- ★ 바인드 파라미터(?)는 지원하지 않는다. 값은 리터럴 또는 **`${변수}`** 로 쓴다.
+--   `${CDS_MDN}` 처럼 쓰면 실행 시 환경 파일(config/env/dev.py) 값으로 바뀐다 — 번호를
+--   바꿀 때 dev.py 만 고치면 된다. 글자 그대로 끼워 넣으므로 따옴표는 직접 쓴다
+--   ('${CDS_MDN}', '82${CDS_MIN}'). 없는 변수면 줄 번호와 함께 실패한다(빈 값으로 안 넣는다).
+--   주석 안의 ${...} 는 치환하지 않는다. 지금 쓰는 변수:
+--     CDS_MDN/MIN · CDS_NEW_MDN/MIN · NAG_MDN/MIN · NAG_MDN_NO_HFC/NAG_MIN_NO_HFC ·
+--     NWDAF_MDN/MIN · NWDAF_MDN_5G/MIN_5G · UPM_MDN/MIN · UPM_SYS_ID · UPM_BRANCH_NAME ·
+--     TOOL_HOST · SBI_NOTI_PORT(variables.robot)
+--   dev.py 에 대응 변수가 없는 값(01090050002, 192.168.15.144)은 리터럴로 남겼다.
 -- ★ 표 이름에 스키마 접두사("PDB.")를 붙이지 말 것 — 실환경에서
 --   schema 'PDB' does not exist 로 거부된 전례가 있다.
 -- ★ 블록이 하나도 없으면 DB 에 접속하지 않고 지나간다.
@@ -32,342 +40,8 @@
 -- INSERT INTO T_XXX_CFG (KEY_COL, VAL) VALUES ('A', '1');
 -- UPDATE T_XXX_CFG SET VAL = '1' WHERE KEY_COL = 'A';
 
-SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='01090020001';
-INSERT INTO T_SESSION_INFO
-(
-SESSION_ID,
-MDN,
-MSISDN,
-IMSI,
-SESSION_STATUS,
-RULE_BASE_NAME1,
-RULE_BASE_NAME2,
-RULE_BASE_NAME3,
-CONTROLABLE_USER,
-OPEN_DATE,
-OPEN_TIME,
-UPDATE_DATE,
-UPDATE_TIME,
-LOCATION_ID,
-LOCATION_STATUS,
-CCR_TYPE,
-CCR_RECORD_NO,
-IP_ADDR,
-CLIENT_HOST,
-CLIENT_REALM,
-BEARER_ID,
-PROC_SYSTEM,
-QCI_LEVEL,
-DATA_USAGE_LEVEL,
-FEMTOCELL_CTRL,
-APN_TYPE,
-APN,
-RM_PROCESSING,
-SERVICE_ID,
-RAT_TYPE,
-DESTINATION_HOST,
-PRIORITY_LEVEL,
-PRE_EMPTION_CAPABILITY,
-PRE_EMPTION_VULNERABILITY,
-RULE_MADE_SOURCE,
-ZONE_INFO_AVP,
-SC_FLAG,
-R3,
-R2,
-R1,
-VOMS_POLICY_ID,
-IP_VERSION,
-SGSN_MCC_MNC,
-BIND,
-LOOKUP,
-RULE_BASE_NAME4,
-UDR_NOTI_URI,
-RULE_NAME
-)
-VALUES
-(
-'1090020001_S',
-'01090020001',
-'821090020001',
-'821090020001',
-'2',
-'NoQoS_NoGBR_IMS',
-NULL,
-NULL,
-'N',
-'20221123',
-'184834',
-'20221124',
-'185659',
-'22445:15',
-'0',
-'2',
-'5',
-'2001:0d88:131f:0000::/64',
-'ltepgw47.skt.net',
-'skt.net',
-' ',
-'P',
-'5',
-NULL,
-NULL,
-'2',
-'lte.sktelecom.com',
-'N',
-'000001',
-'L',
-'mp01.PCF-ROBOT',
-'11',
-'1',
-'1',
-NULL,
-NULL,
-'0',
-NULL,
-'L',
-NULL,
-NULL,
-'6',
-'45005',
-'010900200012001:0d88:131f:0000::/64',
-'01090020001lte.sktelecom.com',
-NULL,
-'http://192.168.15.142:16101/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
-NULL
-);
-
--- NAG 세션 선등록용 가입자
-SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='01090030001';
-INSERT INTO T_SESSION_INFO
-(
-SESSION_ID,
-MDN,
-MSISDN,
-IMSI,
-SESSION_STATUS,
-RULE_BASE_NAME1,
-RULE_BASE_NAME2,
-RULE_BASE_NAME3,
-CONTROLABLE_USER,
-OPEN_DATE,
-OPEN_TIME,
-UPDATE_DATE,
-UPDATE_TIME,
-LOCATION_ID,
-LOCATION_STATUS,
-CCR_TYPE,
-CCR_RECORD_NO,
-IP_ADDR,
-CLIENT_HOST,
-CLIENT_REALM,
-BEARER_ID,
-PROC_SYSTEM,
-QCI_LEVEL,
-DATA_USAGE_LEVEL,
-FEMTOCELL_CTRL,
-APN_TYPE,
-APN,
-RM_PROCESSING,
-SERVICE_ID,
-RAT_TYPE,
-DESTINATION_HOST,
-PRIORITY_LEVEL,
-PRE_EMPTION_CAPABILITY,
-PRE_EMPTION_VULNERABILITY,
-RULE_MADE_SOURCE,
-ZONE_INFO_AVP,
-SC_FLAG,
-R3,
-R2,
-R1,
-VOMS_POLICY_ID,
-IP_VERSION,
-SGSN_MCC_MNC,
-BIND,
-LOOKUP,
-RULE_BASE_NAME4,
-UDR_NOTI_URI,
-RULE_NAME
-)
-VALUES
-(
-'1090030001_S',
-'01090030001',
-'821090030001',
-'821090030001',
-'2',
-'NoQoS_NoGBR_IMS',
-NULL,
-NULL,
-'N',
-'20221123',
-'184834',
-'20221124',
-'185659',
-'22445:15',
-'0',
-'2',
-'5',
-'2001:0d88:131f:0000::/64',
-'ltepgw47.skt.net',
-'skt.net',
-' ',
-'P',
-'5',
-NULL,
-NULL,
-'2',
-'lte.sktelecom.com',
-'N',
-'000001',
-'L',
-'mp01.PCF-ROBOT',
-'11',
-'1',
-'1',
-NULL,
-'1111111111',
-'0',
-NULL,
-'L',
-NULL,
-NULL,
-'6',
-'45005',
-'010900300012001:0d88:131f:0000::/64',
-'01090030001lte.sktelecom.com',
-NULL,
-'http://192.168.15.142:16101/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
-NULL
-);
-
-SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN='01090030001';
-INSERT INTO T_5G_SUBS_PROFILE
-(MDN, MSISDN, MVNO, OCS, CREATE_TIME, UPDATE_TIME, UE_OS_VER, UE_MODEL, UE_CATEGORY_LTE, UE_CATEGORY_5G, UE_DEVICE_TYPE, PRODUCT_ID, BLACK_LIST, DESCRIPTION, UE_PRODUCT_TYPE)
-VALUES('01090030001', '821090030001', '6', '0', TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'), TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'), '01', 'SSTE', '06', '06', 'S', 'NA00003054', 'N', 'A1', '02');
-
-SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='01090030001' AND SVC_ID='DATA_USAGE_LEVEL';
-INSERT INTO T_5G_SUBS_SERVICE
-(MDN, SVC_ID, CNUM, SVC_TYPE, CREATE_TIME, UPDATE_TIME, UPDATE_TID, JOB_CODE, ACTIVE_TIME, EXPIRE_TIME, TIME_PERIOD_ID, "LIMIT", LIMIT_VALID_TIME, LIMIT_VALID_NOTI, DESCRIPTION)
-VALUES('01090030001', 'DATA_USAGE_LEVEL', '0', 'N', TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'), TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'), NULL, 'A1', TO_CHAR(CURRENT_TIMESTAMP - INTERVAL '1' DAY, 'YYYYMMDDHH24MISS'), '99991231000000', '0', '0', '99991231000000', 'N', NULL);
-
-SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='01090030001' AND SVC_ID='DATA_USAGE_LEVEL_2';
-INSERT INTO T_5G_SUBS_SERVICE
-(MDN, SVC_ID, CNUM, SVC_TYPE, CREATE_TIME, UPDATE_TIME, UPDATE_TID, JOB_CODE, ACTIVE_TIME, EXPIRE_TIME, TIME_PERIOD_ID, "LIMIT", LIMIT_VALID_TIME, LIMIT_VALID_NOTI, DESCRIPTION)
-VALUES('01090030001', 'DATA_USAGE_LEVEL_2', '0', 'N', TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'), TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'), NULL, 'A1', TO_CHAR(CURRENT_TIMESTAMP - INTERVAL '1' DAY, 'YYYYMMDDHH24MISS'), '99991231000000', '0', '0', '99991231000000', 'N', NULL);
-
-SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='01090030001' AND SVC_ID='ZONE_SVC_D';
-INSERT INTO T_5G_SUBS_SERVICE
-(MDN, SVC_ID, CNUM, SVC_TYPE, CREATE_TIME, UPDATE_TIME, UPDATE_TID, JOB_CODE, ACTIVE_TIME, EXPIRE_TIME, TIME_PERIOD_ID, "LIMIT", LIMIT_VALID_TIME, LIMIT_VALID_NOTI, DESCRIPTION)
-VALUES('01090030001', 'ZONE_SVC_D', '0', 'D', TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'), TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'), NULL, '1X', TO_CHAR(CURRENT_TIMESTAMP - INTERVAL '1' DAY, 'YYYYMMDDHH24MISS'), '99991231000000', '0', '0', '99991231000000', 'N', NULL);
-
--- @name: NAG 세션 HFC 미가입자
-SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='01090030002';
-INSERT INTO T_SESSION_INFO
-(
-SESSION_ID,
-MDN,
-MSISDN,
-IMSI,
-SESSION_STATUS,
-RULE_BASE_NAME1,
-RULE_BASE_NAME2,
-RULE_BASE_NAME3,
-CONTROLABLE_USER,
-OPEN_DATE,
-OPEN_TIME,
-UPDATE_DATE,
-UPDATE_TIME,
-LOCATION_ID,
-LOCATION_STATUS,
-CCR_TYPE,
-CCR_RECORD_NO,
-IP_ADDR,
-CLIENT_HOST,
-CLIENT_REALM,
-BEARER_ID,
-PROC_SYSTEM,
-QCI_LEVEL,
-DATA_USAGE_LEVEL,
-FEMTOCELL_CTRL,
-APN_TYPE,
-APN,
-RM_PROCESSING,
-SERVICE_ID,
-RAT_TYPE,
-DESTINATION_HOST,
-PRIORITY_LEVEL,
-PRE_EMPTION_CAPABILITY,
-PRE_EMPTION_VULNERABILITY,
-RULE_MADE_SOURCE,
-ZONE_INFO_AVP,
-SC_FLAG,
-R3,
-R2,
-R1,
-VOMS_POLICY_ID,
-IP_VERSION,
-SGSN_MCC_MNC,
-BIND,
-LOOKUP,
-RULE_BASE_NAME4,
-UDR_NOTI_URI,
-RULE_NAME
-)
-VALUES
-(
-'1090030002_S',
-'01090030002',
-'821090030002',
-'821090030002',
-'2',
-'NoQoS_NoGBR_IMS',
-NULL,
-NULL,
-'N',
-'20221123',
-'184834',
-'20221124',
-'185659',
-'22445:15',
-'0',
-'2',
-'5',
-'2001:0d88:131f:0000::/64',
-'ltepgw47.skt.net',
-'skt.net',
-' ',
-'P',
-'5',
-NULL,
-NULL,
-'2',
-'lte.sktelecom.com',
-'N',
-'000001',
-'L',
-'mp01.PCF-ROBOT',
-'11',
-'1',
-'1',
-NULL,
-'1111111111',
-'0',
-NULL,
-'L',
-NULL,
-NULL,
-'6',
-'45005',
-'010900300022001:0d88:131f:0000::/64',
-'01090030002lte.sktelecom.com',
-NULL,
-'http://192.168.15.142:16101/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
-NULL
-);
-
--- NWDAF 세션 선등록용 가입자
-SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='01090040001';
+-- @name: CDS 가입자 LTE 세션 (CDS_MDN)
+SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='${CDS_MDN}';
 INSERT INTO T_SESSION_INFO
 (
     SESSION_ID,
@@ -421,10 +95,582 @@ INSERT INTO T_SESSION_INFO
 )
 VALUES
 (
-    '1090040001_S',
-    '01090040001',
-    '821090040001',
-    '821090040001',
+    '${CDS_MIN}_S',
+    '${CDS_MDN}',
+    '82${CDS_MIN}',
+    '82${CDS_MIN}',
+    '2',
+    'NoQoS_NoGBR_IMS',
+    NULL,
+    NULL,
+    'N',
+    '20221123',
+    '184834',
+    '20221124',
+    '185659',
+    '22445:15',
+    '0',
+    '2',
+    '5',
+    '2001:0d88:131f:0000::/64',
+    'ltepgw47.skt.net',
+    'skt.net',
+    ' ',
+    'P',
+    '5',
+    NULL,
+    NULL,
+    '2',
+    'lte.sktelecom.com',
+    'N',
+    '000001',
+    'L',
+    'mp01.PCF-ROBOT',
+    '11',
+    '1',
+    '1',
+    NULL,
+    NULL,
+    '0',
+    NULL,
+    'L',
+    NULL,
+    NULL,
+    '6',
+    '45005',
+    '${CDS_MDN}2001:0d88:131f:0000::/64',
+    '${CDS_MDN}lte.sktelecom.com',
+    NULL,
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
+    NULL
+);
+
+-- @name: CDS 가입자 LTE 세션 (CDS_NEW_MDN — D3 번호변경 신규 번호)
+SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='${CDS_NEW_MDN}';
+INSERT INTO T_SESSION_INFO
+(
+    SESSION_ID,
+    MDN,
+    MSISDN,
+    IMSI,
+    SESSION_STATUS,
+    RULE_BASE_NAME1,
+    RULE_BASE_NAME2,
+    RULE_BASE_NAME3,
+    CONTROLABLE_USER,
+    OPEN_DATE,
+    OPEN_TIME,
+    UPDATE_DATE,
+    UPDATE_TIME,
+    LOCATION_ID,
+    LOCATION_STATUS,
+    CCR_TYPE,
+    CCR_RECORD_NO,
+    IP_ADDR,
+    CLIENT_HOST,
+    CLIENT_REALM,
+    BEARER_ID,
+    PROC_SYSTEM,
+    QCI_LEVEL,
+    DATA_USAGE_LEVEL,
+    FEMTOCELL_CTRL,
+    APN_TYPE,
+    APN,
+    RM_PROCESSING,
+    SERVICE_ID,
+    RAT_TYPE,
+    DESTINATION_HOST,
+    PRIORITY_LEVEL,
+    PRE_EMPTION_CAPABILITY,
+    PRE_EMPTION_VULNERABILITY,
+    RULE_MADE_SOURCE,
+    ZONE_INFO_AVP,
+    SC_FLAG,
+    R3,
+    R2,
+    R1,
+    VOMS_POLICY_ID,
+    IP_VERSION,
+    SGSN_MCC_MNC,
+    BIND,
+    LOOKUP,
+    RULE_BASE_NAME4,
+    UDR_NOTI_URI,
+    RULE_NAME
+)
+VALUES
+(
+    '${CDS_NEW_MIN}_S',
+    '${CDS_NEW_MDN}',
+    '82${CDS_NEW_MIN}',
+    '82${CDS_NEW_MIN}',
+    '2',
+    'NoQoS_NoGBR_IMS',
+    NULL,
+    NULL,
+    'N',
+    '20221123',
+    '184834',
+    '20221124',
+    '185659',
+    '22445:15',
+    '0',
+    '2',
+    '5',
+    '2001:0d88:131f:0000::/64',
+    'ltepgw47.skt.net',
+    'skt.net',
+    ' ',
+    'P',
+    '5',
+    NULL,
+    NULL,
+    '2',
+    'lte.sktelecom.com',
+    'N',
+    '000001',
+    'L',
+    'mp01.PCF-ROBOT',
+    '11',
+    '1',
+    '1',
+    NULL,
+    NULL,
+    '0',
+    NULL,
+    'L',
+    NULL,
+    NULL,
+    '6',
+    '45005',
+    '${CDS_NEW_MDN}2001:0d88:131f:0000::/64',
+    '${CDS_NEW_MDN}lte.sktelecom.com',
+    NULL,
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
+    NULL
+);
+
+-- NAG 세션 선등록용 가입자
+SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='${NAG_MDN}';
+INSERT INTO T_SESSION_INFO
+(
+    SESSION_ID,
+    MDN,
+    MSISDN,
+    IMSI,
+    SESSION_STATUS,
+    RULE_BASE_NAME1,
+    RULE_BASE_NAME2,
+    RULE_BASE_NAME3,
+    CONTROLABLE_USER,
+    OPEN_DATE,
+    OPEN_TIME,
+    UPDATE_DATE,
+    UPDATE_TIME,
+    LOCATION_ID,
+    LOCATION_STATUS,
+    CCR_TYPE,
+    CCR_RECORD_NO,
+    IP_ADDR,
+    CLIENT_HOST,
+    CLIENT_REALM,
+    BEARER_ID,
+    PROC_SYSTEM,
+    QCI_LEVEL,
+    DATA_USAGE_LEVEL,
+    FEMTOCELL_CTRL,
+    APN_TYPE,
+    APN,
+    RM_PROCESSING,
+    SERVICE_ID,
+    RAT_TYPE,
+    DESTINATION_HOST,
+    PRIORITY_LEVEL,
+    PRE_EMPTION_CAPABILITY,
+    PRE_EMPTION_VULNERABILITY,
+    RULE_MADE_SOURCE,
+    ZONE_INFO_AVP,
+    SC_FLAG,
+    R3,
+    R2,
+    R1,
+    VOMS_POLICY_ID,
+    IP_VERSION,
+    SGSN_MCC_MNC,
+    BIND,
+    LOOKUP,
+    RULE_BASE_NAME4,
+    UDR_NOTI_URI,
+    RULE_NAME
+)
+VALUES
+(
+    '${NAG_MIN}_S',
+    '${NAG_MDN}',
+    '82${NAG_MIN}',
+    '82${NAG_MIN}',
+    '2',
+    'NoQoS_NoGBR_IMS',
+    NULL,
+    NULL,
+    'N',
+    '20221123',
+    '184834',
+    '20221124',
+    '185659',
+    '22445:15',
+    '0',
+    '2',
+    '5',
+    '2001:0d88:131f:0000::/64',
+    'ltepgw47.skt.net',
+    'skt.net',
+    ' ',
+    'P',
+    '5',
+    NULL,
+    NULL,
+    '2',
+    'lte.sktelecom.com',
+    'N',
+    '000001',
+    'L',
+    'mp01.PCF-ROBOT',
+    '11',
+    '1',
+    '1',
+    NULL,
+    '1111111111',
+    '0',
+    NULL,
+    'L',
+    NULL,
+    NULL,
+    '6',
+    '45005',
+    '${NAG_MDN}2001:0d88:131f:0000::/64',
+    '${NAG_MDN}lte.sktelecom.com',
+    NULL,
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
+    NULL
+);
+
+SELECT COUNT(*) FROM T_5G_SUBS_PROFILE WHERE MDN='${NAG_MDN}';
+INSERT INTO T_5G_SUBS_PROFILE
+(
+    MDN,
+    MSISDN,
+    MVNO,
+    OCS,
+    CREATE_TIME,
+    UPDATE_TIME,
+    UE_OS_VER,
+    UE_MODEL,
+    UE_CATEGORY_LTE,
+    UE_CATEGORY_5G,
+    UE_DEVICE_TYPE,
+    PRODUCT_ID,
+    BLACK_LIST,
+    DESCRIPTION,
+    UE_PRODUCT_TYPE
+)
+VALUES
+(
+    '${NAG_MDN}',
+    '82${NAG_MIN}',
+    '6',
+    '0',
+    TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'),
+    TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'),
+    '01',
+    'SSTE',
+    '06',
+    '06',
+    'S',
+    'NA00003054',
+    'N',
+    'A1',
+    '02'
+);
+
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${NAG_MDN}' AND SVC_ID='DATA_USAGE_LEVEL';
+INSERT INTO T_5G_SUBS_SERVICE
+(
+    MDN,
+    SVC_ID,
+    CNUM,
+    SVC_TYPE,
+    CREATE_TIME,
+    UPDATE_TIME,
+    UPDATE_TID,
+    JOB_CODE,
+    ACTIVE_TIME,
+    EXPIRE_TIME,
+    TIME_PERIOD_ID,
+    "LIMIT",
+    LIMIT_VALID_TIME,
+    LIMIT_VALID_NOTI,
+    DESCRIPTION
+)
+VALUES
+(
+    '${NAG_MDN}',
+    'DATA_USAGE_LEVEL',
+    '0',
+    'N',
+    TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'),
+    TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'),
+    NULL,
+    'A1',
+    TO_CHAR(CURRENT_TIMESTAMP - INTERVAL '1' DAY, 'YYYYMMDDHH24MISS'),
+    '99991231000000',
+    '0',
+    '0',
+    '99991231000000',
+    'N',
+    NULL
+);
+
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${NAG_MDN}' AND SVC_ID='DATA_USAGE_LEVEL_2';
+INSERT INTO T_5G_SUBS_SERVICE
+(
+    MDN,
+    SVC_ID,
+    CNUM,
+    SVC_TYPE,
+    CREATE_TIME,
+    UPDATE_TIME,
+    UPDATE_TID,
+    JOB_CODE,
+    ACTIVE_TIME,
+    EXPIRE_TIME,
+    TIME_PERIOD_ID,
+    "LIMIT",
+    LIMIT_VALID_TIME,
+    LIMIT_VALID_NOTI,
+    DESCRIPTION
+)
+VALUES
+(
+    '${NAG_MDN}',
+    'DATA_USAGE_LEVEL_2',
+    '0',
+    'N',
+    TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'),
+    TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'),
+    NULL,
+    'A1',
+    TO_CHAR(CURRENT_TIMESTAMP - INTERVAL '1' DAY, 'YYYYMMDDHH24MISS'),
+    '99991231000000',
+    '0',
+    '0',
+    '99991231000000',
+    'N',
+    NULL
+);
+
+SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN='${NAG_MDN}' AND SVC_ID='ZONE_SVC_D';
+INSERT INTO T_5G_SUBS_SERVICE
+(
+    MDN,
+    SVC_ID,
+    CNUM,
+    SVC_TYPE,
+    CREATE_TIME,
+    UPDATE_TIME,
+    UPDATE_TID,
+    JOB_CODE,
+    ACTIVE_TIME,
+    EXPIRE_TIME,
+    TIME_PERIOD_ID,
+    "LIMIT",
+    LIMIT_VALID_TIME,
+    LIMIT_VALID_NOTI,
+    DESCRIPTION
+)
+VALUES
+(
+    '${NAG_MDN}',
+    'ZONE_SVC_D',
+    '0',
+    'D',
+    TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'),
+    TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'),
+    NULL,
+    '1X',
+    TO_CHAR(CURRENT_TIMESTAMP - INTERVAL '1' DAY, 'YYYYMMDDHH24MISS'),
+    '99991231000000',
+    '0',
+    '0',
+    '99991231000000',
+    'N',
+    NULL
+);
+
+-- @name: NAG 세션 HFC 미가입자
+SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='${NAG_MDN_NO_HFC}';
+INSERT INTO T_SESSION_INFO
+(
+    SESSION_ID,
+    MDN,
+    MSISDN,
+    IMSI,
+    SESSION_STATUS,
+    RULE_BASE_NAME1,
+    RULE_BASE_NAME2,
+    RULE_BASE_NAME3,
+    CONTROLABLE_USER,
+    OPEN_DATE,
+    OPEN_TIME,
+    UPDATE_DATE,
+    UPDATE_TIME,
+    LOCATION_ID,
+    LOCATION_STATUS,
+    CCR_TYPE,
+    CCR_RECORD_NO,
+    IP_ADDR,
+    CLIENT_HOST,
+    CLIENT_REALM,
+    BEARER_ID,
+    PROC_SYSTEM,
+    QCI_LEVEL,
+    DATA_USAGE_LEVEL,
+    FEMTOCELL_CTRL,
+    APN_TYPE,
+    APN,
+    RM_PROCESSING,
+    SERVICE_ID,
+    RAT_TYPE,
+    DESTINATION_HOST,
+    PRIORITY_LEVEL,
+    PRE_EMPTION_CAPABILITY,
+    PRE_EMPTION_VULNERABILITY,
+    RULE_MADE_SOURCE,
+    ZONE_INFO_AVP,
+    SC_FLAG,
+    R3,
+    R2,
+    R1,
+    VOMS_POLICY_ID,
+    IP_VERSION,
+    SGSN_MCC_MNC,
+    BIND,
+    LOOKUP,
+    RULE_BASE_NAME4,
+    UDR_NOTI_URI,
+    RULE_NAME
+)
+VALUES
+(
+    '${NAG_MIN_NO_HFC}_S',
+    '${NAG_MDN_NO_HFC}',
+    '82${NAG_MIN_NO_HFC}',
+    '82${NAG_MIN_NO_HFC}',
+    '2',
+    'NoQoS_NoGBR_IMS',
+    NULL,
+    NULL,
+    'N',
+    '20221123',
+    '184834',
+    '20221124',
+    '185659',
+    '22445:15',
+    '0',
+    '2',
+    '5',
+    '2001:0d88:131f:0000::/64',
+    'ltepgw47.skt.net',
+    'skt.net',
+    ' ',
+    'P',
+    '5',
+    NULL,
+    NULL,
+    '2',
+    'lte.sktelecom.com',
+    'N',
+    '000001',
+    'L',
+    'mp01.PCF-ROBOT',
+    '11',
+    '1',
+    '1',
+    NULL,
+    '1111111111',
+    '0',
+    NULL,
+    'L',
+    NULL,
+    NULL,
+    '6',
+    '45005',
+    '${NAG_MDN_NO_HFC}2001:0d88:131f:0000::/64',
+    '${NAG_MDN_NO_HFC}lte.sktelecom.com',
+    NULL,
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
+    NULL
+);
+
+-- NWDAF 세션 선등록용 가입자
+SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='${NWDAF_MDN}';
+INSERT INTO T_SESSION_INFO
+(
+    SESSION_ID,
+    MDN,
+    MSISDN,
+    IMSI,
+    SESSION_STATUS,
+    RULE_BASE_NAME1,
+    RULE_BASE_NAME2,
+    RULE_BASE_NAME3,
+    CONTROLABLE_USER,
+    OPEN_DATE,
+    OPEN_TIME,
+    UPDATE_DATE,
+    UPDATE_TIME,
+    LOCATION_ID,
+    LOCATION_STATUS,
+    CCR_TYPE,
+    CCR_RECORD_NO,
+    IP_ADDR,
+    CLIENT_HOST,
+    CLIENT_REALM,
+    BEARER_ID,
+    PROC_SYSTEM,
+    QCI_LEVEL,
+    DATA_USAGE_LEVEL,
+    FEMTOCELL_CTRL,
+    APN_TYPE,
+    APN,
+    RM_PROCESSING,
+    SERVICE_ID,
+    RAT_TYPE,
+    DESTINATION_HOST,
+    PRIORITY_LEVEL,
+    PRE_EMPTION_CAPABILITY,
+    PRE_EMPTION_VULNERABILITY,
+    RULE_MADE_SOURCE,
+    ZONE_INFO_AVP,
+    SC_FLAG,
+    R3,
+    R2,
+    R1,
+    VOMS_POLICY_ID,
+    IP_VERSION,
+    SGSN_MCC_MNC,
+    BIND,
+    LOOKUP,
+    RULE_BASE_NAME4,
+    UDR_NOTI_URI,
+    RULE_NAME
+)
+VALUES
+(
+    '${NWDAF_MIN}_S',
+    '${NWDAF_MDN}',
+    '82${NWDAF_MIN}',
+    '82${NWDAF_MIN}',
     '2',
     'NoQoS_NoGBR_IMS',
     NULL,
@@ -464,15 +710,15 @@ VALUES
     NULL,
     '6',
     '45005',
-    '01090040001:0d88:131f:0000::/64',
-    '01090040001lte.sktelecom.com',
+    '${NWDAF_MDN}:0d88:131f:0000::/64',
+    '${NWDAF_MDN}lte.sktelecom.com',
     NULL,
-    'http://192.168.15.142:16101/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
     NULL
 );
 
 -- NWDAF 5G 세션 선등록용 가입자
-SELECT COUNT(*) FROM T_SMF_SESSION_INFO WHERE MDN='01090040002';
+SELECT COUNT(*) FROM T_SMF_SESSION_INFO WHERE MDN='${NWDAF_MDN_5G}';
 INSERT INTO T_SMF_SESSION_INFO
 (
     SM_POLICY_ID,
@@ -510,11 +756,11 @@ INSERT INTO T_SMF_SESSION_INFO
 )
 VALUES
 (
-    '01090040002-00-17931773150333063607370e3d0a3e0c3833',
-    'imsi-45005211090040002',
+    '${NWDAF_MDN_5G}-00-17931773150333063607370e3d0a3e0c3833',
+    'imsi-4500521${NWDAF_MIN_5G}',
     5,
-    'msisdn-821090040002',
-    '01090040002',
+    'msisdn-82${NWDAF_MIN_5G}',
+    '${NWDAF_MDN_5G}',
     '2001:02d8:2fa0:003b::/64',
     '5g.sktelecom.com',
     100,
@@ -527,9 +773,9 @@ VALUES
     '{"sliceInfo":{"sst":100,"sd":"000005"},"smfId":"550e8400-e29b-41d4-a716-446655440002","userLocationInfo":{"eutraLocation":{"tai":{"plmnId":{"mcc":"450","mnc":"08"},"tac":"123a"},"ecgi":{"plmnId":{"mcc":"450","mnc":"08"},"eutraCellId":"249521B"}}},"pduSessionId":5,"dnn":"5g.sktelecom.com","servingNetwork":{"mcc":"450","mnc":"05"},"pduSessionType":"IPV6","accessType":"3GPP_ACCESS","ratType":"EUTRA"}',
     NULL,
     '{"pccRules":{"MELON_MEL_NoQoS":{"pccRuleId":"MELON_MEL_NoQoS"},"NoQoS_NoGBR":{"pccRuleId":"NoQoS_NoGBR"}},"zoneInfos":"0000000000","quotaNoti":0}',
-    'http://192.168.15.142:16101/npcf-smpolicycontrol/v1/sm-policies/01020103000-00-17931773150333063607370e3d0a3e0c3833',
-    'http://192.168.15.142:30011/npcf-smpolicycontrol/v1/smpc-status/200',
-    'http://192.168.15.142:16101/npcf-event-exposure/v1/nudr-smf-notify/01020103000-00-17931773150333063607370e3d0a3e0c3833',
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-smpolicycontrol/v1/sm-policies/01020103000-00-17931773150333063607370e3d0a3e0c3833',
+    'http://${TOOL_HOST}:30011/npcf-smpolicycontrol/v1/smpc-status/200',
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-event-exposure/v1/nudr-smf-notify/01020103000-00-17931773150333063607370e3d0a3e0c3833',
     NULL,
     '3',
     NULL,
@@ -548,7 +794,7 @@ VALUES
 -- NWDAF
 
 -- NWDAF 세션 선등록용 가입자
-SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='01090050001';
+SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='${UPM_MDN}';
 INSERT INTO T_SESSION_INFO
 (
     SESSION_ID,
@@ -602,10 +848,10 @@ INSERT INTO T_SESSION_INFO
 )
 VALUES
 (
-    '1090050001_S',
-    '01090050001',
-    '821090050001',
-    '821090050001',
+    '${UPM_MIN}_S',
+    '${UPM_MDN}',
+    '82${UPM_MIN}',
+    '82${UPM_MIN}',
     '2',
     'NoQoS_NoGBR_IMS',
     NULL,
@@ -645,10 +891,10 @@ VALUES
     NULL,
     '6',
     '45005',
-    '01090050001:0d88:131f:0000::/64',
-    '01090050001lte.sktelecom.com',
+    '${UPM_MDN}:0d88:131f:0000::/64',
+    '${UPM_MDN}lte.sktelecom.com',
     NULL,
-    'http://192.168.15.142:16101/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
     NULL
 );
 
@@ -708,9 +954,9 @@ VALUES
     '{"sliceInfo":{"sst":100,"sd":"000005"},"smfId":"550e8400-e29b-41d4-a716-446655440002","userLocationInfo":{"eutraLocation":{"tai":{"plmnId":{"mcc":"450","mnc":"08"},"tac":"123a"},"ecgi":{"plmnId":{"mcc":"450","mnc":"08"},"eutraCellId":"249521B"}}},"pduSessionId":5,"dnn":"5g.sktelecom.com","servingNetwork":{"mcc":"450","mnc":"05"},"pduSessionType":"IPV6","accessType":"3GPP_ACCESS","ratType":"EUTRA"}',
     NULL,
     '{"pccRules":{"MELON_MEL_NoQoS":{"pccRuleId":"MELON_MEL_NoQoS"},"NoQoS_NoGBR":{"pccRuleId":"NoQoS_NoGBR"}},"zoneInfos":"0000000000","quotaNoti":0}',
-    'http://192.168.15.142:16101/npcf-smpolicycontrol/v1/sm-policies/01020103000-00-17931773150333063607370e3d0a3e0c3833',
-    'http://192.168.15.142:30011/npcf-smpolicycontrol/v1/smpc-status/200',
-    'http://192.168.15.142:16101/npcf-event-exposure/v1/nudr-smf-notify/01020103000-00-17931773150333063607370e3d0a3e0c3833',
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-smpolicycontrol/v1/sm-policies/01020103000-00-17931773150333063607370e3d0a3e0c3833',
+    'http://${TOOL_HOST}:30011/npcf-smpolicycontrol/v1/smpc-status/200',
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-event-exposure/v1/nudr-smf-notify/01020103000-00-17931773150333063607370e3d0a3e0c3833',
     NULL,
     '3',
     NULL,
@@ -732,7 +978,7 @@ INSERT INTO T_PCF_CONN_INFO
  (PACKAGE_ID, PCF_NAME, SBI_URL, FALLBACK_PCF, WRITE_DATE, WRITE_TIME)
 VALUES('01',
     'ROBOT01',
-    'http://192.168.15.142:16101',
+    'http://${TOOL_HOST}:${SBI_NOTI_PORT}',
     'ROBOT02',
     TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDD'),
     TO_CHAR(CURRENT_TIMESTAMP, 'HH24MISS')
@@ -751,12 +997,12 @@ VALUES('01',
 );
 
 
-SELECT COUNT(*) FROM T_BAROD_PEER_TABLE WHERE PACKAGE_ID = '01' AND BRANCH_NAME = 'SS' AND SYSTEM_ID = 'UPM-R2' AND ACTIVE_YN = 'Y';
+SELECT COUNT(*) FROM T_BAROD_PEER_TABLE WHERE PACKAGE_ID = '01' AND BRANCH_NAME = '${UPM_BRANCH_NAME}' AND SYSTEM_ID = '${UPM_SYS_ID}' AND ACTIVE_YN = 'Y';
 INSERT INTO T_BAROD_PEER_TABLE (PACKAGE_ID, PEER_TYPE, BRANCH_NAME, SYSTEM_ID, MAX_CONN_CNT, WRITE_DATE, WRITE_TIME, ACTIVE_YN)
 VALUES('01', 
     'S', 
-    'SS', 
-    'UPM-R2', 
+    '${UPM_BRANCH_NAME}', 
+    '${UPM_SYS_ID}', 
     3, 
     TO_CHAR(CURRENT_TIMESTAMP, 'YYYYMMDD'),
     TO_CHAR(CURRENT_TIMESTAMP, 'HH24MISS'),
@@ -780,7 +1026,7 @@ INSERT INTO T_PCRF_CONN_LIST
 VALUES
 (
     'PCF-ROBOT',
-    '192.168.15.142',
+    '${TOOL_HOST}',
     8990,
     'V2000',
     '192.168.15.144',
@@ -796,5 +1042,5 @@ SELECT COUNT(*) FROM T_CDS_ORDER_HIST WHERE TRANSACTION_ID > (SELECT TID FROM T_
 UPDATE T_CDS_ORDER_TID SET TID = (SELECT MAX(TRANSACTION_ID) FROM T_CDS_ORDER_HIST) WHERE NAME = 'CDS201' AND TID < (SELECT MAX(TRANSACTION_ID) FROM T_CDS_ORDER_HIST);
 
 -- FOR BSUBS
-SELECT COUNT(*) FROM T_BAROD_ORDER_HIST WHERE STATUS = 'N' AND MDN IN ('01090020001', '01090020002');
-UPDATE T_BAROD_ORDER_HIST SET STATUS = 'Y' WHERE STATUS = 'N' AND MDN IN ('01090020001', '01090020002');
+SELECT COUNT(*) FROM T_BAROD_ORDER_HIST WHERE STATUS = 'N' AND MDN IN ('${CDS_MDN}', '${CDS_NEW_MDN}');
+UPDATE T_BAROD_ORDER_HIST SET STATUS = 'Y' WHERE STATUS = 'N' AND MDN IN ('${CDS_MDN}', '${CDS_NEW_MDN}');

@@ -15,7 +15,7 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 | 문서 | 내용 |
 |---|---|
 | [TC_CONVENTION.md](TC_CONVENTION.md) | TC 명명·태그·템플릿·비활성화·판정 한계 |
-| [RESOURCES.md](RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 6종 카탈로그 |
+| [RESOURCES.md](RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 11종 카탈로그 |
 | [ENVIRONMENTS.md](ENVIRONMENTS.md) | dev/stg/prd 설정, 변수 우선순위, 환경 축 변수 |
 
 ## 노드 스펙
@@ -32,6 +32,16 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 
 각 노드 스펙은 **접속 → 메시지 타입 → wire 인코딩 → TC → 함정 → 확인 필요** 순의 공통 골격을 쓴다.
 해당 없는 절은 생략하고, 노드 고유 내용은 그 사이에 끼운다(예: CDS 의 `Call Flow`).
+
+## 공용 주제
+
+두 노드 이상이 같이 쓰는 모듈·설정은 노드 문서가 아니라 여기 둔다. 노드 문서는 링크만 건다.
+
+| 문서 | 내용 | 쓰는 곳 |
+|---|---|---|
+| [shared/PDB.md](shared/PDB.md) | PDB 접속 문자열 · 두 번째 DB · 골디락스/알티베이스 함정 · **실행 전 DB 설정 시드** | CDS · RTS · 시드 |
+| [shared/SBI_NOTI.md](shared/SBI_NOTI.md) | PCF SBI Noti 수신(h2c Listen 16101) · 링크 감시 · `TOOL_HOST` | CDS · RTS |
+| [shared/SSH.md](shared/SSH.md) | PG 프로세스 `.RUN` touch · 시드 INSERT 후 `stopMP`/`startMP` | NAG · PCF · LRS · CDS · RTS · 시드 |
 
 ## Call Flow
 

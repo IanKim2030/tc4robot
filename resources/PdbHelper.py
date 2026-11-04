@@ -1,5 +1,5 @@
 """
-CdsDbHelper.py  —  PG PDB 조회 헬퍼 (ODBC / pyodbc)
+PdbHelper.py  —  PG PDB 조회 헬퍼 (ODBC / pyodbc)
 ===================================================
 
 CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼다.
@@ -30,7 +30,7 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
   KIND/DSN/DRIVER/HOST/PORT 로 조립하던 경로는 제거했다. 골디락스에서 DSN-less
   조립이 `IM012 DRIVER keyword syntax error` 로 거부됐고, 실환경 odbc.ini 에
   `ALTERNATE_SERVERS`·`LOCATOR_DSN` 처럼 문자열로 옮기기 번거로운 항목이 있어
-  결국 DSN 등록 + 완성 문자열로 수렴했다 (docs/nodes/CDS.md).
+  결국 DSN 등록 + 완성 문자열로 수렴했다 (docs/shared/PDB.md).
 
 [비밀번호 — 접속 문자열 안에 들어간다]
   그래서 접속 문자열은 **Robot 키워드 인자로 받지 않는다.** 인자로 넘기면 log.html
@@ -77,8 +77,12 @@ _CONN_STR_ENV_2 = 'PG_PDB_CONNSTR_2'
 _CONN_STR_VAR_2 = '${PDB_CONNSTR_2}'
 
 
-class CdsDbError(Exception):
+class PdbError(Exception):
     """PDB 접속/조회 실패."""
+
+
+# 구 이름 — CdsDbHelper.py 시절 이름. 외부에서 잡고 있을 수 있어 별칭으로 남긴다.
+CdsDbError = PdbError
 
 
 # ── 내부 ──────────────────────────────────────────────────────────
@@ -145,7 +149,7 @@ def _require_conn_str(conn_str='', which=1):
     cs = _read_conn_str(conn_str, which=which)
     if not cs:
         env_names, var_name = _conn_names(which)
-        raise CdsDbError(
+        raise PdbError(
             'PDB 접속 문자열이 비어 있습니다 — DB 반영을 판정할 수 없습니다.\n'
             "  %s 예: 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'\n"
             '  config/env/<env>.py 에 넣거나 --variable 로 지정하십시오.\n'
@@ -177,7 +181,7 @@ def db_connect(conn_str='', timeout=10, autocommit=False, which=1):
       ※ 둘은 같은 것이 아니다. `CHARSET=` 은 드라이버가 서버와 주고받는 문자셋이고,
         `setencoding` 은 pyodbc 가 Python str 을 어느 SQL 타입으로 바인딩하는지다.
         `('HY000', 'The driver did not supply an error!')` 가 다시 나오면 이 차이를
-        의심할 것 — 되살리는 법은 docs/nodes/CDS.md 의 해당 함정 절에 적어 뒀다.
+        의심할 것 — 되살리는 법은 docs/shared/PDB.md 의 해당 함정 절에 적어 뒀다.
 
     autocommit 은 기본 **False**(끔)다 — PG 참조 샘플과 같다.
     ★ 끈 상태에서는 SELECT 도 트랜잭션을 연다. 그대로 두면 `Verify Subscriber
@@ -189,7 +193,7 @@ def db_connect(conn_str='', timeout=10, autocommit=False, which=1):
     try:
         import pyodbc
     except ImportError as exc:
-        raise CdsDbError(
+        raise PdbError(
             'pyodbc 가 설치돼 있지 않아 PDB 를 조회할 수 없습니다. '
             '`pip install pyodbc` 후 다시 실행하십시오. (원인: %s)' % exc
         )
@@ -201,7 +205,7 @@ def db_connect(conn_str='', timeout=10, autocommit=False, which=1):
         conn = pyodbc.connect(cs, timeout=int(timeout),
                               autocommit=_as_bool(autocommit))
     except Exception as exc:
-        raise CdsDbError(
+        raise PdbError(
             'PDB 접속 실패 — %s / 접속문자열=%s' % (exc, _mask(cs))
         )
     conn.timeout = int(timeout)          # 쿼리 타임아웃
@@ -290,7 +294,7 @@ def _fetch_count(cur, sql, params):
         cur.execute(sql)
     row = cur.fetchone()
     if row is None or len(row) != 1:
-        raise CdsDbError(
+        raise PdbError(
             'COUNT 조회 결과가 1행 1열이 아닙니다: sql=%s params=%r row=%r'
             % (sql, params, row)
         )
@@ -307,13 +311,13 @@ def _fetch_group_counts(cur, sql, params):
     out = {}
     for row in cur.fetchall():
         if len(row) != 2:
-            raise CdsDbError(
+            raise PdbError(
                 'GROUP BY 조회 결과가 2열이 아닙니다: sql=%s params=%r row=%r'
                 % (sql, params, row)
             )
         key = '' if row[0] is None else str(row[0]).strip()
         if key in out:
-            raise CdsDbError(
+            raise PdbError(
                 '같은 키가 두 번 나왔습니다 — GROUP BY 가 빠졌을 수 있습니다: '
                 'key=%r sql=%s' % (key, sql)
             )
@@ -324,15 +328,15 @@ def _fetch_group_counts(cur, sql, params):
 def _query(conn, sql, params, fetch, what):
     """조회 공통 — 트랜잭션 끊기 / 커서 관리 / 실패 메시지를 한곳에 모은다."""
     if conn is None:
-        raise CdsDbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
+        raise PdbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
     db_end_transaction(conn)
     cur = conn.cursor()
     try:
         return fetch(cur, sql, params)
-    except CdsDbError:
+    except PdbError:
         raise
     except Exception as exc:
-        raise CdsDbError(
+        raise PdbError(
             'PDB %s 조회 실패 — %s / sql=%s params=%r\n'
             "  ★ ('HY000', 'The driver did not supply an error!') 처럼 진단이 없으면\n"
             '    **접속 문자열에서 CHARSET= 를 빼고 한 번 돌려 보십시오.** 골디락스는\n'
@@ -461,10 +465,10 @@ def db_execute(conn, sql, *params):
     ★ commit 이 핵심이다. 이 슈트는 autocommit 을 꺼 두고 조회 직전마다
       rollback 하므로(db_end_transaction), commit 하지 않으면 넣은 행이
       **다음 조회에서 사라진다.**
-    실패하면 rollback 하고 CdsDbError 를 올린다.
+    실패하면 rollback 하고 PdbError 를 올린다.
     """
     if conn is None:
-        raise CdsDbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
+        raise PdbError('PDB 에 접속돼 있지 않습니다 (connection=None).')
     cur = conn.cursor()
     try:
         if params:
@@ -478,10 +482,10 @@ def db_execute(conn, sql, *params):
             conn.rollback()
         except Exception:
             pass
-        raise CdsDbError(
+        raise PdbError(
             'PDB 실행 실패 — %s / params=%r\n'
             "  ★ 진단이 없는 HY000 이면 접속 문자열에서 CHARSET= 을 빼고 확인할 것"
-            ' (docs/nodes/CDS.md 함정 절).\n'
+            ' (docs/shared/PDB.md 함정 절).\n'
             '  sql=%s' % (exc, params, sql)
         )
     finally:

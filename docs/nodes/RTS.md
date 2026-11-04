@@ -116,8 +116,9 @@ SVC_CODE(0)/MDN(2) 만 두 레이어의 오프셋이 우연히 같다. **`RtsHel
 | `T_RTS_ORDER_TID` | `NAME`(PG 프로세스 인스턴스명 — **MDN 아님**, TC 단위 구분 불가) / `TID` — 부차 확인용 |
 | `T_5G_SUBS_SERVICE` | `MDN` / `SVC_ID` — **업무 계층**(가입자 서비스 반영). `L1`→`SVC_ID=W_DATA_ROAMING_BLOCK` INSERT, `L2`→`SVC_ID=L_DATA_ROAMING_BLOCK` INSERT (사용자 확인). 비동기 반영으로 보여 재시도로 기다린다(`${RTS_DB_WAIT}`/`${RTS_DB_WAIT_INTERVAL}`, CDS 의 SDM 폴링과 같은 성격으로 추정) |
 
-**PDB 접속은 CDS 와 같은 DB 다(사용자 확인)** — 접속 문자열은 `variables.robot` 의
-공용 `${PDB_CONNSTR}` 하나뿐이다. 예전에는 `${RTS_DB_CONNSTR}` 과 `${CDS_DB_CONNSTR}` 로
+**PDB 접속은 CDS 와 같은 DB 다(사용자 확인)** — 접속 문자열은 공용 `${PDB_CONNSTR}`
+(환경 파일) 하나뿐이고, 헬퍼도 CDS 와 같은 `PdbHelper.py` 를 `RtsDb` 별칭으로 쓴다.
+접속 문자열·함정은 [shared/PDB.md](../shared/PDB.md). 예전에는 `${RTS_DB_CONNSTR}` 과 `${CDS_DB_CONNSTR}` 로
 **같은 값이 두 벌** 있었고 `Resolve RTS DB Connstr` 이 둘 사이에 폴백을 걸고 있었는데,
 한쪽만 고치면 어긋나는 자리라 하나로 합쳤다. 그 폴백 사슬도 함께 없앴다.
 환경 오버라이드로 비어 있으면 `db` 태그 TC 는 실패가 아니라 **Skip** 한다 — CDS 처럼
@@ -144,7 +145,8 @@ CDS 는 그 MDN 의 모든 PROFILE/SERVICE 행을 지운다), RTS 가 먼저 돌
 
 **L1/L2 도 PCF SBI Noti 를 유발한다(사용자 확인)** — RTS 소스(`RecvCommandRequest`)만으로는
 notify 호출이 안 보여 애초엔 미확인이었던 부분이다. CDS 가 이미 쓰는 메커니즘을 그대로
-재사용한다: 도구가 PCF 역할로 `${RTS_NOTI_PORT}`(=`${CDS_NOTI_PORT}`=16101)를 h2c 로 Listen
+재사용한다([shared/SBI_NOTI.md](../shared/SBI_NOTI.md)): 도구가 PCF 역할로 `${RTS_NOTI_PORT}`
+(기본값 공용 `${SBI_NOTI_PORT}`=16101, CDS 와 같은 값)를 h2c 로 Listen
 하고, `Suite RTS Connect`/`Suite RTS Disconnect` 가 서버를 열고/닫는다(`HttpNotiServer.py`,
 `pip install h2` 필요). `Verify RTS SBI Noti Sent` 가 판정 키워드다 — CDS 의
 `Verify SBI Noti Sent`/`Verify PCF Noti Received` 와 동형이나, RTS 는 업무 코드가 L1/L2

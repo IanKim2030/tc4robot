@@ -6,6 +6,10 @@ Suite Setup 이 슈트가 의존하는 PG 프로세스가 죽어 있으면 .RUN 
 touch 해 깨운다. 대상 프로세스 이름은 각 노드 콜플로우 문서의
 "PG 프로세스 목록" 표를 따른다(예: docs/callflow/cds_callflow.md).
 
+같은 접속 경로로 임의 명령 한 줄도 실행한다(`run_remote_command`) — DB 시드가
+INSERT 를 한 건이라도 했을 때 setup/db_seed.robot 이 ${DB_SEED_SSH_CMDS} 를
+차례로 보낸다(PG 가 설정을 다시 읽게 하는 용도).
+
 [파이썬 SSH 라이브러리를 안 쓴다 — 시스템 ssh 를 그대로 부른다]
   touch 한 줄 보내는 게 전부라 paramiko 같은 라이브러리가 필요 없다.
   `subprocess` 로 시스템 `ssh` 를 그대로 호출한다 — 추가 pip 설치가 없다.
@@ -31,7 +35,7 @@ touch 해 깨운다. 대상 프로세스 이름은 각 노드 콜플로우 문�
   키 인증(key_file)에는 이 과정이 전혀 없다 — 원래도 sshpass 가 필요 없었다.
 
 [비밀번호 — Robot 키워드 인자로 받지 않는다]
-  인자로 넘기면 log.html 의 Arguments 에 평문으로 남는다(CdsDbHelper.py
+  인자로 넘기면 log.html 의 Arguments 에 평문으로 남는다(PdbHelper.py
   가 접속 문자열을 인자로 안 받는 것과 같은 이유). 그래서 비밀번호는
   Python 이 환경변수 PG_SSH_PASSWORD 에서 직접 읽는다 — Robot 쪽에는
   절대 넘어오지 않는다. 그 값은 askpass 스크립트에도 **리터럴로 박지
@@ -53,7 +57,7 @@ touch 해 깨운다. 대상 프로세스 이름은 각 노드 콜플로우 문�
       · ${PG_SSH_USER} 가 비어 있음 / ${PG_SSH_ENSURE}=${FALSE}
         → 이 기능을 **쓰지 않기로 한 선택**이다. 조용히 건너뛴다(예외 없음).
       · 쓰기로 했는데(계정 있음) ssh 가 없거나, 접속·명령이 실패함
-        → **CdsDbError 류와 같은 성격의 실패**다. `SshEnsureError`
+        → **PdbError 류와 같은 성격의 실패**다. `SshEnsureError`
         를 올린다. 이 함수를 부르는 `Ensure PG Process Running` 이
         Suite Setup 안에서 호출되므로, 예외가 그대로 Setup 을 실패시켜
         **그 슈트의 TC 가 한 건도 돌지 않는다**(Robot 의 기본 동작 — 따로
@@ -103,26 +107,15 @@ def _write_askpass_script():
     return path
 
 
-def ensure_pg_process_running(host, user, run_dir, processes, key_file=''):
-    """user 가 비어 있으면(=이 기능을 안 쓰기로 한 것) 아무 것도 안 하고 돌아온다.
+def _run_ssh(host, user, remote_cmd, key_file, timeout, what):
+    """remote_cmd 를 ssh 한 세션으로 실행하고 CompletedProcess 를 돌려준다.
 
-    user 가 있는데(=쓰기로 한 것) 실패하면 `SshEnsureError` 를 올린다 — 호출부
-    (Suite Setup)를 그대로 실패시켜 TC 가 돌지 않게 하려는 의도다.
+    ssh 가 없거나, 실행 자체가 실패하거나, 종료코드가 0 이 아니면 `SshEnsureError`.
+    what 은 실패 메시지 머리말이다(예: 'PG 프로세스 기동 보장').
     """
-    if not user:
-        print('[SSH] PG_SSH_USER 미설정 — PG 프로세스 기동 보장을 건너뜁니다')
-        return
-
     if not shutil.which('ssh'):
-        raise SshEnsureError('ssh 명령을 찾을 수 없습니다 — PG 프로세스 기동 보장을 할 수 없습니다.')
+        raise SshEnsureError('ssh 명령을 찾을 수 없습니다 — %s 을(를) 할 수 없습니다.' % what)
 
-    # 파일마다 개별 접속하지 않고 한 세션에서 전부 touch 한다. `;` 로 이어서
-    # 하나가 실패해도(권한 등) 나머지는 계속 시도한다 — 단, 전체 결과가 하나라도
-    # 실패했는지는 아래에서 ssh 세션 exit code 로 가늠한다(완벽하진 않지만
-    # 실패를 숨기지 않는 쪽을 택했다).
-    remote_cmd = '; '.join(
-        'touch %s/%s.RUN' % (run_dir, name) for name in processes
-    )
     argv = _build_ssh_command(key_file) + ['%s@%s' % (user, host), remote_cmd]
 
     env = dict(os.environ)
@@ -138,12 +131,12 @@ def ensure_pg_process_running(host, user, run_dir, processes, key_file=''):
     try:
         try:
             result = subprocess.run(
-                argv, env=env, timeout=_SSH_TIMEOUT,
+                argv, env=env, timeout=timeout,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 stdin=subprocess.DEVNULL, start_new_session=True,
             )
         except Exception as e:
-            raise SshEnsureError('PG 프로세스 기동 보장 실패 — %s' % e)
+            raise SshEnsureError('%s 실패 — %s' % (what, e))
     finally:
         if askpass_path:
             try:
@@ -153,8 +146,46 @@ def ensure_pg_process_running(host, user, run_dir, processes, key_file=''):
 
     if result.returncode != 0:
         raise SshEnsureError(
-            'PG 프로세스 기동 보장 실패(종료코드 %d) — %s'
-            % (result.returncode, result.stderr.decode(errors='replace').strip())
+            '%s 실패(종료코드 %d) — %s'
+            % (what, result.returncode, result.stderr.decode(errors='replace').strip())
         )
+    return result
+
+
+def ensure_pg_process_running(host, user, run_dir, processes, key_file=''):
+    """user 가 비어 있으면(=이 기능을 안 쓰기로 한 것) 아무 것도 안 하고 돌아온다.
+
+    user 가 있는데(=쓰기로 한 것) 실패하면 `SshEnsureError` 를 올린다 — 호출부
+    (Suite Setup)를 그대로 실패시켜 TC 가 돌지 않게 하려는 의도다.
+    """
+    if not user:
+        print('[SSH] PG_SSH_USER 미설정 — PG 프로세스 기동 보장을 건너뜁니다')
+        return
+
+    # 파일마다 개별 접속하지 않고 한 세션에서 전부 touch 한다. `;` 로 이어서
+    # 하나가 실패해도(권한 등) 나머지는 계속 시도한다 — 단, 전체 결과가 하나라도
+    # 실패했는지는 ssh 세션 exit code 로 가늠한다(완벽하진 않지만
+    # 실패를 숨기지 않는 쪽을 택했다).
+    remote_cmd = '; '.join(
+        'touch %s/%s.RUN' % (run_dir, name) for name in processes
+    )
+    _run_ssh(host, user, remote_cmd, key_file, _SSH_TIMEOUT, 'PG 프로세스 기동 보장')
     for name in processes:
         print('[SSH] touch %s/%s.RUN' % (run_dir, name))
+
+
+def run_remote_command(host, user, command, key_file='', timeout=60):
+    """command 한 줄을 ssh 로 실행하고 stdout 을 돌려준다 (DB 시드 후속 명령용).
+
+    ensure_pg_process_running 과 달리 user 가 비어 있으면 **실패**다 — 이 함수는
+    호출부(setup/db_seed.robot)가 "명령이 설정돼 있다"고 판단한 뒤에만 부르므로,
+    여기까지 와서 계정이 없으면 설정 누락이다. 종료코드 0 이 아니면 `SshEnsureError`.
+    """
+    if not user:
+        raise SshEnsureError(
+            'PG_SSH_USER 가 비어 있어 원격 명령을 실행할 수 없습니다 — '
+            'config/env/<env>.py 에 PG_SSH_USER 를 넣으십시오: %s' % command
+        )
+    result = _run_ssh(host, user, command, key_file, float(timeout),
+                      '원격 명령(%s@%s: %s)' % (user, host, command))
+    return result.stdout.decode(errors='replace').strip()

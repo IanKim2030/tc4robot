@@ -7,7 +7,7 @@
 
 robotframework
 
-# PDB(골디락스 / 알티베이스) 조회용. CdsDbHelper 가 **지연 임포트**하므로,
+# PDB(골디락스 / 알티베이스) 조회용. PdbHelper 가 **지연 임포트**하므로,
 # DB 판정을 안 쓰는 노드(NAG/PCF/LRS/NWDAF)는 없어도 돌아간다.
 # CDS 슈트는 Suite Setup 에서 PDB 에 붙으므로 반드시 필요하다.
 # ※ 패키지만으로는 부족하다 — 해당 DB 의 **ODBC 드라이버**가 따로 깔려 있어야 한다

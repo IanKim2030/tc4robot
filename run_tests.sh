@@ -59,6 +59,9 @@
 # 블록이 없으면 DB 에 접속하지 않는다. **시드가 실패하면 본 실행을 하지 않는다.**
 #   bash run_tests.sh nag --no-db-seed      # 시드 단계 생략
 #   bash run_tests.sh nag --db-seed-check   # 확인만 — 없으면 WARN, INSERT/UPDATE 안 함
+# INSERT 가 한 블록이라도 있었으면 PG 서버에 SSH 로 ${DB_SEED_SSH_CMDS} 를 차례로
+# 실행한다(명령 사이 ${DB_SEED_SSH_GAP} 대기, 비어 있으면 건너뜀 — variables.robot).
+#   bash run_tests.sh nag --no-db-seed-ssh  # INSERT 후 원격 명령 생략
 #
 # CDS 사전 확인 — 두 대상 번호의 잔존 데이터를 네 표에서 센다.
 #   **기본은 리포트만 하고 그대로 진행한다.** 아래는 그 동작을 바꿀 때만 쓴다.
@@ -176,6 +179,8 @@ for arg in "${@:2}"; do
         # 실행 전 DB 설정 시드(setup/db_seed.robot, config/db_seed/<env>.sql).
         --no-db-seed)      DB_SEED=0 ;;
         --db-seed-check)   TOGGLE_VARS+=(--variable DB_SEED_CHECK_ONLY:True) ;;
+        --no-db-seed-ssh)  TOGGLE_VARS+=(--variable DB_SEED_SSH_ENABLE:False) ;;
+        --db-seed-ssh)     TOGGLE_VARS+=(--variable DB_SEED_SSH_ENABLE:True) ;;
         *)              EXTRA_ARGS+=("${arg}") ;;
     esac
 done

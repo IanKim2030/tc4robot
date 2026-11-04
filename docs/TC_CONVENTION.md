@@ -152,8 +152,8 @@ NWDAF Notification 은 PG 가 응답을 주지 않는다. 따라서 "PG 가 값�
 ## 검증 절차
 
 ```bash
-python -m robot --dryrun tests/<iface>/          # 키워드 해석 + TC 수 확인
-python -m robot --dryrun --include <tag> tests/  # 태그 필터 동작 확인
+python -m robot -V config/env/dev.py --dryrun tests/<iface>/          # 키워드 해석 + TC 수 확인
+python -m robot -V config/env/dev.py --dryrun --include <tag> tests/  # 태그 필터 동작 확인
 bash run_tests.sh <iface>                        # 실 PG 대상
 ```
 

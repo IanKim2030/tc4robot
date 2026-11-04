@@ -36,7 +36,7 @@ bash run_tests.sh nag stg     # 환경 지정 (dev 기본 / stg / prd)
 | [docs/TC_CONVENTION.md](docs/TC_CONVENTION.md) | TC 명명·태그·템플릿 |
 | [docs/RESOURCES.md](docs/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 |
 | [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) | dev/stg/prd 환경 설정 |
-| [docs/nodes/](docs/nodes/) | 노드별 스펙 6종 |
+| [docs/nodes/](docs/nodes/) | 노드별 스펙 7종 |
 
 ---
 

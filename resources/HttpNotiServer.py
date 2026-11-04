@@ -40,7 +40,7 @@ _PREFACE = b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'
 # 그래서 h2 는 **서버를 실제로 띄울 때만** 부른다. 덕분에
 #   · ${SNOTI_PCF_NOTI}=False 면 h2 없이도 슈트가 그대로 돈다
 #   · 켠 채로 h2 가 없으면 "pip install h2" 라고 정확히 알려주고 실패한다
-# CdsDbHelper 가 pyodbc 를 지연 임포트하는 것과 같은 이유·같은 방식이다.
+# PdbHelper 가 pyodbc 를 지연 임포트하는 것과 같은 이유·같은 방식이다.
 _h2 = None
 
 

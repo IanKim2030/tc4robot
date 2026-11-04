@@ -50,8 +50,8 @@ TC 별 connect/disconnect 를 넣지 말 것. Suite Variable 로 공유되는 �
 **5. 검증**
 
 ```bash
-python -m robot --dryrun tests/<iface>/            # TC 수 + 키워드 해석
-python -m robot --dryrun --include <tag> tests/    # 태그 필터
+python -m robot -V config/env/dev.py --dryrun tests/<iface>/            # TC 수 + 키워드 해석
+python -m robot -V config/env/dev.py --dryrun --include <tag> tests/    # 태그 필터
 ```
 
 번호를 만졌으면 연속성을 확인한다:
@@ -76,7 +76,7 @@ assert sorted(nums) == list(range(1, len(nums)+1)), '결번/중복'
 
 ```bash
 python fake_pg.py &                        # 헤더 읽고 응답 회신하는 최소 서버
-python -m robot --variable <IFACE>_HOST:127.0.0.1 --variable <IFACE>_PORT:10999 \
+python -m robot -V config/env/dev.py --variable <IFACE>_HOST:127.0.0.1 --variable <IFACE>_PORT:10999 \
        --include <tag> tests/<iface>/
 ```
 

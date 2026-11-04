@@ -12,9 +12,12 @@ SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스
 | [docs/README.md](docs/README.md) | **문서 인덱스** — 아래 표와 같은 내용, docs 안에서의 진입점 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ★ | **시스템 아키텍처** — 4계층 레이어, 모듈 배치 |
 | [docs/INTERFACES.md](docs/INTERFACES.md) ★ | **노드 간 연동 매트릭스** — 방향·포트·헤더·Body·opcode 충돌 |
-| [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) | dev/stg/prd 환경 설정, 변수 우선순위, 환경 축 변수 |
+| [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) | dev/stg/prd 환경 설정, 변수 우선순위, 환경 축 변수, **환경값은 환경 파일에만**, 구 이름 대응표 |
 | [docs/TC_CONVENTION.md](docs/TC_CONVENTION.md) | TC 명명·태그·템플릿·비활성화·판정 한계 |
-| [docs/RESOURCES.md](docs/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 6종 카탈로그 |
+| [docs/RESOURCES.md](docs/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 11종 카탈로그 |
+| [docs/shared/PDB.md](docs/shared/PDB.md) | **PDB 공용** — 접속 문자열·두 번째 DB·골디락스/알티베이스 함정·실행 전 DB 시드 (CDS·RTS·시드) |
+| [docs/shared/SBI_NOTI.md](docs/shared/SBI_NOTI.md) | **PCF SBI Noti 수신 공용** — h2c Listen·링크 감시·`TOOL_HOST` (CDS·RTS) |
+| [docs/shared/SSH.md](docs/shared/SSH.md) | **SSH 공용** — `.RUN` touch·시드 후속 `stopMP`/`startMP` |
 | [docs/nodes/NAG.md](docs/nodes/NAG.md) | NAG 노드 스펙 |
 | [docs/nodes/PCF.md](docs/nodes/PCF.md) | PCF 노드 스펙 |
 | [docs/nodes/LRS.md](docs/nodes/LRS.md) | LRS 노드 스펙 |
@@ -60,14 +63,15 @@ bash run_tests.sh cds --start-now          # 예약 START_TIME 을 실행 시각
 
 bash run_tests.sh nag --no-db-seed          # 실행 전 DB 설정 시드(config/db_seed/<env>.sql, IP 지정은 dev) 생략
 bash run_tests.sh nag --db-seed-check       # 시드 확인만 (INSERT/UPDATE 안 함). 시드 실패 시 본 실행 안 함
+bash run_tests.sh nag --no-db-seed-ssh      # 시드 INSERT 후 PG 원격 명령(DB_SEED_SSH_CMDS, 간격 DB_SEED_SSH_GAP) 생략
 
 bash run_tests.sh nag stg                   # 환경 지정 (dev 기본 / stg / prd). 인자 없어도 config/env/dev.py 를 읽는다
 bash run_tests.sh all prd                   # prd 는 PG_ALLOW_PRD=1 필요
 bash run_tests.sh all 192.168.1.1           # PG_HOST 만 오버라이드
 
-python -m robot --test "TC-NAG-010*" tests/nag/     # 단일 TC
-python -m robot --include negative tests/           # 태그 필터
-python -m robot --dryrun tests/                     # 키워드 해석만
+python -m robot -V config/env/dev.py --test "TC-NAG-010*" tests/nag/   # 단일 TC (직접 실행은 -V 필수)
+python -m robot -V config/env/dev.py --include negative tests/         # 태그 필터
+python -m robot -V config/env/dev.py --dryrun tests/                   # 키워드 해석만
 ```
 
 결과물: `results/<YYYYMMDD_HHMMSS>/report.html`, `log.html`
@@ -86,6 +90,11 @@ UPM Subs-Change). 숫자를 직접 쓰지 말고 `${MSG_<IFACE>_*}` 를 쓴다.
 
 **값 변경은 `*_variables.robot` 에서** — TC 에 리터럴을 넣지 않는다. 환경별 값(노드별 대상 번호
 `NAG_MDN`/`PCF_MDN`/`LRS_MDN`/`CDS_MDN`/`RTS_MDN` 등)은 `config/env/<env>.py` 에서 덮는다.
+
+**환경값은 환경 파일에만** — `PG_HOST` · `TOOL_HOST` · `PDB_CONNSTR` · `SUBS_MDN/MIN_*` 은
+`variables.robot` 에 기본값을 **다시 넣지 말 것**. 넣으면 stg/prd 가 빠뜨린 키가 dev 값으로
+조용히 채워진다. 여러 노드가 같이 쓰는 값은 `variables.robot` 에 공용 이름으로 두고
+노드 변수가 그것을 기본값으로 참조한다(`${CDS_NOTI_PORT}  ${SBI_NOTI_PORT}`). 상세는 `docs/ENVIRONMENTS.md`.
 
 **NWDAF TLV 태그는 이중 관리** — `TlvHelper.py` 와 `nwdaf_variables.robot` 양쪽을 고쳐야 한다.
 

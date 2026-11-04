@@ -24,10 +24,18 @@ flowchart TD
             TLV["TlvHelper.py"]
             CDS_H["CdsHelper.py"]
             HTTP["HttpHelper.py"]
-            CDS_DB["CdsDbHelper.py"]
             RTS_H["RtsHelper.py"]
         end
+
+        subgraph Shared ["공용 (docs/shared)"]
+            PDB_H["PdbHelper.py + DbSeedHelper.py"]
+            NOTI["HttpNotiServer.py (SBI Listen)"]
+            FTP["FtpServerHelper.py / SftpServerHelper.py"]
+            SSH["SshHelper.py"]
+        end
     end
+
+    PDBDB[("PDB (골디락스 / 알티베이스)")]
 
     subgraph TargetPG ["SKT Policy Gateway (PG) System"]
         NAG_PG["NAG PG Port (8012)"]
@@ -51,6 +59,12 @@ flowchart TD
     CDS_H -->|"48B Fixed Header"| CDS_PG
     TLV -->|"8B Bitfield + TLV"| NWDAF_PG
     RTS_H -->|"32B Fixed Header"| RTS_PG
+
+    KW --> Shared
+    PDB_H -->|"ODBC"| PDBDB
+    SSH -->|"ssh: .RUN touch, stopMP/startMP"| TargetPG
+    TargetPG -->|"h2c SBI Noti (16101)"| NOTI
+    TargetPG -->|"FTP/SFTP 업로드 (UPM)"| FTP
 ```
 
 방향·포트·헤더·Body 의 전체 매트릭스는 [INTERFACES.md](INTERFACES.md) 에 있다.
@@ -93,24 +107,31 @@ flowchart TD
 
 ### 3) Variable & Configuration Layer (`config/env/`, `resources/*_variables.robot`)
 
-* **단일 출처** — [resources/variables.robot](../resources/variables.robot) 이 공통 변수(`${PG_HOST}` 등)를 정의한다
-* **상속** — 노드별 `*_variables.robot` 은 공통 변수를 참조만 한다
-* **환경 오버라이드** — 실행 시 `--variablefile` 로 [config/env/stg.py](../config/env/stg.py) /
-  [prd.py](../config/env/prd.py) 를 적용한다
+* **공용 변수** — [resources/variables.robot](../resources/variables.robot) 이 공용 상수·설정(`${SBI_NOTI_PORT}` `${PDB_TIMEOUT}` 등)을 정의한다
+* **환경값** — `${PG_HOST}` `${TOOL_HOST}` `${PDB_CONNSTR}` `${SUBS_MDN_*}` 는 **환경 파일에만** 있다
+  ([config/env/dev.py](../config/env/dev.py) / stg.py / prd.py, `--variablefile` 로 적용). 기본값이 없어
+  빠뜨리면 실패한다 — dev 값이 다른 환경으로 새지 않게 하려는 것이다
+* **상속** — 노드별 `*_variables.robot` 은 공용 변수·환경값을 참조만 한다
 
 우선순위 규칙과 환경 축 변수 목록은 [ENVIRONMENTS.md](ENVIRONMENTS.md) 에 있다.
 
 ### 4) Protocol & Transport Helper Layer (`resources/*Helper.py`)
 
-Python 기반 저수준 프로토콜 인코딩/디코딩 및 통신 엔진. 6종이며 각각
-[TcpHelper.py](../resources/TcpHelper.py) · [TlvHelper.py](../resources/TlvHelper.py) ·
-[CdsHelper.py](../resources/CdsHelper.py) · [HttpHelper.py](../resources/HttpHelper.py) ·
-[CdsDbHelper.py](../resources/CdsDbHelper.py) · [RtsHelper.py](../resources/RtsHelper.py) 다.
+Python 기반 저수준 모듈 11종. 성격이 셋이다.
 
-마지막 하나만 전문이 아니라 **PG 가 DB 에 반영한 결과**를 본다 — CDS `CommandResult` 가
-Body 와 무관하게 `SC` 를 주기 때문이다(`TC-CDS-002`).
+* **전문 헬퍼 6종** — [TcpHelper.py](../resources/TcpHelper.py) · [TlvHelper.py](../resources/TlvHelper.py) ·
+  [CdsHelper.py](../resources/CdsHelper.py) · [HttpHelper.py](../resources/HttpHelper.py) ·
+  [RtsHelper.py](../resources/RtsHelper.py) · [PdbHelper.py](../resources/PdbHelper.py).
+  마지막 하나만 전문이 아니라 **PG 가 DB 에 반영한 결과**를 본다 — CDS `CommandResult` 가
+  Body 와 무관하게 `SC` 를 주기 때문이다(`TC-CDS-002`). CDS·RTS·시드 공용이다.
+* **수신 서버 3종** — [HttpNotiServer.py](../resources/HttpNotiServer.py)(PCF SBI) ·
+  [FtpServerHelper.py](../resources/FtpServerHelper.py) / [SftpServerHelper.py](../resources/SftpServerHelper.py)(UPM 파일 업로드).
+  PG 가 도구로 **붙어 오는** 방향이다.
+* **인프라 2종** — [DbSeedHelper.py](../resources/DbSeedHelper.py)(실행 전 시드) ·
+  [SshHelper.py](../resources/SshHelper.py)(`.RUN` touch, 시드 후속 명령).
 
-담당 범위와 주요 함수 목록은 [RESOURCES.md](RESOURCES.md#python-헬퍼-6종) 에 있다.
+여러 노드가 같이 쓰는 것(PDB · SBI Noti · SSH)의 상세는 노드 문서가 아니라 [shared/](shared/) 에 있다.
+담당 범위와 주요 함수 목록은 [RESOURCES.md](RESOURCES.md#python-헬퍼-11종) 에 있다.
 
 ---
 
@@ -135,4 +156,5 @@ Body 와 무관하게 `SC` 를 주기 때문이다(`TC-CDS-002`).
 * [TC_CONVENTION.md](TC_CONVENTION.md) — TC 명명, 태그, 템플릿 작성 규칙
 * [RESOURCES.md](RESOURCES.md) — 공통 키워드 및 Python 헬퍼 카탈로그
 * [nodes/](nodes/) — 노드별 스펙 7종
+* [shared/](shared/) — 여러 노드 공용 주제: [PDB.md](shared/PDB.md) · [SBI_NOTI.md](shared/SBI_NOTI.md) · [SSH.md](shared/SSH.md)
 * [CLAUDE.md](../CLAUDE.md) — 개발 가이드 및 프로젝트 메인 인덱스

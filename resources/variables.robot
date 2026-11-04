@@ -22,45 +22,42 @@ ${MSG_PING_REQ}               ${3}     # 0x03
 ${MSG_PING_RESP}              ${4}     # 0x04
 
 # ════════════════════════════════════════════
-# 환경 축 — 여기 있는 값이 dev 기준 기본값의 단일 출처다.
+# 환경 축 — **환경값은 여기 두지 않는다. config/env/<env>.py 에만 있다.**
 #
-# stg / prd 는 config/env/<env>.py 가 --variablefile 로 덮어쓴다.
-#   bash run_tests.sh nag stg
+# 환경마다 달라지는 값(호스트/IP, DB 접속, 가입자 번호)은 환경 파일이 단일 출처다.
+#   PG_HOST · TOOL_HOST · PDB_CONNSTR · SUBS_MDN_LTE/SUBS_MIN_LTE/SUBS_MDN_5G/SUBS_MIN_5G
+# 여기에 기본값을 두면 그 값이 stg/prd 에도 조용히 흘러 들어간다 — 그래서 뺐다.
+# 환경 파일에 없으면 그 변수를 쓰는 곳에서 "Variable not found" 로 바로 실패한다.
+#
+# run_tests.sh 는 항상 환경 파일을 넘긴다(인자 없으면 dev). robot 을 직접 돌릴 때는
+#   python -m robot --variablefile config/env/dev.py tests/nag/
 # 우선순위: --variable > --variablefile > 슈트 *** Variables *** > 임포트 Resource
-# 따라서 환경 파일이 여기 값과 노드별 변수 파일을 모두 이긴다.
 #
-# 노드별 변수(*_variables.robot)는 아래 값을 **참조만** 한다 — 값을 중복 정의하지 말 것.
+# 노드별 변수(*_variables.robot)는 위 값을 **참조만** 한다 — 값을 중복 정의하지 말 것.
 # ════════════════════════════════════════════
 
-# ── 접속 ─────────────────────────────────────
-${PG_HOST}                   192.168.15.141
-
-# ── 가입자 데이터 ────────────────────────────
-${SUBS_MDN_LTE}              01020300553
-${SUBS_MIN_LTE}              1020300553
-${SUBS_MDN_5G}               01093742433
-${SUBS_MIN_5G}               1093742433
+# ── 가입자 데이터 (환경 무관 — 존재하지 않는 번호) ──
 ${SUBS_MDN_NO_HFC}           00000000000       # HFC 미가입 → code 402
 ${SUBS_MDN_NO_SESSION}       99999999999       # 세션 없음 → code 403
 # CDS 가입자는 CDS 슈트만 쓰므로 cds_variables.robot 의 ${CDS_MDN} 계열에 직접 있다.
 
-# ── PDB 접속 (CDS · RTS 공용) ────────────────
-# 두 슈트가 **같은 DB** 를 본다(사용자 확인). 예전에는 ${CDS_DB_CONNSTR} /
-# ${RTS_DB_CONNSTR} 로 같은 값이 두 벌 있었는데, 한쪽만 고쳐 어긋나는 자리였다.
-#
-# 완성된 ODBC 문자열을 통째로 준다 — 도구가 조립하지 않는다.
-# 비밀번호를 파일에 남기지 않으려면 환경변수 PG_PDB_CONNSTR 을 쓴다
-# (구 이름 PG_CDS_DB_CONNSTR 도 폴백으로 계속 읽는다 — CdsDbHelper.py).
-#   DSN 방식      : DSN=GOLD_GLOBAL;UID=pdb;PWD=...
-#   DSN-less 방식 : DRIVER=<.so 절대경로>;HOST=...;PORT=...;UID=...;PWD=...;CHARSET=UHC;
-${PDB_CONNSTR}               DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;
+# ── PDB 접속 (CDS · RTS · 시드 공용) ─────────
+# ${PDB_CONNSTR} 은 환경값이라 여기 없다 — config/env/<env>.py 또는 환경변수
+# PG_PDB_CONNSTR(구 이름 PG_CDS_DB_CONNSTR 폴백)로 준다. 둘 다 없으면 PdbHelper 가
+# 어디에 채워야 하는지까지 담아 실패한다. 형식은 config/env/dev.py 참조.
 
 # 두 번째 DB (선택, CDS 세션 사전 적재 전용) — 환경에 따라 골디락스+알티베이스
 # 이중화라 세션 정보를 **두 DB 모두에** 넣어야 하는 경우가 있다. 비워 두면(기본)
-# 기존과 같이 DB 한 곳에만 넣는다 — CdsDbHelper.has_second_db() 가 이 값으로 판정한다.
+# 기존과 같이 DB 한 곳에만 넣는다 — PdbHelper.has_second_db() 가 이 값으로 판정한다.
 # 조회(SELECT, 반영 판정)는 항상 ${PDB_CONNSTR}(첫 번째 DB) 기준이다.
 # 비밀번호를 파일에 남기지 않으려면 환경변수 PG_PDB_CONNSTR_2 를 쓴다(레거시 폴백 없음).
 ${PDB_CONNSTR_2}             ${EMPTY}
+
+# 접속 공통 설정 — CDS · RTS 가 같이 쓴다. 구 이름 ${CDS_DB_TIMEOUT} / ${CDS_DB_AUTOCOMMIT}
+# 으로 덮어도 계속 먹는다(Suite CDS Connect 가 구 이름을 먼저 보고 WARN 을 남긴다).
+# autocommit 을 끄는 이유는 docs/shared/PDB.md "autocommit=False 는 재조회를 무력화할 수 있다".
+${PDB_TIMEOUT}               5               # 접속·쿼리 타임아웃(초)
+${PDB_AUTOCOMMIT}            ${FALSE}
 
 # ── 실행 전 DB 설정 시드 (setup/db_seed.robot) ─
 # run_tests.sh 가 본 실행 전에 한 번 돌린다 — 표·값은 config/db_seed/<env>.sql 에 쓴다.
@@ -72,6 +69,19 @@ ${PDB_CONNSTR_2}             ${EMPTY}
 ${DB_SEED_FILE}              ${CURDIR}/../config/db_seed/dev.sql
 ${DB_SEED_CHECK_ONLY}        ${FALSE}
 ${DB_SEED_TIMEOUT}           5               # 접속·쿼리 타임아웃(초)
+
+# 시드가 INSERT 를 한 건이라도 했으면(DB1+DB2 합산, 블록 기준) PG 서버(${PG_HOST})에
+# SSH 로 접속해 아래 명령을 차례로 실행한다. 명령 사이에는 ${DB_SEED_SSH_GAP} 만큼
+# 쉰다. 접속 계정·인증은 아래 "PG 프로세스 기동 보장" 과 같다(${PG_SSH_USER},
+# ${PG_SSH_KEY_FILE} 또는 환경변수 PG_SSH_PASSWORD).
+# 명령은 config/env/<env>.py 에 리스트로 넣는다 — 비어 있으면(기본) 건너뛴다.
+#   DB_SEED_SSH_CMDS = ['<명령1>', '<명령2>']
+# 명령이 실패(종료코드≠0)하면 시드가 실패하고 본 실행을 하지 않는다.
+# 끄려면: bash run_tests.sh <대상> --no-db-seed-ssh
+@{DB_SEED_SSH_CMDS}
+${DB_SEED_SSH_ENABLE}        ${TRUE}
+${DB_SEED_SSH_GAP}           5s              # 명령 사이 대기
+${DB_SEED_SSH_TIMEOUT}       60              # 명령 하나의 ssh 타임아웃(초)
 
 # ── PG 프로세스 기동 보장 (SSH, 선택) ────────
 # Suite Setup 이 슈트가 의존하는 PG 프로세스의 .RUN 파일을 touch 해 죽어 있으면
@@ -104,6 +114,9 @@ ${PG_SSH_SETTLE}             3s
 # 끄면 Listen 자체를 안 한다(h2 패키지 없이도 슈트가 돈다).
 #   bash run_tests.sh cds --no-sbi   /   bash run_tests.sh rts --no-sbi
 ${SNOTI_PCF_NOTI}            ${TRUE}
+# Listen 주소 — 노드 변수 ${CDS_NOTI_PORT}/${RTS_NOTI_PORT} 의 기본값이다(구 이름으로 덮어도 된다).
+${SBI_NOTI_PORT}             16101           # PG 설정과 일치해야 함
+${SBI_NOTI_HOST}             0.0.0.0         # bind 주소 — PG 에서 닿는 주소는 ${TOOL_HOST}
 
 # ── 망 데이터 ────────────────────────────────
 ${SUBS_APN_LTE}              lte.sktelecom.com
