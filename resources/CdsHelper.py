@@ -50,11 +50,15 @@ HEADER_SIZE = 48
 # ── 내부: char 고정길이 필드 패킹/언패킹 ──────────────────────────
 
 def _pack_char(value, size, encoding='ascii'):
-    """고정길이 필드: size 초과는 자르고, 미만은 공백 패딩."""
+    """고정길이 필드: size 초과는 자르고, 미만은 공백 패딩.
+
+    자를 때는 **글자 경계**에서 자른다. cp949 한글(2B)이 경계에 걸리면 반쪽 바이트를
+    남기지 않고 그 글자를 통째로 빼고, 빈자리는 공백으로 채운다.
+    """
     s = '' if value is None else str(value)
     enc = s.encode(encoding, errors='replace')
-    if len(enc) >= size:
-        return enc[:size]
+    if len(enc) > size:
+        enc = enc[:size].decode(encoding, errors='ignore').encode(encoding)
     return enc + b' ' * (size - len(enc))
 
 
