@@ -10,7 +10,7 @@ Documentation
 ...    [계정 정보] 코드에 절대 비밀번호를 넣지 않는다 — 예전에 SSH 비밀번호가
 ...    평문으로 커밋됐다가 git 히스토리에 남은 사고 전례가 있다
 ...    (docs/ENVIRONMENTS.md "자격증명" 절). ${PG_SSH_USER} 만 변수로 두고,
-...    비밀번호는 환경변수 PG_SSH_PASSWORD 로만 받는다 — SshHelper.py 가
+...    비밀번호는 환경변수 PG_PWD_SSH 로만 받는다 — SshHelper.py 가
 ...    Python 안에서 직접 읽으므로 Robot 키워드 인자로도, log.html 에도
 ...    남지 않는다. 키 인증을 쓰려면 ${PG_SSH_KEY_FILE} 을 채운다(키 우선).
 ...

@@ -71,8 +71,8 @@ JSON Body 안의 `tid`(24자리)는 **헤더의 `txn_id`(4바이트 바이너리
 > `UPM_FTP_USE_SFTP=True` · `UPM_FTP_PORT=2222` · `UPM_FTP_REMOTE_PATH=/UPM-R2`
 > (평문 FTP 용 `UPM-R1` 설정은 dev.py 에 주석으로 남아 있다). 시드의
 > `T_BAROD_PEER_TABLE` 도 `SYSTEM_ID='UPM-R2'` 로 넣는다.
-> ★ **비밀번호는 공개 리포라 커밋하지 않는다** — 실행 호스트의 dev.py 에 직접
-> 두거나 `--variable UPM_FTP_PASSWORD:...` 로 준다. 리포의 값은 자리표시다.
+> ★ **비밀번호는 커밋하지 않는다** — 환경변수 `PG_PWD_UPM_FTP` 로 준다(2026-11-04).
+> `FtpServerHelper.py` 가 직접 읽으므로 Robot 변수(`${UPM_FTP_PASSWORD}`)는 없앴다.
 > 아래 표는 **이전 `UPM-R0`(평문 FTP) 항목의 기록**이다.
 
 다만 **FTP 접속 정보는 PG 쪽 FTP 타겟 설정으로 확인됐다**(2026-10-22) — PG 설정의
@@ -84,7 +84,7 @@ PASSWORD_04 upm1234 → upm 으로 변경, 2026-10-29 dev 는 UPM-R2 로 전환)
 |---|---|---|
 | `IP_04` | `192.168.15.142` | PG 가 접속할 주소(도구가 도는 호스트) |
 | `PORT_04` | `2121` | `${UPM_FTP_PORT}` |
-| `USER_ID_04` / `PASSWORD_04` | `upm` / `upm` | `${UPM_FTP_USER}` / `${UPM_FTP_PASSWORD}` |
+| `USER_ID_04` / `PASSWORD_04` | `upm` / `upm` | `${UPM_FTP_USER}` / 환경변수 `PG_PWD_UPM_FTP` |
 | `REMOTE_PATH_04` | `/PG/FTP/UPM-ROBOT` | 로그인 후 CWD 로 들어오는 경로 — `${UPM_FTP_REMOTE_PATH}` |
 | `LOCAL_PATH_04` | `/PG/FTP/UPM` | PG 쪽 로컬 경로(원본 파일 위치, 참고용) |
 | `USE_SFTP_04` | `N` | 평문 FTP (SFTP 아님) — pyftpdlib 선택과 일치 |

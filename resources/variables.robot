@@ -73,7 +73,7 @@ ${DB_SEED_TIMEOUT}           5               # 접속·쿼리 타임아웃(초)
 # 시드가 INSERT 를 한 건이라도 했으면(DB1+DB2 합산, 블록 기준) PG 서버(${PG_HOST})에
 # SSH 로 접속해 아래 명령을 차례로 실행한다. 명령 사이에는 ${DB_SEED_SSH_GAP} 만큼
 # 쉰다. 접속 계정·인증은 아래 "PG 프로세스 기동 보장" 과 같다(${PG_SSH_USER},
-# ${PG_SSH_KEY_FILE} 또는 환경변수 PG_SSH_PASSWORD).
+# ${PG_SSH_KEY_FILE} 또는 환경변수 PG_PWD_SSH).
 # 명령은 config/env/<env>.py 에 리스트로 넣는다 — 비어 있으면(기본) 건너뛴다.
 #   DB_SEED_SSH_CMDS = ['<명령1>', '<명령2>']
 # 명령이 실패(종료코드≠0)하면 시드가 실패하고 본 실행을 하지 않는다.
@@ -89,7 +89,7 @@ ${DB_SEED_SSH_TIMEOUT}       60              # 명령 하나의 ssh 타임아웃
 #
 # 계정 정보는 여기 넣지 않는다 — 예전에 SSH 비밀번호가 평문 커밋된 사고
 # 전례가 있다(docs/ENVIRONMENTS.md "자격증명" 절). ${PG_SSH_USER} 만 두고,
-# 비밀번호는 환경변수 PG_SSH_PASSWORD 로만 준다. 키 인증을 쓰려면
+# 비밀번호는 환경변수 PG_PWD_SSH 로만 준다. 키 인증을 쓰려면
 # config/env/<env>.py 에서 ${PG_SSH_KEY_FILE} 을 채운다(있으면 키 우선).
 #
 # ${PG_SSH_USER} 가 비어 있으면(기본) 통째로 건너뛴다 — SSH 없이도 슈트는

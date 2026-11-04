@@ -25,7 +25,7 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
   `${PDB_CONNSTR}` 에 완성된 ODBC 접속 문자열을 통째로 준다. **이 헬퍼는 접속
   문자열을 조립하지 않는다** — 받은 값을 그대로 pyodbc 에 넘긴다.
 
-    PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=pdb1234'
+    PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;'      # PWD 는 환경변수 PG_PWD_PDB_1
 
   KIND/DSN/DRIVER/HOST/PORT 로 조립하던 경로는 제거했다. 골디락스에서 DSN-less
   조립이 `IM012 DRIVER keyword syntax error` 로 거부됐고, 실환경 odbc.ini 에
@@ -39,8 +39,15 @@ CDS 전문의 **DB 반영 여부**를 판정하기 위한 조회 전용 헬퍼�
        (구 이름 `PG_CDS_DB_CONNSTR` 도 폴백으로 읽는다)
     2) Robot 변수 `${PDB_CONNSTR}`
   로그에 남기는 접속 문자열은 항상 마스킹한다(`_mask` → `PWD=****`).
-  ※ 2) 를 쓰면 **파일에 평문으로 남는다** — 실환경 값은 커밋되는
-     cds_variables.robot 이 아니라 config/env/<env>.py 에서 오버라이드할 것.
+
+[비밀번호만 따로 — 환경변수 PG_PWD_PDB_1 / PG_PWD_PDB_2 (2026-11-04)]
+  config/env/<env>.py 의 접속 문자열에는 **PWD 를 적지 않는다**(git 에 들어가는 파일이다).
+  비밀번호는 환경변수에서 읽어 접속 문자열의 `PWD=` 로 끼운다 — 있으면 바꾸고, 없으면
+  덧붙인다. 첫 번째 DB 는 `PG_PWD_PDB_1`, 두 번째 DB(`${PDB_CONNSTR_2}`)는 `PG_PWD_PDB_2`.
+    PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;CHARSET=UHC;'      # 파일
+    export PG_PWD_PDB_1='...'                                 # 셸
+  `;` `{` `}` 가 든 비밀번호는 ODBC 규칙대로 `{...}` 로 감싼다. 환경변수도 없고 접속
+  문자열에 PWD 도 없으면 접속 전에 실패한다(어느 환경변수를 채울지 알려 준다).
 
 [두 번째 DB — 쓰기(INSERT/DELETE) 전용]
   환경에 따라 세션 정보(T_SMF_SESSION_INFO) 적재나 종료 시 정리(DELETE)를
@@ -76,6 +83,10 @@ _CONN_STR_VAR = '${PDB_CONNSTR}'
 _CONN_STR_ENV_2 = 'PG_PDB_CONNSTR_2'
 _CONN_STR_VAR_2 = '${PDB_CONNSTR_2}'
 
+# 비밀번호 전용 환경변수 — 접속 문자열의 PWD= 로 끼운다(모듈 docstring 참조).
+_PWD_ENV = {1: 'PG_PWD_PDB_1', 2: 'PG_PWD_PDB_2'}
+_PWD_RE = re.compile(r'(?i)(^|;)\s*(PWD|Password)\s*=\s*(\{(?:[^}]|\}\})*\}|[^;]*)')
+
 
 class PdbError(Exception):
     """PDB 접속/조회 실패."""
@@ -89,7 +100,8 @@ CdsDbError = PdbError
 
 def _mask(conn_str):
     """접속 문자열에서 비밀번호를 가린다 (로그용)."""
-    return re.sub(r'(?i)\b(PWD|Password)\s*=\s*[^;]*', r'\1=****', conn_str)
+    # {...} 로 감싼 값(안에 ; 가 있을 수 있다)까지 통째로 가린다
+    return re.sub(r'(?i)\b(PWD|Password)\s*=\s*(\{(?:[^}]|\}\})*\}|[^;]*)', r'\1=****', conn_str)
 
 
 def _as_bool(value):
@@ -119,7 +131,13 @@ def _read_conn_str(conn_str='', which=1):
     직접 쓸 때를 위해 남겨 뒀다.
 
     `which=2` 는 두 번째 DB(세션 이중 적재용, `${PDB_CONNSTR_2}`)를 읽는다.
+    환경변수 `PG_PWD_PDB_<which>` 가 있으면 그 값을 PWD 로 끼운다(_inject_pwd).
     """
+    return _inject_pwd(_read_raw_conn_str(conn_str, which), which)
+
+
+def _read_raw_conn_str(conn_str='', which=1):
+    """비밀번호를 끼우기 전의 접속 문자열 (인자 → 환경변수 → Robot 변수)."""
     if conn_str:
         return str(conn_str).strip()
     env_names, var_name = _conn_names(which)
@@ -132,6 +150,24 @@ def _read_conn_str(conn_str='', which=1):
         return (BuiltIn().get_variable_value(var_name) or '').strip()
     except Exception:          # Robot 밖에서 직접 호출된 경우
         return ''
+
+
+def _odbc_value(value):
+    """ODBC 접속 문자열 값 — `;` `{` `}` 나 앞뒤 공백이 있으면 `{...}` 로 감싼다."""
+    if any(c in value for c in ';{}') or value != value.strip():
+        return '{%s}' % value.replace('}', '}}')
+    return value
+
+
+def _inject_pwd(cs, which):
+    """환경변수 PG_PWD_PDB_<which> 가 있으면 cs 의 PWD 를 그 값으로 바꾸거나 덧붙인다."""
+    pwd = os.environ.get(_PWD_ENV.get(which, ''), '')
+    if not cs or not pwd:
+        return cs
+    item = 'PWD=%s' % _odbc_value(pwd)
+    if _PWD_RE.search(cs):
+        return _PWD_RE.sub(lambda m: m.group(1) + item, cs, count=1)
+    return cs + ('' if cs.endswith(';') else ';') + item + ';'
 
 
 def has_second_db(conn_str=''):
@@ -151,11 +187,18 @@ def _require_conn_str(conn_str='', which=1):
         env_names, var_name = _conn_names(which)
         raise PdbError(
             'PDB 접속 문자열이 비어 있습니다 — DB 반영을 판정할 수 없습니다.\n'
-            "  %s 예: 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'\n"
+            "  %s 예: 'DSN=GOLD_GLOBAL;UID=pdb;'  (비밀번호는 환경변수 PG_PWD_PDB_1)\n"
             '  config/env/<env>.py 에 넣거나 --variable 로 지정하십시오.\n'
             '  비밀번호를 파일에 남기지 않으려면 환경변수 %s 를 쓰십시오.\n'
             '  (DSN 은 odbc.ini / ODBC 데이터 원본 관리자에 미리 등록돼 있어야 합니다.)'
             % (var_name, env_names[0])
+        )
+    if not _PWD_RE.search(cs):
+        raise PdbError(
+            'PDB 비밀번호가 없습니다 — 환경변수 %s 를 설정하십시오.\n'
+            "  예: export %s='...'   (PowerShell: $env:%s='...')\n"
+            '  접속 문자열(%s)에는 PWD 를 적지 않고 이 환경변수로 준다.'
+            % (_PWD_ENV[which], _PWD_ENV[which], _PWD_ENV[which], _mask(cs))
         )
     return cs
 
@@ -177,7 +220,7 @@ def db_connect(conn_str='', timeout=10, autocommit=False, which=1):
     [문자 인코딩은 접속 문자열에서 지정한다]
       예전에는 `conn.setencoding` / `setdecoding` 으로 pyodbc 쪽을 ANSI 로 못 박았다.
       지금은 그 코드가 없다 — **드라이버 쪽 `CHARSET=` 으로 지정한다.**
-        PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...;CHARSET=UHC'
+        PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;CHARSET=UHC'   # + PG_PWD_PDB_1
       ※ 둘은 같은 것이 아니다. `CHARSET=` 은 드라이버가 서버와 주고받는 문자셋이고,
         `setencoding` 은 pyodbc 가 Python str 을 어느 SQL 타입으로 바인딩하는지다.
         `('HY000', 'The driver did not supply an error!')` 가 다시 나오면 이 차이를

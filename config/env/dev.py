@@ -3,7 +3,7 @@
 `bash run_tests.sh nag` 처럼 **환경 인자가 없어도 이 파일을 읽는다** — IP 만 준
 경우(`nag 192.168.1.1`)도 이 파일 + PG_HOST 덮기다. 그래서 여기 채운 값이 dev 의
 실제 값이고, `resources/*_variables.robot` 은 그 아래 기본값이다.
-git 에 들어 있다(다른 환경 파일은 .gitignore) — 원격 시험 호스트와 같은 값을 쓰기 위해서다.
+git 에 들어 있다(stg.py 도 들어 있다. prd.py · local.py 는 .gitignore) — 원격 시험 호스트와 같은 값을 쓰기 위해서다.
 
 이 파일의 역할은 두 가지다:
   1) dev 에서 실제로 쓰는 값(노드별 대상 번호, PDB, UPM FTP 등)을 쥔다
@@ -97,7 +97,7 @@ UPM_MIN              = UPM_MDN[1:]     # db_seed/dev.sql 세션 MSISDN 등에 �
 UPM_BRANCH_NAME      = 'SS'
 UPM_FTP_PORT         = 2222
 UPM_FTP_USER         = 'ncnalarm'
-UPM_FTP_PASSWORD     = 'upm?4321?'
+# UPM_FTP_PASSWORD 는 없앴다 — 환경변수 PG_PWD_UPM_FTP (PG 설정 PASSWORD_04 와 같은 값)
 UPM_FTP_HOME_DIR     = '/home/kky/FTP'
 #UPM_SYS_ID           = 'UPM-R1'    # FTP SYSID
 #UPM_FTP_REMOTE_PATH  = '/UPM-R1'
@@ -143,14 +143,14 @@ SUBS_MIN_5G          = '1093742433'
 
 # ── PDB 접속 (CDS · RTS · 시드 공용) ─────────────────────────────
 # 완성된 ODBC 문자열을 통째로 준다 — 도구가 조립하지 않는다(예전 CDS_DB_KIND/DSN/
-# HOST/... 조립 변수는 제거됐다). 비밀번호를 파일에 안 두려면 환경변수 PG_PDB_CONNSTR.
-#   DSN 방식      : 'DSN=PDB;UID=pdb;PWD=...;'
-#   DSN-less 방식 : 'DRIVER=<.so 절대경로>;HOST=...;PORT=...;UID=...;PWD=...;CHARSET=UHC;'
-PDB_CONNSTR       ='DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;PWD=pdb1234;CHARSET=UHC;'
+# HOST/... 조립 변수는 제거됐다). 비밀번호(PWD)는 파일에 적지 않는다 — 환경변수 PG_PWD_PDB_1 (DB2 는 PG_PWD_PDB_2).
+#   DSN 방식      : 'DSN=PDB;UID=pdb;'
+#   DSN-less 방식 : 'DRIVER=<.so 절대경로>;HOST=...;PORT=...;UID=...;CHARSET=UHC;'
+PDB_CONNSTR       = 'DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;HOST=192.168.15.185;PORT=22581;UID=pdb;CHARSET=UHC;'   # PWD 는 환경변수 PG_PWD_PDB_1
 
 # 두 번째 DB (선택) — CDS 세션 사전 적재만 두 DB 모두에 넣고 싶을 때(예: 골디락스+
 # 알티베이스 이중화). 비우면(기본) 한 DB에만 넣는다. docs/shared/PDB.md "두 번째 DB" 절.
-# PDB_CONNSTR_2   = 'Server=...;PORT=...;DBName=...;UID=...;PWD=...;'   # 알티베이스 예시
+# PDB_CONNSTR_2   = 'Server=...;PORT=...;DBName=...;UID=...;'   # 알티베이스 예시 (PWD 는 PG_PWD_PDB_2)
 
 # PDB_TIMEOUT     = 10             # 접속·쿼리 타임아웃(초) — 구 이름 CDS_DB_TIMEOUT 도 먹는다
 #

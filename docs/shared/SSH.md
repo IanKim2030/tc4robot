@@ -20,14 +20,14 @@ paramiko 는 지연 임포트라, 시드 후속 명령이 실제로 나갈 때�
 |---|---|---|
 | `${PG_SSH_USER}` | 빈 값 | 비어 있으면 기동 보장을 **조용히 건너뛴다**. dev/stg 는 `pg` |
 | `${PG_SSH_KEY_FILE}` | 빈 값 | 채우면 키 인증(`-i`, `BatchMode=yes` / paramiko `key_filename`). 키가 우선이다 |
-| 환경변수 `PG_SSH_PASSWORD` | — | 비밀번호 인증. **Robot 변수로 받지 않는다**(log.html 에 평문으로 남기 때문) |
+| 환경변수 `PG_PWD_SSH` | — | 비밀번호 인증. **Robot 변수로 받지 않는다**(log.html 에 평문으로 남기 때문) |
 
 두 경로가 같은 계정·같은 규칙을 쓴다. 호스트 키 확인은 생략한다(`StrictHostKeyChecking=no` /
 paramiko `AutoAddPolicy`). 비밀번호 인증일 때는 키·에이전트를 시도하지 않는다.
 
 - **시스템 ssh 경로**: 비밀번호는 `sshpass` 없이 OpenSSH 내장 `SSH_ASKPASS` 로 주입한다.
   비밀번호 리터럴은 임시 askpass 스크립트에도 남지 않고, 스크립트는 실행 직후 지운다.
-- **paramiko 경로**: 비밀번호를 `PG_SSH_PASSWORD` 에서 바로 넘긴다. 종료코드·stdout·stderr 를
+- **paramiko 경로**: 비밀번호를 `PG_PWD_SSH` 에서 바로 넘긴다. 종료코드·stdout·stderr 를
   채널에서 직접 받는다. 접속·배너·인증 타임아웃은 10초, 명령은 `${DB_SEED_SSH_TIMEOUT}`(60초) —
   그 사이 출력도 종료도 없으면 실패한다.
 

@@ -20,7 +20,7 @@ python -m robot --variablefile config/env/stg.py tests/nag/
 resources/variables.robot        ← 공용 변수(상수·토글·공용 기본값). **환경값은 없다**
 resources/<iface>_variables.robot ← 노드 변수. 공용 값은 참조만 한다
 config/env/dev.py                ← dev 환경값(필수) + 덮을 수 있는 값의 카탈로그. git 에 있다
-config/env/stg.py                ← (gitignore) stg 환경값(필수) + 기본값과 다른 값
+config/env/stg.py                ← stg 환경값(필수) + 기본값과 다른 값. git 에 있다
 config/env/prd.py                ← (gitignore) prd 환경값(필수) + 실행 가드
 config/env/local.py              ← (gitignore) 개인 오버라이드, 선택
 ```
@@ -116,7 +116,7 @@ MDN 에서 계산한다 — MDN 만 바꾸면 따라온다. 다른 환경 파일
 # ── 필수 (variables.robot 에 기본값 없음) ──
 PG_HOST      = '10.20.30.40'
 TOOL_HOST    = '10.20.30.50'    # 도구 호스트 — PG 가 되돌아 접속하는 주소
-PDB_CONNSTR  = 'DSN=PDB;UID=pgtest;PWD=...'   # 또는 환경변수 PG_PDB_CONNSTR
+PDB_CONNSTR  = 'DSN=PDB;UID=pgtest;'          # PWD 는 빼고 — 환경변수 PG_PWD_PDB_1
 SUBS_MDN_LTE = '01011112222'    # NAG/PCF/LRS/NWDAF 에 자동 전파
 SUBS_MIN_LTE = '1011112222'
 SUBS_MDN_5G  = '01011113333'
@@ -166,7 +166,35 @@ bash run_tests.sh nag local
 
 ## 자격증명
 
-**SSH 로 PG 설정을 읽던 `DynamicVars` 는 제거됐다.** 따라서 SSH 계정·비밀번호가 필요 없다.
+### 비밀번호는 환경변수로만 (2026-11-04)
+
+**비밀번호는 환경 파일(git 에 들어간다)에도, Robot 변수·키워드 인자(log.html 에 남는다)에도
+두지 않는다.** 실행 셸에서 환경변수로 주면 Python 헬퍼가 직접 읽는다.
+
+| 환경변수 | 용도 | 읽는 곳 | 없으면 |
+|---|---|---|---|
+| `PG_PWD_SSH` | PG 서버 SSH(`.RUN` touch, 시드 후속 `stopMP`/`startMP`) | `SshHelper.py` (구 이름 `PG_SSH_PASSWORD` 폴백) | 키 인증(`PG_SSH_KEY_FILE`)이 아니면 접속 실패 |
+| `PG_PWD_PDB_1` | 첫 번째 PDB — `PDB_CONNSTR` 의 `PWD=` 로 끼운다 | `PdbHelper.py` | 접속 문자열에도 PWD 가 없으면 접속 전 실패 |
+| `PG_PWD_PDB_2` | 두 번째 PDB — `PDB_CONNSTR_2` 의 `PWD=` | `PdbHelper.py` | DB2 를 쓸 때만 위와 같음 |
+| `PG_PWD_UPM_FTP` | UPM FTP/SFTP 수신 서버 — PG 설정 `PASSWORD_04` 와 같은 값 | `FtpServerHelper.py` | FTP 수신을 켜면(`UPM_FTP_ENABLE`) Suite Setup 실패 (`--no-ftp` 로 피한다) |
+
+```bash
+export PG_PWD_SSH='...'
+export PG_PWD_PDB_1='...'
+export PG_PWD_UPM_FTP='...'
+bash run_tests.sh all stg
+# PowerShell: $env:PG_PWD_SSH='...'
+```
+
+`config/env/<env>.py` 의 `PDB_CONNSTR` 에는 PWD 를 빼고 적는다(`'DSN=PDB;UID=pdb;CHARSET=UHC;'`).
+환경변수 값은 **환경을 가리지 않는다** — 한 호스트에서 dev 와 stg 를 번갈아 돌리면 비밀번호가
+다를 때마다 export 를 바꿔야 한다. 이 셋이 dev.py 에 평문으로 있던 시절의 값은 **git 히스토리에
+남아 있다** — 실제로 쓰는 계정이면 비밀번호 자체를 바꿔야 한다.
+
+### DynamicVars 제거
+
+**SSH 로 PG 설정을 읽던 `DynamicVars` 는 제거됐다.** (지금의 SSH 는 `.RUN` touch 와 시드 후속
+명령 용도다 — [shared/SSH.md](shared/SSH.md).)
 
 제거 근거 — 실측 cfg 값이 하드코딩 기본값과 전부 같아 **동작 차이가 없었다**:
 

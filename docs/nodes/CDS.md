@@ -355,7 +355,7 @@ SELECT COUNT(*) FROM T_5G_SUBS_SERVICE WHERE MDN = ?
 | 대상 DB | 환경에 따라 **골디락스** 또는 **알티베이스** |
 | 드라이버 | ODBC (`pyodbc`). `resources/PdbHelper.py`(공용, [shared/PDB.md](../shared/PDB.md)) 가 직접 쓴다 — `DatabaseLibrary` 는 쓰지 않는다 |
 | 접속 방식 | **완성된 ODBC 문자열 하나뿐** — `${PDB_CONNSTR}`(RTS 와 공용). 도구가 조립하지 않는다 |
-| 비밀번호 | 접속 문자열 안에. 환경변수 `PG_PDB_CONNSTR`(구 `PG_CDS_DB_CONNSTR` 폴백) 우선, 없으면 `${PDB_CONNSTR}` |
+| 비밀번호 | 환경변수 `PG_PWD_PDB_1`(DB2 는 `PG_PWD_PDB_2`) — 접속 문자열에는 적지 않는다. [shared/PDB.md](../shared/PDB.md) |
 | 두 번째 DB (선택) | `${PDB_CONNSTR_2}`(환경변수 `PG_PDB_CONNSTR_2`)를 채우면 **쓰기(세션 사전 적재 + 종료 시 정리)** 를 두 DB 모두에 한다(골디락스+알티베이스 이중화 환경 대응). 비어 있으면(기본) 한 DB만 쓴다. 조회·판정은 항상 첫 번째 DB 기준 — [shared/PDB.md](../shared/PDB.md#두-번째-db--pdb_connstr_2) |
 | 세션 DB 별 on/off (선택) | `${CDS_SESSION_DB1}`/`${CDS_SESSION_DB2}`(둘 다 기본 `${TRUE}`). `T_SMF_SESSION_INFO` 의 INSERT/DELETE 만 DB1/DB2 각각 따로 끌 수 있다(PROFILE/SERVICE 는 영향 없음). `--no-session-db1`/`--no-session-db2` |
 | 접속 시점 | **Suite Setup**(`Suite CDS Connect`)에서 소켓에 이어 1회. DB 가 안 붙으면 전문 송수신 TC 까지 포함해 슈트 전체가 서지 않는다 |

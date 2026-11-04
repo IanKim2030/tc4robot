@@ -16,7 +16,7 @@ touch 해 깨운다. 대상 프로세스 이름은 각 노드 콜플로우 문�
   · 원격 명령(`run_remote_command`, stopMP/startMP) — **paramiko** 로 붙는다(사용자 지정).
     종료코드·stdout·stderr 를 채널에서 직접 받는다. paramiko 는 **지연 임포트**한다 —
     시드 후속 명령을 안 쓰면(INSERT 0건 / 명령 비어 있음 / --no-db-seed-ssh) 없어도 된다.
-    인증·호스트 키 정책은 시스템 ssh 경로와 맞췄다(키 우선, 없으면 PG_SSH_PASSWORD,
+    인증·호스트 키 정책은 시스템 ssh 경로와 맞췄다(키 우선, 없으면 PG_PWD_SSH,
     호스트 키는 묻지 않고 받음).
 
 [비밀번호 인증 — sshpass 없이 SSH_ASKPASS 로 자동 주입한다, 2026-10-07]
@@ -42,7 +42,7 @@ touch 해 깨운다. 대상 프로세스 이름은 각 노드 콜플로우 문�
 [비밀번호 — Robot 키워드 인자로 받지 않는다]
   인자로 넘기면 log.html 의 Arguments 에 평문으로 남는다(PdbHelper.py
   가 접속 문자열을 인자로 안 받는 것과 같은 이유). 그래서 비밀번호는
-  Python 이 환경변수 PG_SSH_PASSWORD 에서 직접 읽는다 — Robot 쪽에는
+  Python 이 환경변수 PG_PWD_SSH(구 이름 PG_SSH_PASSWORD 폴백)에서 직접 읽는다 — Robot 쪽에는
   절대 넘어오지 않는다. 그 값은 askpass 스크립트에도 **리터럴로 박지
   않고** 별도 환경변수(PG_SSH_ASKPASS_SECRET) 참조로만 넘긴다 — 스크립트
   파일 내용 자체는 비밀이 아니다. 키 인증(key_file)이 있으면 키를 우선한다.
@@ -79,8 +79,15 @@ _SSH_TIMEOUT = 15          # subprocess 전체 타임아웃(초) — 접속 타�
 _SSH_CONNECT_TIMEOUT = 10  # ssh -o ConnectTimeout
 _ASKPASS_ENV = 'PG_SSH_ASKPASS_SECRET'  # 비밀번호를 담는 환경변수 — askpass 스크립트가 참조
 _SSH_PORT = 22
+_PWD_ENV = 'PG_PWD_SSH'             # 비밀번호 환경변수 (2026-11-04 이름 변경)
+_PWD_ENV_LEGACY = 'PG_SSH_PASSWORD' # 구 이름 — 기존 셸 설정을 깨지 않기 위한 폴백
 
 _paramiko = None
+
+
+def _ssh_password():
+    """SSH 비밀번호 — PG_PWD_SSH, 없으면 구 이름 PG_SSH_PASSWORD. 둘 다 없으면 ''."""
+    return os.environ.get(_PWD_ENV) or os.environ.get(_PWD_ENV_LEGACY, '')
 
 
 class SshEnsureError(Exception):
@@ -132,7 +139,7 @@ def _run_ssh(host, user, remote_cmd, key_file, timeout, what):
     if not key_file:
         # 비밀번호 인증 — sshpass 없이 SSH_ASKPASS 로 자동 주입한다(모듈 docstring 참조).
         askpass_path = _write_askpass_script()
-        env[_ASKPASS_ENV] = os.environ.get('PG_SSH_PASSWORD', '')
+        env[_ASKPASS_ENV] = _ssh_password()
         env['SSH_ASKPASS'] = askpass_path
         env['SSH_ASKPASS_REQUIRE'] = 'force'
         env.setdefault('DISPLAY', ':0')  # 구버전 OpenSSH 호환용 더미값, 실제 X 서버 불필요
@@ -205,7 +212,7 @@ def run_remote_command(host, user, command, key_file='', timeout=60, port=_SSH_P
     호출부(setup/db_seed.robot)가 "명령이 설정돼 있다"고 판단한 뒤에만 부르므로,
     여기까지 와서 계정이 없으면 설정 누락이다. 종료코드 0 이 아니면 `SshEnsureError`.
 
-    key_file 이 있으면 키 인증, 없으면 환경변수 PG_SSH_PASSWORD 로 비밀번호 인증이다
+    key_file 이 있으면 키 인증, 없으면 환경변수 PG_PWD_SSH 로 비밀번호 인증이다
     (비밀번호는 Robot 인자로 받지 않는다 — 모듈 docstring 참조). timeout 은 명령
     출력을 기다리는 시간(초)이다 — 그 사이 아무 출력도 종료도 없으면 실패한다.
     비대화형 exec 이라 원격 `.profile` 은 읽지 않는다(시스템 ssh 와 같다).
@@ -221,7 +228,7 @@ def run_remote_command(host, user, command, key_file='', timeout=60, port=_SSH_P
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # = StrictHostKeyChecking=no
     auth = {'key_filename': key_file} if key_file else {
-        'password': os.environ.get('PG_SSH_PASSWORD', ''),
+        'password': _ssh_password(),
         'look_for_keys': False, 'allow_agent': False,   # = PubkeyAuthentication=no
     }
     try:

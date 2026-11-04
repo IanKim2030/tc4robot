@@ -24,6 +24,12 @@ PG 는 UPM 의 Subs-Sync(0x0b) 요청에 대한 0x0c 응답에 "fileinfo"를 실
   Start' found" 로만 보고돼 진짜 원인(미설치)이 드러나지 않는다. 그래서 서버를
   실제로 띄울 때만 부른다 — ${UPM_FTP_ENABLE}=False 면 pyftpdlib 없이도 슈트가
   돈다.
+
+★ 비밀번호는 환경변수 PG_PWD_UPM_FTP 에서 읽는다 (2026-11-04)
+  PG 가 로그인할 때 쓰는 비밀번호(PG 설정 PASSWORD_04)다. Robot 키워드 인자로 받으면
+  log.html 의 Arguments 에 평문으로 남으므로 받지 않는다 — PdbHelper/SshHelper 와 같은
+  원칙이다. 비어 있으면 서버를 띄우지 않고 실패한다(빈 비밀번호로 열지 않는다).
+  password 인자는 Robot 밖에서 이 모듈을 직접 쓸 때만 쓴다.
 """
 
 import os
@@ -34,6 +40,19 @@ import traceback
 
 _pyftpdlib = None
 _sftp_module = None
+_PWD_ENV = 'PG_PWD_UPM_FTP'
+
+
+def _ftp_password(password=None):
+    """FTP 수신 서버 비밀번호 — 인자(Robot 밖 직접 호출용) → 환경변수 PG_PWD_UPM_FTP."""
+    pwd = password or os.environ.get(_PWD_ENV, '')
+    if not pwd:
+        raise RuntimeError(
+            'UPM FTP 수신 서버 비밀번호가 없습니다 — 환경변수 %s 를 설정하십시오 '
+            "(PG 설정 PASSWORD_04 와 같은 값). 예: export %s='...'. "
+            'FTP 수신을 안 쓰려면 --no-ftp.' % (_PWD_ENV, _PWD_ENV)
+        )
+    return pwd
 
 
 def _load_sftp_module():
@@ -225,7 +244,7 @@ class FtpServer(object):
 # Robot 이 직접 부르는 함수들 (라이브러리 인터페이스)
 # ══════════════════════════════════════════════════════════════════
 
-def ftp_server_start(port, host='0.0.0.0', user='upm', password='upm',
+def ftp_server_start(port, host='0.0.0.0', user='upm', password=None,
                       directory=None, passive_ports=None, masquerade_address=None,
                       remote_path=None, use_sftp=False):
     """FTP(또는 SFTP) 수신 서버 기동 → 서버 핸들 반환. 핸들은 Suite Variable 로 들고 다닌다.
@@ -237,7 +256,10 @@ def ftp_server_start(port, host='0.0.0.0', user='upm', password='upm',
     ftp_errors/ftp_connections/ftp_clear/ftp_server_stop/ftp_server_is_running
     은 어느 쪽이 떠 있든 그대로 쓸 수 있다 — 호출부(upm_keywords.robot)가
     FTP 와 SFTP 를 구분할 필요가 없다.
+
+    password 는 Robot 에서 넘기지 않는다 — 환경변수 PG_PWD_UPM_FTP 에서 읽는다(모듈 docstring).
     """
+    password = _ftp_password(password)
     if use_sftp:
         sftp_mod = _load_sftp_module()
         srv = sftp_mod.SftpServer(port, host, user, password,

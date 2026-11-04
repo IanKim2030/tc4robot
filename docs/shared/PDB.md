@@ -14,8 +14,13 @@ PDB 는 PG 가 가입자·세션·설정을 두는 DB 다. 환경에 따라 **�
 
 | 변수 | 기본값 | 설명 |
 |---|---|---|
-| `${PDB_CONNSTR}` | **없음 (환경 파일 필수)** | 완성된 ODBC 문자열. 환경변수 `PG_PDB_CONNSTR`(구 `PG_CDS_DB_CONNSTR`) 가 우선 |
+| `${PDB_CONNSTR}` | **없음 (환경 파일 필수)** | ODBC 문자열 — **PWD 는 빼고** 적는다. 환경변수 `PG_PDB_CONNSTR`(구 `PG_CDS_DB_CONNSTR`) 가 있으면 그쪽이 우선 |
 | `${PDB_CONNSTR_2}` | 빈 값 | 두 번째 DB. 환경변수 `PG_PDB_CONNSTR_2`(레거시 폴백 없음) |
+| 환경변수 `PG_PWD_PDB_1` | — | 첫 번째 DB 비밀번호. 접속 문자열의 `PWD=` 로 끼운다(있으면 바꾸고 없으면 덧붙임). `;{}` 가 있으면 `{...}` 로 감싼다 |
+| 환경변수 `PG_PWD_PDB_2` | — | 두 번째 DB 비밀번호 — 위와 같은 방식 |
+
+비밀번호 환경변수도 없고 접속 문자열에도 PWD 가 없으면 **접속 전에** `PDB 비밀번호가 없습니다 —
+환경변수 PG_PWD_PDB_1 를 설정하십시오` 로 실패한다(DSN 의 odbc.ini 에 비밀번호를 둔 구성은 지원하지 않는다).
 | `${PDB_TIMEOUT}` | `5` | 접속·쿼리 타임아웃(초). 구 이름 `${CDS_DB_TIMEOUT}` 으로 덮어도 먹는다 |
 | `${PDB_AUTOCOMMIT}` | `${FALSE}` | 구 이름 `${CDS_DB_AUTOCOMMIT}`. 끄는 이유는 아래 [autocommit 함정](#함정--autocommitfalse-는-재조회를-무력화할-수-있다) |
 
@@ -34,7 +39,7 @@ DSN 을 `odbc.ini`(Linux) / ODBC 데이터 원본 관리자(Windows)에 등록�
 참조하는 것이 골디락스 정석이다.
 
 ```python
-PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'
+PDB_CONNSTR = 'DSN=GOLD_GLOBAL;UID=pdb;'     # PWD 는 환경변수 PG_PWD_PDB_1
 ```
 
 `${CDS_DB_KIND}` `${CDS_DB_DSN}` `${CDS_DB_DRIVER}` `HOST`/`PORT`/`NAME`/`USER`/
@@ -60,15 +65,16 @@ DSN 없이 직접 쓸 수도 있다. 다만 `.so` **경로에 중괄호를 붙�
 
 ```python
 PDB_CONNSTR = ('DRIVER=/PG/goldilocks_home/lib/libgoldilockscs-ul64.so;'
-               'HOST=10.20.30.40;PORT=22581;UID=pgtest;PWD=...;CHARSET=UHC;')
+               'HOST=10.20.30.40;PORT=22581;UID=pgtest;CHARSET=UHC;')   # PWD 는 PG_PWD_PDB_1
 ```
 
-**비밀번호가 이 문자열 안에 들어가므로 파일에 적지 않는 쪽이 낫다.** 환경변수가
-Robot 변수보다 우선한다.
+**비밀번호는 이 문자열에 적지 않는다** — 환경변수 `PG_PWD_PDB_1` 로 준다(위 변수 표). 접속 문자열
+전체를 환경변수로 주는 길도 남아 있다(Robot 변수보다 우선).
 
 ```bash
-export PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
-# PowerShell: $env:PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
+export PG_PWD_PDB_1='...'                          # 비밀번호만 (권장)
+export PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;'        # 접속 문자열 전체를 바꿀 때만
+# PowerShell: $env:PG_PWD_PDB_1='...'
 # 구 이름 PG_CDS_DB_CONNSTR 도 폴백으로 계속 읽는다.
 ```
 
@@ -83,8 +89,8 @@ export PG_PDB_CONNSTR='DSN=PDB;UID=pgtest;PWD=...'
 
 ```python
 # config/env/<env>.py
-PDB_CONNSTR   = 'DSN=GOLD_GLOBAL;UID=pdb;PWD=...'        # 골디락스
-PDB_CONNSTR_2 = 'Server=...;PORT=...;DBName=...;UID=...;PWD=...'  # 알티베이스
+PDB_CONNSTR   = 'DSN=GOLD_GLOBAL;UID=pdb;'                   # 골디락스 — PWD 는 PG_PWD_PDB_1
+PDB_CONNSTR_2 = 'Server=...;PORT=...;DBName=...;UID=...;'    # 알티베이스 — PWD 는 PG_PWD_PDB_2
 ```
 
 ★ **이중 적용 대상은 쓰기(INSERT/DELETE) 뿐이다.** 가입자 프로파일/서비스 반영 판정
