@@ -764,15 +764,22 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 | 141 | `device_type` | DEVICE_TYPE / devceType | 1 | W=3G L=LTE N=NSA S=SA (Null=LTE) | ● |
 | 142 | `coupon_category` | COUPON_CATEGORY | 1 | T=Time P=Period | |
 | 143 | `real_start_time` | REAL_START_TIME | 12 | 쿠폰 **시작** 시간 (91/92 만 쓴다) ★ | |
-| 155 | `addr` | ADDR | 170 | 주소 (**cp949**) | |
+| 155 | `addr` | ADDR | 170 | 주소 (**EUC-KR**) | |
 | 325 | `product_type` | PRODUCT_GEN_TYPE / produGenType | 2 | 01=3G 02=LTE 03=5G | ● |
 
 `●` = 실 전문에 값이 있던 필드 / `공백` = 규격상 A1 필수인데 실 전문은 비어 있던 필드 /
 `★` = 규격표와 어긋나 값을 근거로 남긴 필드(아래 함정 절).
 
-`addr` 만 한글이 들어가 cp949 로 인코딩한다(`_FIELD_ENCODING`). 나머지는 ASCII.
-폭을 넘으면 **글자 경계**에서 자른다 — 170B 경계에 한글이 걸리면 그 글자를 통째로 빼고
-공백으로 채운다(반쪽 바이트를 보내지 않는다).
+`addr` 만 한글이 들어가 **EUC-KR** 로 인코딩한다(`_FIELD_ENCODING`). 나머지는 ASCII.
+
+- **원본 charset 판별**: 값이 str 이면 그대로, bytes 로 들어오면 UTF-8 → cp949 순으로
+  디코딩해 판별한다(`_ADDR_SRC_CHARSETS`). 판별 결과는 로그에 `addr 원본 charset: ...` 로 남는다.
+- **EUC-KR 에 없는 글자**(cp949 확장 한글 `똠` `펲` 등)가 있으면 `?` 로 바꿔 보내지 않고
+  패킹 단계에서 실패한다. ★ Python `euc_kr` 코덱은 이런 글자를 거부하지 않고 8바이트 자모
+  조합열(`똠` → `A4D4 A4A8 A4C7 A4B1`)로 내보내므로, 완성형 2B 로 안 되는 글자는 직접 걸러낸다.
+- 폭을 넘으면 **글자 경계**에서 자른다 — 170B 경계에 한글이 걸리면 그 글자를 통째로 빼고
+  공백으로 채운다(반쪽 바이트를 보내지 않는다).
+- Robot 변수 파일(`${CDS_ADDR}`)은 UTF-8 로 적는다. 변환은 전문을 만들 때만 한다.
 
 #### 업무 코드별 필드 집합
 
@@ -796,7 +803,7 @@ PG 기본키와 충돌하므로 시각을 넣어 회피한다.
 `aprfTermAttri` `mvnoCompa` `catMsType` `lteCatgy` `5gCatgy` `devceType`)를 쓰는 계열이고,
 `D3` `I2` `I3` `1X` 는 **가입자 식별 + 업무 고유 필드만** 쓰는 계열이다.
 
-`1X` 는 **`addr` 를 쓰는 유일한 코드**다(170B, cp949).
+`1X` 는 **`addr` 를 쓰는 유일한 코드**다(170B, EUC-KR).
 `I2`/`I3` 만 `roamStopId`(`ROADMING_STOP`) · `roamStopProviId`(`ROADMING_STOP_PROVIDER`) ·
 `YoungHarmInfoBlock`(`YOUNG_HARM_INFO_BLOCK`) 을 쓴다.
 

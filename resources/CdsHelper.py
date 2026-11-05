@@ -276,15 +276,61 @@ _CMD_LAYOUT = [
     ('device_type',                    1),   # DEVICE_TYPE / devceType — W=3G L=LTE N=NSA S=SA (Null=LTE)
     ('coupon_category',                1),   # COUPON_CATEGORY — T=Time P=Period
     ('real_start_time',               12),   # REAL_START_TIME — 쿠폰 시작 시간
-    ('addr',                         170),   # ADDR — 주소 (cp949)
+    ('addr',                         170),   # ADDR — 주소 (EUC-KR)
     ('product_type',                   2),   # PRODUCT_GEN_TYPE / produGenType — 01=3G 02=LTE 03=5G
 ]
 
 COMMAND_BODY_SIZE = sum(size for _, size in _CMD_LAYOUT)   # = 327
 
-# addr(주소)만 한글 포함 가능 → DB(골디락스 UHC / 알티베이스 MS949)와 맞춰 cp949 로 인코딩.
+# addr(주소)만 한글 포함 가능 → CDS 규격대로 EUC-KR 로 인코딩한다.
 # 그 외 필드는 전부 코드/번호류라 ASCII 그대로 둔다.
-_FIELD_ENCODING = {'addr': 'cp949'}
+_FIELD_ENCODING = {'addr': 'euc_kr'}
+
+# addr 원본이 bytes 로 들어오면 이 순서로 디코딩해 charset 을 판별한다.
+# UTF-8 을 먼저 본다 — EUC-KR 한글 바이트열은 거의 항상 UTF-8 로는 깨지기 때문이다.
+_ADDR_SRC_CHARSETS = ('utf-8', 'cp949')
+
+
+def _addr_to_euckr_text(value):
+    """
+    addr 원본 → EUC-KR 로 보낼 수 있는 str.
+
+    str 이면 그대로, bytes 면 _ADDR_SRC_CHARSETS 순서로 charset 을 판별해 디코딩한다.
+    EUC-KR 에 없는 글자(cp949 확장 한글 '똠' 등)가 있으면 '?' 로 바꿔 보내지 않고
+    ValueError 를 낸다.
+    """
+    if value is None:
+        return ''
+    if isinstance(value, (bytes, bytearray)):
+        for cs in _ADDR_SRC_CHARSETS:
+            try:
+                text = bytes(value).decode(cs)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            raise ValueError('addr 원본 charset 을 판별하지 못했습니다 (%s 아님): %r'
+                             % ('/'.join(_ADDR_SRC_CHARSETS), bytes(value)))
+        print('*INFO* addr 원본 charset: %s → euc-kr' % cs)
+    else:
+        text = str(value)
+    bad = sorted({ch for ch in text if not _encodable(ch, 'euc_kr')})
+    if bad:
+        raise ValueError('addr 에 EUC-KR 로 보낼 수 없는 글자가 있습니다: %s (주소: %s)'
+                         % (' '.join(bad), text))
+    return text
+
+
+def _encodable(ch, encoding):
+    """한 글자가 encoding 의 **완성형 1글자(≤2B)** 로 표현되는지.
+
+    Python euc_kr 코덱은 KS X 1001 에 없는 음절('똠')을 거부하지 않고 8바이트 자모
+    조합열(A4D4 + 초·중·종성)로 내보낸다. 받는 쪽은 자모 4개로 읽으므로 거부 대상이다.
+    """
+    try:
+        return len(ch.encode(encoding)) <= 2
+    except UnicodeEncodeError:
+        return False
 
 
 class UnsupportedCommandCode(ValueError):
@@ -442,6 +488,7 @@ def pack_command_body(code, **fields):
     f = {name: '' for name, _ in _CMD_LAYOUT}
     f['svc_code'] = code
     _fill_command_fields(code, fields, f)
+    f['addr'] = _addr_to_euckr_text(f.get('addr'))
     buf = b''.join(
         _pack_char(f.get(name, ''), size, encoding=_FIELD_ENCODING.get(name, 'ascii'))
         for name, size in _CMD_LAYOUT
