@@ -179,7 +179,7 @@ ${CDS_SESSION_UDR_NOTI_URI}
 ...    http://${CDS_SESSION_PCF_ADDR}/npcf-event-exposure/v1/nudr-smf-notify/${CDS_SESSION_SM_POLICY_ID}
 
 # ── 2번 세션 — D3(번호변경) 이후의 번호 ─────────────────────────
-# TC-CDS-019(D3)이 성공하면 가입자가 ${CDS_NEW_MDN} 로 바뀌고, TC-CDS-020(Z1)는
+# TC-CDS-021(D3)이 성공하면 가입자가 ${CDS_NEW_MDN} 로 바뀌고, TC-CDS-022(Z1)는
 # 그 번호로 해지 전문을 보낸다. **그 번호에도 세션이 있어야** PG.SNOTI 가 알림
 # 상대를 찾는다 — 없으면 D3·Z1 의 알림이 조용히 안 나간다.
 # 그래서 Suite Setup 이 세션을 **두 건** 심는다(둘 다 멱등).
@@ -381,7 +381,10 @@ ${CDS_CMD_CODE}                ${CDS_CODE_A1}           # 기본 업무 코드 (
 ${CDS_MDN}                     01090010001              # mdn        (12자) — CDS 는 가입자가 다르다
 ${CDS_PROD_ID}                 NA00003479               # product_id (10자, prod_id)
 ${CDS_LIMIT}                   0                        # limitSubsFlag (1자, TODO: 실환경 값)
-${CDS_PROD_TYPE}               02                       # produGenType  (2자, 코드별로 다름)
+${CDS_PROD_TYPE}               02                       # produGenType  (2자) 01=3G 02=LTE 03=5G
+# G1 produGenType 변형 TC(TC-CDS-016 ~ 017)가 쓰는 값. 기본값(${CDS_PROD_TYPE})은 건드리지 않는다.
+${CDS_PROD_TYPE_01}            01                       # 3G — TC-CDS-016
+${CDS_PROD_TYPE_03}            03                       # 5G — TC-CDS-017
 ${CDS_DEVICE_TYPE}             L                        # device_type   (1자) W=3G L=LTE N=NSA S=SA (Null=LTE)
 # C1 devceType 변형 TC(TC-CDS-011 ~ 014)가 쓰는 값. 기본값(${CDS_DEVICE_TYPE})은 건드리지 않는다.
 ${CDS_DEVICE_TYPE_W}           W                        # 3G  — TC-CDS-011
@@ -393,7 +396,7 @@ ${CDS_NEW_MDN}                 01090010002              # new_mdn (D3 번호변�
 ${CDS_MIN}                     1090010001               # min     (10자, A1/D3 등)
 
 # D3(번호변경) 이후 가입자를 가리키는 번호. Z1(해지)처럼 "현재 번호"로 보내야 하는
-# 코드가 쓴다. 기본값은 원래 번호이고, TC-CDS-019(D3)이 성공하면 그 TC 가
+# 코드가 쓴다. 기본값은 원래 번호이고, TC-CDS-021(D3)이 성공하면 그 TC 가
 # Set Suite Variable 로 ${CDS_NEW_MDN} 을 덮어쓴다.
 # → D3 를 건너뛰거나 실패하면 기본값이 남아 **원래 번호로 해지**한다.
 ${CDS_ACTIVE_MDN}              ${CDS_MDN}               # 현재 유효 MDN (D3 성공 시 new_mdn 으로 교체)
@@ -422,7 +425,7 @@ ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (0
 # ★ 그래서 이 값은 반드시 **미래**여야 한다.
 #   K1/K5 가입은 서비스 행을 넣는 동시에 예약 큐에 만료(K3/K7) 예약을 건다. PG.RDS 가
 #   START_TIME 이 지난 예약을 집어 실행하므로, 과거 시각을 넣으면 **가입하자마자 만료가
-#   실행돼** 서비스 행이 사라진다 → 가입 판정(TC-CDS-016)이 이유 없이 실패한다.
+#   실행돼** 서비스 행이 사라진다 → 가입 판정(TC-CDS-018)이 이유 없이 실패한다.
 #   이 값이 과거가 되면 여기를 먼저 볼 것.
 ${CDS_START_TIME}              203712312359             # 쿠폰 종료 시각 YYYYMMDDHH24MI (미래여야 함)
 
@@ -435,25 +438,25 @@ ${CDS_START_TIME}              203712312359             # 쿠폰 종료 시각 Y
 #
 # ★ **오프셋은 반드시 양수여야 한다.** K1/K5 가입은 서비스 행을 넣는 동시에 예약 큐에
 #   만료(K3/K7)를 건다. PG.RDS 는 START_TIME 이 지난 예약을 집어 실행하므로, 0이나
-#   음수면 **가입하자마자 만료돼** 016(K1)의 가입 판정이 이유 없이 실패한다.
+#   음수면 **가입하자마자 만료돼** 018(K1)의 가입 판정이 이유 없이 실패한다.
 #   전문 형식이 분까지만 담아(초 자리가 없다) 0 이면 이번 분이 이미 시작돼 있다.
 #   그래서 기본을 넉넉히 60분 뒤로 둔다.
 #
 #   bash run_tests.sh cds --start-now        # 실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분
 #   python -m robot --variable CDS_START_TIME_MODE:now #                   --variable CDS_START_TIME_OFFSET_MIN:120 tests/cds/
 #
-# ※ 만료를 보는 TC(TC-CDS-018)는 이 설정과 무관하다 — 그 TC 는 자기가
+# ※ 만료를 보는 TC(TC-CDS-020)는 이 설정과 무관하다 — 그 TC 는 자기가
 #   `Current CDS Start Time ${CDS_K3_START_OFFSET_MIN}` 으로 따로 만든다.
 ${CDS_START_TIME_MODE}         fixed                    # fixed(위 고정값) | now(실행 시각 기준)
 ${CDS_START_TIME_OFFSET_MIN}   ${60}                    # now 일 때 더할 분. **양수여야 한다**
 
-# 만료 TC(TC-CDS-018)는 위 고정값 대신 **현재 시각 기준**으로 보낸다 — 유효기간이 찬 쿠폰을
+# 만료 TC(TC-CDS-020)는 위 고정값 대신 **현재 시각 기준**으로 보낸다 — 유효기간이 찬 쿠폰을
 # 다뤄야 하기 때문이다. 그 시각을 현재에서 몇 분 옮길지가 이 값이다(`Current CDS Start Time`).
 #   0  = 지금. 이번 분이 이미 시작돼 있어 PG.RDS 가 곧 만료 예약을 집어간다.
 #   양수 = 그만큼 뒤. RDS 가 먼저 지워버려 가입 확인이 실패하면 1~2 로 올려 여유를 준다.
 #   음수 = 그만큼 전. 이미 지난 예약으로 만들고 싶을 때.
 # 전문 형식이 분까지만 담아서 단위가 분이다(초 자리가 없다).
-${CDS_K3_START_OFFSET_MIN}     ${0}                     # 만료 TC(018)의 START_TIME 오프셋(분)
+${CDS_K3_START_OFFSET_MIN}     ${0}                     # 만료 TC(020)의 START_TIME 오프셋(분)
 
 # 만료를 **기다리는** 시간. 만료는 도구가 시키는 것이 아니라 PG.RDS 가 예약 큐를
 # 폴링해서 하는 일이라, 전문 반영(${CDS_DB_WAIT}=10s)과는 시간 척도가 다르다.
@@ -497,7 +500,7 @@ ${CDS_ZONE_CODE}               0002                     # zone_code(4) → 예�
 ${CDS_COUPON_PIN}              00000000020              # coupon_pin(11) 공용 기본값
 ${CDS_COUPON_PIN_Y9}           00000000091              # Y9 전용
 ${CDS_COUPON_PIN_K1}           00000000011              # K1 가입 → K2 해지 쌍 전용
-${CDS_COUPON_PIN_K3}           00000000031              # 만료 검증 전용 (018 이 K1 로 먼저 가입)
+${CDS_COUPON_PIN_K3}           00000000031              # 만료 검증 전용 (020 이 K1 로 먼저 가입)
 ${CDS_COUPON_PIN_K4}           00000000041              # K4 취소 검증 전용 (TC 안에서 K1 로 먼저 가입)
 ${CDS_COUPON_PIN_K5}           00000000051              # K5 가입 → K6 해지 쌍 전용
 ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      # addr (1X HFC 가입 시, 170byte, 전문은 EUC-KR 로 변환, TODO: 실환경 값)
@@ -583,8 +586,8 @@ ${CDS_DB_SQL_SESSION}     SELECT COUNT(*) FROM ${CDS_DB_TBL_SESSION} WHERE SM_PO
 # ── 사전 확인 (Suite Setup) — 두 대상 번호의 잔존 데이터 ────────
 # 슈트는 002(A1)로 가입자를 새로 만드는 것을 전제로 돈다. 앞선 실행이 중간에
 # 끊겨 행이 남아 있으면 판정이 흔들린다.
-#   · "1건 이상" 판정(003/005/016…)은 잔존 행을 자기 결과로 착각한다
-#   · "0건" 판정(004/006/017…)은 잔존 행 때문에 실패한다
+#   · "1건 이상" 판정(003/005/018…)은 잔존 행을 자기 결과로 착각한다
+#   · "0건" 판정(004/006/019…)은 잔존 행 때문에 실패한다
 #   · 쿠폰 계열은 핀이 겹치면 앞 실행이 넣은 행을 지운 것으로 오인한다
 # 그래서 들어가기 전에 세어 보고, 0이 아니면 어떻게 할지 정한다.
 #

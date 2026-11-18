@@ -605,8 +605,8 @@ Precheck Existing Subscriber Rows
     ...
     ...    왜 — 슈트는 002(A1)로 가입자를 **새로 만드는 것**을 전제로 돈다. 앞선 실행이
     ...    중간에 끊겨 행이 남아 있으면 판정이 조용히 흔들린다.
-    ...      · "1건 이상" 판정(003/005/016…)은 잔존 행을 자기 결과로 착각한다
-    ...      · "0건" 판정(004/006/017…)은 잔존 행 때문에 실패한다
+    ...      · "1건 이상" 판정(003/005/018…)은 잔존 행을 자기 결과로 착각한다
+    ...      · "0건" 판정(004/006/019…)은 잔존 행 때문에 실패한다
     ...      · 쿠폰 계열은 핀이 겹치면 앞 실행이 넣은 행을 지운 것으로 오인한다
     ...
     ...    ★ 세션 표(${CDS_DB_TBL_SESSION})는 **판단에 넣지 않는다** — Suite Setup 이
@@ -689,7 +689,7 @@ Ensure CDS Sessions In PDB
     [Documentation]
     ...    TC 수행 전에 필요한 5G 세션을 **두 건** 심는다.
     ...      1) 기본 번호   ${CDS_MDN}     — 슈트 대부분이 쓰는 가입자
-    ...      2) D3 이후 번호 ${CDS_NEW_MDN} — TC-CDS-019 가 번호를 바꾸면 020/026(Z1)가
+    ...      2) D3 이후 번호 ${CDS_NEW_MDN} — TC-CDS-021 가 번호를 바꾸면 022/028(Z1)가
     ...                                       그 번호로 해지 전문을 보낸다
     ...
     ...    왜 둘인가 — PG.SNOTI 는 세션 표를 보고 알림 상대를 정한다. D3 이후 번호에
@@ -1463,7 +1463,7 @@ Resolve CDS Start Time
     ...
     ...    ★ 오프셋이 양수가 아니면 **거부한다.** K1/K5 가입은 예약 큐에 만료를 걸고
     ...      PG.RDS 는 START_TIME 이 지난 예약을 집어 실행하므로, 0이나 음수면
-    ...      가입하자마자 만료돼 016(K1)가 이유 없이 실패한다. 전문이 분까지만
+    ...      가입하자마자 만료돼 018(K1)가 이유 없이 실패한다. 전문이 분까지만
     ...      담아 0 이면 이번 분이 **이미 시작돼 있다** — 0 도 과거다.
     ${mode}=    Convert To Lower Case    ${CDS_START_TIME_MODE}
     IF    '${mode}' != 'now'
@@ -1471,7 +1471,7 @@ Resolve CDS Start Time
         RETURN
     END
     IF    ${CDS_START_TIME_OFFSET_MIN} <= 0
-        Fatal Error    CDS_START_TIME_OFFSET_MIN 은 양수여야 합니다 (지금=${CDS_START_TIME_OFFSET_MIN}). 0이나 음수면 K1 가입 직후 만료 예약이 실행돼 TC-CDS-016 의 가입 판정이 실패합니다.
+        Fatal Error    CDS_START_TIME_OFFSET_MIN 은 양수여야 합니다 (지금=${CDS_START_TIME_OFFSET_MIN}). 0이나 음수면 K1 가입 직후 만료 예약이 실행돼 TC-CDS-018 의 가입 판정이 실패합니다.
     END
     ${st}    ${lvt}=    Current CDS Start Time    ${CDS_START_TIME_OFFSET_MIN}
     Set Suite Variable    ${CDS_START_TIME}         ${st}
@@ -1560,7 +1560,7 @@ Verify Coupon Service Released In PDB
     ...
     ...    ${wait} 는 **만료를 기다릴 때 늘려 준다.** 해지(K2)는 도구가 전문을 보내
     ...    곧 반영되지만, 만료는 PG.RDS 가 예약 큐를 폴링해 하는 일이라 훨씬 늦다
-    ...    (TC-CDS-018 이 ${CDS_EXPIRE_WAIT} 로 부른다).
+    ...    (TC-CDS-020 이 ${CDS_EXPIRE_WAIT} 로 부른다).
     [Arguments]    ${mdn}    ${coupon_pin}    ${settle}=${CDS_DB_SETTLE}
     ...            ${wait}=${CDS_DB_WAIT}    ${interval}=${CDS_DB_WAIT_INTERVAL}
     Ensure CDS DB Connection

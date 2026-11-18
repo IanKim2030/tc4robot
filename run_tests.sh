@@ -87,7 +87,7 @@
 # CDS 예약 시각(START_TIME) — 기본은 먼 미래 고정값(203712312359):
 #   bash run_tests.sh cds --start-now       # 실행 시각 + ${CDS_START_TIME_OFFSET_MIN}분(기본 60)
 #   ★ 오프셋은 양수여야 한다. 0이나 음수면 K1/K5 가입 직후 만료 예약이 실행돼
-#     016(K1) 의 가입 판정이 실패한다 — 슈트가 거부한다.
+#     018(K1) 의 가입 판정이 실패한다 — 슈트가 거부한다.
 #   --upm / --sbi / --sbi-wait / --session 은 반대로 강제로 켠다.
 #   별칭: --no-http / --no-noti 도 --no-sbi 로 받는다(예전 이름).
 #
@@ -109,7 +109,7 @@
 #   robot --test "TC-NWDAF-001*" tests/nwdaf/
 #
 # 변수 지정:
-#   robot --test "TC-CDS-026*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
+#   robot --test "TC-CDS-028*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
 
 TARGET=${1:-smoke}
 EXTRA_ARGS=()
