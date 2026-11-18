@@ -506,7 +506,7 @@ TC-CDS-015 G1 (정보변경)
     Verify Service Counts Preserved In PDB    ${CDS_MDN}    ${CDS_CODE_G1}    ${before}
     Verify SBI Noti Sent    ${CDS_CODE_G1}
 
-TC-CDS-016 G1 (정보변경) - 상품 세대 01
+TC-CDS-016 G1 (정보변경) - 3G(01)
     [Documentation]
     ...    TC-CDS-015 와 같은 G1 을 produGenType(PRODUCT_GEN_TYPE)만 ${CDS_PROD_TYPE_01}(3G) 로 바꿔 보낸다.
     ...    produGenType 은 01=3G 02=LTE 03=5G, 기본값(${CDS_PROD_TYPE})은 02 다.
@@ -520,7 +520,7 @@ TC-CDS-016 G1 (정보변경) - 상품 세대 01
     Verify Service Counts Preserved In PDB    ${CDS_MDN}    ${CDS_CODE_G1}    ${before}
     Verify SBI Noti Sent    ${CDS_CODE_G1}
 
-TC-CDS-017 G1 (정보변경) - 상품 세대 03
+TC-CDS-017 G1 (정보변경) - 5G(03)
     [Documentation]
     ...    TC-CDS-015 와 같은 G1 을 produGenType(PRODUCT_GEN_TYPE)만 ${CDS_PROD_TYPE_03}(5G) 로 바꿔 보낸다.
     ...    produGenType 은 01=3G 02=LTE 03=5G, 기본값(${CDS_PROD_TYPE})은 02 다.
