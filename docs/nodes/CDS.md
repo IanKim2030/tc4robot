@@ -226,7 +226,7 @@ SBI Noti 라 **수신만으로는 경로를 구분할 수 없다.** 그래서 �
 을 이 목록에서 빼고 `Expected Noti Route` 키워드의 분기를 손봐야 한다 — 아직 반영 전.
 
 > ⚠️ **지금 슈트 순서로는 규칙 2 의 BSUBS 분기를 타는 TC 가 하나도 없다.**
-> `1Y`(004)가 HFC 를 해지한 뒤에 `C1`(007) · `G1`(008) · `D3`(018) · `Z1`(019)이 돌기
+> `1Y`(004)가 HFC 를 해지한 뒤에 `C1`(007) · `G1`(015) · `D3`(025) · `Z1`(026)이 돌기
 > 때문에 넷 다 SDM 경유로 판정된다. 그 분기를 덮으려면 `1Y` 를 뒤로 미루거나 해당 TC
 > 앞에서 `1X` 를 한 번 더 보내야 하는데, **둘 다 TC 간 의존성을 건드린다.**
 
@@ -530,8 +530,8 @@ SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 
 
 형식이 또 어긋나면 저 두 변수만 고치면 된다 — 조회 SQL 과 키워드는 그대로다.
 
-슈트가 지금 다루는 것은 `TC-CDS-009`(K1 가입) · `010`(K2 해지) 쌍과,
-`011`(K1 가입 → PG.RDS 만료) 하나다.
+슈트가 지금 다루는 것은 `TC-CDS-016`(K1 가입) · `017`(K2 해지) 쌍과,
+`018`(K1 가입 → PG.RDS 만료) 하나다.
 3Mbps(`K5`/`K6`) · 취소(`K4`) · Zone(`Y9`) · 시간프리(`SS`/`ST`)는 TC 가 없다.
 
 `K3`(만료)은 **애초에 CDS 로 인입되지 않는다** — K1 가입 때 `T_5G_RESERVED_JOB` 에
@@ -570,7 +570,7 @@ SS 만 초가 붙지 않는다(2026-08-11 실값 확인). cfg 의 `SIZE 12` 도 
 
 이 경로는 **PG.CDS 가 `ZONE_SVC_D` 로 HFC 가입을 확인해 `T_BAROD_ORDER_HIST` 에 INSERT 했을
 때만** 열린다(규칙 2). 지금 슈트 순서로는 그 분기를 타는 TC 가 없다 — "선택적 NOTI" 절 참조.
-`TC-CDS-007`/`008` 은 항상 SDM 경유로만 검증된다.
+`TC-CDS-007`/`015` 은 항상 SDM 경유로만 검증된다.
 
 **⚠ `C1`/`G1`/`D3` 는 BSUBS 가 SNOTI 로 알리는 기능이 없다 — 확인됨(2026-10-16).**
 `processInfoChgRes`(`C1`/`G1`)뿐 아니라 `processSubsChgReq`(`D3`)도 끝까지 읽어도
@@ -924,28 +924,31 @@ PG 응답(`SC`/`FA`)으로 판단한다.
 
 ## TC
 
-현재 **활성 12건 / 주석 2건**(001~014 연속). 태그: `cds` `process-state` `command` `smoke` `validation`
+현재 **활성 26건**(001~026 연속). 태그: `cds` `process-state` `command` `smoke` `validation`
 (+ 주석 TC 에 `subs-data` `upload`)
 
 | 대역 | 내용 |
 |---|---|
 | 001 | ProcessState 상태확인 |
-| 002~008 | Download Command — 업무 코드별 (원래 번호) |
-| 009~012 | Download Command — **번호변경(D3) 후 체인** |
-| 013~014 | 변경된 번호로 Z1 해지 → 원래 번호로 A1 재가입 |
-| 015~018 | Download Command — **HFC 가입 상태**의 1X → C1 → G1 → D3 (UPM 0x0d/0x05 왕복, BSUBS 분기) |
-| 019 | Z1 해지 — 정리 (체인의 끝) |
+| 002~015 | Download Command — 즉시 반영 업무 코드 (A1 1X 1Y I2 I3 C1 G1) |
+| 008~010 | └ C1 netId 변형 — `0011` / `0010` / `1001` (`${CDS_NETWORK_*}`, 태그 `netid`) |
+| 011~014 | └ C1 devceType 변형 — `W` / `L` / `S` / `N` (`${CDS_DEVICE_TYPE_*}`, 태그 `device-type`) |
+| 016~018 | Download Command — 쿠폰 계열 (K1 → K2 / K1 → RDS 만료) |
+| 019 | Download Command — 번호변경(D3) |
+| 020~021 | 변경된 번호로 Z1 해지 → 원래 번호로 A1 재가입 |
+| 022~025 | Download Command — **HFC 가입 상태**의 1X → C1 → G1 → D3 (UPM 0x0d/0x05 왕복, BSUBS 분기) |
+| 026 | Z1 해지 — 정리 (체인의 끝) |
 | (미배정) | SubsData · UpLoad (현재 비활성) |
 
 접속·해제는 TC 가 아니라 Suite Setup/Teardown 이다([접속](#접속--듀얼-소켓-rchannel-이-먼저) 참조).
 그래서 `connect` · `release` 태그는 더 이상 쓰이지 않는다.
 
-단말·망 공용 필드(`${CDS_NETWORK}` `${CDS_CA}` `${CDS_IMSI}` 등)는 현재 전부 비어 있다
-— 실환경 값이 없어서다. `Send Command Request` 의 기본 인자로 올라가 있으므로
+단말·망 공용 필드(`${CDS_CA}` `${CDS_IMSI}` 등)는 현재 비어 있다 — 실환경 값이 없어서다.
+`${CDS_NETWORK}`(netId)는 실 전문 값 `10011`, `${CDS_DEVICE_TYPE}`(devceType)은 `L` 로 채워 두었다. `Send Command Request` 의 기본 인자로 올라가 있으므로
 `cds_variables.robot` 에 값만 채우면 해당 필드를 선언한 모든 코드에 즉시 반영된다.
 채우지 않으면 그 필드들은 공백으로 나가고 **PG 는 그래도 `SC` 를 준다.**
 
-### TC 간 의존성 — `TC-CDS-012` ~ `019` 은 하나의 체인이다
+### TC 간 의존성 — `TC-CDS-019` ~ `026` 은 하나의 체인이다
 
 **이 슈트에서 유일하게 앞 TC 의 결과에 의존하는 구간이다.** 나머지 TC 는 서로 독립이다.
 
@@ -955,15 +958,15 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 
 | TC | 코드 | 하는 일 |
 |---|---|---|
-| 012 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
-| 013 | `Z1` 해지 | 변경된 번호로 해지 |
-| 014 | `A1` 재가입 | **원래 번호**(`${CDS_MDN}`)로 다시 가입 — 이 TC 부터 대상은 `${CDS_MDN}` |
-| 015~018 | HFC 가입 상태 `1X`→`C1`→`G1`→`D3` | 018 이 `${CDS_MDN}` → `${CDS_NEW_MDN}` 으로 번호를 바꾸고 `${CDS_ACTIVE_MDN}` 갱신 |
-| 019 | `Z1` 해지 | **바뀐 번호로** 가입자 자체를 해지 — **체인의 끝** |
+| 019 | `D3` 번호변경 | 성공 시 `${CDS_ACTIVE_MDN}` 을 `${CDS_NEW_MDN}` 으로 갱신 |
+| 020 | `Z1` 해지 | 변경된 번호로 해지 |
+| 021 | `A1` 재가입 | **원래 번호**(`${CDS_MDN}`)로 다시 가입 — 이 TC 부터 대상은 `${CDS_MDN}` |
+| 022~025 | HFC 가입 상태 `1X`→`C1`→`G1`→`D3` | 025 이 `${CDS_MDN}` → `${CDS_NEW_MDN}` 으로 번호를 바꾸고 `${CDS_ACTIVE_MDN}` 갱신 |
+| 026 | `Z1` 해지 | **바뀐 번호로** 가입자 자체를 해지 — **체인의 끝** |
 
 `${CDS_ACTIVE_MDN}`(`cds_variables.robot`) 이 "현재 유효 MDN" 을 들고 있다.
 
-| 상황 | `${CDS_ACTIVE_MDN}` | `019`(Z1) 의 대상 |
+| 상황 | `${CDS_ACTIVE_MDN}` | `026`(Z1) 의 대상 |
 |---|---|---|
 | D3 성공 | `Set Suite Variable` 로 `${CDS_NEW_MDN}` 교체 | **변경된 번호** |
 | D3 실패 | `Command Download Flow` 가 먼저 죽어 갱신 미실행 | 원래 번호 |
@@ -974,9 +977,9 @@ D3(번호변경)가 성공하면 가입자의 현재 번호가 `${CDS_NEW_MDN}` 
 
 ```bash
 # 체인 전체
-python -m robot --test "TC-CDS-012*" --test "TC-CDS-019*" tests/cds/
+python -m robot --test "TC-CDS-019*" --test "TC-CDS-026*" tests/cds/
 # 번호를 직접 지정 (D3 없이 특정 가입자로)
-python -m robot --test "TC-CDS-019*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
+python -m robot --test "TC-CDS-026*" --variable CDS_ACTIVE_MDN:01090010002 tests/cds/
 ```
 
 `--variable` 은 최우선이라 `${CDS_ACTIVE_MDN}` 을 직접 덮는다. `CDS_MDN` 을 덮어도
@@ -1019,7 +1022,7 @@ const char* _endT   = parser_->GetOrderDataByName("START_TIME");        // 종�
 조용히 버려진다(바로 아래 함정).
 
 PDB 판정이 보는 `LIMIT_VALID_TIME`(= `START_TIME` + 초 `00`)이 **유효기간 만료
-시각**인 것도 그래서다. `TC-CDS-011`(쿠폰 만료)이 이 값을 현재 시각 근처로 보내는
+시각**인 것도 그래서다. `TC-CDS-018`(쿠폰 만료)이 이 값을 현재 시각 근처로 보내는
 것은 "곧 끝나는 쿠폰" 을 만드는 것이고, PG.RDS 는 그 시각이 지난 예약을 집어 지운다.
 
 **`${CDS_START_TIME}` 을 "가입 시작 시각" 으로 읽으면 부호가 뒤집힌다** — 먼 미래
