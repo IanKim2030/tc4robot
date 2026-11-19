@@ -140,12 +140,12 @@ There is no PDB lookup. All you can see is the response.
   Although it is written as old — in reality, the third step of Suite Setup (`Handle LRS Hello`) is
   Process, TC-LRS-001 is Health Check.
 - `lrs_variables.robot` Many variables are appended with `# TODO: real environment` — for operational PG targets
-  Replacing the actual environment value comes first ([../../tests/lrs/AGENTS.md](../../tests/lrs/AGENTS.md#open-questions)).
+  Replacing the actual environment value comes first ([../../tests/lrs/AGENTS.md](../../tests/lrs/SPEC.md#open-questions)).
 - `0x05` has an opcode overlap with PCF ZONE / UPM Subs-Change — use `${MSG_LOC_INFO_REQ}`.
 
 ## Related documents
 
-- [LRS Node Specification](../../tests/lrs/AGENTS.md) — Channel Structure, Message Type, HTTP Response Code
+- [LRS Node Specification](../../tests/lrs/SPEC.md) — Channel Structure, Message Type, HTTP Response Code
 - [nag_callflow.md](nag_callflow.md) — NAG Subs-Cellid flow using the same 8890 side channel
 - `tests/lrs/lrs_tests.robot` — `TC-LRS-001`~`002` (active) / SI-002~007 (commentary)
 - `resources/lrs_client_keywords.robot` (page 10204) · `resources/lrs_keywords.robot` (page 8890)

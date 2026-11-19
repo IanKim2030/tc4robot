@@ -10,7 +10,7 @@
 | Body width | 17B (this range) — wire offset 0 (SVC_CODE)/2 (MDN)/14 (roaming flags) |
 
 > ⚠ RTS is a separate interface from “PG.RDS” (coupon reservation task poller) in the CDS document. Because the names are similar
-> This node was added due to confusion — never treat them as the same thing ([../../tests/rts/AGENTS.md](../../tests/rts/AGENTS.md)).
+> This node was added due to confusion — never treat them as the same thing ([../../tests/rts/AGENTS.md](../../tests/rts/SPEC.md)).
 
 > L1/L2 is not an ON/OFF pair, but a  network type (user confirmation, 2026-10-27) — L1=WCDMA, L2=LTE.
 > Blocking/unblocking is determined by roaming flags (`Y`/`N`) rather than codes. The diagram below shows the two codes
@@ -79,7 +79,7 @@ sequenceDiagram
 | 004 | `L2` (LTE) | off | `N` / `N` | Not confirmed (unconfirmed when deactivated) |
 
 Wire (receive) offset and DB storage offset are different — 14 / 85 respectively. `T_RTS_ORDER_HIST.ORDER_DATA`
-This is because PG is a separate buffer that is reassembled into 265B. For details, see [../../tests/rts/AGENTS.md](../../tests/rts/AGENTS.md#wire-encoding-two-offset-systems).
+This is because PG is a separate buffer that is reassembled into 265B. For details, see [../../tests/rts/AGENTS.md](../../tests/rts/SPEC.md#wire-encoding-two-offset-systems).
 
 ## Judgment criteria
 
@@ -99,9 +99,9 @@ Need confirmation — Currently, `${RTS_DB_WAIT}`/`${RTS_NOTI_WAIT}` are estimat
 TC-RTS-005(negative, packet size verification) does not use the above callflow — Data Size header field
 A false report was made larger than the actual body and an Order Ack (FA, REASON=`E_WRONG_SIZE`) was received immediately at the `RTS201` stage.
 =12), so the PDB/Noti flow itself after `InsertOrder` should not occur.
-It's normal. For details, see [../../tests/rts/AGENTS.md](../../tests/rts/AGENTS.md).
+It's normal. For details, see [../../tests/rts/AGENTS.md](../../tests/rts/SPEC.md).
 
 ## Related documents
 
-- [RTS Node Spec](../../tests/rts/AGENTS.md) — Encoding table, double offset, pitfalls, verification required
+- [RTS Node Spec](../../tests/rts/SPEC.md) — Encoding table, double offset, pitfalls, verification required
 - `tests/rts/rts_tests.robot` — `TC-RTS-001`~`004` (WCDMA/LTE block/unblock) / `TC-RTS-005` (negative)

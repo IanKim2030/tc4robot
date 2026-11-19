@@ -7,13 +7,13 @@ For details, refer to each node specification (`tests/<iface>/AGENTS.md`).
 
 | node | tool role | Connection direction | port | header | Body | socket |
 |---|---|---|---|---|---|---|
-| [NAG](../tests/nag/AGENTS.md) | NAG | Client → PG | 8012 | 8B `0x00` | JSON | Dual (+8890 Listen) |
-| [PCF](../tests/pcf/AGENTS.md) | PCF | Client → PG | 8011 | 8B `0x00` | JSON | Dual (+NAG 8012) |
-| [LRS](../tests/lrs/AGENTS.md) | LRS | Client → PG.LRS | 10204 | None/HTTP | raw `REQ`/`ANS`, HTTP AIMS | Dual (+8890 Listen) |
-| [UPM](../tests/upm/AGENTS.md) | UPM | Client → PG | 10506 | 8B `0x00` | JSON | single |
-| [CDS](../tests/cds/AGENTS.md) | CDS | Client Dual → PG.CDS | Rch 9201 → Sch 9200 | 48B | fixed message | dual |
-| [NWDAF](../tests/nwdaf/AGENTS.md) | NWDAF | Client → PG | 10305 | 8B Bitfield | TLV binary | single |
-| [RTS](../tests/rts/AGENTS.md) | RTS | Client → PG.RTS | ${RTS_PG_PORT}(6003, setting file link TODO) | 32B | Fixed width (roaming blocking L1/L2) | single |
+| [NAG](../tests/nag/SPEC.md) | NAG | Client → PG | 8012 | 8B `0x00` | JSON | Dual (+8890 Listen) |
+| [PCF](../tests/nag/SPEC.md#pcf-integration-prerequisites) | PCF | Client → PG | 8011 | 8B `0x00` | JSON | Dual (+NAG 8012) |
+| [LRS](../tests/lrs/SPEC.md) | LRS | Client → PG.LRS | 10204 | None/HTTP | raw `REQ`/`ANS`, HTTP AIMS | Dual (+8890 Listen) |
+| [UPM](../tests/upm/SPEC.md) | UPM | Client → PG | 10506 | 8B `0x00` | JSON | single |
+| [CDS](../tests/cds/SPEC.md) | CDS | Client Dual → PG.CDS | Rch 9201 → Sch 9200 | 48B | fixed message | dual |
+| [NWDAF](../tests/nwdaf/SPEC.md) | NWDAF | Client → PG | 10305 | 8B Bitfield | TLV binary | single |
+| [RTS](../tests/rts/SPEC.md) | RTS | Client → PG.RTS | ${RTS_PG_PORT}(6003, setting file link TODO) | 32B | Fixed width (roaming blocking L1/L2) | single |
 
 The tool initiates each node's primary PG connection. NAG and LRS also accept
 PG connections on the auxiliary LRS-PCF channel (8890). SBI and FTP/SFTP receivers
@@ -48,7 +48,7 @@ NAG — client 8012 and server 8890. The current suite prepares the side channel
 Subs-Cellid sends `0x0b`; PG then requests Location-Info (`0x05`) on the side
 channel. The tool must reply `0x06` before receiving the completed `0x0c` response.
 Opening NAG last avoids idle disconnection while waiting for the LRS connection.
-See the [NAG specification](../tests/nag/AGENTS.md) for prerequisites and current limits.
+See the [NAG specification](../tests/nag/SPEC.md) for prerequisites and current limits.
 
 PCF — NAG 8012 (session pre-registration) + PCF 8011. Both sockets must survive until the end of the suite.
 
@@ -108,7 +108,7 @@ sequenceDiagram
 
 `RBUS / SBI Noti` varies depending on the subscriber — RBUS for LTE, SBI for SA.
 The session table is also `T_SESSION_INFO`(LTE) / `T_SMF_SESSION_INFO`(SA).
-For detailed LTE/SA support, refer to [CDS Node Specification](../tests/cds/AGENTS.md#ltesa-differences--only-table-names-and-noti-method).
+For detailed LTE/SA support, refer to [CDS Node Specification](../tests/cds/SPEC.md#ltesa-differences--only-table-names-and-noti-method).
 
 ☞ Some messages are not NOTIed with PCF/PCRF.
 
@@ -118,13 +118,13 @@ Only the sections that the tool actually catches are selected. The rest are all 
 
 | arrow of flow | tool side | opcode/message | basis |
 |---|---|---|---|
-| `CDS → PG.CDS` HFC message | CDS suite | `0015` CommandRequest, JOB Code `1X`/`1Y` | Confirmed — [CDS Business Code](../tests/cds/AGENTS.md#set-of-fields-by-business-code) |
-| `PG.BSUBS → UPM` Cell List Request | UPM suite (manual reception) | `0x07` `${MSG_UPM_SUBS_INFO_REQ}` | Confirmed — [Consistent with PG → UPM direction of UPM message type ](../tests/upm/AGENTS.md#message-type--two-way) |
+| `CDS → PG.CDS` HFC message | CDS suite | `0015` CommandRequest, JOB Code `1X`/`1Y` | Confirmed — [CDS Business Code](../tests/cds/SPEC.md#set-of-fields-by-business-code) |
+| `PG.BSUBS → UPM` Cell List Request | UPM suite (manual reception) | `0x07` `${MSG_UPM_SUBS_INFO_REQ}` | Confirmed — [Consistent with PG → UPM direction of UPM message type ](../tests/upm/SPEC.md#message-type--two-way) |
 | `UPM → PG.BSUBS` Cell List Response | UPM suite | `0x08` `${MSG_UPM_SUBS_INFO_RESP}` | Confirmed |
 | `PG.BNOTI → NAG` Zone In/Out Information | NAG suite (passive reception) | `0x07` `${MSG_ZION_REQ}` | estimated — It is true that ZION is in the PG → NAG direction, but it is not confirmed whether it is the same as this arrow. |
 | `NAG → PG.BNOTI` Zone Information Request/Response | NAG suite | `0x09`/`0x0a` `${MSG_SUBS_ZONE_STATUS_*}` | estimate — Same as above |
 
-`1X` has a set of fields secured in [CDS node specification](../tests/cds/AGENTS.md#set-of-fields-by-business-code), but
+`1X` has a set of fields secured in [CDS node specification](../tests/cds/SPEC.md#set-of-fields-by-business-code), but
 `1Y` (HFC cancellation) is unconfirmed . Since this flow deals with `1X`/`1Y` as a pair, getting the 1Y list gives
 Be sure to compare.
 

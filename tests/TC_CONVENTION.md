@@ -13,7 +13,7 @@ TC-<IFACE>-NNN <Korean description>
 **File order follows number order.** Use a continuous sequence beginning at 001,
 without missing or duplicate numbers. When inserting a test, shift later numbers
 and update the test numbering block at the top of the suite.
-PCF currently uses NAG-prefixed IDs beginning at 008; preserve this documented exception.
+The unified NAG group owns TC-NAG-001–017: the PCF section uses 008–017 in the same file. Preserve those IDs when changing the group.
 
 Overlapping ranges make sequential replacement unsafe: `005→007` collides with an
 existing `007`. Renumber in one pass in file order, or replace in descending order.
@@ -141,7 +141,7 @@ Before writing a TC, ask whether it can fail for the behavior being tested.
 CDS `CommandResult` (0017) returns `SC` regardless of body content. Verify actual
 application through PDB: inserted rows (A1/1X/I2), deleted rows (1Y/I3/Z1), or
 before/after aggregates (C1/G1/D3). Code-specific SQL and remaining gaps are
-in the [CDS specification](cds/AGENTS.md).
+in the [CDS specification](cds/SPEC.md).
 
 NWDAF notifications have no PG response. Incorrect encoding can therefore pass every
 send-only TC. Seven of eight eNB fields were previously wrong while all tests passed.

@@ -377,7 +377,7 @@ LEN_LOCATION_ID        = None
 #   None = 문자열 실제 길이로 가변 송신 (안전 폴백)
 #
 # ★ 주의 — 이 값은 **아직 확인되지 않은 추정치(16)** 다. 실제 PG 소스(SCMQosDefine.hpp)
-#   상의 LEN_QOS_POLICY 는 50이다(tests/nwdaf/AGENTS.md "코드와 소스가 어긋난 상태" 참고).
+#   상의 LEN_QOS_POLICY 는 50이다(tests/nwdaf/SPEC.md "코드와 소스가 어긋난 상태" 참고).
 #
 #   PG 수신부(CNWQosGateway.cpp::ParsingPacket)는 **길이 상한 검사가 있다** — 예전에 이
 #   주석이 "방어가 없다"고 적었던 건 실제 소스 미확인 상태의 잘못된 추정이었다:
@@ -387,7 +387,7 @@ LEN_LOCATION_ID        = None
 #           gLog->Write(LOG_WARNING, "...QosPolicy length(%d) exceeds buffer size(%d)...");
 #       } else if (length > 0) { memcpy(dst, p, length); dst[length]='\0'; }
 #   즉 LEN_QOS_POLICY(50) 초과 값은 안전하게 50바이트로 잘리고 WARNING 로그만 남는다
-#   (TC-NWDAF-034/035 실측 확인, `tests/nwdaf/AGENTS.md` 참고).
+#   (TC-NWDAF-034/035 실측 확인, `tests/nwdaf/SPEC.md` 참고).
 #
 #   ★ 진짜 위험은 다른 곳에 있다 — `length` 는 `short`, `*p` 는 signed char 라서
 #   **선언 길이가 0x80(128) 이상이면 음수로 부호 확장**된다. 그러면 위 두 `if` 분기를

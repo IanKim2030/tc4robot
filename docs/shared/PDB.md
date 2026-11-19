@@ -6,8 +6,8 @@ In a redundant environment, both are possible. In this repo, there are three pla
 
 | Where to use | alias | What you do | Details |
 |---|---|---|---|
-| CDS suite | `CdsDb` | Application assertions (SELECT), session preload (INSERT), cleanup at end (DELETE) | [../../tests/cds/AGENTS.md](../../tests/cds/AGENTS.md#pdb-judgment-criteria-by-business-code) |
-| RTS suite | `RtsDb` | Judgment to reflect blocking, cleanup upon completion | [../../tests/rts/AGENTS.md](../../tests/rts/AGENTS.md) |
+| CDS suite | `CdsDb` | Application assertions (SELECT), session preload (INSERT), cleanup at end (DELETE) | [../../tests/cds/AGENTS.md](../../tests/cds/SPEC.md#pdb-judgment-criteria-by-business-code) |
+| RTS suite | `RtsDb` | Judgment to reflect blocking, cleanup upon completion | [../../tests/rts/AGENTS.md](../../tests/rts/SPEC.md) |
 | Seed before run | `SeedDb` | Check the settings row → INSERT/UPDATE | Below [DB setting seed before execution](#db-setup-seed-before-execution-configdb_seedsql) |
 
 ## variable
@@ -99,7 +99,7 @@ PDB_CONNSTR_2 = 'Server=...;PORT=...;DBName=...;UID=...;'    # Altibase — PWD 
 
 ★ Seed is different — `${PDB_CONNSTR_2}` If present, all blocks in the seed file are also stored in DB2.
 Apply. If DB2 does not have a seed target table (for example, `T_SESSION_INFO`), the seed is `42S02 Table not found`
-It fails with The toggle to turn off only the session table of CDS by DB is [../../tests/cds/AGENTS.md](../../tests/cds/AGENTS.md)]
+It fails with The toggle to turn off only the session table of CDS by DB is [../../tests/cds/AGENTS.md](../../tests/cds/SPEC.md)]
 The section is “Turn off session tables separately for each DB.”
 
 ## DB setup seed before execution (`config/db_seed/<env>.sql`)

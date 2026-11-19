@@ -1,43 +1,29 @@
 *** Settings ***
 Documentation
-...    NAG 기능 검증 - msg_type 기준 (공유 소켓)
-...
-...    Suite Setup  : Ensure PG Process Running(G_BNOTI201/G_LRS201/CDS201)
-...                   → ${PG_SSH_SETTLE}(기본 3s) 대기 — .RUN touch 는 "띄워 달라"는
-...                     신호일 뿐이라 PG 가 실제로 기동을 끝낼 시간이 더 필요하다
-...                     (2026-10-20, variables.robot 참조)
-...                   → PCF 서버 소켓(${LRS_SERVER_PORT}) Listen → PG.LRS 접속 수락 (${LRS_CONN})
-...                   → PCF Hello-Request(0x01) 수신 → Hello-Response(0x02) 처리
-...                   → **그 다음에** NAG → PG.BNOTI(${NAG_PG_PORT}) 소켓 연결 → ${NAG_SOCK} 공유
-...                   (NAG Hello 는 TC-NAG-001 에서 직접 수행)
-...
-...    ★ 순서가 중요하다(2026-10-07) — `run_tests.sh all` 로 LRS 슈트 바로 뒤에 NAG 가
-...      돌 때, PG.LRS 쪽 재접속이 더 오래 걸리는 경우가 있다. NAG 소켓(8012)을 먼저 열고
-...      그 대기를 하면 TC-NAG-001 이 Hello 를 보낼 때까지 8012 소켓이 그만큼 더 오래
-...      idle 상태로 남아 있다가 PG 쪽에서 "Connection reset by peer"로 끊긴 사례가 있었다.
-...      그래서 **느리고 PG.LRS 에 의존하는 ①②를 먼저 끝내고, NAG 소켓은 가장 마지막에
-...      (TC-NAG-001 이 쓰기 직전에) 연다.**
-...    Test Setup   : NAG 소켓 상태 확인 (닫히면 Suite 중단)
-...    각 TC        : ${NAG_SOCK} 공유 사용, TC별 연결/해제 없음
+...    NAG 통합 Regression 검증 — 단일 슈트, TC-NAG-001~017.
+...    [TC 번호 체계] 001~007: NAG 요청 / 008~017: PCF 연동.
+...    Suite Setup: 경로 상태 초기화. Test Setup에서 선택된 첫 경로를 준비한다.
+...    NAG 경로: LRS-PCF accept + Hello 후 NAG 연결. TC-001에서 NAG Hello 검증.
+...    PCF 경로: 앞 경로 연결 정리 후 NAG Hello 선등록 → PCF 연결 + Hello.
+...    PCF만 선택하면 LRS-PCF 접속을 기다리지 않는다.
+...    일반 TC 간 소켓은 공유하며 경로는 NAG→PCF 순서로 한 번만 전환한다.
+...    Suite Teardown은 부분 초기화 실패에도 LRS/PCF/NAG 연결을 모두 정리한다.
+...    기존 기동 대기 PG_SSH_SETTLE은 경로 초기화로 옮겨 보존한다.
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/nag_variables.robot
+Resource    ../../resources/pcf_variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/ssh_keywords.robot
 Resource    ../../resources/nag_keywords.robot
 Resource    ../../resources/lrs_keywords.robot
+Resource    ../../resources/nag_suite_keywords.robot
 
 
-Suite Setup      Run Keywords
-...              Ensure PG Process Running    G_BNOTI201    G_LRS201    CDS201    AND
-...              Sleep    ${PG_SSH_SETTLE}    AND
-...              Suite LRS Accept    AND
-...              Handle LRS Hello    AND
-...              Suite Connect NAG
-Suite Teardown   Run Keywords
-...              Suite LRS Disconnect    AND
-...              Suite Disconnect NAG
-Test Setup       Check NAG Socket
+Suite Setup    Initialize NAG Regression
+Suite Teardown    Close NAG Regression Connections
+Test Setup    Prepare NAG Regression Test
+Force Tags    nag
 
 *** Variables ***
 # NAG-Barod LRS-PCF 채널은 응답 헤더 Byte0=0x00 (표준 LRS 0x20 아님)
@@ -167,3 +153,166 @@ TC-NAG-007 Subs-Cellid - 정상 및 응답 필드 검증
 #     Send ZION Response    ${req_txn}    200
 
 
+
+# ════════════════════════════════════════════════════════════════
+# PCF 연동 경로 — TC-NAG-008 ~ 017 (NAG 등록 선행)
+# ════════════════════════════════════════════════════════════════
+
+
+# ── 0x01/0x02 Hello ──────────────────────────────────────────────
+
+TC-NAG-008 Hello - ping-interval 확인
+    [Documentation]    Hello-Response(0x02) ping-interval 포함 및 TXN ID 에코
+    [Tags]    pcf    hello    smoke
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send PCF Hello    ${PCF_SYS_ID}    ${PCF_BRANCH_NAME}    ${txn}
+    Response Msg Type Should Be    ${hdr}    ${2}
+    TXN ID Should Match    ${txn}    ${hdr}
+    Hello Should Succeed    ${body}
+    ${pi}=    Get Ping Interval    ${body}
+    Should Be True    ${pi} > 0    msg=ping-interval 누락 또는 0
+
+
+# ── 0x03/0x04 Ping ───────────────────────────────────────────────
+
+TC-NAG-009 Ping - 정상 응답
+    [Documentation]    0x03 전송(Body 없음) → 0x04 수신, code=200, TXN ID 에코
+    [Tags]    pcf    ping    smoke
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send PCF Ping    ${txn}
+    Response Msg Type Should Be    ${hdr}    ${4}
+    TXN ID Should Match    ${txn}    ${hdr}
+    Ping Should Succeed    ${body}
+
+# ── 0x05/0x06 Zone-InOut ─────────────────────────────────────────
+
+TC-NAG-010 Zone-InOut - Zone IN (LTE)
+    [Documentation]
+    ...    0x05 전송 → 0x06 수신 (code=200)
+    ...    zone-info=I, rat-type=L, ta-code=Hexa 4자리
+    ...    ※ PG는 Zone IN 수신 후 NAG로 ZION-Request(0x07)를 발송함
+    ...      → TC-NAG-010 에서 ZION 수신/응답 처리
+    [Tags]    pcf    zone-inout    smoke
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send PCF Zone InOut
+    ...    sys_id=${PCF_SYS_ID}         branch_name=${PCF_BRANCH_NAME}
+    ...    mdn=${PCF_TEST_MDN}          client_host=${NAG_CLIENT_HOST}
+    ...    mobile_ip=10.10.10.10        cell_info=${NAG_CELL_INFO}
+    ...    ta_code=3113                 rat_type=L
+    ...    zone_info=I                  apn=${NAG_APN}
+    ...    service_id=${PCF_SERVICE_ID}
+    ...    txn_id=${txn}
+    Response Msg Type Should Be    ${hdr}    ${6}
+    TXN ID Should Match    ${txn}    ${hdr}
+    PCF Zone InOut Should Succeed    ${body}
+    Log    [TC-NAG-010] Zone IN 200 수신 완료. PG → NAG ZION 발송 예상 → TC-NAG-011 에서 처리
+
+TC-NAG-011 ZION 수신 및 0x08 정상 응답 (code=200)
+    [Documentation]
+    ...    TC-NAG-010 Zone IN 후 PG가 NAG로 발송하는 ZION-Request(0x07) 수신
+    ...    → 필드 검증 → ZION-Response(0x08) code=200 전송
+    ...    ※ NAG 소켓(${NAG_SOCK})을 공유하여 처리 (PCF Suite 내 실행)
+    [Tags]    pcf    nag    zion    smoke
+    ${hdr}    ${body}=    Receive ZION Request
+    Log    [TC-NAG-011] ZION 수신: mdn=${body}[mdn]
+    Dictionary Should Contain Key    ${body}    mdn
+    Dictionary Should Contain Key    ${body}    zone-info
+    Dictionary Should Contain Key    ${body}    cell-info
+    Dictionary Should Contain Key    ${body}    rat-type
+    ${zone}=    Get From Dictionary    ${body}    zone-info
+    Should Be True    '${zone}' in ['I', 'O']    msg=zone-info 기대 I/O, 실제=${zone}
+    Cell Info Should Be Valid    ${body}[cell-info]
+    ${req_txn}=    Get From Dictionary    ${hdr}    txn_id
+    Send ZION Response    ${req_txn}    200
+    Log    [TC-NAG-011] ZION-Response(0x08) code=200 전송 완료
+
+TC-NAG-012 Zone-InOut - Zone OUT (5G)
+    [Documentation]
+    ...    zone-info=O, rat-type=S, ta-code=0 (ZONE OUT 시 0)
+    ...    PCF 200 수신 후 → TC-NAG-013 에서 ZION 수신/응답 처리
+    [Tags]    pcf    zone-inout
+    ${hdr}    ${body}=    Send PCF Zone InOut
+    ...    sys_id=SPCF0001              branch_name=${PCF_BRANCH_NAME}
+    ...    mdn=${PCF_TEST_MDN}          client_host=smf01.5gsktelecom.net
+    ...    mobile_ip=${NAG_MOBILE_IP}   cell_info=${NAG_CELL_INFO}
+    ...    ta_code=0                    rat_type=S
+    ...    zone_info=O                  apn=5g.sktelecom.com
+    ...    service_id=${PCF_SERVICE_ID}
+    PCF Zone InOut Should Succeed    ${body}
+    Log    [TC-NAG-012] Zone OUT 200 수신 완료. PG → NAG ZION 발송 예상 → TC-NAG-013 에서 처리
+
+TC-NAG-013 ZION 수신 및 0x08 정상 응답 - Zone OUT (5G)
+    [Documentation]
+    ...    TC-NAG-012 Zone OUT 후 PG가 NAG로 발송하는 ZION-Request(0x07) 수신
+    ...    → zone-info=O 검증 → ZION-Response(0x08) code=200 전송
+    [Tags]    pcf    nag    zion
+    ${zion_hdr}    ${zion_body}=    Receive ZION Request
+    Log    [TC-NAG-013] ZION 수신: mdn=${zion_body}[mdn]
+    Dictionary Should Contain Key    ${zion_body}    mdn
+    Dictionary Should Contain Key    ${zion_body}    zone-info
+    ${zone}=    Get From Dictionary    ${zion_body}    zone-info
+    Should Be Equal As Strings    ${zone}    O    msg=ZION zone-info 기대 O, 실제=${zone}
+    ${zion_txn}=    Get From Dictionary    ${zion_hdr}    txn_id
+    Send ZION Response    ${zion_txn}    200
+    Log    [TC-NAG-013] ZION-Response(0x08) code=200 전송 완료
+
+TC-NAG-014 Zone-InOut - Zone IN (3G, 타사망)
+    [Documentation]
+    ...    rat-type=W, 타사망 cell-info(plmn-NodeB:Cell), ta-code=Hexa 6자리
+    ...    PCF 200 수신 후 → TC-NAG-015 에서 ZION 수신/응답 처리
+    [Tags]    pcf    zone-inout
+    ${hdr}    ${body}=    Send PCF Zone InOut
+    ...    sys_id=${PCF_SYS_ID}         branch_name=${PCF_BRANCH_NAME}
+    ...    mdn=${PCF_TEST_MDN}          client_host=${NAG_CLIENT_HOST}
+    ...    mobile_ip=10.10.10.10        cell_info=45006-9999:99
+    ...    ta_code=008461               rat_type=W
+    ...    zone_info=I                  apn=shi.sktelecom.com
+    ...    service_id=${PCF_SERVICE_ID}
+    PCF Zone InOut Should Succeed    ${body}
+    Log    [TC-NAG-014] Zone IN 200 수신 완료. PG → NAG ZION 발송 예상 → TC-NAG-015 에서 처리
+
+TC-NAG-015 ZION 수신 및 0x08 정상 응답 - Zone IN (3G, 타사망)
+    [Documentation]
+    ...    TC-NAG-014 Zone IN 후 PG가 NAG로 발송하는 ZION-Request(0x07) 수신
+    ...    → zone-info=I, cell-info 포맷(plmn-NodeB:Cell) 검증 → ZION-Response(0x08) code=200 전송
+    [Tags]    pcf    nag    zion
+    ${zion_hdr}    ${zion_body}=    Receive ZION Request
+    Log    [TC-NAG-015] ZION 수신: mdn=${zion_body}[mdn]
+    Dictionary Should Contain Key    ${zion_body}    mdn
+    Dictionary Should Contain Key    ${zion_body}    zone-info
+    Dictionary Should Contain Key    ${zion_body}    cell-info
+    ${zone}=    Get From Dictionary    ${zion_body}    zone-info
+    Should Be Equal As Strings    ${zone}    I    msg=ZION zone-info 기대 I, 실제=${zone}
+    Cell Info Should Be Valid    ${zion_body}[cell-info]
+    ${zion_txn}=    Get From Dictionary    ${zion_hdr}    txn_id
+    Send ZION Response    ${zion_txn}    200
+    Log    [TC-NAG-015] ZION-Response(0x08) code=200 전송 완료
+
+TC-NAG-016 Zone-InOut - TXN ID 에코
+    [Documentation]
+    ...    Zone-InOut Response TXN ID 에코 검증
+    ...    PCF 200 수신 후 → TC-NAG-017 에서 ZION 수신/응답 처리
+    [Tags]    pcf    zone-inout    validation
+    ${txn}=    Next TXN ID
+    ${hdr}    ${body}=    Send PCF Zone InOut
+    ...    sys_id=${PCF_SYS_ID}         branch_name=${PCF_BRANCH_NAME}
+    ...    mdn=${PCF_TEST_MDN}          client_host=${NAG_CLIENT_HOST}
+    ...    mobile_ip=10.10.10.10        cell_info=${NAG_CELL_INFO}
+    ...    ta_code=3113                 rat_type=L
+    ...    zone_info=I                  apn=${NAG_APN}
+    ...    service_id=${PCF_SERVICE_ID}
+    ...    txn_id=${txn}
+    TXN ID Should Match    ${txn}    ${hdr}
+    Log    [TC-NAG-016] Zone IN 200 수신 완료. PG → NAG ZION 발송 예상 → TC-NAG-0176 에서 처리
+
+TC-NAG-017 ZION 수신 및 0x08 정상 응답 - TXN ID 에코 확인
+    [Documentation]
+    ...    TC-NAG-016 Zone IN 후 PG가 NAG로 발송하는 ZION-Request(0x07) 수신
+    ...    → ZION txn_id 에코 검증 → ZION-Response(0x08) code=200 전송
+    [Tags]    pcf    nag    zion    validation
+    ${zion_hdr}    ${zion_body}=    Receive ZION Request
+    Log    [TC-NAG-017] ZION 수신: mdn=${zion_body}[mdn]
+    Dictionary Should Contain Key    ${zion_body}    mdn
+    ${zion_txn}=    Get From Dictionary    ${zion_hdr}    txn_id
+    Send ZION Response    ${zion_txn}    200
+    Log    [TC-NAG-017] ZION-Response(0x08) code=200 전송 완료 (txn=${zion_txn})

@@ -25,7 +25,7 @@ Preserve Korean Robot test names, `Documentation`, logs, and failure messages un
 
 ## Maintaining Node Specifications
 
-Each `tests/<node>/AGENTS.md` owns both local instructions and the full node specification for TC authoring.
+Each `tests/<node>/AGENTS.md` owns local instructions and the reading path for its node specification. All six test groups keep detailed reference material in a sibling `SPEC.md`; read the guide first and then only the relevant specification sections.
 Read [TC conventions](TC_CONVENTION.md) for shared rules.
 
 For each node, keep a concise TC authoring section with:
@@ -36,15 +36,14 @@ For each node, keep a concise TC authoring section with:
 4. Ordering dependencies and restrictions on selecting individual tests.
 5. Relevant shared references and applicable validation commands.
 
-Keep protocol details and node-specific pitfalls here. Link shared DB/SSH/SBI
+Keep essential working rules in the guide. Put extensive protocol details, schemas, samples, and historical evidence in a sibling `SPEC.md` when needed, with task-specific links from the guide. Link shared DB/SSH/SBI
 procedures rather than copying them. Call flows are optional developer reference;
 do not place TC-only requirements exclusively there. Verify counts and defaults
 against current code when editing them, and distinguish confirmed behavior from assumptions.
 
 ## Node Specifications
 
-- [NAG](nag/AGENTS.md)
-- [PCF](pcf/AGENTS.md)
+- [NAG, including PCF integration](nag/AGENTS.md)
 - [LRS](lrs/AGENTS.md)
 - [UPM](upm/AGENTS.md)
 - [CDS](cds/AGENTS.md)

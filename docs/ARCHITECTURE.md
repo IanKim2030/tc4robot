@@ -5,8 +5,8 @@ Detailed specifications live in topic and node documents; this document maps res
 
 ## 1. System Overview
 
-The suite validates PG interfaces for seven external nodes: NAG, PCF, LRS, UPM,
-CDS, NWDAF, and RTS. The tool actively connects to each node's PG listener, sends
+Six regression groups cover seven PG interface roles: NAG, PCF, LRS, UPM,
+CDS, NWDAF, and RTS. NAG owns the PCF integration role and its prerequisites. The tool actively connects to each node's PG listener, sends
 and receives messages, and checks responses and state changes. Auxiliary receivers
 accept PG connections for location queries, SBI notifications, and file transfers.
 
@@ -80,7 +80,7 @@ Protocol and transport helpers: libraries/*.py
 ### Test Suite Layer
 
 Node suites such as [NAG](../tests/nag/nag_tests.robot) and
-[PCF](../tests/pcf/pcf_tests.robot) define scenarios. Suite setup and teardown own
+[PCF](../tests/nag/nag_tests.robot) define scenarios. Suite setup and teardown own
 connections; `Check <IFACE> Socket` in test setup checks their state.
 See [TC conventions](../tests/TC_CONVENTION.md) for authoring rules.
 

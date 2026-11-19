@@ -58,7 +58,7 @@ ${CDS_UPM_VERIFY}         ${TRUE}          # 1X/1Y → UPM Subs-Info(0x07/0x08) 
 #   → 의존성: pip install h2
 #
 # ★ PG 가 이 주소로 보내도록 설정돼 있어야 한다. 포트가 다르면 여기서 맞출 것.
-#   LTE 가입자는 SBI 가 아니라 RBUS 라 아무것도 안 들어온다(tests/cds/AGENTS.md).
+#   LTE 가입자는 SBI 가 아니라 RBUS 라 아무것도 안 들어온다(tests/cds/SPEC.md).
 ${CDS_NOTI_PORT}          ${SBI_NOTI_PORT}   # 공용값(variables.robot, 16101) — RTS 와 같은 서버
 ${CDS_NOTI_HOST}          ${SBI_NOTI_HOST}   # 모든 인터페이스 Listen
 ${CDS_NOTI_WAIT}          30s              # Noti 도착 대기 시간
@@ -338,7 +338,7 @@ ${CDS_CODE_ST}      ST     # 0플랜 옵션(3시간 프리) 해지
 # **A1 / Z1 만 PCF 로 알림이 나가지 않는다. 나머지는 전부 나간다.**
 # (2026-08-19 최초 지정에는 1Y 도 있었으나, 1Y 는 알림이 나가는 것으로 정정됐다 —
 #  BSUBS 경유라 규칙 1 과도 맞는다)
-# tests/cds/AGENTS.md 의 "일부 전문은 PCF/PCRF 로 NOTI 하지 않는다" 가 가리키던 그 목록이다.
+# tests/cds/SPEC.md 의 "일부 전문은 PCF/PCRF 로 NOTI 하지 않는다" 가 가리키던 그 목록이다.
 #
 # `Verify SBI Noti Sent` 가 이 목록을 보고 판정할지 건너뛸지 정한다 — 그래서 목록이
 # 바뀌면 **여기만 고치면 된다.** TC 는 자기 업무 코드를 넘기기만 한다.
@@ -420,7 +420,7 @@ ${CDS_SUBS_MIN}                01100001234              # SubsData 요구 MIN (0
 #   **선언하지 않는다** — 넘겨도 버려진다(91/92 만 쓴다). 그래서 쿠폰 가입에서
 #   우리가 정하는 시각은 "언제 끝나는가" 하나뿐이다.
 #   ※ 비거나 (시작 >= 종료)면 SDM 이 **조용히 건너뛴다** — 전문은 SC 인데 PDB 만
-#     안 바뀐다. tests/cds/AGENTS.md 함정 절 참조.
+#     안 바뀐다. tests/cds/SPEC.md 함정 절 참조.
 #
 # ★ 그래서 이 값은 반드시 **미래**여야 한다.
 #   K1/K5 가입은 서비스 행을 넣는 동시에 예약 큐에 만료(K3/K7) 예약을 건다. PG.RDS 가
@@ -473,7 +473,7 @@ ${CDS_EXPIRE_WAIT_INTERVAL}    10s                      # 만료 재조회 간�
 #
 # ★ 그래서 ${CDS_START_TIME} 을 그대로 비교하면 **안 맞는다.** CHAR 는 고정폭이라
 #   12자리로 조회하면 가입 판정(K1/K5/Y9)만 0건이 나와 실패한다. 이 변수를 쓸 것.
-#   컬럼 타입은 tests/cds/AGENTS.md 의 T_5G_SUBS_SERVICE 스키마 절 참조.
+#   컬럼 타입은 tests/cds/SPEC.md 의 T_5G_SUBS_SERVICE 스키마 절 참조.
 ${CDS_LIMIT_VALID_TIME}        ${CDS_START_TIME}00      # 14자리 (전문 12자리 + 초 '00')
 
 # SS 의 TIME_PERIOD_ID 는 **'SS_' 접두 + 전문 START_TIME(12자리)** 이다.
@@ -510,7 +510,7 @@ ${CDS_ADDR}                    서울특별시 강남구 테헤란로 123      #
 # PDB 조회 (전문 반영 판정) — ODBC / pyodbc
 #
 # CommandResult(0017)는 Body 내용과 무관하게 SC 를 주므로, 전문이 실제로 가입자
-# 테이블에 반영됐는지는 PDB 를 봐야 판정된다(tests/cds/AGENTS.md "도구 관점에서의 함의").
+# 테이블에 반영됐는지는 PDB 를 봐야 판정된다(tests/cds/SPEC.md "도구 관점에서의 함의").
 #
 # 대상 DB 는 환경에 따라 골디락스 또는 알티베이스다.
 # ★ 접속 문자열을 채우지 않으면 **슈트 전체가 서지 않는다**(Suite Setup 에서 붙는다).
@@ -539,7 +539,7 @@ ${CDS_DB_AUTOCOMMIT}      ${PDB_AUTOCOMMIT}
 #
 # ★ 둘 다 예전에 ('HY000', 'The driver did not supply an error!') 의 원인으로 지목된
 #   자리다(골디락스, 2026-08-06). 그 증상이 다시 나오면 CHARSET 값을 먼저 의심할 것 —
-#   폴백이 없으므로 조회는 그대로 실패한다. 상세는 tests/cds/AGENTS.md 의 함정 절.
+#   폴백이 없으므로 조회는 그대로 실패한다. 상세는 tests/cds/SPEC.md 의 함정 절.
 
 
 # 반영 대기 — PG.SDM 이 T_CDS_ORDER_HIST 를 주기적으로 폴링해 가입자 테이블에
@@ -701,7 +701,7 @@ ${CDS_DB_CNUM_SS}             0            # SS CNUM (쿠폰이 아니라 0 고�
 #    SS       : TIME_PERIOD_ID   = 'SS_' + START_TIME     → 접두 + 12자리
 #    기준표가 둘 다 $LIMIT_VALID_TIME 으로 표기해 헷갈리는 자리다.
 
-# 예약 큐 — 테이블 이름이 LTE 와 SA 가 다르다(tests/cds/AGENTS.md "LTE / SA 차이"):
+# 예약 큐 — 테이블 이름이 LTE 와 SA 가 다르다(tests/cds/SPEC.md "LTE / SA 차이"):
 #   LTE = T_RESERVED_JOB   /   SA(5G) = T_5G_RESERVED_JOB
 # 이 슈트는 가입자 테이블을 T_5G_* 로 보고 있으므로 SA 쪽 이름을 기본값으로 둔다.
 ${CDS_DB_TBL_RESERVED}        T_5G_RESERVED_JOB

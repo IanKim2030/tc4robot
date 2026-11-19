@@ -8,14 +8,14 @@ description: Use when adding, editing, disabling, or renumbering test cases in t
 ## Read Before Editing
 
 1. [TC conventions](../../../tests/TC_CONVENTION.md) own naming, numbering, tags, lifecycle rules, and exceptions.
-2. Read the target suite's `tests/<iface>/AGENTS.md`, which includes its node specification.
+2. Read the target suite's `tests/<iface>/AGENTS.md`, which links to the relevant sections of its sibling `SPEC.md`.
 3. Use the [interface matrix](../../../docs/INTERFACES.md) when changing message types or cross-channel behavior.
 
 ## Procedure
 
 1. **State the assertion.** Identify the input, expected observable result, and the failure the TC must detect. Distinguish byte construction, response receipt, DB application, and notification arrival.
 2. **Find an existing example.** Reuse the target suite's keywords and constants. Add missing values in `resources/<iface>_variables.robot`, not as literals in the TC.
-3. **Check prerequisites.** Read node ordering and state dependencies before inserting or selecting cases. PCF's NAG-prefixed IDs and NWDAF's isolated malformed-packet connections are documented exceptions to generic rules.
+3. **Check prerequisites.** Read node ordering and state dependencies before inserting or selecting cases. PCF-role cases belong to the NAG group (TC-NAG-008–017); NWDAF isolated malformed-packet connections have a documented lifecycle exception.
 4. **Implement the smallest coherent scenario.** Preserve the suite's established Korean test language. Apply the numbering and disabled-test rules from TC conventions and update the suite summary where necessary.
 5. **Validate.** Run a direct Robot dry run with the explicit environment file, then check changed runtime behavior with local peers or byte assertions. Use live PG only for integration evidence.
 6. **Update the owning specification.** Record changed inputs, assertions, dependencies, and remaining limits in the node document. Call flows are developer-only reference.

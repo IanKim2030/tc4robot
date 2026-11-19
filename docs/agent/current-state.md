@@ -6,7 +6,7 @@ It describes implemented changes, not deployed or merged changes.
 ## Documentation and Instruction Structure
 
 - Root `AGENTS.md` contains shared policy, a compact layout, and task reading paths.
-- Twenty-three scoped `AGENTS.md` files cover the project folders, all seven test-node folders,
+- Scoped `AGENTS.md` files cover the project folders, all six test-group folders,
   configuration subfolders, documentation subfolders, repository skills, and editor settings.
   Generated cache directories are excluded.
 - `CLAUDE.md` and `CLAUDE.md.english` point to the root instructions.
@@ -94,7 +94,7 @@ through the environment-directory ignore rules so its local instructions can be 
 - `resources/AGENTS.md`: variable impact analysis and bounded polling guidance.
 - `libraries/AGENTS.md`: keyword contracts, compatible annotations, errors, and test-tool availability.
 - `tests/AGENTS.md`: independence policy, legacy gaps, and existing Korean test language.
-- `tests/pcf/AGENTS.md` and `tests/cds/AGENTS.md`: classify existing order dependencies as legacy gaps.
+- `tests/nag/AGENTS.md` and `tests/cds/AGENTS.md`: classify existing order dependencies as legacy gaps.
 - `docs/AGENTS.md` and `docs/agent/AGENTS.md`: documentation ownership and policy/reporting responsibilities.
 - `docs/agent/workflow.md`: task reading paths and current command/tool limitations.
 - `tests/TC_CONVENTION.md`: waiting and independence guidance aligned with the root.
@@ -144,6 +144,69 @@ point to these owning files. Protocol and helper tables and examples are retaine
 The catalog also explicitly preserves the documented NWDAF isolated-test exception
 and correctly states that a CDS PDB setup failure prevents the suite from starting.
 No Robot keyword, variable, or Python runtime implementation changed in this step. The mandatory dry run passed all 94 TCs, 366 local links and section targets resolved, original code examples and non-link table rows were preserved, and `git diff --check` passed.
+
+## CDS Guide and Reference Split
+
+CDS now separates always-applicable working instructions (`tests/cds/AGENTS.md`)
+from the detailed technical reference (`tests/cds/SPEC.md`). The guide links to
+specific sections by task; the reference retains the previous protocol tables,
+DB schemas, acceptance criteria, dependency descriptions, samples, and history.
+This was initially applied to CDS; the same split is now applied to all seven nodes.
+
+The CDS guide was reduced from 1,132 to 54 lines. The detailed reference was
+preserved verbatim. Validation: all 94 TCs passed the mandatory dry run, 385
+local file/section links resolved, generated CDS documentation was reproducible,
+and `git diff --check` passed.
+
+Specification references and the CDS generator point to `SPEC.md`; suite and
+documentation index navigation still starts at the CDS guide. No executable
+keyword, variable, or protocol behavior is changed by this documentation split.
+
+## Guide and Reference Split for All Nodes
+
+LRS, NAG, NWDAF, PCF, RTS, and UPM now follow the CDS structure: compact
+`AGENTS.md` working instructions and task-specific links, with the complete
+technical reference in a sibling `SPEC.md`. Existing protocol tables, examples,
+acceptance criteria, dependencies, limitations, and historical evidence are retained.
+Incoming detail links and implementation comment references point to the specifications;
+documentation and suite indexes continue to start at the agent guides.
+No executable keyword, variable, or protocol behavior changed in this step. The six guides are now 44–46 lines each. Validation confirmed that all detailed reference text was preserved apart from updated link destinations, all 94 TCs passed the mandatory dry run, 456 local links and section targets resolved, and `git diff --check` passed.
+
+## NAG and PCF Test-Group Consolidation
+
+PCF-role tests now live in `tests/nag/nag_tests.robot`, alongside the seven NAG-role
+cases. The NAG group owns 17 cases and one guide/specification pair. PCF reference
+material and its NAG registration, environment, socket, and ordered ZION prerequisites
+are included in the NAG specification. There is no separate PCF test directory.
+
+The two child suites retain separate setup/teardown because their required channels
+differ. `nag` runs both, `pcf` remains a compatibility selector for the PCF-role file,
+and PCF-role cases retain `pcf` tags while also inheriting `nag`. Existing 17 test
+IDs, assertions, and lifecycle keyword bodies are preserved.
+
+Validation: all 94 TCs passed the full dry run, with 17 cases under the NAG group
+and `nag` tag. Local fake-PG execution passed all 10 PCF-role cases (four Zone-InOut
+requests and four ZION acknowledgments). A rejected NAG Hello prevented any PCF
+connection. Runner routing was checked with a local command spy, shell syntax
+passed, 448 local file/section links resolved, and `git diff --check` passed.
+No live PG, DB, or SSH service was contacted for these checks.
+
+## Single-File NAG Suite
+
+`tests/nag/nag_tests.robot` now contains all 17 NAG and PCF integration cases.
+The separate PCF-role file has been removed. `resources/nag_suite_keywords.robot`
+initializes the selected path lazily, checks shared sockets, closes the NAG/LRS
+connections on the one-way transition, and registers NAG again before PCF Hello.
+PCF-only selection does not start the LRS listener. Suite teardown closes all handles
+and initialization failures abort the remaining suite.
+
+The `pcf` runner alias uses `--exclude NOTpcf` against the unified file, so user
+include/test filters still restrict the PCF subset rather than expanding it.
+Validation of the single-file implementation: all 94 TCs passed the full dry run; all 17 NAG cases passed against local fake PG/LRS peers, including connection teardown and re-registration on transition. PCF-only execution passed 10 runtime cases without an LRS listener, and rejected NAG Hello prevented PCF connection. Runner selectors produced 17 NAG cases, 10 PCF cases, and 2 PCF cases when combined with the validation tag. All 448 local file/section links resolved and `git diff --check` passed. No live PG/DB/SSH integration was executed.
+
+Original TC bodies and assertions are retained. Existing settle waits are relocated
+from the two previous setups, not added to ordinary cases. Cross-path randomization
+and standalone ZION receivers remain unsupported due to documented ordering constraints.
 
 ## Remaining Limits
 

@@ -1,7 +1,7 @@
 # tc4robot
 
 A Robot Framework-based regression automation testing tool for SK Telecom's **PG (PCRF Gateway)**.
-Seven nodes: NAG, PCF, LRS, UPM, CDS, NWDAF, and RTS.
+Six test groups: NAG (including PCF integration), LRS, UPM, CDS, NWDAF, and RTS.
 
 ## Agent Instructions
 
@@ -48,7 +48,7 @@ Read the relevant node specification before writing TCs.
 | [TC conventions](tests/TC_CONVENTION.md) | Naming, tags, templates, and validation |
 | [Resources](resources/AGENTS.md) | Shared keywords, variables, and Python helpers |
 | [Environments](docs/ENVIRONMENTS.md) | dev/stg/prd configuration |
-| [Node specifications](tests/AGENTS.md) | Specifications for all seven nodes |
+| [Node specifications](tests/AGENTS.md) | Specifications for all six test groups |
 | [Call flows](docs/callflow/) | Developer-only reference for understanding internal processing |
 
 ## Interface Specification Inventory
@@ -89,3 +89,11 @@ as the authority for their exact titles and contents. Status labels reflect the 
 | RDS | Reserved Data Distributed | ... |
 | ITM | Integrated Traffic Manager/Management | Applies traffic policies and manages subscriber service quality and policy information using telecommunications subscriber databases |
 | PG.BNOTI | BaroD Noti | ... |
+
+## NAG and PCF Integration
+
+`tests/nag/nag_tests.robot` contains all 17 cases in one suite: NAG requests
+001–007 and PCF integration 008–017. `bash run_tests.sh nag` runs all cases;
+`bash run_tests.sh pcf` selects the PCF-tagged subset while retaining other user
+filters. The NAG guide documents lazy initialization, the one-way path transition,
+and PCF registration prerequisites. Protocol-specific resources keep their names.

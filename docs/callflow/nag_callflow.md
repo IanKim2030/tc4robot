@@ -205,7 +205,7 @@ There is no PDB lookup. All you can see is the response message.
 
 ## Related documents
 
-- [NAG Node Specification](../../tests/nag/AGENTS.md) — Connection·Message Type·Response Code
-- [LRS Node Specification](../../tests/lrs/AGENTS.md) — Specification for the client mode side of the side channel (LRS-PCF)
+- [NAG Node Specification](../../tests/nag/SPEC.md) — Connection·Message Type·Response Code
+- [LRS Node Specification](../../tests/lrs/SPEC.md) — Specification for the client mode side of the side channel (LRS-PCF)
 - `tests/nag/nag_tests.robot` — `TC-NAG-001`~`007`
 - `resources/nag_keywords.robot` · `resources/lrs_keywords.robot` — Main channel/side channel implementation

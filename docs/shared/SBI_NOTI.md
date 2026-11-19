@@ -7,8 +7,8 @@ Use the same port, , and the same server, .
 
 | Where to use | what are you waiting for | Details |
 |---|---|---|
-| CDS | `1X`/`1Y` followed by `PG.BSUBS` → PCF Cell List (`TC-CDS-003`) | [../../tests/cds/AGENTS.md](../../tests/cds/AGENTS.md#pcf-sbi-noti-received--what-are-you-waiting-for) |
-| RTS | Subscriber Notification after L1/L2 blocking | [../../tests/rts/AGENTS.md](../../tests/rts/AGENTS.md) |
+| CDS | `1X`/`1Y` followed by `PG.BSUBS` → PCF Cell List (`TC-CDS-003`) | [../../tests/cds/AGENTS.md](../../tests/cds/SPEC.md#pcf-sbi-noti-received--what-are-you-waiting-for) |
+| RTS | Subscriber Notification after L1/L2 blocking | [../../tests/rts/AGENTS.md](../../tests/rts/SPEC.md) |
 
 ## variable
 
@@ -75,5 +75,5 @@ becomes impossible).
 
 ## Trap — If you are an LTE subscriber, nothing comes.
 
-LTE goes out through RBUS, not SBI ([../../tests/cds/AGENTS.md](../../tests/cds/AGENTS.md) LTE/SA comparison table).
+LTE goes out through RBUS, not SBI ([../../tests/cds/AGENTS.md](../../tests/cds/SPEC.md) LTE/SA comparison table).
 This judgment is based on the premise SA .

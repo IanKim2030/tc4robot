@@ -3,7 +3,7 @@
 Use [the documentation index](README.md) to find the owning document.
 
 - Write documentation in English; preserve literal API names, byte values, and existing code identifiers.
-- Put common TC policy in `tests/TC_CONVENTION.md`, the resource catalog in `resources/AGENTS.md`, node requirements in `tests/<node>/AGENTS.md`, and shared infrastructure details in `shared/`.
+- Put common TC policy in `tests/TC_CONVENTION.md`, the resource catalog in `resources/AGENTS.md`, node working rules in `tests/<node>/AGENTS.md` and detailed specifications in sibling `SPEC.md` files where separated, and shared infrastructure details in `shared/`.
 - `callflow/` is developer-only background. TC prerequisites, ordering, assertions, and known limits must be understandable without reading it.
 - Link to the owning source instead of copying mutable ports, defaults, counts, or procedure lists into several documents.
 - Keep code paths current: Python helpers are in `libraries/`; Robot resources remain in `resources/`.

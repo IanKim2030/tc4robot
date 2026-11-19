@@ -1,7 +1,7 @@
 # tc4robot Documentation Index
 
 A Robot Framework-based regression automation testing tool for SK Telecom's **PG (PCRF Gateway)**.
-Seven nodes: NAG, PCF, LRS, UPM, CDS, NWDAF, and RTS.
+Six test groups: NAG (including PCF integration), LRS, UPM, CDS, NWDAF, and RTS.
 
 ## Start Here
 
@@ -23,14 +23,13 @@ Seven nodes: NAG, PCF, LRS, UPM, CDS, NWDAF, and RTS.
 
 ## Node Specifications
 
-Read the relevant `tests/<node>/AGENTS.md` before writing or changing that node's TCs. Each guide contains the full node specification.
+Read the relevant `tests/<node>/AGENTS.md` before writing or changing that node's TCs. Each guide provides the node's reading path and links to its detailed specification in a sibling `SPEC.md`.
 Each document links to its test suite, keywords, and variables. Specifications cover
 connections, messages, wire encoding where applicable, existing TCs, pitfalls, and open questions.
 
 | Node | Port | Body | Socket arrangement |
 |---|---|---|---|
-| [NAG](../tests/nag/AGENTS.md) | 8012 | JSON | Dual; also listens on 8890 |
-| [PCF](../tests/pcf/AGENTS.md) | 8011 | JSON | Dual; registers a NAG session on 8012 |
+| [NAG, including PCF integration](../tests/nag/AGENTS.md) | 8012 (NAG), 8011 (PCF) | JSON | NAG path also listens on 8890; PCF path registers NAG before PCF |
 | [LRS](../tests/lrs/AGENTS.md) | 10204 | Raw `REQ`/`ANS` and HTTP AIMS | Dual; also listens on 8890 |
 | [UPM](../tests/upm/AGENTS.md) | 10506 | JSON | Single |
 | [CDS](../tests/cds/AGENTS.md) | 9201, then 9200 | 48B fixed header and fixed-width body | Dual |
@@ -68,3 +67,11 @@ belong in the node specifications and shared references.
 
 - [TC authoring](../.claude/skills/pg-tc-authoring/SKILL.md)
 - [Wire encoding validation](../.claude/skills/pg-wire-encoding/SKILL.md)
+
+## NAG and PCF Integration
+
+`tests/nag/nag_tests.robot` contains all 17 cases in one suite: NAG requests
+001–007 and PCF integration 008–017. `bash run_tests.sh nag` runs all cases;
+`bash run_tests.sh pcf` selects the PCF-tagged subset while retaining other user
+filters. The NAG guide documents lazy initialization, the one-way path transition,
+and PCF registration prerequisites. Protocol-specific resources keep their names.

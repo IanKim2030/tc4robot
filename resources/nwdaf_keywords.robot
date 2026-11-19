@@ -231,7 +231,7 @@ Send NWDAF Notification
 
 Send NWDAF Notification On New Connection
     [Documentation]
-    ...    PG 의 NWDAF 인터페이스는 "소켓: 단일"이다(tests/nwdaf/AGENTS.md). 공유 ${NWDAF_SOCK}
+    ...    PG 의 NWDAF 인터페이스는 "소켓: 단일"이다(tests/nwdaf/SPEC.md). 공유 ${NWDAF_SOCK}
     ...    을 열어둔 채 두 번째 연결을 동시에 여는 걸 피하려고 "동시에 2개"가 아니라 "항상
     ...    1개씩 순차로" 접속한다: 기존 공유 소켓을 먼저 닫고, 그 자리에 딱 하나의 연결만
     ...    열어 전문을 보내 관찰한 뒤, 그 연결을 닫고 다시 새로 접속해 ${NWDAF_SOCK} 을 정상

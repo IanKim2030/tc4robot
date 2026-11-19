@@ -81,7 +81,7 @@ state. `--no-db-seed` skips only the seed phase, not all DB or SSH activity.
 Do not use the runner merely to perform a dry run: its seed phase runs first.
 Read the target node and shared guides before executing the applicable integration checks.
 
-The runner supports all seven interface names, `all`, `smoke`, and tag selections.
+The runner supports six test groups, `all`, `smoke`, and tag selections. The `nag` group includes PCF-role checks; `pcf` remains a compatibility selector for the PCF-tagged section of the single NAG suite.
 See `run_tests.sh` for the current flags rather than maintaining another full flag list.
 Reports are written to `results/<YYYYMMDD_HHMMSS>/`.
 

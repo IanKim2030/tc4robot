@@ -2,8 +2,8 @@
 # run_tests.sh - PG 연동 통합 테스트 실행 스크립트
 #
 # 인터페이스:
-#   NAG    클라이언트 모드 → PG 서버 (Port 8012)
-#   PCF    클라이언트 모드 → PG 서버 (Port 8011)
+#   NAG    NAG(8012) + PCF(8011) 연동 검증 통합 그룹
+#   PCF    호환 선택자: NAG 그룹의 PCF 연동 검증만 실행 (Port 8011)
 #   LRS    클라이언트 모드 → PG.LRS 서버 (Port 10204, Health Check/Ping + SESSION-INFO)
 #   UPM    클라이언트 모드 → PG 서버 (Port 10506, HFC 가입자 Cell List 연동)
 #   NWDAF  클라이언트 모드 → PG 서버 (Port ${NWDAF_PORT}, TLV Notification 주력)
@@ -292,7 +292,7 @@ BASE_CMD=(python3 -m robot
 
 case "${TARGET}" in
     nag)        "${BASE_CMD[@]}" tests/nag/ ;;
-    pcf)        "${BASE_CMD[@]}" tests/pcf/ ;;
+    pcf)        "${BASE_CMD[@]}" --exclude NOTpcf tests/nag/nag_tests.robot ;;
     lrs)        "${BASE_CMD[@]}" tests/lrs/ ;;
     upm)        "${BASE_CMD[@]}" tests/upm/ ;;
     nwdaf)      "${BASE_CMD[@]}" tests/nwdaf/ ;;

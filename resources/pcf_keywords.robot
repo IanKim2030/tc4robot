@@ -7,7 +7,7 @@ Documentation
 ...      Body   : JSON
 ...
 ...    [Suite 정책 — Dual Socket]
-...      Suite Setup    : Suite Connect With NAG
+...      경로 초기화    : Suite Connect With NAG
 ...        1) NAG → PG(${NAG_PG_PORT}) Hello → NAG 세션 등록
 ...        2) PCF → PG(${PCF_PG_PORT}) 연결 + Hello
 ...      Test Setup     : Check PCF And NAG Socket (둘 중 하나라도 닫히면 Fatal Error)
@@ -37,7 +37,7 @@ ${PCF_SOCK}      ${NONE}
 
 Suite Connect With NAG
     [Documentation]
-    ...    PCF Suite Setup 전용
+    ...    통합 NAG 슈트의 PCF 경로 초기화 전용
     ...    1) NAG → PG(8012) Hello → NAG 세션 등록
     ...    2) PCF → PG(8011) 연결 + Hello
     [Arguments]    ${pcf_host}    ${pcf_port}    ${timeout}=10
@@ -67,7 +67,7 @@ Suite Connect With NAG
     Log    [Suite] PCF Hello 성공 code=${code2}    console=True
 
 Suite Disconnect With NAG
-    [Documentation]    PCF Suite Teardown 전용. PCF + NAG 소켓 종료.
+    [Documentation]    경로 전환 또는 Suite Teardown에서 PCF + NAG 소켓 종료.
     Run Keyword If    $PCF_SOCK is not None    Tcp.Tcp Close    ${PCF_SOCK}
     Run Keyword If    $NAG_SOCK is not None    Tcp.Tcp Close    ${NAG_SOCK}
     Log    [Suite] PCF + NAG 연결 종료    console=True

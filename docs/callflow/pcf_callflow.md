@@ -156,13 +156,13 @@ Since it is asserted as “sent,” one of these two needs to be sorted out.
 ## TC Reference
 
 TC ordering, notification pairing, and assertion limits are maintained in the
-[PCF node specification](../../tests/pcf/AGENTS.md#execution-dependencies-and-assertion-limits).
+[PCF node specification](../../tests/nag/SPEC.md#pcf-execution-dependencies-and-assertion-limits).
 This developer reference explains the internal flow and does not own TC requirements.
 
 ## Related documents
 
-- [PCF Node Specification](../../tests/pcf/AGENTS.md) — Connection·Message Type·Dual Socket Policy
-- [NAG node specification](../../tests/nag/AGENTS.md) — ZION (0x07/0x08) definition, NAG channel full message
+- [PCF Node Specification](../../tests/nag/SPEC.md#pcf-integration-prerequisites) — Connection·Message Type·Dual Socket Policy
+- [NAG node specification](../../tests/nag/SPEC.md) — ZION (0x07/0x08) definition, NAG channel full message
 - [INTERFACES.md](../INTERFACES.md) — opcode conflict table, HFC service Call Flow
-- `tests/pcf/pcf_tests.robot` — `TC-NAG-008`~`017` (10 cases)
+- `tests/nag/nag_tests.robot` — `TC-NAG-008`~`017` (10 cases)
 - `resources/pcf_keywords.robot` · `resources/nag_keywords.robot` — Transmission/reception/ZION implementation

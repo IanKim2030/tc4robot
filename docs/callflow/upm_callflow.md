@@ -12,19 +12,19 @@
 > ⚠ `0x05`·`0x07`·`0x09`·`0x0b` have completely different meanings in different nodes —
 > [opcode conflict table](../INTERFACES.md#opcode-conflict--use-the-constant-name-for-each-node-as-is). instead of numbers
 > Use the `${MSG_UPM_*}` constant. Also, `tid` (24-character string) in JSON Body is in the header.
-> `txn_id` (4B binary) and  are completely separate ([../../tests/upm/AGENTS.md](../../tests/upm/AGENTS.md#tid--separate-from-txn_id)).
+> `txn_id` (4B binary) and  are completely separate ([../../tests/upm/AGENTS.md](../../tests/upm/SPEC.md#tid--separate-from-txn_id)).
 
 > ⚠ The schema of the `fileinfo`  field itself of 0x0c (file name/size, etc.) is still unconfirmed —
 > The original text of specification 6.6.1/6.6.2 is not available in this repo. However, FTP connection information (host/port/account/
 > remote path) was confirmed with PG settings(`SYSTEM_ID_04=UPM-R0`(changed on 2026-10-28, previously UPMROB). From 2026-10-29, dev is `UPM-R2`(SFTP), 2026-10-22 —
-> [see "fileinfo (0x0c)" section in ../../tests/upm/AGENTS.md](../../tests/upm/AGENTS.md)) — PG is FTP
+> [see "fileinfo (0x0c)" section in ../../tests/upm/AGENTS.md](../../tests/upm/SPEC.md)) — PG is FTP
 > The direction of pushing to the client has also been confirmed. The transfer file is  data file + FIN
 > The user also confirmed that there are two files (2026-10-22) — but which file is FIN?
 > (naming convention) and fileinfo content matching is still the best-effort.
 >
 > In an environment where `USE_SFTP_04` in PG settings is changed to `Y` instead of `N` (plain text FTP)
 > You can launch the same receiving server via SFTP with `${UPM_FTP_USE_SFTP}` — ⚠ Not verified,
-> See the “SFTP Alternatives” section in [../../tests/upm/AGENTS.md](../../tests/upm/AGENTS.md).
+> See the “SFTP Alternatives” section in [../../tests/upm/AGENTS.md](../../tests/upm/SPEC.md).
 
 ## Callflow — Active Transmission (UPM suite, TC-UPM-001~004)
 
@@ -117,7 +117,7 @@ Since the flow on the PG side is not complete, the tool's work is  until the  re
 
 ## Related documents
 
-- [UPM node specification](../../tests/upm/AGENTS.md) — message type table, tid creation rules, code-type, pitfalls
+- [UPM node specification](../../tests/upm/SPEC.md) — message type table, tid creation rules, code-type, pitfalls
 - [cds_callflow.md](cds_callflow.md) — Trigger side flow (CDS_1X / CDS_1Y / CDS_C1 / CDS_G1 / CDS_D3 sheets)
 - `tests/upm/upm_tests.robot` — `TC-UPM-001`~`004` (active) / 311·321·399 (commentary)
 - `resources/upm_keywords.robot` — Transmission/reception/echo response implementation

@@ -28,7 +28,7 @@ Documentation
 ...    ⚠ fileinfo 의 실제 필드 스키마는 미확인이다 — TC-UPM-004 의
 ...    `Verify Subs Sync Fileinfo` 는 파일 수신 자체는 엄격히 확인하되, fileinfo
 ...    내용과의 대조(파일명 등)는 best-effort 로만 한다. 자세한 내용은
-...    tests/upm/AGENTS.md 의 "fileinfo (0x0c)" 절 참조.
+...    tests/upm/SPEC.md 의 "fileinfo (0x0c)" 절 참조.
 ...    끄려면: bash run_tests.sh upm --no-ftp (pyftpdlib 없이도 슈트가 돈다)
 
 Resource    ../../resources/variables.robot

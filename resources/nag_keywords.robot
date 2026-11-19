@@ -39,7 +39,7 @@ ${NAG_SOCK}      ${NONE}
 
 Suite Connect NAG
     [Documentation]
-    ...    NAG Suite Setup 전용. NAG → PG(${NAG_PG_PORT}) 소켓 1회 연결.
+    ...    NAG 요청 경로 초기화 전용. NAG → PG(${NAG_PG_PORT}) 소켓 1회 연결.
     ...    (NAG Hello 는 TC-NAG-001 에서 수행)
     [Arguments]    ${nag_host}=${NAG_PG_HOST}    ${nag_port}=${NAG_PG_PORT}
     ...            ${timeout}=${NAG_TIMEOUT}

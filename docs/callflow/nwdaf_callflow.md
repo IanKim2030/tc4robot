@@ -12,7 +12,7 @@
 
 > ⚠ Unlike other nodes, there is no return signal to use for  decision.  Notification does not have a response according to the standard.
 > There is none, and there is no interface to view PDB reflection. In fact, 7 out of 8 fields in the eNB section are incorrect.
-> There is a precedent where all TCs passed in this state ([../../tests/nwdaf/AGENTS.md](../../tests/nwdaf/AGENTS.md#decision-gap--the-core-constraint-of-this-node)).
+> There is a precedent where all TCs passed in this state ([../../tests/nwdaf/AGENTS.md](../../tests/nwdaf/SPEC.md#decision-gap--the-core-constraint-of-this-node)).
 
 ## Callflow — Notification (main)
 
@@ -78,7 +78,7 @@ sequenceDiagram
 ```
 
 The Service ID dedicated to Health Check is unknown, so use `0x0305` as is.
-([../../tests/nwdaf/AGENTS.md](../../tests/nwdaf/AGENTS.md#-confirmation-required) number 6).
+([../../tests/nwdaf/AGENTS.md](../../tests/nwdaf/SPEC.md#-confirmation-required) number 6).
 
 ## Reverse Defense — PG-Initiated Health Check
 
@@ -119,7 +119,7 @@ read If the declaration length is 0x80(128) or more than , it is sign extended b
 `multiMessageLength` actually increases and the parsing is completely out of sync, eventually resulting in `Unknown TAG(00) Packet
 The entire message is discarded with ignore!` (PG silently ignores it without disconnecting). So datalength
 All oversize values of negative TC are kept below 0x80 — see details
-[See the "Length field sign extension bug" section of the NWDAF node specification](../../tests/nwdaf/AGENTS.md).
+[See the "Length field sign extension bug" section of the NWDAF node specification](../../tests/nwdaf/SPEC.md).
 
 A person must check whether the contents are correct — `Send NWDAF Notification` For each transmission
 Leave the entire packet hexdump in `log.html`, so bytes with `Header Info`/`BodyInfo` dump of PG
@@ -128,6 +128,6 @@ The fact that the pcefQoSCtrl/eNB/DPI field is not visible in the log is not a p
 
 ## Related documents
 
-- [NWDAF Node Spec](../../tests/nwdaf/AGENTS.md) — Header bit placement, section-wise encoding table, pitfalls, verification required
+- [NWDAF Node Spec](../../tests/nwdaf/SPEC.md) — Header bit placement, section-wise encoding table, pitfalls, verification required
 - `tests/nwdaf/nwdaf_tests.robot` — `TC-NWDAF-001`~`037`
 - `resources/nwdaf_keywords.robot` · `libraries/TlvHelper.py` — build/send/drain implementation

@@ -29,7 +29,7 @@ while DB assertions fail. Process names come from `/PG/CFG/ST.cfg`.
 The diagram combines SDM into one participant, but two or four processes can be involved.
 Business-code application uses `P_SDM601`/`P_SDM501`; only coupon expiration in the K1 section
 uses `R_SDM601`/`R_SDM501`. The Altibase `5xx` processes are not running in the current DEV/TB
-environments because both have `PCRF_SUPPORT=N`. See the two-HIST-table section of `../../tests/cds/AGENTS.md`.
+environments because both have `PCRF_SUPPORT=N`. See the two-HIST-table section of `../../tests/cds/SPEC.md`.
 
 > Coupon expiration (`K3`) uses `RDS601` followed by `R_SDM601`, unlike other business codes.
 > If `TC-CDS-020` fails after its three-minute wait, inspect these two processes.
@@ -39,7 +39,7 @@ environments because both have `PCRF_SUPPORT=N`. See the two-HIST-table section 
 ## HIST Rules (2026-08-19)
 
 The HIST table written by PG.CDS determines whether BSUBS processes a business code.
-See the two-HIST-table section of `../../tests/cds/AGENTS.md` for write conditions on
+See the two-HIST-table section of `../../tests/cds/SPEC.md` for write conditions on
 `T_CDS_ORDER_HIST` and `T_BAROD_ORDER_HIST`. Apply the following rules from top to bottom.
 
 **Processing and SNOTI notification are separate.** BSUBS processes `1X`/`1Y` and notifies SNOTI directly.
@@ -1173,6 +1173,6 @@ However, if the above path rule (2026-08-19) is followed, this code will also be
 
 ## Other documents
 
-- [../../tests/cds/AGENTS.md](../../tests/cds/AGENTS.md) — CDS node specifications (encoding table, pitfalls, LTE/SA differences)
+- [../../tests/cds/SPEC.md](../../tests/cds/SPEC.md) — CDS node specifications (encoding table, pitfalls, LTE/SA differences)
 - `tests/cds/cds_tests.robot` — TCs in the table above
 - `libraries/CdsHelper.py` — `_fill_command_fields()` (source of field set)
