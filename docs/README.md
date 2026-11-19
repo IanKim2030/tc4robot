@@ -29,8 +29,8 @@ connections, messages, wire encoding where applicable, existing TCs, pitfalls, a
 
 | Node | Port | Body | Socket arrangement |
 |---|---|---|---|
-| [NAG, including PCF integration](../tests/nag/AGENTS.md) | 8012 (NAG), 8011 (PCF) | JSON | NAG path also listens on 8890; PCF path registers NAG before PCF |
-| [LRS](../tests/lrs/AGENTS.md) | 10204 | Raw `REQ`/`ANS` and HTTP AIMS | Dual; also listens on 8890 |
+| [NAG, including PCF integration](../tests/nag/AGENTS.md) | 8012 (NAG), 8011 (PCF) | JSON | NAG path also accepts LRS on dev 142:8889; PCF path registers NAG before PCF |
+| [LRS](../tests/lrs/AGENTS.md) | 10204 | Raw `REQ`/`ANS` and HTTP AIMS | Dual; LRS-PCF side channel uses dev 8889 (environment-configured) |
 | [UPM](../tests/upm/AGENTS.md) | 10506 | JSON | Single |
 | [CDS](../tests/cds/AGENTS.md) | 9201, then 9200 | 48B fixed header and fixed-width body | Dual |
 | [NWDAF](../tests/nwdaf/AGENTS.md) | 10305 | Binary TLV | Single |

@@ -32,6 +32,7 @@ Prepare NAG Regression Test
                 Set Suite Variable    ${NAG_PHASE_STARTED}    ${TRUE}
             END
             Check NAG Socket
+            Check LRS Socket
         END
     EXCEPT    AS    ${error}
         Fatal Error    NAG 통합 슈트 선행조건 실패: ${error}
@@ -42,8 +43,11 @@ Start NAG Request Path
     Ensure PG Process Running    G_BNOTI201    G_LRS201    CDS201
     # Existing startup-settle wait moved from nag_tests.robot; no additional wait policy introduced.
     Sleep    ${PG_SSH_SETTLE}
+    Log    [NAG 선행조건] LRS→PCF 수신 대기: ${LRS_SERVER_HOST}:${LRS_SERVER_PORT}    console=True
     Suite LRS Accept
     Handle LRS Hello
+    Check LRS Socket
+    Log    [NAG 선행조건] LRS→PCF 연결 및 Hello 완료. NAG 연결을 시작합니다.    console=True
     Suite Connect NAG
 
 Start PCF Integration Path

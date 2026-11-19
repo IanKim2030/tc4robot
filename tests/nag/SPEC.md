@@ -30,14 +30,16 @@ Files: [`nag_tests.robot`](nag_tests.robot) · [`nag_keywords.robot`](../../reso
 | Body | JSON |
 | Timeout | `${NAG_TIMEOUT}` = 10 seconds |
 
-The default port is 8012 in `nag_variables.robot`; override it in `config/env/<env>.py` when required.
+The default NAG destination port is 8012 in `nag_variables.robot`; override it in `config/env/<env>.py` when required.
+
+The separate LRS→PCF prerequisite is an inbound connection from PG LRS to the test tool, not a connection from the tool to PG. In dev the listener binds `${TOOL_HOST}` = `192.168.15.142`, port 8889. The environment overrides `LRS_SERVER_HOST` and `LRS_SERVER_PORT`; the shared legacy port fallback remains 8890 for environments without an override. NAG requests must wait for accept and the successful Hello exchange before the NAG socket opens. Per-test readiness checks cover both handles. The LRS suite shares these environment variables, so its dev side channel also uses 8889.
 
 #### Dual Sockets: The LRS-PCF Channel Is Required
 
 The suite uses two sockets:
 
 ```text
-1. Suite LRS Accept  : listen/accept on the LRS-PCF server socket (8890) → ${LRS_CONN}
+1. Suite LRS Accept  : listen/accept on the LRS-PCF server socket (${LRS_SERVER_PORT}; dev 8889) → ${LRS_CONN}
 2. Handle LRS Hello  : receive Hello-Request (0x01), reply with Hello-Response (0x02)
 3. Suite Connect NAG : connect the NAG client socket (8012) → ${NAG_SOCK}
 ```
@@ -99,8 +101,7 @@ Use `${NAG_MDN_NO_HFC}` and `${NAG_MDN_NO_SESSION}` for their corresponding nega
 
 ### Pitfalls
 
-- The suite should stop if either socket closes. Currently `Check NAG Socket`
-  checks only `${NAG_SOCK}` and does not detect LRS-PCF channel closure.
+- The suite should stop if either socket closes. The unified readiness keyword invokes both `Check NAG Socket` and `Check LRS Socket`.
 - `Tcp.Is Connected` checks only the local file descriptor and can pass after PG disconnects.
 
 ## Unified NAG Test Group
@@ -138,7 +139,7 @@ not expanded. Replacing that legacy timing behavior is a separate validated chan
    senders. Include those pairs when selecting tests; this is a legacy independence
    gap, not a pattern for new cases. `Check PCF And NAG Socket` aborts on closed handles.
 
-The PCF-role path does not require the 8890 LRS-PCF listener used by the NAG-role
+The PCF-role path does not require the LRS-PCF listener (dev 8889) used by the NAG-role
 Subs-Cellid path. Running PCF-only must not wait for that unrelated connection.
 
 ## PCF Interface Reference

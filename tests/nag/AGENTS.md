@@ -15,7 +15,8 @@ Use the task-specific references below instead of loading the full specification
 
 ## Essential Rules
 
-- Complete LRS-PCF accept and Hello before opening the NAG socket; TC-NAG-001 performs NAG Hello.
+- Before NAG request TCs start, PG LRS must connect to the tool-side PCF listener and complete Hello. In dev this is `192.168.15.142:8889`, configured by `LRS_SERVER_HOST`/`LRS_SERVER_PORT`. Only then open NAG; TC-NAG-001 performs NAG Hello.
+- Check both NAG and LRS handles before each NAG request TC. A failed prerequisite must abort execution rather than run requests without the side channel.
 - Subs-Cellid requires servicing the auxiliary Location-Info channel between sending and receiving.
 - Preserve the NAG-Barod Byte0 override; do not substitute the standard LRS header blindly.
 - Keep the documented socket-check limits explicit; a local file descriptor alone does not prove peer liveness.

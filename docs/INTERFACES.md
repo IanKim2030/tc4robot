@@ -7,16 +7,16 @@ For details, refer to each node specification (`tests/<iface>/AGENTS.md`).
 
 | node | tool role | Connection direction | port | header | Body | socket |
 |---|---|---|---|---|---|---|
-| [NAG](../tests/nag/SPEC.md) | NAG | Client → PG | 8012 | 8B `0x00` | JSON | Dual (+8890 Listen) |
+| [NAG](../tests/nag/SPEC.md) | NAG | Client → PG | 8012 | 8B `0x00` | JSON | Dual (LRS-PCF listen: dev 8889; environment-configured) |
 | [PCF](../tests/nag/SPEC.md#pcf-integration-prerequisites) | PCF | Client → PG | 8011 | 8B `0x00` | JSON | Dual (+NAG 8012) |
-| [LRS](../tests/lrs/SPEC.md) | LRS | Client → PG.LRS | 10204 | None/HTTP | raw `REQ`/`ANS`, HTTP AIMS | Dual (+8890 Listen) |
+| [LRS](../tests/lrs/SPEC.md) | LRS | Client → PG.LRS | 10204 | None/HTTP | raw `REQ`/`ANS`, HTTP AIMS | Dual (LRS-PCF listen: dev 8889; environment-configured) |
 | [UPM](../tests/upm/SPEC.md) | UPM | Client → PG | 10506 | 8B `0x00` | JSON | single |
 | [CDS](../tests/cds/SPEC.md) | CDS | Client Dual → PG.CDS | Rch 9201 → Sch 9200 | 48B | fixed message | dual |
 | [NWDAF](../tests/nwdaf/SPEC.md) | NWDAF | Client → PG | 10305 | 8B Bitfield | TLV binary | single |
 | [RTS](../tests/rts/SPEC.md) | RTS | Client → PG.RTS | ${RTS_PG_PORT}(6003, setting file link TODO) | 32B | Fixed width (roaming blocking L1/L2) | single |
 
 The tool initiates each node's primary PG connection. NAG and LRS also accept
-PG connections on the auxiliary LRS-PCF channel (8890). SBI and FTP/SFTP receivers
+PG connections on the auxiliary LRS-PCF channel (`LRS_SERVER_PORT`; dev 8889, shared fallback 8890). SBI and FTP/SFTP receivers
 are additional listeners described in the applicable shared and node references.
 
 Hosts inherit environment values such as `${PG_HOST}` from `config/env/<env>.py`;
@@ -37,10 +37,10 @@ NWDAF uses Message Id (0x000~0xFFF cycle) instead of `txn_id`.
 
 ## Dual socket architecture — which node opens which channel first
 
-NAG — client 8012 and server 8890. The current suite prepares the side channel first:
+NAG — client 8012 and an environment-configured LRS-PCF server (dev `192.168.15.142:8889`). The current suite prepares the side channel first:
 
 ```text
-1. Listen/accept on LRS-PCF (8890).
+1. Listen/accept on LRS-PCF (`LRS_SERVER_HOST:LRS_SERVER_PORT`; dev `192.168.15.142:8889`).
 2. Receive PG Hello-Request (0x01), reply Hello-Response (0x02).
 3. Open NAG (8012); TC-NAG-001 performs NAG Hello.
 ```
@@ -52,8 +52,8 @@ See the [NAG specification](../tests/nag/SPEC.md) for prerequisites and current 
 
 PCF — NAG 8012 (session pre-registration) + PCF 8011. Both sockets must survive until the end of the suite.
 
-LRS — Client 10204 + Server 8890. Uses the same 8890 channel as NAG.
-During Session-Info (HTTP) processing, PG sends `0x05` to 8890, so the same preprocessing is required.
+LRS — client 10204 plus the same environment-configured LRS-PCF listener as NAG (dev 8889).
+During Session-Info (HTTP) processing, PG sends `0x05` to the configured LRS-PCF listener, so the same preprocessing is required.
 
 CDS — Connect Rchannel (9201) first and open Schannel (9200) later. Each channel
 A handshake is performed by sending a ConnectionRequest and receiving an ACK.

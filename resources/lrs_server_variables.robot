@@ -15,7 +15,7 @@ Documentation
 # LRS(PG)가 접속하면 TC 진행
 # ════════════════════════════════════════════
 ${LRS_SERVER_HOST}        0.0.0.0    # 모든 인터페이스 Listen
-${LRS_SERVER_PORT}        8890       # 규격서 고정값
+${LRS_SERVER_PORT}        8890       # 환경 파일에서 덮는 기본값 (dev: 8889)
 ${LRS_ACCEPT_TIMEOUT}     30         # LRS(PG) 접속 대기 최대 시간(초)
 ${LRS_MSG_TIMEOUT}        10         # 메시지 수신 최대 대기 시간(초)
 # 수락 허용 출발지 IP (콤마/공백 구분, 여러 개 가능). 그 외 IP 접속은 거부하고 계속 대기.

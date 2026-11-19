@@ -14,7 +14,7 @@ Use the task-specific references below instead of loading the full specification
 
 ## Essential Rules
 
-- Distinguish the 10204 client channel (raw REQ/ANS and HTTP) from the 8890 server channel.
+- Distinguish the 10204 client channel (raw REQ/ANS and HTTP) from the environment-configured LRS-PCF server channel (dev `192.168.15.142:8889`).
 - Session-Info requires a side-channel Location-Info response before the HTTP response can complete.
 - Prepare the PG-initiated connection within the accept timeout; preserve peer restrictions.
 - Use real environment values where the specification records unresolved fixture data.

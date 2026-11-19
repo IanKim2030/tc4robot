@@ -32,7 +32,8 @@ TOOL_HOST = '192.168.15.142'    # 도구가 도는 호스트 — PG 가 되돌�
 # CDS_SCH_PORT            = 9200      # PG_V2.cfg [CDS] O_PORT
 # CDS_RCH_PORT            = 9201      # PG_V2.cfg [CDS] R_PORT
 # LRS_CLIENT_DEFAULT_PORT = 10204
-# LRS_SERVER_PORT         = 8890      # LRS-PCF 채널 (NAG 슈트도 사용)
+LRS_SERVER_HOST = TOOL_HOST           # LRS -> tool PCF listener (dev: 192.168.15.142)
+LRS_SERVER_PORT = 8889                # LRS-PCF prerequisite for NAG; also used by LRS suite
 
 # ── 노드별 식별자 ────────────────────────────────────────────────
 # NAG_SYS_ID       = 'NAG01'
@@ -53,7 +54,7 @@ TOOL_HOST = '192.168.15.142'    # 도구가 도는 호스트 — PG 가 되돌�
 # 주석으로 둔 노드는 기본값을 쓴다.
 # NAG_MDN            = '01020300553'   # NAG Subs-Cellid 등 (${NAG_MDN_NORMAL})
 # PCF_MDN            = '01020300553'   # PCF ZONE 알림 (${PCF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
-# LRS_MDN            = '01020300553'   # LRS SESSION-INFO 조회 + 8890 LTE 세션 (${LRS_SI_MDN}/${LRS_MDN_LTE})
+# LRS_MDN            = '01020300553'   # LRS SESSION-INFO 조회 + 8889 LTE 세션 (${LRS_SI_MDN}/${LRS_MDN_LTE})
 
 # PG.CDS <-> CDS
 CDS_MDN              = '01090020001'     # CDS 기본 가입자
