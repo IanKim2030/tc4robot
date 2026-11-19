@@ -1,123 +1,123 @@
-# UPM — HFC 서비스 연동 (UPM ↔ PG.BSUBS)
+# UPM — HFC service integration (UPM ↔ PG.BSUBS)
 
-| 항목 | 값 |
+| item | value |
 |---|---|
-| 도구 역할 | UPM (Client) → PG:`${UPM_PG_PORT}`(10506), 단일 소켓 |
-| 헤더 / Body | 8-옥텟 공통 헤더 (Byte0 `0x00`) / **JSON** |
-| 방향 | **양방향** — 능동 송신 4종(Hello/Ping/CellInfo-Noti/Subs-Sync) + 수동 수신 3종(Subs-Change/Subs-Info/Info-Change) |
-| Hello 제약 | **연결 후 5초 이내 Hello 미송신 시 PG 가 연결을 끊는다** (규격 3.1) — Suite Setup 이 처리 |
-| 판정 | 응답 즉시 판정 — `msg_type` + `txn_id` 에코 + `result-code=SC0000` (**PDB 판정 없음**) |
-| 수동 수신 TC | PG 측 이벤트(CDS 업무 코드)가 트리거 — **UPM 슈트가 아니라 CDS 슈트에서 돈다** (아래 표) |
+| tool role | UPM (Client) → PG:`${UPM_PG_PORT}`(10506), single socket |
+| Header / Body | 8-octet common header (Byte0 `0x00`) / JSON |
+| direction | Bidirectional — 4 types of active transmission (Hello/Ping/CellInfo-Noti/Subs-Sync) + 3 types of passive reception (Subs-Change/Subs-Info/Info-Change) |
+| Hello pharmaceutical | If Hello is not sent within 5 seconds after connection, PG disconnects. (Specification 3.1) — Suite Setup handles this. |
+| Judgment | Response immediate decision — `msg_type` + `txn_id` echo + `result-code=SC0000` (PDB no decision ) |
+| Passive receiving TC | PG side event (CDS business code) triggers — runs in CDS suite, not UPM suite (table below) |
 
-> ⚠ `0x05`·`0x07`·`0x09`·`0x0b` 는 다른 노드에서 전혀 다른 의미다 —
-> [opcode 충돌표](../INTERFACES.md#opcode-충돌--노드별-상수명을-그대로-써라). 숫자 대신
-> `${MSG_UPM_*}` 상수를 쓸 것. 또 JSON Body 의 `tid`(24자리 문자열)는 헤더의
-> `txn_id`(4B 바이너리)와 **완전히 별개**다 ([nodes/UPM.md](../nodes/UPM.md#tid--txn_id-와-별개다)).
+> ⚠ `0x05`·`0x07`·`0x09`·`0x0b` have completely different meanings in different nodes —
+> [opcode conflict table](../INTERFACES.md#opcode-conflict--use-the-constant-name-for-each-node-as-is). instead of numbers
+> Use the `${MSG_UPM_*}` constant. Also, `tid` (24-character string) in JSON Body is in the header.
+> `txn_id` (4B binary) and  are completely separate ([../../tests/upm/AGENTS.md](../../tests/upm/AGENTS.md#tid--separate-from-txn_id)).
 
-> ⚠ 0x0c 의 `fileinfo` **필드 자체의 스키마**(파일명/크기 등)는 여전히 미확인이다 —
-> 규격 6.6.1/6.6.2 원문이 이 리포에 없다. 다만 **FTP 접속 정보(host/port/계정/
-> remote path)는 PG 설정으로 확인됐다**(`SYSTEM_ID_04=UPM-R0`(2026-10-28 변경, 이전 UPMROB). 2026-10-29 부터 dev 는 `UPM-R2`(SFTP), 2026-10-22 —
-> [nodes/UPM.md](../nodes/UPM.md) 의 "fileinfo (0x0c)" 절 참조) — PG 가 FTP
-> Client 로 Push 한다는 방향도 이걸로 확정됐다. 전송 파일은 **데이터 파일 + FIN
-> 파일 2개**라는 것도 사용자 확인(2026-10-22) — 다만 어느 파일이 FIN 인지
-> (명명 규칙)와 fileinfo 내용 대조는 여전히 추정값 best-effort 다.
+> ⚠ The schema of the `fileinfo`  field itself of 0x0c (file name/size, etc.) is still unconfirmed —
+> The original text of specification 6.6.1/6.6.2 is not available in this repo. However, FTP connection information (host/port/account/
+> remote path) was confirmed with PG settings(`SYSTEM_ID_04=UPM-R0`(changed on 2026-10-28, previously UPMROB). From 2026-10-29, dev is `UPM-R2`(SFTP), 2026-10-22 —
+> [see "fileinfo (0x0c)" section in ../../tests/upm/AGENTS.md](../../tests/upm/AGENTS.md)) — PG is FTP
+> The direction of pushing to the client has also been confirmed. The transfer file is  data file + FIN
+> The user also confirmed that there are two files (2026-10-22) — but which file is FIN?
+> (naming convention) and fileinfo content matching is still the best-effort.
 >
-> PG 설정의 `USE_SFTP_04` 가 `N`(평문 FTP) 아닌 `Y` 로 바뀌는 환경이면
-> `${UPM_FTP_USE_SFTP}` 로 같은 수신 서버를 SFTP 로 띄울 수 있다 — ⚠ 미검증,
-> [nodes/UPM.md](../nodes/UPM.md) 의 "SFTP 대안" 절 참조.
+> In an environment where `USE_SFTP_04` in PG settings is changed to `Y` instead of `N` (plain text FTP)
+> You can launch the same receiving server via SFTP with `${UPM_FTP_USE_SFTP}` — ⚠ Not verified,
+> See the “SFTP Alternatives” section in [../../tests/upm/AGENTS.md](../../tests/upm/AGENTS.md).
 
-## 콜플로우 — 능동 송신 (UPM 슈트, TC-UPM-001~004)
+## Callflow — Active Transmission (UPM suite, TC-UPM-001~004)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (UPM 역할)
+    participant TOOL as ROBOT (UPM role)
     participant PG as PG.BSUBS
 
-    Note over TOOL,PG: Suite Setup — 연결 후 5초 이내 Hello 필수 (규격 3.1)
+    Note over TOOL,PG:Suite Setup — Hello required within 5 seconds after connection (Specification 3.1)
     TOOL->>PG: 0x01 Hello-Request (sys-id, branch-name)
     alt code=200
         PG-->>TOOL: 0x02 Hello-Response (code, ping-interval, keyList)
-        Note over TOOL: ping-interval / keyList 를 Suite Variable 로 저장 — TC-UPM-001 이 판정
-    else code≠200 또는 미수신
-        Note over TOOL,PG: Fatal Error — 슈트를 시작조차 하지 않는다
+        Note over TOOL:Save ping-interval / keyList as Suite Variable — TC-UPM-001 determines
+    else code≠200 or not received
+        Note over TOOL,PG:Fatal Error — Doesn't even start the suite
     end
 
     TOOL->>PG: 0x03 Ping-Request — Body "\r\n" (Keep-Alive)
-    PG-->>TOOL: 0x04 Ping-Response {sys-id} — code 없음 (NAG/PCF 공용 판정 키워드 쓰면 안 됨)
+    PG-->>TOOL:0x04 Ping-Response {sys-id} — No code (NAG/PCF common decision keyword should not be used)
 
-    TOOL->>PG: 0x09 CellInfo-Noti-Request (code-type=02, tid, event-timestamp, subsList[mdn, cell-list]) — 최대 100건
-    PG-->>TOOL: 0x0a CellInfo-Noti-Response — ★ 실제 PG 는 Body 없이(body_length=0) 헤더만 회신
-    Note over TOOL,PG: 규격 6.4.2 는 result-code 포함을 명시하나 실제와 다르다 — Body 없으면 헤더 ACK 만으로 성공 처리
+    TOOL->>PG:0x09 CellInfo-Noti-Request (code-type=02, tid, event-timestamp, subsList[mdn, cell-list]) — Up to 100 cases
+    PG-->>TOOL:0x0a CellInfo-Noti-Response — ★ In reality, PG only replies with header without body (body_length=0)
+    Note over TOOL,PG:Specification 6.4.2 specifies the inclusion of a result-code, but this is different from the reality — if there is no body, success is processed only with header ACK.
 
-    TOOL->>PG: 0x0b Subs-Sync-Request (code-type=05, tid, event-timestamp) — 전체 동기화 요청
-    PG-->>TOOL: 0x0c Subs-Sync-Response (result-code=SC0000, code-type echo, fileinfo 포함 가능)
-    opt fileinfo 포함
-        PG->>TOOL: FTP STOR (데이터 파일) — 도구가 FTP 서버 역할로 Listen(${UPM_FTP_PORT})
-        PG->>TOOL: FTP STOR (FIN 파일) — 전송 완료 트리거(사용자 확인, 2026-10-22)
-        Note over TOOL,PG: ★ fileinfo 스키마 ⚠ 미확인 — 파일 2개(데이터+FIN) 다 왔는지만 확인,<br/>어느 쪽이 FIN 인지는 파일명 패턴(${UPM_FTP_FIN_PATTERN})으로 추정
+    TOOL->>PG:0x0b Subs-Sync-Request (code-type=05, tid, event-timestamp) — Full sync request
+    PG-->>TOOL:0x0c Subs-Sync-Response (result-code=SC0000, code-type echo, can include fileinfo)
+    opt Includes fileinfo
+        PG->>TOOL:FTP STOR (data file) — The tool listens (${UPM_FTP_PORT}) as an FTP server.
+        PG->>TOOL:FTP STOR (FIN file) — Transfer completion trigger (user confirmation, 2026-10-22)
+        Note over TOOL,PG:★ fileinfo schema ⚠ Unconfirmed — Only check if both files (data + FIN) have arrived,<br/>Which one is FIN is estimated by the file name pattern (${UPM_FTP_FIN_PATTERN})
     end
 
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL,PG: ★ 판정 — 각 응답에서 즉시: msg_type(짝수 opcode) + TXN ID 에코 + result-code. PDB 를 보지 않는다
+    Note over TOOL,PG:★ Verdict — Immediately on each response: msg_type (even opcode) + echo TXN ID + result-code. Don't look at PDB
     end
 ```
 
-## 콜플로우 — 수동 수신 (PG.BSUBS → UPM, 트리거는 CDS)
+## Callflow — Manual reception (PG.BSUBS → UPM, trigger is CDS)
 
-수동 수신 3종은 PG 측에서 실제 이벤트(가입·해지·변경)가 나야 온다. 그 트리거를 쥔 것이
-**CDS 업무 코드**라서, UPM 슈트에 두면 영원히 수신 대기만 하다 타임아웃한다 — 실제로 도는
-구간은 **CDS 슈트로 옮겨져 있다** ([cds_callflow.md](cds_callflow.md) 의 각 시트에도 이
-왕복이 그려져 있다).
+The three types of passive reception require an actual event (subscription, cancellation, change) from the PG side. Holding that trigger
+CDS The business code is , so if you leave it in the UPM suite, it will just wait forever and time out — which actually works.
+The section has been moved to CDS suite (this is also in each sheet of [cds_callflow.md](cds_callflow.md))
+A round trip is depicted).
 
-| 트리거 (CDS 코드) | PG.BSUBS → UPM | UPM → PG.BSUBS (응답) | 검증하는 TC |
+| Trigger (CDS Code) | PG.BSUBS → UPM | UPM → PG.BSUBS (response) | TC to verify |
 |---|---|---|---|
-| `1X` HFC 가입 | `0x07` Subs-Info-Request | `0x08` — **Cell List 를 담아** 회신 | `TC-CDS-003` (CDS 슈트) |
-| `1Y` HFC 해지 | `0x07` Subs-Info-Request | `0x08` — 해지도 Cell 정리를 위해 탄다 | `TC-CDS-004` (CDS 슈트) |
-| `C1`/`G1` 기변·정보변경 | `0x0d` Info-Change-Request | `0x0e` — mdn 에코 | `TC-UPM-311` (**주석**) |
-| `D3` 번호변경 | `0x05` Subs-Change-Request | `0x06` — mdn/new-mdn 에코 | `TC-UPM-321` (**주석**) |
+| Join `1X` HFC | `0x07` Subs-Info-Request | `0x08` — Reply  with Cell List | `TC-CDS-003` (CDS suite) |
+| `1Y` HFC termination | `0x07` Subs-Info-Request | `0x08` — Termination is also used to clean up cells. | `TC-CDS-004` (CDS suite) |
+| `C1`/`G1` change/information change | `0x0d` Info-Change-Request | `0x0e` — mdn echo | `TC-UPM-311` (Note) |
+| `D3` change number | `0x05` Subs-Change-Request | `0x06` — echo mdn/new-mdn | `TC-UPM-321` (Note) |
 
-`C1`/`G1`/`D3` 는 **HFC 가입 상태일 때만** BSUBS↔UPM 왕복이 일어난다 — 미가입이면 이
-구간 자체가 없다 ([cds_callflow.md](cds_callflow.md) 규칙 2).
+For `C1`/`G1`/`D3`,  BSUBS↔UPM round trip occurs only when you are subscribed to HFC — If you are not subscribed, this
+There is no section itself ([cds_callflow.md](cds_callflow.md) rule 2).
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant CDS as ROBOT (CDS 역할)
+    participant CDS as ROBOT (CDS role)
     participant PCDS as PG.CDS
     participant BSUBS as PG.BSUBS
-    participant UPM as ROBOT (UPM 역할)
+    participant UPM as ROBOT (UPM role)
 
-    CDS->>PCDS: 0015 CommandRequest (1X) — 이하 PG 내부 경로는 CDS_1X 시트 참조
+    CDS->>PCDS:0015 CommandRequest (1X) — Refer to CDS_1X sheet for PG internal path below.
     BSUBS->>UPM: 0x07 Subs-Info-Request (code-type, branch-name, tid, mdn, service-id)
     rect rgba(255, 176, 32, 0.14)
-    Note over BSUBS,UPM: ★ 판정 — 0x07 수신 자체가 판정이고, 0x08 회신까지가 TC 의 일
-        UPM-->>BSUBS: 0x08 Subs-Info-Response — 요청 Body echo + subsList[mdn, cell-list] + result-code=SC0000
+    Note over BSUBS,UPM:★ Judgment — The reception of 0x07 itself is a judgment, and the reply to 0x08 is TC’s work.
+        UPM-->>BSUBS:0x08 Subs-Info-Response — Request Body echo + subsList[mdn, cell-list] + result-code=SC0000
     end
-    Note over BSUBS,UPM: 0x08 로 준 Cell List 가 PG.BSUBS 에 저장되고 PCF 로도 나간다 (TC-CDS-003 이 이어서 판정)
+    Note over BSUBS,UPM:The Cell List given as 0x08 is saved in PG.BSUBS and also output to PCF (TC-CDS-003 is determined next)
 ```
 
-수동 수신 3종은 모두 같은 모양이다 — 요청 Body 의 `code-type`/`branch-name`/`tid`/`mdn` 을
-echo 하고 `result-code=SC0000` 을 붙여 **요청 헤더의 `txn_id` 로** 회신한다. 응답을 안 보내면
-PG 쪽 흐름이 완결되지 않으므로, **회신까지가 도구의 일**이다.
+All three types of passive reception look the same — `code-type`/`branch-name`/`tid`/`mdn` in the request body.
+echo `result-code=SC0000` in the request header `txn_id` Reply with If you don't send a response
+Since the flow on the PG side is not complete, the tool's work is  until the  reply.
 
-> ⚠ 주석 처리된 `TC-UPM-399` 는 "1Y(code-type=03)는 UPM 요청/응답이 없다"고 적어 두었지만,
-> 실제로는 `TC-CDS-004` 가 1Y 의 `0x07` 수신을 판정하고 있다 — **주석이 낡았다.** 되살리려
-> 할 때 이 어긋남부터 확인할 것.
+> ⚠ The commented out `TC-UPM-399` says "1Y(code-type=03) has no UPM request/response".
+> In reality, `TC-CDS-004` is determining the reception of 1Y `0x07` — The comment is outdated. Try to revive it
+> When doing this, check this discrepancy first.
 
-## 판정 기준
+## Judgment criteria
 
-- **능동 송신 4종** — 응답이 항상 오므로 즉시 판정한다: `msg_type`(요청+1 의 짝수 opcode),
-  `txn_id` 에코, `result-code=SC0000`(`${UPM_RC_SUCCESS}`), `code-type` echo.
-  예외 둘: Ping 응답은 `{sys-id}` 뿐이라 code 검증이 없고, CellInfo-Noti 응답은 Body 없이
-  올 수 있어 헤더 ACK 만으로 성공 처리한다.
-- **수동 수신 3종** — 수신(opcode·code-type·mdn 형식) + 정상 응답 송신이 판정의 전부다.
-- **PDB 판정 없음** — 가입자 테이블 반영은 UPM 인터페이스의 관심사가 아니다. HFC 전문의
-  PDB 판정(`T_5G_SUBS_SERVICE`/`T_BAROD_SUBS_CELLINFO`)은 CDS 슈트가 한다.
+- 4 types of active transmission — Since the response always comes, it is decided immediately: `msg_type` (even opcode of request + 1),
+  `txn_id` echo, `result-code=SC0000`(`${UPM_RC_SUCCESS}`), `code-type` echo.
+  Exception two: The Ping response is only `{sys-id}`, so there is no code verification, and the CellInfo-Noti response has no body.
+  It can be accessed and is processed successfully with just a header ACK.
+- Three types of manual reception — Reception (opcode·code-type·mdn format) + normal response transmission is all that determines.
+- PDB No verdict — Subscriber table reflection is not a concern of the UPM interface. HFC message
+  PDB judgment (`T_5G_SUBS_SERVICE`/`T_BAROD_SUBS_CELLINFO`) is made by the CDS suite.
 
-## 관련 문서
+## Related documents
 
-- [UPM 노드 스펙](../nodes/UPM.md) — 메시지 타입 표, tid 생성 규칙, code-type, 함정
-- [cds_callflow.md](cds_callflow.md) — 트리거 쪽 흐름 (CDS_1X / CDS_1Y / CDS_C1 / CDS_G1 / CDS_D3 시트)
-- `tests/upm/upm_tests.robot` — `TC-UPM-001`~`004` (활성) / 311·321·399 (주석)
-- `resources/upm_keywords.robot` — 송수신·echo 응답 구현
+- [UPM node specification](../../tests/upm/AGENTS.md) — message type table, tid creation rules, code-type, pitfalls
+- [cds_callflow.md](cds_callflow.md) — Trigger side flow (CDS_1X / CDS_1Y / CDS_C1 / CDS_G1 / CDS_D3 sheets)
+- `tests/upm/upm_tests.robot` — `TC-UPM-001`~`004` (active) / 311·321·399 (commentary)
+- `resources/upm_keywords.robot` — Transmission/reception/echo response implementation

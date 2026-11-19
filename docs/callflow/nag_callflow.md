@@ -1,211 +1,211 @@
-# NAG — HFC/ADOT 존·셀 조회 (PG-SC)
+# NAG — HFC/ADOT zone/cell inquiry (PG-SC)
 
-| 항목 | 값 |
+| item | value |
 |---|---|
-| 도구 역할 | **NAG (Client)** → PG.BNOTI:`${NAG_PG_PORT}`(8012) — 주 채널 |
-| 곁채널 | **PCRF/PCF (Server)** — 도구가 `${LRS_SERVER_PORT}`(8890) Listen, PG.LRS 가 접속 |
-| 헤더 | 8B 공통 (`byte0` `msg_type` `body_length`(2, htons) `txn_id`(4, htonl)) |
-| Body | 주 채널 = **JSON** / 곁채널 = **고정길이 ASCII** |
-| 주력 메시지 | `0x09` Subs-Zone-Status · `0x0b` Subs-Cellid(ADOT) |
-| 판정 | **PDB 없음** — 응답 `code` + `txn_id` 에코 + JSON 필드 형식이 전부 |
-| TC | `TC-NAG-001`~`007` (7건). `0x07/0x08` ZION 은 주석 처리 |
+| tool role | NAG (Client) → PG.BNOTI:`${NAG_PG_PORT}`(8012) — Main channel |
+| side channel | PCRF/PCF (Server) — Tool `${LRS_SERVER_PORT}`(8890) Listen, PG.LRS connects |
+| header | 8B common (`byte0` `msg_type` `body_length`(2, htons) `txn_id`(4, htonl)) |
+| Body | Main channel = JSON / Side channel = Fixed length ASCII |
+| flagship message | `0x09` Subs-Zone-Status · `0x0b` Subs-Cellid(ADOT) |
+| Judgment | PDB None — Response `code` + `txn_id` echo + JSON field format is all |
+| TC | `TC-NAG-001`~`007` (7 cases). `0x07/0x08` ZION is commented out |
 
-> ⚠ **이 노드는 소켓이 두 개다.** `0x0b` Subs-Cellid 는 주 채널 왕복만으로 끝나지 않는다 —
-> PG 가 곁채널로 `0x05` 를 되물어 오고, 도구가 `0x06` 으로 답해야 비로소 `0x0c` 가 온다.
-> 그래서 Suite Setup 이 **두 소켓 + 곁채널 Hello 까지** 끝내 둔다.
+> ⚠ This node has two sockets. `0x0b` Subs-Cellid doesn't end with just the primary channel round trip —
+> PG asks `0x05` back through a side channel, and only when the tool answers `0x06` does `0x0c` come.
+> So, Suite Setup is completed with two sockets + side channel hello.
 
-## PG 프로세스 목록
+## PG process list
 
-**셋 다 떠 있어야 슈트가 선다(사용자 확인).** 두 소켓을 각각 다른 프로세스가 쥐고,
-가입자를 만드는 `PG.CDS` 는 그보다 앞서 떠 있어야 한다.
+All three must be running to open the suite (user confirmation). Each of the two sockets is held by a different process.
+`PG.CDS`, which creates a subscriber, must be running before it.
 
-| 프로세스 | 다이어그램의 참여자 | 담당 | 기동 플래그 |
+| process | Participants in the diagram | in charge | startup flag |
 |---|---|---|---|
-| `G_BNOTI201` | `PG.BNOTI` | **주 채널 8012** — Hello/Ping, `0x09` Subs-Zone-Status, `0x0b` Subs-Cellid, `0x07` ZION 발신 | `/PG/BIN/PDB_RUN/G_BNOTI201.RUN` |
-| `G_LRS201` | `PG.LRS` | **곁채널 8890** — 도구에 역접속해 `0x05` Location-Info 를 되묻는다 | `/PG/BIN/PDB_RUN/G_LRS201.RUN` |
-| `CDS201` | `PG.CDS` | **사전 기동 필수** — 전문 수신·가입자 적재 | `/PG/BIN/PDB_RUN/CDS201.RUN` |
+| `G_BNOTI201` | `PG.BNOTI` | Main Channel 8012 — Hello/Ping, `0x09` Subs-Zone-Status, `0x0b` Subs-Cellid, `0x07` ZION Outgoing | `/PG/BIN/PDB_RUN/G_BNOTI201.RUN` |
+| `G_LRS201` | `PG.LRS` |  side channel 8890 — Connect back to the tool and ask for `0x05` Location-Info | `/PG/BIN/PDB_RUN/G_LRS201.RUN` |
+| `CDS201` | `PG.CDS` | Pre-start required — Receive message and load subscribers | `/PG/BIN/PDB_RUN/CDS201.RUN` |
 
-`/PG/BIN/PDB_RUN/<프로세스>.RUN` 은 **0바이트 플래그 파일**이다 — 내용이 아니라
-있고 없음이 의미를 갖는다(같은 디렉토리에 `RDS601.RUN` `G_ZONE201.RUN` 등이 같은 형태로 있다).
+`/PG/BIN/PDB_RUN/<process>.RUN` is 0 byte flag file — not the content
+Presence and absence have meaning (`RDS601.RUN` `G_ZONE201.RUN`, etc. are in the same directory in the same form).
 
-### 어느 것이 죽었는지 증상으로 가르기
+### Determine which one is dead by symptoms
 
-이 슈트는 **Suite Setup 이 두 프로세스를 다 거치므로**, 하나만 죽어도 TC 가 한 건도
-돌지 않는다. 실패 지점이 다르니 그걸로 가른다.
+Since this suite goes through both Suite Setup processes, , even if only one TC dies, there is no
+It doesn't turn. Since the point of failure is different, it is determined by that.
 
-| 증상 | 의심 |
+| symptoms | doubt |
 |---|---|
-| `Suite LRS Accept` 가 30초를 채우고 슈트가 섬 | **`G_LRS201`** — 8890 에 붙어 오지 않는다 |
-| 소켓은 붙는데 `TC-NAG-001` Hello 가 `9999 Inactive Status` | **`G_BNOTI201`** — 떠 있어도 Standby 면 같은 응답이다 |
-| `TC-NAG-007` 만 곁채널 `0x05` 를 기다리다 타임아웃 | **`G_LRS201`** — Setup 은 지났는데 중간에 끊긴 경우 |
+| `Suite LRS Accept` fills 30 seconds and the suite is released. | `G_LRS201` — Does not come attached to 8890 |
+| The socket is attached, but `TC-NAG-001` Hello is `9999 Inactive Status` | `G_BNOTI201` — Even if it is running, the response is the same as in Standby. |
+| Timeout while waiting for `TC-NAG-007` only side channel `0x05` | `G_LRS201` — If setup has passed but is disconnected in the middle |
 
-2026-08-27 실행이 첫 줄에 해당했다 — 8890 대기 30초를 채우고 7건 전부 Suite Setup
-실패로 떨어졌다. 같은 PG 의 `0x01` Hello 도 `9999 Inactive Status` 였다.
+2026-08-27 Execution corresponded to the first line — 8890 After completing 30 seconds of waiting, all 7 cases were Suite Setup
+failed. The same PG's `0x01` Hello was also `9999 Inactive Status`.
 
-## Suite Setup — 듀얼 소켓
+## Suite Setup — Dual Socket
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (NAG 역할)
-    participant SRV as ROBOT (PCRF/PCF 역할, 8890 Listen)
-    participant PLRS as PG.LRS (LRS-PCF 채널)
+    participant TOOL as ROBOT (NAG role)
+    participant SRV as ROBOT (PCRF/PCF role, 8890 Listen)
+    participant PLRS as PG.LRS (LRS-PCF channel)
     participant PG as PG.BNOTI (8012)
 
     Note over SRV: ① Suite LRS Accept — 0.0.0.0:8890 Listen
-    PLRS->>SRV: TCP connect (출발지 IP 가 ${LRS_ALLOWED_PEER_IPS} 일 때만 수락) → ${LRS_CONN}
+    PLRS->>SRV:TCP connect (accept only when source IP is ${LRS_ALLOWED_PEER_IPS}) → ${LRS_CONN}
     PLRS->>SRV: ② Hello-Request (0x01) — SYS_ID(4)+BRANCH_NAME(2)
     SRV-->>PLRS: Hello-Response (0x02) — RESULT_CODE(4)+INTERVAL(4), byte0=0x00
-    Note over SRV,PLRS: ★ byte0 는 표준 LRS 의 0x20 이 아니라 **0x00** — 슈트가 ${LRS_TX_BYTE0}=0 으로 덮는다
-    TOOL->>PG: ③ Suite Connect NAG — TCP connect 8012 → ${NAG_SOCK} (가장 마지막에 연다)
+    Note over SRV,PLRS:★ byte0 is not 0x20 of standard LRS but **0x00** — the suite covers it with ${LRS_TX_BYTE0}=0
+    TOOL->>PG:③ Suite Connect NAG — TCP connect 8012 → ${NAG_SOCK} (opens last)
 ```
 
-**NAG Hello(0x01)는 Suite Setup 이 하지 않는다** — `TC-NAG-001` 이 직접 보낸다. 다른 슈트와 다른 점이다.
-곁채널 Hello 만 Setup 에서 처리한다(PG 가 먼저 보내오므로 안 받으면 이후가 막힌다).
+NAG Hello (0x01) is not sent by Suite Setup. — `TC-NAG-001` sends it directly. This is different from other suites.
+Only the side channel Hello is processed in Setup (the PG sends it first, so if it is not received, subsequent steps are blocked).
 
-★ **순서가 ①②→③인 이유(2026-10-07)** — `Suite Connect NAG` 를 먼저 하면, 그 뒤에 이어지는
-`Suite LRS Accept`/`Handle LRS Hello`(PG.LRS 쪽 재접속 — 느릴 수 있다) 동안 `${NAG_SOCK}`
-(8012)이 아무것도 안 보내고 **그만큼 더 길게 idle 상태**로 남는다. `run_tests.sh all` 로
-LRS 슈트 바로 뒤에 NAG 가 돌 때 이 idle 구간이 길어져 PG.BNOTI 가 `TC-NAG-001` 의 Hello
-송신 시점에 `Connection reset by peer`로 연결을 끊는 사례가 있었다(NAG 단독 실행에서는
-재현 안 됨). 느리고 PG.LRS 의존적인 ①②를 먼저 끝내고 `${NAG_SOCK}`은 TC 가 바로 쓰기
-직전(가장 마지막)에 열어 idle 구간을 최소화했다 — 근본 원인(PG.BNOTI 의 idle 타임아웃
-정책 자체)은 PG 소스 확인 전이라 추정이다.
+★ The reason why the  order is ①②→③ (2026-10-07) — If you do `Suite Connect NAG` first, the following
+`${NAG_SOCK}` while `Suite LRS Accept`/`Handle LRS Hello` (reconnection on PG.LRS side — can be slow)
+(8012) does not send anything and remains idle for that much longer. `run_tests.sh all` by
+When the NAG runs right after the LRS suite, this idle section becomes longer and PG.BNOTI starts the Hello of `TC-NAG-001`.
+There was a case where the connection was disconnected with `Connection reset by peer` at the time of transmission (in NAG standalone execution)
+not reproduced). Finish ①② first, which is slow and PG.LRS dependent, and then TC writes `${NAG_SOCK}` immediately.
+Minimized the idle section by opening it just before (the very last time) — root cause (idle timeout of PG.BNOTI)
+(policy itself) is presumed before the PG source is confirmed.
 
-## 콜플로우 ① — Hello / Ping (`TC-NAG-001` `002`)
+## Call Flow ① — Hello / Ping (`TC-NAG-001` `002`)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (NAG 역할)
+    participant TOOL as ROBOT (NAG role)
     participant PG as PG.BNOTI (8012)
 
     TOOL->>PG: Hello-Request (0x01) — {sys-id, branch-name}
     PG-->>TOOL: Hello-Response (0x02) — {code:200, ping-interval}
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL: ★ 판정 — msg_type=0x02, txn_id 에코, code=200, ping-interval > 0
+    Note over TOOL:★ Verdict — msg_type=0x02, txn_id echo, code=200, ping-interval > 0
     end
 
-    TOOL->>PG: Ping-Request (0x03) — **Body 없음**
+    TOOL->>PG:Ping-Request (0x03) — **No Body**
     PG-->>TOOL: Ping-Response (0x04) — {code:200}
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL: ★ 판정 — msg_type=0x04, txn_id 에코, code=200
+    Note over TOOL:★ Verdict — msg_type=0x04, txn_id echo, code=200
     end
 ```
 
-`ping-interval` 은 값만 받아 두고 **주기 Ping 은 돌리지 않는다** — 슈트가 짧아 세션이 안 끊긴다는 전제다.
+`ping-interval` only accepts the value and does not ping during the  cycle.  — The premise is that the session is not disconnected because the suite is short.
 
-## 콜플로우 ② — Subs-Zone-Status (`TC-NAG-003`~`006`)
+## Callflow ② — Subs-Zone-Status (`TC-NAG-003`~`006`)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (NAG 역할)
+    participant TOOL as ROBOT (NAG role)
     participant PG as PG.BNOTI (8012)
 
     TOOL->>PG: Subs-Zone-Status-Request (0x09)<br/>{sys-id, branch-name, event-timestamp, mdn, [mobile-ip]}
-    alt HFC 가입 & 세션 있음
+    alt HFC subscription & session available
         PG-->>TOOL: 0x0a {code:200, zone-info:'I'|'O'}
-    else HFC 미가입
+    else Not subscribed to HFC
         PG-->>TOOL: 0x0a {code:402, cause}
-    else 세션 없음
+    else No session
         PG-->>TOOL: 0x0a {code:402|403, cause}
     end
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL: ★ 판정 — code + zone-info∈{I,O} / 에러는 code + cause 키 존재
+    Note over TOOL:★ Decision — code + zone-info∈{I,O} / Error has code + cause key
     end
 ```
 
-`mobile-ip` 는 Optional 이다 — `TC-NAG-004` 가 빼고 보내 그대로 성공하는지만 본다.
-MDN 은 케이스별 전용 변수를 쓴다: `${NAG_MDN_NORMAL}` / `${NAG_MDN_NO_HFC}`(미가입) / `${NAG_MDN_NO_SESSION}`(세션 없음).
+`mobile-ip` is Optional — just send it without `TC-NAG-004` and see if it succeeds.
+MDN uses dedicated variables for each case: `${NAG_MDN_NORMAL}` / `${NAG_MDN_NO_HFC}` (unsubscribed) / `${NAG_MDN_NO_SESSION}` (no session).
 
-> `TC-NAG-006` 은 402 **또는** 403 을 통과시킨다. 규격상 403(세션 없음)이 맞지만 실제 PG 가
-> 402 를 주는 경우가 있어 둘 다 받는다 — 어느 쪽이 맞는지는 **확인 필요**.
+> `TC-NAG-006` passes 402  or  403. According to the standard, 403 (no session) is correct, but the actual PG is
+> There are cases where 402 is given, so both are received —  needs to be checked to determine which one is correct..
 
-## 콜플로우 ③ — Subs-Cellid ADOT (`TC-NAG-007`) ★ 이 노드의 핵심
+## Callflow ③ — Subs-Cellid ADOT (`TC-NAG-007`) ★ The core of this node
 
-두 소켓이 **교차**한다. 리포에 스레드가 없으므로 송신과 수신을 갈라 놓고,
-그 사이에 곁채널 왕복을 끼워 넣는 방식으로 처리한다.
+The two sockets intersect . Since there are no threads in the repo, sending and receiving are separated,
+It is processed by inserting a side channel round trip in between.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (NAG 역할)
+    participant TOOL as ROBOT (NAG role)
     participant PG as PG.BNOTI (8012)
     participant PLRS as PG.LRS (LRS-PCF)
-    participant SRV as ROBOT (PCRF/PCF 역할, 8890)
+    participant SRV as ROBOT (PCRF/PCF role, 8890)
 
     TOOL->>PG: Subs-Cellid-Request (0x0b)<br/>{sys-id, branch-name, event-timestamp, mdn, mobile-ip}
-    Note over TOOL,PG: `Send Subs Cellid Request` — **송신만** 하고 응답을 기다리지 않는다
+    Note over TOOL,PG:`Send Subs Cellid Request` — **Send only** and do not wait for response
 
-    PG->>PLRS: (PG 내부) 위치 조회 위임
+    PG->>PLRS:(PG internal) Location inquiry delegation
     PLRS->>SRV: Location-Info-Request (0x05)<br/>SYS_ID4+BRANCH2+TID23+TS17+DST_HOST62+APN40+MIN10+MDN11 [+SVC_ID6]
-    opt 중간에 Ping 이 끼어들면
+    opt If Ping intervenes
         PLRS->>SRV: Ping-Request (0x03)
-        SRV-->>PLRS: Ping-Response (0x04) — 응답하고 0x05 를 계속 기다린다 (WHILE limit=10)
+        SRV-->>PLRS:Ping-Response (0x04) — respond and continue waiting for 0x05 (WHILE limit=10)
     end
-    SRV-->>PLRS: Location-Info-Response (0x06)<br/>… +CELL_INFO20+TA_CODE6+NET_TP6+RESULT_CODE4 — **TID 는 요청값 그대로 에코**
-    PLRS->>PG: (PG 내부) 위치 결과 반환
+    SRV-->>PLRS:Location-Info-Response (0x06)<br/>… +CELL_INFO20+TA_CODE6+NET_TP6+RESULT_CODE4 — **TID is echoed as requested**
+    PLRS->>PG:(inside PG) returns location result
 
     PG-->>TOOL: Subs-Cellid-Response (0x0c)<br/>{code:200, cell-info, ta-code, rat-type}
 
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL,SRV: ★ 판정 — msg_type=0x0c, txn_id 에코, code=200,<br/>cell-info/ta-code 형식, rat-type∈{W,L,S}
+    Note over TOOL,SRV:★ Judgment — msg_type=0x0c, txn_id echo, code=200,<br/>cell-info/ta-code format, rat-type∈{W,L,S}
     end
 ```
 
-Body 폭이 **169B(SERVICE_ID 없음) / 175B(있음)** 두 가지다 — 수신 길이로 갈라 언팩한다
-(SBI 경유 5G 세션은 SERVICE_ID 를 안 실어 보낸다).
+There are two body widths: 169B (without SERVICE_ID) / 175B (with) — Divide by reception length and unpack
+(5G sessions via SBI do not carry SERVICE_ID).
 
-### ⚠ 판정 한계 — 되돌아온 값은 도구가 준 값이다
+### ⚠ Judgment limits — the value returned is the value given by the tool
 
-`0x06` 에 실어 보내는 `cell-info`/`ta-code`/`rat-type` 은 **도구의 목값**이다
+The `cell-info`/`ta-code`/`rat-type` sent to `0x06` is the target value of the  tool, .
 (`${LRS_MOCK_CELL_INFO_LTE}`=`1048575:63`, `${LRS_MOCK_TA_CODE_LTE}`=`3113`, `${LRS_MOCK_NET_TP_LTE}`=`L`).
-PG 는 그것을 `0x0c` 로 되돌려줄 뿐이므로, `TC-NAG-007` 의 필드 검증은 **PG 의 중계 정확성**만 본다 —
-실제 망에서 셀을 제대로 찾아왔는지는 검증하지 않는다. 값이 목값과 다르게 오면 그게 오히려 이상 신호다.
+PG only returns it as `0x0c`, so field verification of `TC-NAG-007` only sees the relay accuracy of PG as  —
+It does not verify whether the cell was properly found in the actual network. If the price is different from the target price, it is actually an abnormal signal.
 
-## 콜플로우 ④ — ZION (PG → NAG, **현재 비활성**)
+## Call flow ④ — ZION (PG → NAG, currently inactive)
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant PG as PG.BNOTI (8012)
-    participant TOOL as ROBOT (NAG 역할)
+    participant TOOL as ROBOT (NAG role)
 
     PG->>TOOL: ZION-Request (0x07) — {mdn, zone-info, cell-info, rat-type}
     TOOL-->>PG: ZION-Response (0x08) — {code:200} / {code:503, cause}
 ```
 
-`TC-NAG-014`~`016` 은 **주석 처리**돼 있다 — PG 쪽에서 실제 ZION 이벤트가 나야 도는 TC 라
-자동 실행에 넣으면 수신 대기에서 슈트가 멎는다. 되살리려면 이벤트를 유발할 수단이 먼저 필요하다.
+`TC-NAG-014`~`016` are commented out as  — This is a TC that only works when an actual ZION event occurs on the PG side.
+If you put it on autorun, the suite stops listening. To revive it, you first need a means to trigger the event.
 
-## 판정 기준
+## Judgment criteria
 
-PDB 조회가 없다. 볼 수 있는 것은 응답 전문뿐이다.
+There is no PDB lookup. All you can see is the response message.
 
-| 계층 | 확인 대상 | 걸린 TC |
+| hierarchy | Check for | stuck TC |
 |---|---|---|
-| 프로토콜 | `msg_type` (0x02/0x04/0x0a/0x0c) | 001 · 002 · 003 · 007 |
-| 프로토콜 | `txn_id` 에코 | 001 · 002 · 003 · 007 |
-| 업무 | `code` = 200 / 402 / 402·403 | 전 TC |
-| 업무 | `zone-info`∈{I,O} · `cell-info` · `ta-code` · `rat-type`∈{W,L,S} | 003 · 007 |
-| 에러 | `cause` 키 존재 (값은 안 본다) | 005 · 006 |
+| protocol | `msg_type` (0x02/0x04/0x0a/0x0c) | 001 · 002 · 003 · 007 |
+| protocol | `txn_id` Echo | 001 · 002 · 003 · 007 |
+| work | `code` = 200 / 402 / 402·403 | former TC |
+| work | `zone-info`∈{I,O} · `cell-info` · `ta-code` · `rat-type`∈{W,L,S} | 003 · 007 |
+| error | `cause` key exists (value is not seen) | 005 · 006 |
 
-`TC-NAG-004`/`005`/`006` 은 **`txn_id` 에코를 확인하지 않는다** — 응답 body 만 본다.
+`TC-NAG-004`/`005`/`006` do not check the `txn_id` echo — only look at the response body.
 
-## 함정
+## trap
 
-- **곁채널 닫힘을 감지하지 못한다.** `Check NAG Socket`(Test Setup)은 `${NAG_SOCK}` 만 본다.
-  `${LRS_CONN}` 이 끊겨도 `TC-NAG-007` 이 실제로 `0x05` 를 기다리다 타임아웃 날 때까지 모른다.
-- `Tcp.Is Connected` 는 **로컬 fd 만** 본다. PG 가 끊어도 통과한다.
-- `Suite LRS Accept` 는 `${LRS_ACCEPT_TIMEOUT}`(30초) 안에 PG 가 안 붙으면 Setup 이 실패해
-  **슈트 전체가 선다** — Subs-Cellid 를 안 돌릴 때도 마찬가지다.
-- `0x07`·`0x09`·`0x0b` 는 다른 노드에서 다른 의미다. 숫자를 직접 쓰지 말고 `${MSG_*}` 를 쓸 것
-  ([opcode 충돌표](../INTERFACES.md#opcode-충돌--노드별-상수명을-그대로-써라)).
+- Does not detect side channel closure. `Check NAG Socket` (Test Setup) only sees `${NAG_SOCK}`.
+  Even if `${LRS_CONN}` is disconnected, you will not know until `TC-NAG-007` actually waits for `0x05` and times out.
+- `Tcp.Is Connected` only looks at the local fd. Even if PG is cut off, it passes.
+- For `Suite LRS Accept`, if PG is not attached within `${LRS_ACCEPT_TIMEOUT}` (30 seconds), setup will fail.
+  The entire suite stands up. — Same goes for when Subs-Cellid is not running.
+- `0x07`·`0x09`·`0x0b` have different meanings in different nodes. Instead of writing the numbers directly, use `${MSG_*}`
+  ([opcode conflict table](../INTERFACES.md#opcode-conflict--use-the-constant-name-for-each-node-as-is)).
 
-## 관련 문서
+## Related documents
 
-- [NAG 노드 스펙](../nodes/NAG.md) — 접속·메시지 타입·응답 코드
-- [LRS 노드 스펙](../nodes/LRS.md) — 곁채널(LRS-PCF)의 클라이언트 모드 쪽 스펙
+- [NAG Node Specification](../../tests/nag/AGENTS.md) — Connection·Message Type·Response Code
+- [LRS Node Specification](../../tests/lrs/AGENTS.md) — Specification for the client mode side of the side channel (LRS-PCF)
 - `tests/nag/nag_tests.robot` — `TC-NAG-001`~`007`
-- `resources/nag_keywords.robot` · `resources/lrs_keywords.robot` — 주 채널 / 곁채널 구현
+- `resources/nag_keywords.robot` · `resources/lrs_keywords.robot` — Main channel/side channel implementation

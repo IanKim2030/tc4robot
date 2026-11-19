@@ -21,7 +21,7 @@ Library    Collections
 Library    String
 Library    DateTime
 Library    BuiltIn
-Library    ${CURDIR}/TcpHelper.py    WITH NAME    Tcp
+Library    ${CURDIR}/../libraries/TcpHelper.py    WITH NAME    Tcp
 Resource   ${CURDIR}/common_keywords.robot
 Resource   ${CURDIR}/lrs_server_variables.robot
 

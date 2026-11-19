@@ -1,27 +1,27 @@
-# PCF — ZONE 알림 (Zone-InOut ↔ ZION)
+# PCF — ZONE Notification (Zone-InOut ↔ ZION)
 
-| 항목 | 값 |
+| item | value |
 |---|---|
-| 도구 역할 | **PCF/PCRF (Client)** → PG:`${PCF_PG_PORT}`(8011) — 단, 소켓은 **2개** |
-| 보조 소켓 | **NAG (Client)** → PG:`${NAG_PG_PORT}`(8012) — 가입자 세션 선등록 + ZION 수신 |
-| 주력 메시지 | **Zone-InOut Request(0x05) ↔ Response(0x06)** — PCF 소켓 |
-| 역방향 | **ZION Request(0x07) ↔ Response(0x08)** — **NAG 소켓** (PG 가 먼저 보낸다) |
-| 보조 메시지 | Hello(0x01/0x02) · Ping(0x03/0x04) — `TC-NAG-008` / `TC-NAG-009` |
-| Body | JSON, 8-옥텟 공통 헤더(Byte0 `0x00`) |
-| 판정 | 응답 `code=200` + `txn_id` 에코 + **ZION 이 실제로 되돌아오는가** |
+| tool role | PCF/PCRF (Client) → PG:`${PCF_PG_PORT}`(8011) — However, two sockets are  |
+| auxiliary socket | NAG (Client) → PG:`${NAG_PG_PORT}`(8012) — Subscriber session pre-registration + ZION reception |
+| flagship message | Zone-InOut Request(0x05) ↔ Response(0x06) — PCF socket |
+| reverse | ZION Request(0x07) ↔ Response(0x08) — NAG Socket (PG sends first) |
+| secondary message | Hello(0x01/0x02) · Ping(0x03/0x04) — `TC-NAG-008` / `TC-NAG-009` |
+| Body | JSON, 8-octet common header (Byte0 `0x00`) |
+| Judgment | Reply `code=200` + `txn_id` echo + ZION does it actually come back |
 
-> ⚠ **이 노드는 PG 왕복이 두 소켓에 걸쳐 있다.** 요청은 PCF 소켓(8011)으로 나가고 그 결과인
-> ZION 은 NAG 소켓(8012)으로 들어온다. 슈트가 소켓을 두 개 여는 이유가 이것이고,
-> TC 번호가 `TC-PCF-*` 가 아니라 `TC-NAG-*` 인 이유도 이것이다.
+> ⚠ This node's PG round trip spans two sockets. The request goes out to the PCF socket (8011) and the resulting
+> ZION comes into the NAG socket (8012). This is why the suite opens two sockets,
+> This is why the TC number is `TC-NAG-*` and not `TC-PCF-*`.
 
-> `0x05`/`0x06` 은 LRS(Location-Info) · UPM(Subs-Change) 에서 **완전히 다른 의미**다.
-> 숫자를 직접 쓰지 말고 `${MSG_PCF_ZONE_REQ}` / `${MSG_PCF_ZONE_RESP}` 를 쓸 것
-> ([INTERFACES.md opcode 충돌표](../INTERFACES.md)).
+> `0x05`/`0x06` has a completely different meaning from  in LRS (Location-Info) · UPM (Subs-Change).
+> Instead of writing the numbers directly, write `${MSG_PCF_ZONE_REQ}` / `${MSG_PCF_ZONE_RESP}`
+> ([INTERFACES.md opcode conflict table](../INTERFACES.md)).
 
-## Suite Setup — 듀얼 소켓, 순서가 고정이다
+## Suite Setup — Dual sockets, fixed order
 
-`Suite Connect With NAG` 가 **NAG 를 먼저** 붙인다. PG 가 ZONE 알림을 내리려면 해당 가입자의
-세션이 등록돼 있어야 하므로, PCF 소켓만 열면 0x05 는 200 을 받아도 ZION 이 오지 않는다.
+`Suite Connect With NAG` adds NAG first, then . In order for PG to issue a zone notification, the subscriber's
+Since the session must be registered, if you only open the PCF socket, 0x05 does not receive ZION even if it receives 200.
 
 ```mermaid
 sequenceDiagram
@@ -30,150 +30,139 @@ sequenceDiagram
     participant PG as PG
 
     rect rgba(64, 160, 255, 0.12)
-    Note over TOOL,PG: ① NAG 채널 (8012) — 세션 선등록. 먼저 해야 한다
+    Note over TOOL,PG:① NAG Channel (8012) — Session pre-registration. must do it first
         TOOL->>PG: TCP Connect 8012 → ${NAG_SOCK}
         TOOL->>PG: Hello Request (0x01) — sys-id / branch-name
         PG-->>TOOL: Hello Response (0x02) — code
-        Note over TOOL: code≠200 이면 즉시 실패 — "PCF 테스트 시작 불가"
+        Note over TOOL:Fail immediately if code≠200 — "Cannot start PCF test"
     end
 
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL,PG: ② PCF 채널 (8011) — 주 채널
+    Note over TOOL,PG:② PCF Channel (8011) — Main Channel
         TOOL->>PG: TCP Connect 8011 → ${PCF_SOCK}
         TOOL->>PG: Hello Request (0x01) — sys-id / branch-name
         PG-->>TOOL: Hello Response (0x02) — code
     end
 
-    Note over TOOL,PG: 두 소켓 모두 슈트 끝까지 유지 — TC 별 connect/disconnect 없음
-    Note over TOOL: 매 TC 의 Test Setup — Check PCF And NAG Socket<br/>하나라도 닫히면 Fatal Error 로 슈트 전체 중단
+    Note over TOOL,PG:Both sockets remain until the end of the suite — no connect/disconnect per TC
+    Note over TOOL:Test Setup of every TC — Check PCF And NAG Socket<br/>If even one is closed, the entire suite is stopped with a Fatal Error.
 ```
 
-`txn_id` 는 **두 소켓이 하나의 전역 카운터(`Next TXN ID`)를 공유**한다. 소켓별로 나뉘어 있지
-않으므로 로그에서 txn 값만 보고 어느 채널인지 판단하면 안 된다.
+`txn_id` means that both sockets have one global counter (`Next TXN ID`) share. Divided by socket
+Therefore, you should not judge which channel it is by just looking at the txn value in the log.
 
-## PG 프로세스 목록
+## PG process list
 
-| 프로세스 | 하는 일 | 기동 플래그 |
+| process | What you do | startup flag |
 |---|---|---|
-| `CDS201` | **사전 기동 필수** — ZONE 알림 대상 가입자 데이터를 `PG.CDS` 가 적재(NAG/LRS 와 같은 이유, 사용자 확인) | `/PG/BIN/PDB_RUN/CDS201.RUN` |
+| `CDS201` | Pre-start required — `PG.CDS` loads ZONE notification target subscriber data (same reason as NAG/LRS, user confirmation) | `/PG/BIN/PDB_RUN/CDS201.RUN` |
 
-`Suite Connect With NAG` 가 소켓을 열기 전에 `Ensure PG Process Running`으로 깨운다(SSH
-계정 정보가 없으면 조용히 건너뛴다 — `ssh_keywords.robot` 참조).
+`Suite Connect With NAG` wakes up `Ensure PG Process Running` before opening the socket (SSH
+If there is no account information, it will be quietly skipped — see `ssh_keywords.robot`).
 
-## 콜플로우 — Zone-InOut + ZION (주력)
+## Callflow — Zone-InOut + ZION (main)
 
-슈트의 본체다. **한 번의 논리적 흐름이 TC 두 개로 쪼개져 있다** — 0x05 를 보내는 TC 와
-그 결과 ZION 을 받는 TC 가 짝이다.
+It is the main body of the suite. One logical flow is split into two TCs — TC sending 0x05 and
+As a result, the TC receiving ZION is even.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (PCF 역할)
-    participant PPCF as PG (PCF 수신부)
+    participant TOOL as ROBOT (PCF role)
+    participant PPCF as PG (PCF receiver)
     participant PDB as PDB
     participant BNOTI as PG.BNOTI
-    participant NAGCH as ROBOT (NAG 역할)
+    participant NAGCH as ROBOT (NAG role)
 
-    Note over TOOL,NAGCH: 같은 프로세스의 소켓 두 개 — 왼쪽이 8011, 오른쪽이 8012
+    Note over TOOL,NAGCH:Two sockets in the same process — 8011 on the left, 8012 on the right.
 
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL,PPCF: ★ 앞쪽 TC (010 / 012 / 014 / 016) — PCF 소켓
+    Note over TOOL,PPCF:★ Front TC (010 / 012 / 014 / 016) — PCF socket
         TOOL->>PPCF: Zone-InOut Request (0x05) — JSON<br/>mdn · zone-info(I/O) · rat-type(L/S/W)<br/>cell-info · ta-code · apn · service-id · event-timestamp
         PPCF-->>TOOL: Zone-InOut Response (0x06) — code=200
-        Note over TOOL: 판정 ① — msg_type=0x06, txn_id 에코, code=200
+        Note over TOOL:Judgment ① — msg_type=0x06, txn_id echo, code=200
     end
 
-    PPCF->>PDB: 가입자 세션 조회 (T_SESSION_INFO / T_SMF_SESSION_INFO)
-    Note over PPCF,BNOTI: PG 내부 — 도구에서 보이지 않는 구간
-    PPCF->>BNOTI: Zone In/Out 정보 전달
+    PPCF->>PDB:Subscriber Session Inquiry (T_SESSION_INFO / T_SMF_SESSION_INFO)
+    Note over PPCF,BNOTI:Inside PG — section not visible to the tool
+    PPCF->>BNOTI:Zone In/Out information delivery
 
     rect rgba(64, 160, 255, 0.12)
-    Note over BNOTI,NAGCH: ★ 뒤쪽 TC (011 / 013 / 015 / 017) — NAG 소켓
-        BNOTI->>NAGCH: ZION Request (0x07) — PG 가 먼저 보낸다<br/>mdn · zone-info · cell-info · rat-type
-        Note over NAGCH: 판정 ② — msg_type=0x07 확인<br/>필수 키 존재 · zone-info ∈ {I,O} · cell-info 포맷
-        NAGCH-->>BNOTI: ZION Response (0x08) — 요청 txn_id 에코 + code=200
+    Note over BNOTI,NAGCH:★ Rear TC (011 / 013 / 015 / 017) — NAG socket
+        BNOTI->>NAGCH:ZION Request (0x07) — PG sends first<br/>mdn · zone-info · cell-info · rat-type
+        Note over NAGCH:Decision ② — Confirm msg_type=0x07<br/>Required key exists · zone-info ∈ {I,O} · cell-info format
+        NAGCH-->>BNOTI:ZION Response (0x08) — echo request txn_id + code=200
     end
 ```
 
-`Receive ZION Request` 는 **블로킹 수신**이다(`${PCF_TIMEOUT}`=10초). ZION 이 안 오면 그 TC 가
-타임아웃으로 실패한다 — 이것이 이 노드에서 "PG 가 실제로 알림을 내렸다"를 판정하는 유일한 수단이다.
+`Receive ZION Request` is blocking reception (`${PCF_TIMEOUT}`=10 seconds). If ZION doesn't come, that TC
+Fails on timeout — this is the only way for this node to determine that "the PG actually issued a notification."
 
-## TC 짝 — 어느 TC 가 어느 TC 의 결과를 받는가
+## TC pairing — which TC receives the result of which TC
 
-| 보내는 TC (PCF 8011) | 받는 TC (NAG 8012) | 시나리오 | 주요 값 |
+| Sending TC (PCF 8011) | Receiving TC (NAG 8012) | scenario | main value |
 |---|---|---|---|
-| `TC-NAG-010` | `TC-NAG-011` | Zone **IN** / LTE | `zone-info=I` `rat-type=L` `ta-code=3113`(Hexa 4) |
-| `TC-NAG-012` | `TC-NAG-013` | Zone **OUT** / 5G | `zone-info=O` `rat-type=S` `ta-code=0` · sys-id `SPCF0001` |
-| `TC-NAG-014` | `TC-NAG-015` | Zone **IN** / 3G 타사망 | `zone-info=I` `rat-type=W` `cell-info=45006-9999:99` `ta-code=008461`(Hexa 6) |
-| `TC-NAG-016` | `TC-NAG-017` | Zone **IN** / txn 에코 검증 | 010 과 동일 값, `Next TXN ID` 를 명시 전달 |
+| `TC-NAG-010` | `TC-NAG-011` | Zone IN / LTE | `zone-info=I` `rat-type=L` `ta-code=3113`(Hexa 4) |
+| `TC-NAG-012` | `TC-NAG-013` | Zone OUT / 5G | `zone-info=O` `rat-type=S` `ta-code=0` · sys-id `SPCF0001` |
+| `TC-NAG-014` | `TC-NAG-015` | Zone IN / 3G third-party network | `zone-info=I` `rat-type=W` `cell-info=45006-9999:99` `ta-code=008461`(Hexa 6) |
+| `TC-NAG-016` | `TC-NAG-017` | Zone IN/txn echo verification | Same value as 010, specify `Next TXN ID` |
 
 `rat-type` — `L`(LTE) / `S`(5G SA) / `W`(3G WCDMA).
-`cell-info` — `NodeB:Cell`, 타사망은 `plmn-NodeB:Cell` (`Cell Info Should Be Valid` 정규식).
-`ta-code` — Zone IN 은 Hexa 4자리 또는 6자리, **Zone OUT 은 `0`**.
+`cell-info` — `NodeB:Cell`, `plmn-NodeB:Cell` (`Cell Info Should Be Valid` regular expression) for other networks.
+`ta-code` — Zone IN is 4 or 6 hexa digits, Zone OUT is `0`.
 
-## 콜플로우 — Hello / Ping
+## Callflow — Hello / Ping
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (PCF 역할)
-    participant PG as PG (PCF 수신부)
+    participant TOOL as ROBOT (PCF role)
+    participant PG as PG (PCF receiver)
 
-    Note over TOOL,PG: TC-NAG-008 — Hello (Suite Setup 에서 이미 한 번 했지만 값 검증용으로 다시)
+    Note over TOOL,PG:TC-NAG-008 — Hello (already done once in Suite Setup, but again for value verification)
     TOOL->>PG: Hello Request (0x01) — sys-id=LTE-PCRF01, branch-name=SS
     PG-->>TOOL: Hello Response (0x02) — code=200 + **ping-interval**
-    Note over TOOL: 판정 — txn 에코 · code=200 · ping-interval > 0
+    Note over TOOL:Verdict — txn echo · code=200 · ping-interval > 0
 
     Note over TOOL,PG: TC-NAG-009 — Ping
-    TOOL->>PG: Ping Request (0x03) — **Body 없음**
+    TOOL->>PG:Ping Request (0x03) — **No Body**
     PG-->>TOOL: Ping Response (0x04) — code=200
-    Note over TOOL: 판정 — msg_type=0x04, txn 에코, code=200
+    Note over TOOL:Verdict — msg_type=0x04, txn echo, code=200
 ```
 
-## HFC 서비스 흐름에서의 위치
+## Position in the HFC service flow
 
-[INTERFACES.md 의 HFC Call Flow](../INTERFACES.md#hfc-서비스-call-flow--세-노드가-어떻게-이어지는가)
-맨 아래 두 화살표 — `PCF → PG.BNOTI` 와 `PG.BNOTI → NAG` — 가 이 슈트가 잡는 구간이다.
+[HFC Call Flow](../INTERFACES.md#hfc-service-call-flow--how-the-three-nodes-connect) in INTERFACES.md
+The bottom two arrows — `PCF → PG.BNOTI` and `PG.BNOTI → NAG` — are the sections covered by this suite.
 
 ```
-CDS 1X/1Y → PG.CDS → PDB → PG.SDM/PG.BSUBS → UPM Cell List 왕복
+CDS 1X/1Y → PG.CDS → PDB → PG.SDM/PG.BSUBS → UPM Cell List round trip
                                     ↓
-                          PCF 로 Cell List 통보 (RBUS/SBI)
+                          Cell list notification to PCF (RBUS/SBI)
                                     ↓
-        ┌─────────── 여기부터 PCF 슈트가 잡는다 ───────────┐
+        ┌─────────── PCF suite takes care of it from here ───────────┐
         │  PCF → PG.BNOTI : Zone In/Out (0x05/0x06)        │
         │  PG.BNOTI → NAG : ZION (0x07/0x08)               │
         └──────────────────────────────────────────────────┘
 ```
 
-**다른 슈트와 달리 PG 왕복의 양쪽 끝을 한 슈트가 다 본다.** 듀얼 소켓이 그걸 가능하게 한다 —
-UPM 슈트가 `Cell List Request` 만 수동 수신하는 것과 대비된다.
+Unlike other suites, one suite sees both ends of the PG round trip. Dual sockets make that possible —
+This is in contrast to the UPM suite passively receiving only `Cell List Request`.
 
-단, INTERFACES.md 는 `PG.BNOTI → NAG` 화살표가 ZION(`0x07`) 과 **같은 것인지 "추정"** 으로
-표시하고 있다. 슈트 문서(`TC-NAG-010`)는 "PG는 Zone IN 수신 후 NAG로 ZION-Request(0x07)를
-발송함" 이라고 단정하고 있으니, 이 둘 중 하나는 정리가 필요하다.
+However, INTERFACES.md is `PG.BNOTI → NAG` The arrow indicates ZION(`0x07`) to "estimate" whether it is the same as
+It is showing. The suite document (`TC-NAG-010`) states, "PG sends ZION-Request (0x07) to NAG after receiving Zone IN.
+Since it is asserted as “sent,” one of these two needs to be sorted out.
 
-## 함정
+## TC Reference
 
-- **TC 번호가 슈트명과 다르다.** PCF 슈트 파일 안의 TC 는 전부 `TC-NAG-008`~`017` 이다.
-  번호만 보고 `tests/nag/` 를 뒤지면 못 찾는다.
-- **TC 순서 의존.** ZION TC 는 바로 앞 Zone TC 가 만들어낸 알림을 받는다.
-  `--test "TC-NAG-011*"` 로 단독 실행하면 받을 ZION 이 없어 10초 타임아웃으로 실패한다.
-- **ZION 은 소켓에 쌓인다.** 앞의 ZION TC 가 하나를 못 읽고 넘어가면 이후 ZION TC 들이
-  전부 한 칸씩 밀린 전문을 읽는다 — 값 검증이 엉뚱한 TC 에서 깨진다. NWDAF 처럼
-  Test Setup 에서 드레인하는 장치가 **PCF 슈트에는 없다.**
-- **ZION 의 mdn 을 대조하지 않는다.** ZION TC 들은 `mdn` 키의 **존재만** 확인하고
-  `${PCF_TEST_MDN}` 과 같은지는 비교하지 않는다. 다른 가입자의 ZION 이 섞여 들어와도 PASS 한다.
-- **ZION 의 ta-code 는 검증하지 않는다.** `TA Code Should Be Valid` 키워드가 있는데도
-  PCF 슈트에서는 쓰이지 않는다.
-- **012 / 014 는 txn 에코를 확인하지 않는다.** `txn_id` 를 넘기지 않고 `PCF Zone InOut Should
-  Succeed`(code 만) 로 끝난다. txn 에코는 008 / 009 / 010 / 016 에서만 본다.
-- `TC-NAG-016` 의 Log 문구에 오타가 있다 — "TC-NAG-0176" (→ 017).
+TC ordering, notification pairing, and assertion limits are maintained in the
+[PCF node specification](../../tests/pcf/AGENTS.md#execution-dependencies-and-assertion-limits).
+This developer reference explains the internal flow and does not own TC requirements.
 
-## 관련 문서
+## Related documents
 
-- [PCF 노드 스펙](../nodes/PCF.md) — 접속·메시지 타입·듀얼 소켓 정책
-- [NAG 노드 스펙](../nodes/NAG.md) — ZION(0x07/0x08) 정의, NAG 채널 전체 메시지
-- [INTERFACES.md](../INTERFACES.md) — opcode 충돌표, HFC 서비스 Call Flow
-- `tests/pcf/pcf_tests.robot` — `TC-NAG-008`~`017` (10건)
-- `resources/pcf_keywords.robot` · `resources/nag_keywords.robot` — 송수신/ZION 구현
+- [PCF Node Specification](../../tests/pcf/AGENTS.md) — Connection·Message Type·Dual Socket Policy
+- [NAG node specification](../../tests/nag/AGENTS.md) — ZION (0x07/0x08) definition, NAG channel full message
+- [INTERFACES.md](../INTERFACES.md) — opcode conflict table, HFC service Call Flow
+- `tests/pcf/pcf_tests.robot` — `TC-NAG-008`~`017` (10 cases)
+- `resources/pcf_keywords.robot` · `resources/nag_keywords.robot` — Transmission/reception/ZION implementation

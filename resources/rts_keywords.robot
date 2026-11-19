@@ -22,11 +22,11 @@ Library    Collections
 Library    String
 Library    DateTime
 Library    BuiltIn
-Library    ${CURDIR}/RtsHelper.py     WITH NAME    Rts
-Library    ${CURDIR}/PdbHelper.py   WITH NAME    RtsDb
+Library    ${CURDIR}/../libraries/RtsHelper.py     WITH NAME    Rts
+Library    ${CURDIR}/../libraries/PdbHelper.py   WITH NAME    RtsDb
 # 도구가 PCF 역할로 SBI Noti(HTTP/2 h2c)를 받는다 → 의존성: pip install h2
 # CDS 가 쓰는 것과 같은 모듈 — RTS 의 L1/L2 도 같은 PCF SBI 대상을 쓴다는 전제(사용자 확인).
-Library    ${CURDIR}/HttpNotiServer.py   WITH NAME    Noti
+Library    ${CURDIR}/../libraries/HttpNotiServer.py   WITH NAME    Noti
 Resource   ${CURDIR}/common_keywords.robot
 Resource   ${CURDIR}/ssh_keywords.robot
 
@@ -351,7 +351,7 @@ Cleanup RTS Subscriber Rows
 # PCF SBI Noti 수신 검증 — CDS 의 Verify SBI Noti Sent 와 같은 메커니즘
 # (HttpNotiServer, 도구가 PCF 역할) 을 그대로 쓴다. RTS 의 L1/L2 도 SBI Noti 를
 # 유발한다는 것은 사용자 확인 — RTS 소스(RecvCommandRequest)만으로는 notify 호출이
-# 보이지 않아 미확인이었다(docs/nodes/RTS.md 참조).
+# 보이지 않아 미확인이었다(tests/rts/AGENTS.md 참조).
 # ══════════════════════════════════════════════════════════════════
 
 RTS Noti Timestamp
@@ -400,7 +400,7 @@ Send RTS Order And Verify Reflection
     ...
     ...    ★ 뒤쪽 확인(Noti 도착·PDB 업무 계층 반영)은 PG.SDM_5G → PG.SNOTI 비동기 반영에
     ...      의존하는데, 그 전파 지연값(${RTS_NOTI_WAIT}/${RTS_DB_WAIT})이 아직 추정치다
-    ...      (docs/nodes/RTS.md 참조). 그래서 각 TC 는 이 키워드 전체를
+    ...      (tests/rts/AGENTS.md 참조). 그래서 각 TC 는 이 키워드 전체를
     ...      `Wait Until Keyword Succeeds` 로 감싸 **실패하면 한 번 더 통째로 재시도**한다
     ...      (${RTS_TC001_RETRY_COUNT}, 2026-10-01). 재시도는 `Next RTS TID` 로 새 TID 를
     ...      받아 Order 를 다시 보낸다 — 소켓(${RTS_SOCK})은 손대지 않으므로 "소켓은

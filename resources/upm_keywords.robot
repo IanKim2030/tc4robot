@@ -25,11 +25,11 @@ Library    Collections
 Library    String
 Library    DateTime
 Library    BuiltIn
-Library    ${CURDIR}/TcpHelper.py    WITH NAME    Tcp
+Library    ${CURDIR}/../libraries/TcpHelper.py    WITH NAME    Tcp
 # PG 가 0x0c(Subs-Sync-Response)의 fileinfo 로 파일을 밀어줄 수 있다 → 도구가 FTP
 # 서버 역할로 받는다(사용자 확인). fileinfo 의 실제 스키마는 ⚠ 미확인.
 # → 의존성: pip install pyftpdlib (UPM_FTP_ENABLE=False 면 불필요)
-Library    ${CURDIR}/FtpServerHelper.py    WITH NAME    Ftp
+Library    ${CURDIR}/../libraries/FtpServerHelper.py    WITH NAME    Ftp
 Resource   ${CURDIR}/common_keywords.robot
 
 *** Variables ***

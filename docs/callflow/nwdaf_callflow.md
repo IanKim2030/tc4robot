@@ -1,133 +1,133 @@
-# NWDAF — 기지국 혼잡제어 (PG.NWMQOS)
+# NWDAF — Base Station Congestion Control (PG.NWMQOS)
 
-| 항목 | 값 |
+| item | value |
 |---|---|
-| 도구 역할 | NWDAF (Client) → PG:`${NWDAF_PORT}`(10305), 단일 소켓 |
-| 주력 메시지 | **Notification(0b010)** — PG 응답 없음 (규격) |
-| 보조 메시지 | Health Check Request(0x01) ↔ Response(0x04) — `TC-NWDAF-001` |
-| Body | TLV 바이너리 — `MULTI_MESSAGE(0xFF){ COMMON1 + QoSCtrl 섹션들 + COMMON2 }` |
-| Service Id | `0x0305` 하나뿐 (가입자 단위 QoS 제어) |
-| Message Id | `txn_id` 역할 — `Next NWDAF Msg Id` 가 0x000~0xFFF 순환 |
-| 판정 | **PDB 없음 · 응답 없음** — build 검증 + 송신 성공 + FIN/RST 감지가 전부 (아래 "판정 공백") |
+| tool role | NWDAF (Client) → PG:`${NWDAF_PORT}`(10305), single socket |
+| flagship message | Notification(0b010) — PG no response (standard) |
+| secondary message | Health Check Request(0x01) ↔ Response(0x04) — `TC-NWDAF-001` |
+| Body | TLV binary — `MULTI_MESSAGE(0xFF){ COMMON1 + QoSCtrl sections + COMMON2 }` |
+| Service Id | Only one `0x0305` (QoS control per subscriber) |
+| Message Id | `txn_id` role — `Next NWDAF Msg Id` cycles from 0x000 to 0xFFF |
+| Judgment | PDB None · No response — Build verification + Transmission success + FIN/RST detection is all (“Judgment blank” below) |
 
-> ⚠ 다른 노드와 달리 **판정에 쓸 되돌아오는 신호가 없다.** Notification 은 규격상 응답이
-> 없고, PDB 반영을 보는 인터페이스도 아니다. 실제로 eNB 섹션 8개 필드 중 7개가 틀린
-> 상태로 모든 TC 가 PASS 했던 전례가 있다 ([nodes/NWDAF.md](../nodes/NWDAF.md#판정-공백--이-노드의-핵심-제약)).
+> ⚠ Unlike other nodes, there is no return signal to use for  decision.  Notification does not have a response according to the standard.
+> There is none, and there is no interface to view PDB reflection. In fact, 7 out of 8 fields in the eNB section are incorrect.
+> There is a precedent where all TCs passed in this state ([../../tests/nwdaf/AGENTS.md](../../tests/nwdaf/AGENTS.md#decision-gap--the-core-constraint-of-this-node)).
 
-## 콜플로우 — Notification (주력)
+## Callflow — Notification (main)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (NWDAF 역할)
-    participant PG as PG (SCMQos 수신부)
+    participant TOOL as ROBOT (NWDAF role)
+    participant PG as PG (SCMQos receiver)
 
-    Note over TOOL,PG: Suite Setup — 소켓 1회 연결 (핸드셰이크 없음), 슈트 전체가 공유
-
-    rect rgba(255, 176, 32, 0.14)
-    Note over TOOL: ★ 판정 ① — build 단위 검증 (송신 전, 도구 안에서 끝난다)
-        TOOL->>TOOL: Build COMMON1 + QoSCtrl 섹션들 + COMMON2
-        TOOL->>TOOL: MULTI_MESSAGE(0xFF) 로 감싸 헤더 8B 부착 — hexdump 를 log.html 에 기록
-    end
-    TOOL->>PG: Notification (0b010) — 응답 없음
-    Note over TOOL,PG: ★ 판정 ② — TCP 송신 성공 + Message Id 범위(0x000~0xFFF)만 확인 가능
-
-    PG->>PG: 파싱 — COMMON1/COMMON2 만 BodyInfo 로그에 출력 (QoSCtrl 섹션은 로깅 누락)
-    alt 전문 거부 (예: NETWORK=0x00 → "Unknown NetType")
-        PG->>PG: return nfwError — 전문 폐기, 경우에 따라 연결 종료 (FIN/RST)
-    end
+    Note over TOOL,PG:Suite Setup — One-time socket connection (no handshake), shared across suite
 
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL,PG: ★ 판정 ③ — 다음 TC 의 Test Setup (Check NWDAF Socket)
-        TOOL->>PG: 소켓 상태 확인 — PG 측 FIN/RST 감지 시 Fatal Error (슈트 중단)
+    Note over TOOL:★ Judgment ① — Build unit verification (finished within the tool before transmission)
+        TOOL->>TOOL:Build COMMON1 + QoSCtrl sections + COMMON2
+        TOOL->>TOOL:Wrap it in MULTI_MESSAGE(0xFF) and attach header 8B — log hexdump to log.html
+    end
+    TOOL->>PG:Notification (0b010) — No response
+    Note over TOOL,PG:★ Judgment ② — TCP transmission successful + only Message Id range (0x000~0xFFF) can be confirmed
+
+    PG->>PG:Parsing — only COMMON1/COMMON2 output to BodyInfo log (QoSCtrl section is missing logging)
+    alt Message rejected (for example NETWORK=0x00 → "Unknown NetType")
+        PG->>PG:return nfwError — discard message, optionally terminate connection (FIN/RST)
+    end
+
+    rect rgba(255, 176, 32, 0.14)
+    Note over TOOL,PG:★ Judgment ③ — Next TC’s Test Setup (Check NWDAF Socket)
+        TOOL->>PG:Check socket status — Fatal Error (suite aborted) when FIN/RST is detected on PG side
     end
 ```
 
-판정 ③이 **한 TC 늦게** 걸린다는 점에 주의 — PG 가 전문을 거부하고 끊으면 그 TC 는
-이미 "송신 성공" 으로 PASS 한 뒤고, 다음 TC 의 Test Setup 이 슈트를 중단시킨다.
+Note that decision ③ takes one TC late — if the PG rejects the message and hangs up, the TC
+After already PASSing with “transmission successful”, the next TC’s Test Setup stops the suite.
 
-## Body 섹션 조합 — PCEF_TYPE 비트마스크
+## Body section combination — PCEF_TYPE bitmask
 
-`PCEF_TYPE`(0x0D)은 배타적 enum 이 아니라 **비트마스크**다. 비트 조합에 따라 한 전문에
-실리는 QoSCtrl 섹션이 갈린다.
+`PCEF_TYPE` (0x0D) is not an exclusive enum, but a  bitmask. In one message depending on the bit combination
+The actual QoSCtrl section is different.
 
-| PCEF_TYPE | Body 구성 | 대표 TC |
+| PCEF_TYPE | Body composition | Representative TC |
 |---|---|---|
-| `0x01` (P-GW/SMF) | COMMON1 + **pcefQoSCtrl** + COMMON2 | 002/004, 006~013 |
-| `0x10` (eNB) | COMMON1 + **enodebQoSCtl** + COMMON2 | 003/005, 014~020 |
-| `0x03` (LTE DPI) | COMMON1 + **pcefQoSCtrl + dpiQoSCtrl** + COMMON2 — 한 전문에 함께 | 032 |
-| `0x02` (DPI 단독) | COMMON1 + **dpiQoSCtrl** + COMMON2 | 033 |
-| datalength 과대 길이 (negative) | QOS_POLICY(PGW/DPI) / CATEGORY(DPI) / QCI(ENB) 를 PG 버퍼보다 크게, 격리 연결로 송신 | 034~037 |
+| `0x01` (P-GW/SMF) | COMMON1 + pcefQoSCtrl + COMMON2 | 002/004, 006~013 |
+| `0x10` (eNB) | COMMON1 + enodebQoSCtl + COMMON2 | 003/005, 014~020 |
+| `0x03` (LTE DPI) | COMMON1 + pcefQoSCtrl + dpiQoSCtrl + COMMON2 — together in one message | 032 |
+| `0x02` (DPI only) | COMMON1 + dpiQoSCtrl + COMMON2 | 033 |
+| datalength overlength (negative) | QOS_POLICY(PGW/DPI) / CATEGORY(DPI) / QCI(ENB) larger than the PG buffer, sent over an isolated connection | 034~037 |
 
-## 콜플로우 — Health Check (`TC-NWDAF-001`)
+## Call Flow — Health Check (`TC-NWDAF-001`)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (NWDAF 역할)
-    participant PG as PG (SCMQos 수신부)
+    participant TOOL as ROBOT (NWDAF role)
+    participant PG as PG (SCMQos receiver)
 
-    TOOL->>TOOL: 소켓 타임아웃 상향 (${NWDAF_TIMEOUT} → ${NWDAF_HEALTHCHECK_TIMEOUT}, TRY/FINALLY)
-    TOOL->>PG: Health Check Request (0x01) — Body 없음
-    PG-->>TOOL: Health Check Response (0x04) — Service Id / Message Id echo, Body 없음
+    TOOL->>TOOL:Increase socket timeout (${NWDAF_TIMEOUT} → ${NWDAF_HEALTHCHECK_TIMEOUT}, TRY/FINALLY)
+    TOOL->>PG:Health Check Request (0x01) — No Body
+    PG-->>TOOL:Health Check Response (0x04) — Service Id / Message Id echo, no body
 
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL,PG: ★ 판정 — 이 노드에서 유일하게 응답으로 판정하는 TC
-        TOOL->>TOOL: msg_type=0x04, Message Id echo 일치, body_length=0 확인
+    Note over TOOL,PG:★ Decision — The TC that determines the only response in this node
+        TOOL->>TOOL:msg_type=0x04, Message Id echo matches, body_length=0 confirmed
     end
 ```
 
-Health Check 전용 Service Id 는 미상이라 `0x0305` 를 그대로 쓴다
-([nodes/NWDAF.md](../nodes/NWDAF.md#-확인-필요) 6번).
+The Service ID dedicated to Health Check is unknown, so use `0x0305` as is.
+([../../tests/nwdaf/AGENTS.md](../../tests/nwdaf/AGENTS.md#-confirmation-required) number 6).
 
-## 역방향 방어 — PG 발 Health Check
+## Reverse Defense — PG-Initiated Health Check
 
-PG 가 주기적으로 Health Check 를 먼저 보내온다. 도구가 소켓을 읽지 않으면 계속 쌓이므로
-매 TC 의 Test Setup(`Check NWDAF Socket`)이 `Drain NWDAF Pending Messages` 로 비운다.
+PG periodically sends a Health Check first. Because if the tool doesn't read the socket, it just keeps piling up.
+Every TC's Test Setup (`Check NWDAF Socket`) is emptied to `Drain NWDAF Pending Messages`.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant PG as PG (SCMQos 수신부)
-    participant TOOL as ROBOT (NWDAF 역할)
+    participant PG as PG (SCMQos receiver)
+    participant TOOL as ROBOT (NWDAF role)
 
-    PG->>TOOL: Health Check Request (0x01) — TC 사이에 도착해 소켓에 쌓임
-    Note over TOOL: 다음 TC 의 Test Setup — 논블로킹으로 최대 5건 확인
-    TOOL-->>PG: Health Check Response (0x04) — 헤더 echo, Body 없음
+    PG->>TOOL:Health Check Request (0x01) — Arrives between TCs and piles up on socket
+    Note over TOOL:Test Setup of the next TC — Check up to 5 cases with non-blocking
+    TOOL-->>PG:Health Check Response (0x04) — Header echo, no body
 ```
 
-## 판정 공백 — 이 노드의 핵심 제약
+## Decision gap — the core constraint of this node
 
-Notification 에는 응답이 없고 PDB 판정도 없으므로 Robot 이 자동으로 볼 수 있는 것은
-세 가지뿐이다.
+Since there is no response to Notification and no PDB judgment, what the Robot can automatically see is
+There are only three.
 
-- **전문 조립 결과** — build 단위 TC (`Tlv Find`/`Tlv Find All` 등으로 TLV 를 직접 검증)
-- **TCP 송신 성공** — 소켓 오류 없이 write 가 끝났다는 것 이상을 말해주지 않는다
-- **`Check NWDAF Socket` 의 FIN/RST 감지** — PG 가 직전 전문을 거부하고 끊었을 때, 다음 TC 에서 잡힌다
+- message Assembly result — build unit TC (directly verify TLV with `Tlv Find`/`Tlv Find All`, etc.)
+- TCP Transmission successful — This says nothing more than that the write was completed without a socket error.
+- FIN/RST detection of `Check NWDAF Socket` — When PG rejects the previous message and hangs up, it is caught in the next TC
 
-datalength 과대 길이 negative TC(034~037)는 실제로 송신하되(길이 필드와 바이트 수는 항상
-일치), `Send NWDAF Notification On New Connection` 을 쓴다 — 단, PG 의 NWDAF 인터페이스는
-"소켓: 단일"이라 공유 소켓과 **동시에 2개**를 열지 않는다: 기존 `${NWDAF_SOCK}` 을 먼저
-닫고, 그 자리에 정확히 하나의 연결만 열어 전문을 보내 관찰한 뒤, 그 연결을 닫고 다시 새로
-접속해 `${NWDAF_SOCK}` 을 정상 상태로 복구한다 — 항상 순차로 하나씩만 연결해서, PG 가 이
-값을 거부하고 끊어도 다음 TC 는 재연결된 새 소켓으로 정상 시작한다. accept/reject 는
-단정하지 않고 연결 유지 여부(`peer_closed`)만 관찰해 로그로 남긴다.
+datalength Overlength negative TC (034~037) is actually transmitted (the length field and number of bytes are always
+match), use `Send NWDAF Notification On New Connection` — However, the NWDAF interface of PG is
+"Socket: Single" means not opening two shared sockets at the same time: existing `${NWDAF_SOCK}` first
+Close it, open exactly one connection in its place, send a message and observe it, then close that connection and start again.
+Connect to restore `${NWDAF_SOCK}` to its normal state — always connect only one by one, so that the PG
+Even if the value is rejected and disconnected, the next TC starts normally with a new reconnected socket. accept/reject
+It is not determined, but only observes whether the connection is maintained (`peer_closed`) and records it.
 
-**실측(TC-NWDAF-034)으로 확정된 별개의 버그**: PG 파서(`CSCMQosGateway.cpp` 의
-`CNWQosGateway::ParsingPacket`)는 1바이트 길이 필드를 `length = *p`(signed char → short)로
-읽는다. 선언 길이가 **0x80(128) 이상**이면 음수로 부호 확장되어 포인터가 뒤로 되감기고
-`multiMessageLength` 가 오히려 늘어나 파싱이 완전히 어긋나며, 결국 `Unknown TAG(00) Packet
-ignore!` 로 전문 전체가 버려진다(PG 는 연결을 끊지 않고 조용히 무시한다). 그래서 datalength
-negative TC 의 오버사이즈 값은 전부 0x80 미만으로 유지한다 — 자세한 내용은
-[NWDAF 노드 스펙](../nodes/NWDAF.md)의 "길이 필드 부호 확장 버그" 절 참고.
+Separate bug confirmed by ground truth (TC-NWDAF-034): PG parser (`CSCMQosGateway.cpp`'s
+`CNWQosGateway::ParsingPacket`) converts a 1-byte length field to `length = *p` (signed char → short).
+read If the declaration length is 0x80(128) or more than , it is sign extended by a negative number and the pointer is rewound.
+`multiMessageLength` actually increases and the parsing is completely out of sync, eventually resulting in `Unknown TAG(00) Packet
+The entire message is discarded with ignore!` (PG silently ignores it without disconnecting). So datalength
+All oversize values of negative TC are kept below 0x80 — see details
+[See the "Length field sign extension bug" section of the NWDAF node specification](../../tests/nwdaf/AGENTS.md).
 
-**내용이 맞는지는 사람이 대조해야 한다** — `Send NWDAF Notification` 이 매 송신마다
-전체 패킷 hexdump 를 `log.html` 에 남기므로 PG 의 `Header Info`/`BodyInfo` 덤프와 바이트
-단위로 대조하라. 단, PG 의 `BodyInfo` 는 **COMMON1 + COMMON2 만 출력한다** —
-pcefQoSCtrl/eNB/DPI 필드가 로그에 안 보이는 것은 파싱 실패가 아니라 로깅 누락이다.
+A person must check whether the contents are correct — `Send NWDAF Notification` For each transmission
+Leave the entire packet hexdump in `log.html`, so bytes with `Header Info`/`BodyInfo` dump of PG
+Compare by unit. However, PG's `BodyInfo` outputs only COMMON1 + COMMON2 —
+The fact that the pcefQoSCtrl/eNB/DPI field is not visible in the log is not a parsing failure but a logging omission.
 
-## 관련 문서
+## Related documents
 
-- [NWDAF 노드 스펙](../nodes/NWDAF.md) — 헤더 비트 배치, 섹션별 인코딩 표, 함정, 확인 필요
+- [NWDAF Node Spec](../../tests/nwdaf/AGENTS.md) — Header bit placement, section-wise encoding table, pitfalls, verification required
 - `tests/nwdaf/nwdaf_tests.robot` — `TC-NWDAF-001`~`037`
-- `resources/nwdaf_keywords.robot` · `resources/TlvHelper.py` — build/송신/드레인 구현
+- `resources/nwdaf_keywords.robot` · `libraries/TlvHelper.py` — build/send/drain implementation

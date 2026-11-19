@@ -4,7 +4,7 @@ Documentation
 ...
 ...    로밍 데이터 차단(L1/L2) 연동. PG = Server, RTS = Client.
 ...    PG 내부 공식 명칭은 RTS 다 — CDS 문서의 PG.RDS(쿠폰 예약작업 폴러)와는
-...    별개 인터페이스이므로 혼동하지 말 것 (docs/nodes/RTS.md 참조).
+...    별개 인터페이스이므로 혼동하지 말 것 (tests/rts/AGENTS.md 참조).
 ...
 ...    이번 범위는 SVC_CODE=L1(WCDMA)/L2(LTE) 로밍 데이터 차단·해제(플래그 Y/N)뿐이다.
 ...    L3/L4(mVoIP 차단)·L5~LE(QoS)는 PG 소스에 분기가 있으나 미사용 확인됨 — TODO.

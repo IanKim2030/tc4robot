@@ -1,84 +1,82 @@
-# ENVIRONMENTS — 환경 설정 (dev / stg / prd)
+# ENVIRONMENTS — Environment settings (dev/stg/prd)
 
-## 실행
+## run
 
 ```bash
-bash run_tests.sh nag              # dev (기본) — config/env/dev.py 를 읽는다
+bash run_tests.sh nag              # dev (default) — read config/env/dev.py
 bash run_tests.sh nag stg          # stg
-bash run_tests.sh all prd          # prd — PG_ALLOW_PRD=1 필요
-bash run_tests.sh all 192.168.1.1  # IP 만 바꾸기 (dev.py + PG_HOST 오버라이드)
+bash run_tests.sh all prd          # prd — Requires PG_ALLOW_PRD=1
+bash run_tests.sh all 192.168.1.1  # Just change the IP (dev.py + override PG_HOST)
 
-# run_tests.sh 우회
+# Bypass run_tests.sh
 python -m robot --variablefile config/env/stg.py tests/nag/
 ```
 
-배너의 `ENV:` 줄로 어느 환경이 적용됐는지 확인한다.
+Check which environment is applied using the `ENV:` line in the banner.
 
-## 구조
+## structure
 
 ```
-resources/variables.robot        ← 공용 변수(상수·토글·공용 기본값). **환경값은 없다**
-resources/<iface>_variables.robot ← 노드 변수. 공용 값은 참조만 한다
-config/env/dev.py                ← dev 환경값(필수) + 덮을 수 있는 값의 카탈로그. git 에 있다
-config/env/stg.py                ← stg 환경값(필수) + 기본값과 다른 값. git 에 있다
-config/env/prd.py                ← (gitignore) prd 환경값(필수) + 실행 가드
-config/env/local.py              ← (gitignore) 개인 오버라이드, 선택
+resources/variables.robot ← Shared variables (constants, toggles, shared defaults). **There is no environment value**
+resources/<iface>_variables.robot ← Node variable. Shared values are for reference only
+config/env/dev.py ← dev environment values (required) + catalog of overridable values. It's in git
+config/env/stg.py ← stg environment value (required) + value different from default. It's in git
+config/env/prd.py ← (gitignore) prd environment value (required) + execution guard
+config/env/local.py ← (gitignore) private override, optional
 ```
 
-### 환경값은 환경 파일에만 둔다 (2026-11-03)
+### Environment values are placed only in the environment file (2026-11-03)
 
-환경마다 달라지는 값 — **`PG_HOST` · `TOOL_HOST` · `PDB_CONNSTR` · `SUBS_MDN_LTE` /
-`SUBS_MIN_LTE` / `SUBS_MDN_5G` / `SUBS_MIN_5G`** — 은 `resources/variables.robot` 에 기본값이 없다.
-예전에는 dev 값이 기본값으로 있어서, stg/prd 환경 파일이 빠뜨린 키가 **dev 값으로 조용히
-채워졌다**(prd 에서 dev DB·dev 번호로 도는 사고 자리). 지금은 빠뜨리면 그 변수를 쓰는 곳에서
-`Variable '${...}' not found` 로 바로 실패한다. `PDB_CONNSTR` 만은 환경변수 `PG_PDB_CONNSTR`
-로도 줄 수 있다.
+Environment-specific values (`PG_HOST`, `TOOL_HOST`, `PDB_CONNSTR`, and the shared
+`SUBS_MDN_*`/`SUBS_MIN_*` identities) have no defaults in `resources/variables.robot`.
+Previously, missing stg/prd values silently fell back to dev, potentially targeting
+the wrong DB or subscribers. Missing values now fail where referenced with
+`Variable '${...}' not found`. `PDB_CONNSTR` can also come from `PG_PDB_CONNSTR`.
 
-`run_tests.sh` 는 **환경 인자가 없거나 IP 만 줘도 `config/env/dev.py` 를 읽는다**(2026-10-29).
-`python -m robot tests/nag/` 처럼 직접 돌리면 환경 파일을 읽지 않으므로 **반드시**
-`-V config/env/dev.py`(`--variablefile`) 를 붙인다 — 안 붙이면 위 변수가 없어 실패한다.
+`run_tests.sh` loads `config/env/dev.py` even when no environment argument is given
+or only a host IP is supplied. Direct Robot commands must explicitly include
+`-V config/env/dev.py` or the corresponding environment file; otherwise required
+variables are unavailable.
 
-### 이름이 바뀐 변수 — 구 이름도 계속 먹는다
+### Renamed variables — old names are still used
 
-| 새 이름 (variables.robot) | 구 이름 (노드 변수) | 동작 |
+| New name (variables.robot) | Legacy name (node variable) | action |
 |---|---|---|
-| `${SBI_NOTI_PORT}` / `${SBI_NOTI_HOST}` | `${CDS_NOTI_PORT}` `${RTS_NOTI_PORT}` / `${CDS_NOTI_HOST}` `${RTS_NOTI_HOST}` | 노드 변수의 기본값이 새 이름이다. 구 이름으로 덮으면 그 노드만 바뀐다 |
-| `${PDB_TIMEOUT}` / `${PDB_AUTOCOMMIT}` | `${CDS_DB_TIMEOUT}` / `${CDS_DB_AUTOCOMMIT}` | 위와 같다 |
-| `${TOOL_HOST}` | (`cds_variables.robot` 의 `192.168.15.142` 리터럴) | `${CDS_SESSION_PCF_ADDR}`/`SMF_ADDR` 가 이 값으로 만들어진다 |
-| `resources/PdbHelper.py` · `PdbError` | `CdsDbHelper.py` · `CdsDbError` | 예외는 별칭으로 남겼다. 파일 이름은 리포 안 import 를 전부 고쳤다 |
-| 환경변수 `PG_PDB_CONNSTR` | `PG_CDS_DB_CONNSTR` | 폴백으로 계속 읽는다 |
+| `${SBI_NOTI_PORT}` / `${SBI_NOTI_HOST}` | `${CDS_NOTI_PORT}` `${RTS_NOTI_PORT}` / `${CDS_NOTI_HOST}` `${RTS_NOTI_HOST}` | The default value of the node variable is the new name. If you cover it with a legacy name, only that node will change. |
+| `${PDB_TIMEOUT}` / `${PDB_AUTOCOMMIT}` | `${CDS_DB_TIMEOUT}` / `${CDS_DB_AUTOCOMMIT}` | Same as above |
+| `${TOOL_HOST}` | (`cds_variables.robot` to `192.168.15.142` literals) | `${CDS_SESSION_PCF_ADDR}`/`SMF_ADDR` is created with this value |
+| `libraries/PdbHelper.py` · `PdbError` | `CdsDbHelper.py` · `CdsDbError` | Exceptions are left as aliases. The file name has changed all imports in the repo. |
+| Environment variable `PG_PDB_CONNSTR` | `PG_CDS_DB_CONNSTR` | Continue reading with fallback |
 
-## 변수 우선순위
+## Variable Priority
 
 ```
---variable  >  --variablefile  >  슈트 *** Variables ***  >  임포트된 Resource
+--variable > --variablefile > suite *** Variables *** > Imported Resource
 ```
 
-Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, `--variable` 을
-나중에 적용한다. `*** Variables ***` 는 `overwrite=False` 로 처리돼 **이미 있는 이름을 덮지 않는다.**
+Robot loads variable files first, then command-line `--variable` overrides.
+Suite variables use `overwrite=False`, so they do not replace names already set.
+The environment variable file therefore overrides both node resource variables
+and suite-local defaults.
 
-→ 환경 파일(`--variablefile`)이 노드별 변수 파일과 슈트 내부 변수를 **모두 이긴다.**
+## environment axis variables
 
-## 환경 축 변수
+Shared configuration names live in `resources/variables.robot`, while environment-only
+values are supplied by the environment file. Node variables reference these shared
+values, so one environment override reaches all relevant nodes.
 
-이름은 `resources/variables.robot` 에 모여 있다(환경값은 위 규칙대로 값 없이 이름만 —
-값은 환경 파일). 노드별 변수는 이를 참조만 하므로 **환경 파일에서 아래 하나만 바꾸면
-관련 노드 전부에 전파된다.**
+Use a shared configuration axis only for values used by at least two nodes.
+Node-only defaults belong directly in `<iface>_variables.robot`, for example
+`${CDS_MDN}` and `${CDS_MIN}`. Environment overrides work regardless of the default's
+location; unnecessary indirection only increases duplication risk.
 
-**여기 두는 기준은 "두 노드 이상이 공유하는 값"이다.** 한 노드만 쓰는 환경 값은
-해당 `<iface>_variables.robot` 에 **값을 직접** 둔다 — 예로 CDS 가입자는
-`${CDS_MDN}` / `${CDS_MIN}`(`cds_variables.robot`) 에 있다.
-공유되지 않는 값을 축에 두면 이득 없는 간접 계층만 생긴다.
-(환경 파일 오버라이드는 우선순위상 어느 파일에 있든 이기므로, 배치가 좌우하는 것은
-**중복 위험뿐**이다.)
-
-| 변수 | 전파 대상 |
+| variable | Spread to |
 |---|---|
 | `${PG_HOST}` | `${NAG_PG_HOST}` `${PCF_PG_HOST}` `${UPM_PG_HOST}` `${NWDAF_HOST}` `${CDS_PG_HOST}` `${LRS_CLIENT_HOST}` |
 | `${TOOL_HOST}` | `${CDS_SESSION_PCF_ADDR}` `${CDS_SESSION_SMF_ADDR}` ([shared/SBI_NOTI.md](shared/SBI_NOTI.md)) |
 | `${SBI_NOTI_PORT}` / `${SBI_NOTI_HOST}` | `${CDS_NOTI_PORT}` `${RTS_NOTI_PORT}` / `${CDS_NOTI_HOST}` `${RTS_NOTI_HOST}` |
 | `${PDB_TIMEOUT}` / `${PDB_AUTOCOMMIT}` | `${CDS_DB_TIMEOUT}` / `${CDS_DB_AUTOCOMMIT}` ([shared/PDB.md](shared/PDB.md)) |
-| `${SUBS_MDN_LTE}` | `${NAG_MDN}` `${PCF_MDN}` `${LRS_MDN}`(아래 노드별 대상 번호의 기본값) `${NWDAF_MDN}` |
+| `${SUBS_MDN_LTE}` | `${NAG_MDN}` `${PCF_MDN}` `${LRS_MDN}` (default for node-specific destination numbers below) `${NWDAF_MDN}` |
 | `${SUBS_MIN_LTE}` | `${NWDAF_MIN}` |
 | `${SUBS_MDN_5G}` / `${SUBS_MIN_5G}` | `${LRS_MDN_5G}` `${NWDAF_MDN_5G}` `${NWDAF_MIN_5G}` |
 | `${SUBS_MDN_NO_HFC}` | `${NAG_MDN_NO_HFC}` `${LRS_MDN_NO_SESSION}` |
@@ -86,97 +84,97 @@ Robot 소스(`GlobalVariables._set_cli_variables`)가 variable file 을 먼저, 
 | `${SUBS_APN_LTE}` / `${SUBS_APN_5G}` | `${NAG_APN}` `${LRS_APN_LTE}` `${LRS_APN_5G}` |
 | `${SUBS_MOBILE_IP}` | `${NAG_MOBILE_IP}` `${LRS_SI_CLIENT_IP}` |
 | `${NET_CELL_ID}` / `${NET_PGW_IP}` | `${NWDAF_CELL_ID}` `${NWDAF_PGW_IP}` |
-| `${NET_SI_FROM_IP}` | `${LRS_SI_FROM_IP}` — **PG 에 등록된 IP 여야 함** (아니면 403) |
+| `${NET_SI_FROM_IP}` | `${LRS_SI_FROM_IP}` — Must be an IP registered in PG (otherwise 403) |
 
-### 노드별 대상 번호 (MDN)
+### Target number per node (MDN)
 
-노드마다 시험 가입자를 따로 쓸 수 있게 **노드별 MDN 변수**가 있다. 환경 파일에서 이 이름으로
-덮는다 — dev 는 `config/env/dev.py` 의 "노드별 대상 번호" 절에 모여 있다.
+There is an MDN variable  for each node, , so that test subscribers can be used separately for each node. with this name in the environment file
+Covers — dev is gathered in the "Node Target Number" section of `config/env/dev.py`.
 
-| 노드 | 환경 파일 이름 | 기본값 | 실제로 쓰는 변수 |
+| node | environment file name | default | Variables actually used |
 |---|---|---|---|
 | NAG | `NAG_MDN` | `${SUBS_MDN_LTE}` | `${NAG_MDN_NORMAL}` |
 | PCF | `PCF_MDN` | `${SUBS_MDN_LTE}` | `${PCF_TEST_MDN}` |
 | LRS | `LRS_MDN` | `${SUBS_MDN_LTE}` | `${LRS_SI_MDN}` `${LRS_MDN_LTE}` |
-| CDS | `CDS_MDN` / `CDS_NEW_MDN` | `01090010001` / `01090010002` | 그대로 |
+| CDS | `CDS_MDN` / `CDS_NEW_MDN` | `01090010001` / `01090010002` | As it is |
 | RTS | `RTS_MDN` | `01090010001` | `${RTS_TEST_MDN}` |
 
-dev.py 는 CDS 의 `CDS_MIN` / `CDS_NEW_MIN`(MDN 앞 0 제거)과 세션 IMSI(`45005` + MIN)를
-MDN 에서 계산한다 — MDN 만 바꾸면 따라온다. 다른 환경 파일도 같은 식으로 쓰면 된다.
+dev.py contains CDS `CDS_MIN` / `CDS_NEW_MIN` (MDN leading 0 removed) and session IMSI (`45005` + MIN)
+Calculate from MDN — just change MDN and it will follow. Other environment files can be used in the same way.
 
-노드 식별자(`*_SYS_ID` / `*_BRANCH_NAME`)와 포트는 노드마다 값이 달라 통합하지 않았다.
-필요하면 환경 파일에서 **노드별로 직접 지정**한다.
+Node identifiers (`*_SYS_ID` / `*_BRANCH_NAME`) and ports have different values for each node and were not integrated.
+If necessary, specify  directly for each  node in the environment file.
 
-## 환경 파일 작성
+## Create environment file
 
-`config/env/dev.py` 가 덮을 수 있는 값의 전체 카탈로그다. 주석을 풀고 값만 넣으면 된다.
+This is the entire catalog of values that `config/env/dev.py` can cover. Just uncomment it and enter the value.
 
 ```python
 # config/env/stg.py
-# ── 필수 (variables.robot 에 기본값 없음) ──
+# ── Required (no default value in variables.robot ) ──
 PG_HOST      = '10.20.30.40'
-TOOL_HOST    = '10.20.30.50'    # 도구 호스트 — PG 가 되돌아 접속하는 주소
-PDB_CONNSTR  = 'DSN=PDB;UID=pgtest;'          # PWD 는 빼고 — 환경변수 PG_PWD_PDB_1
-SUBS_MDN_LTE = '01011112222'    # NAG/PCF/LRS/NWDAF 에 자동 전파
+TOOL_HOST    = '10.20.30.50'    # Tool Host — The address to which the PG connects back.
+PDB_CONNSTR  = 'DSN=PDB;UID=pgtest;'          # Except PWD — environment variable PG_PWD_PDB_1
+SUBS_MDN_LTE = '01011112222'    # Automatic propagation to NAG/PCF/LRS/NWDAF
 SUBS_MIN_LTE = '1011112222'
 SUBS_MDN_5G  = '01011113333'
 SUBS_MIN_5G  = '1011113333'
 
-# ── 선택 ──
-CDS_MDN      = '01090020001'    # 노드별 대상 번호는 개별 지정
+# ── Selection ──
+CDS_MDN      = '01090020001'    # Target number for each node is individually specified
 
-CDS_DST_SYS_ID = 'PG02'         # 노드별 개별 지정
+CDS_DST_SYS_ID = 'PG02'         # Individual designation for each node
 NAG_PG_PORT    = 8012
 ```
 
-Robot 은 변수 파일의 **모듈 전역 이름을 그대로 변수로 읽는다.** `PG_HOST = ...` 가
-`${PG_HOST}` 가 된다. 언더스코어로 시작하는 이름은 무시된다.
+Robot reads the  module global name in the variable file as a variable. `PG_HOST = ...`
+It becomes `${PG_HOST}`. Names starting with an underscore are ignored.
 
-## PDB 접속 · 실행 전 DB 설정 시드
+## DB setting seed before PDB connection/execution
 
-[shared/PDB.md](shared/PDB.md) 로 옮겼다 — 접속 문자열(`PDB_CONNSTR`, 환경변수 `PG_PDB_CONNSTR`),
-두 번째 DB, 골디락스/알티베이스 함정, `config/db_seed/<env>.sql` 형식과 시드 옵션이 거기 있다.
-시드 INSERT 뒤 PG 원격 명령(`stopMP app` → `startMP app`)은 [shared/SSH.md](shared/SSH.md).
+Moved to [shared/PDB.md](shared/PDB.md) — connection string (`PDB_CONNSTR`, environment variable `PG_PDB_CONNSTR`),
+The second DB, Goldilocks/Altibase trap, `config/db_seed/<env>.sql` format and seed options are there.
+After the seed INSERT, the PG remote command (`stopMP app` → `startMP app`) is [shared/SSH.md](shared/SSH.md).
 
-## prd 가드
+## prd guard
 
-`config/env/prd.py` 는 환경변수 없이는 실행을 거부한다.
+`config/env/prd.py` refuses to run without environment variables.
 
 ```bash
 export PG_ALLOW_PRD=1              # PowerShell: $env:PG_ALLOW_PRD='1'
 bash run_tests.sh smoke prd
 ```
 
-특히 **NWDAF Notification 은 PG 가 응답을 주지 않아 실수를 되돌릴 수 없다.**
-prd 실행 전에 대상 가입자와 `--include` 태그를 반드시 확인할 것.
+In particular, the NWDAF Notification cannot be reversed because the PG does not respond.
+Before executing prd, be sure to check the target subscriber and `--include` tag.
 
-## 새 환경 추가
+## Add new environment
 
-1. `config/env/<name>.py` 생성 — 필수 환경값(위 "환경값은 환경 파일에만 둔다") + 기본값과 다른 값
-2. `run_tests.sh` 의 `case` 에 `<name>` 추가
-3. 이 문서에 한 줄 추가
+1. Create `config/env/<name>.py` — Required environment values (“Environment values are only placed in the environment file” above) + values different from the default
+2. Add `<name>` to `case` of `run_tests.sh`
+3. Add a line to this document
 
-## 개인 오버라이드
+## private override
 
-`config/env/local.py` 는 `.gitignore` 되어 있다. 각자 다른 IP 로 돌릴 때 쓴다.
+`config/env/local.py` becomes `.gitignore`. Used when redirecting to different IPs.
 
 ```bash
 bash run_tests.sh nag local
 ```
 
-## 자격증명
+## Credentials
 
-### 비밀번호는 환경변수로만 (2026-11-04)
+### Password is only an environment variable (2026-11-04)
 
-**비밀번호는 환경 파일(git 에 들어간다)에도, Robot 변수·키워드 인자(log.html 에 남는다)에도
-두지 않는다.** 실행 셸에서 환경변수로 주면 Python 헬퍼가 직접 읽는다.
+The password is also included in the environment file (entered in git) and in the Robot variable/keyword argument (remained in log.html).
+Do not leave it. If  is given as an environment variable in the execution shell, the Python helper reads it directly.
 
-| 환경변수 | 용도 | 읽는 곳 | 없으면 |
+| environment variables | Use | Where to read | If there is no |
 |---|---|---|---|
-| `PG_PWD_SSH` | PG 서버 SSH(`.RUN` touch, 시드 후속 `stopMP`/`startMP`) | `SshHelper.py` (구 이름 `PG_SSH_PASSWORD` 폴백) | 키 인증(`PG_SSH_KEY_FILE`)이 아니면 접속 실패 |
-| `PG_PWD_PDB_1` | 첫 번째 PDB — `PDB_CONNSTR` 의 `PWD=` 로 끼운다 | `PdbHelper.py` | 접속 문자열에도 PWD 가 없으면 접속 전 실패 |
-| `PG_PWD_PDB_2` | 두 번째 PDB — `PDB_CONNSTR_2` 의 `PWD=` | `PdbHelper.py` | DB2 를 쓸 때만 위와 같음 |
-| `PG_PWD_UPM_FTP` | UPM FTP/SFTP 수신 서버 — PG 설정 `PASSWORD_04` 와 같은 값 | `FtpServerHelper.py` | FTP 수신을 켜면(`UPM_FTP_ENABLE`) Suite Setup 실패 (`--no-ftp` 로 피한다) |
+| `PG_PWD_SSH` | PG server SSH (`.RUN` touch, seed follow-up `stopMP`/`startMP`) | `SshHelper.py` (old name `PG_SSH_PASSWORD` fallback) | Connection fails without key authentication (`PG_SSH_KEY_FILE`) |
+| `PG_PWD_PDB_1` | First PDB — Insert `PWD=` in `PDB_CONNSTR` | `PdbHelper.py` | If there is no PWD in the connection string, the connection fails. |
+| `PG_PWD_PDB_2` | Second PDB — `PWD=` of `PDB_CONNSTR_2` | `PdbHelper.py` | Same as above only when using DB2 |
+| `PG_PWD_UPM_FTP` | UPM FTP/SFTP listening server — same value as PG setting `PASSWORD_04` | `FtpServerHelper.py` | If you turn on FTP reception (`UPM_FTP_ENABLE`), Suite Setup will fail (avoid with `--no-ftp`) |
 
 ```bash
 export PG_PWD_SSH='...'
@@ -186,27 +184,27 @@ bash run_tests.sh all stg
 # PowerShell: $env:PG_PWD_SSH='...'
 ```
 
-`config/env/<env>.py` 의 `PDB_CONNSTR` 에는 PWD 를 빼고 적는다(`'DSN=PDB;UID=pdb;CHARSET=UHC;'`).
-환경변수 값은 **환경을 가리지 않는다** — 한 호스트에서 dev 와 stg 를 번갈아 돌리면 비밀번호가
-다를 때마다 export 를 바꿔야 한다. 이 셋이 dev.py 에 평문으로 있던 시절의 값은 **git 히스토리에
-남아 있다** — 실제로 쓰는 계정이면 비밀번호 자체를 바꿔야 한다.
+In `config/env/<env>.py`, write `PDB_CONNSTR` without PWD (`'DSN=PDB;UID=pdb;CHARSET=UHC;'`).
+The environment variable value does not depend on the  environment. — If you run dev and stg alternately on one host, the password will be
+You have to change export every time it is different. The values when these three were in plain text in dev.py are in the git history.
+Remains — If the account is actually used, the password itself must be changed.
 
-### DynamicVars 제거
+### Remove DynamicVars
 
-**SSH 로 PG 설정을 읽던 `DynamicVars` 는 제거됐다.** (지금의 SSH 는 `.RUN` touch 와 시드 후속
-명령 용도다 — [shared/SSH.md](shared/SSH.md).)
+`DynamicVars`, which read PG settings with SSH, has been removed. (Current SSH is `.RUN` touch and seed successor
+This is the command — [shared/SSH.md](shared/SSH.md).)
 
-제거 근거 — 실측 cfg 값이 하드코딩 기본값과 전부 같아 **동작 차이가 없었다**:
+Reasons for removal — The actual cfg values were all the same as the hard-coded default values, so there was no difference in operation :
 
-| cfg | 키 | 실측 | 기본값 |
+| cfg | key | actual measurement | default |
 |---|---|---|---|
 | `PG_V2.cfg [CDS]` | `O_PORT` | 9200 | 9200 |
 | `PG_V2.cfg [CDS]` | `R_PORT` | 9201 | 9201 |
 | `BarodNoti.cfg [Barod.IF]` | `Barod.IF.Port.NAG` | 8012 | 8012 |
 
-게다가 코드는 `S_PORT` 를 조회했는데 실제 키는 `O_PORT` 라, Schannel 은 **애초에 조회에
-실패해 폴백만 타고 있었다.** 폴백 값이 실제 값과 같아 아무도 눈치채지 못한 상태였다.
+Moreover, the code looked up `S_PORT`, but the actual key was `O_PORT`, and Schannel was  in the search in the first place.
+It failed and was only riding a fallback. The fallback value was the same as the actual value, so no one noticed.
 
-> ⚠ 이전에 `resources/variables.robot` 에 SSH 비밀번호가 평문으로 커밋돼 있었다.
-> 파일에서는 제거했지만 **git 히스토리에는 남아 있다.** 실제로 쓰이는 계정이면
-> **비밀번호 자체를 교체**해야 한다.
+> ⚠ Previously, the SSH password was committed in plain text to `resources/variables.robot`.
+> Although it was removed from the file, it remains in the git history. If the account is actually used,
+> The password itself must be replaced.

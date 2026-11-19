@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
-"""docs/callflow/cds_callflow.md 생성기 (업무 코드 11개를 한 파일로).
-
-필드 집합은 **CdsHelper 에서 직접 뽑는다** — 손으로 옮기면 어긋난다.
-그 밖의 사실(TC 번호 / 알림 경로 / 판정 기준)은 아래 표가 쥔다.
-"""
+'docs/callflow/cds_callflow.md generator (11 business codes in one file).\n\nThe field set is **picked directly from CdsHelper** — if you move it by hand, it will be out of alignment.\nOther facts (TC number/notification route/judgment criteria) are listed in the table below.\n'
 import io
 import os
 import sys
 
-sys.path.insert(0, 'resources')
+sys.path.insert(0, 'libraries')
 import CdsHelper as H  # noqa: E402
 
 OUT = 'docs/callflow'
@@ -16,7 +12,7 @@ SIZES = dict(H._CMD_LAYOUT)
 
 
 def fields_of(code):
-    """이 업무 코드가 채우는 필드 이름을 wire 순서로 돌려준다."""
+    'Returns the field names filled by this task code in wire order.'
     f = {name: '' for name, _ in H._CMD_LAYOUT}
     kw = {name: '@' for name, _ in H._CMD_LAYOUT}
     H._fill_command_fields(code, kw, f)
@@ -26,55 +22,55 @@ def fields_of(code):
 # 코드 → (이름, TC, 경로규칙, 판정, 비고)
 #   경로: 'BSUBS-always' | 'BSUBS-if-hfc' | 'SDM'
 T = {
- 'A1': ('신규가입', 'TC-CDS-002', 'SDM',
-        ['`T_5G_SUBS_PROFILE` (MDN) = **1건**',
-         '`T_5G_SUBS_SERVICE` (MDN, `DATA_USAGE_LEVEL`) = **1건**',
-         '`T_5G_SUBS_SERVICE` (MDN, `DATA_USAGE_LEVEL_2`) = **1건**'],
-        '슈트 전체가 쓰는 대상 가입자를 만든다 — 이 TC 가 실패하면 뒤가 전부 흔들린다.'),
- '1X': ('HFC 서비스 가입', 'TC-CDS-003', 'BSUBS-always',
-        ['`T_5G_SUBS_SERVICE` (MDN, `ZONE_SVC_D`, `SVC_TYPE=D`, `JOB_CODE=1X`) = **1건 이상**'],
-        'UPM `0x07` 수신 → `0x08` 응답까지 해야 완결된다.'),
- '1Y': ('HFC 서비스 해지', 'TC-CDS-004', 'BSUBS-always',
-        ['`T_5G_SUBS_SERVICE` (MDN, `ZONE_SVC_D`) = **0건** — `SVC_TYPE`/`JOB_CODE` 를 '
-         '가리지 않는다(어떤 형태로든 남으면 해지가 덜 된 것)'],
-        '1X 과 같이 UPM 을 탄다 — 해지도 Cell 정보를 정리해야 한다.'),
- 'I2': ('부가서비스신청', 'TC-CDS-005', 'SDM',
+ 'A1': ('New sign up', 'TC-CDS-002', 'SDM',
+        ['`T_5G_SUBS_PROFILE` (MDN) = **1 case**',
+         '`T_5G_SUBS_SERVICE` (MDN, `DATA_USAGE_LEVEL`) = **1 case**',
+         '`T_5G_SUBS_SERVICE` (MDN, `DATA_USAGE_LEVEL_2`) = **1 case**'],
+        'Create a target subscriber for the entire suite to use — if this TC fails, everything falls apart.'),
+ '1X': ('Sign up for HFC service', 'TC-CDS-003', 'BSUBS-always',
+        ['`T_5G_SUBS_SERVICE` (MDN, `ZONE_SVC_D`, `SVC_TYPE=D`, `JOB_CODE=1X`) = **1 or more cases**'],
+        'UPM `0x07` reception → `0x08` response is required to complete.'),
+ '1Y': ('Termination of HFC service', 'TC-CDS-004', 'BSUBS-always',
+        ['`T_5G_SUBS_SERVICE` (MDN, `ZONE_SVC_D`) = **0 cases** — `SVC_TYPE`/`JOB_CODE` '
+         'It does not matter (if it remains in any form, it is less likely to be cancelled)'],
+        'Take UPM like 1X — Even if you cancel, you need to organize cell information.'),
+ 'I2': ('Additional service application', 'TC-CDS-005', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `YOUNG_HARM_INFO_BLOCK`, `SVC_TYPE=N`, '
-         '`JOB_CODE=I2`, `"LIMIT"=Y`) = **1건 이상**'],
-        '`LIMIT` 은 예약어라 SQL 에서 큰따옴표로 감싼다. `TIME_PERIOD_ID` 는 '
-        'WHERE 절에서 뺐다(2026-09-29) — 판정 조건이 아니다.'),
- 'I3': ('부가서비스해지', 'TC-CDS-006', 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `YOUNG_HARM_INFO_BLOCK`) = **0건**'], ''),
- 'C1': ('기기변경', 'TC-CDS-007 / 008~014', 'BSUBS-if-hfc',
-        ['수행 **전** `SVC_ID` 별 행 수 == 수행 **후** `JOB_CODE=C1` 로 적재된 행의 집계'],
-        '전후 비교형이라 `Command Download Flow` **앞에서** 기준선을 먼저 뜬다. '
-        '레거시 구현이 `min ← mdn` 으로 채운다.'),
- 'G1': ('정보변경', 'TC-CDS-015 / 016~017', 'BSUBS-if-hfc',
-        ['수행 **전** `SVC_ID` 별 행 수 == 수행 **후** `JOB_CODE=G1` 로 적재된 행의 집계'],
-        '필드 집합이 A1 과 완전히 같다(2026-08-03 확인).'),
- 'K1': ('Data(Time) 쿠폰 가입', 'TC-CDS-018 / 020', 'SDM',
+         '`JOB_CODE=I2`, `"LIMIT"=Y`) = **1 or more cases**'],
+        '`LIMIT` is a reserved word, so it is enclosed in double quotation marks in SQL. `TIME_PERIOD_ID` is '
+        'Removed from WHERE clause (2026-09-29) — It is not a decision condition.'),
+ 'I3': ('Cancellation of additional services', 'TC-CDS-006', 'SDM',
+        ['`T_5G_SUBS_SERVICE` (MDN, `YOUNG_HARM_INFO_BLOCK`) = **0 cases**'], ''),
+ 'C1': ('Change device', 'TC-CDS-007 / 008~014', 'BSUBS-if-hfc',
+        ['Number of rows per **Before** `SVC_ID` == Aggregation of rows loaded with **After** `JOB_CODE=C1`'],
+        'Because it is a before-and-after comparison type, the `Command Download Flow` **front** baseline is drawn first. '
+        'The legacy implementation fills in `min ← mdn`.'),
+ 'G1': ('Change information', 'TC-CDS-015 / 016~017', 'BSUBS-if-hfc',
+        ['Number of rows per **Before** `SVC_ID` == Aggregation of rows loaded with **After** `JOB_CODE=G1`'],
+        'The field set is exactly the same as A1 (confirmed on 2026-08-03).'),
+ 'K1': ('Sign up for Data(Time) coupon', 'TC-CDS-018 / 020', 'SDM',
         ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `SVC_TYPE=N`, `JOB_CODE=K1`, '
-         '`"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=COUPON_PIN`) = **1건 이상** '
-         '(PG 는 `TIME_PERIOD_ID=113` 도 저장하지만 판정 WHERE 절에서는 뺐다, 2026-09-29)',
-         '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K3`, COUPON_PIN) = **1건 이상**'],
-        '가입과 동시에 만료 예약이 걸린다. **인입 코드(K1)와 예약 코드(K3)가 다르다.** '
-        'K3 는 CDS 가 보내는 전문이 아니다 — 쿠폰 만료 시각이 되면 **PG.RDS 가 예약 '
-        '큐를 보고 스스로 만든다.** 그래서 K3 는 시트가 없다. 만료까지 보는 것이 '
-        '`TC-CDS-020` 로, 전문을 보내지 않고 RDS 가 지울 때까지 기다린다. '
-        '`START_TIME` 은 반드시 미래여야 한다 — 과거면 가입 직후 만료돼 판정이 실패한다.'),
- 'K2': ('Data(Time) 쿠폰 해지', 'TC-CDS-019', 'SDM',
-        ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K1 의 COUPON_PIN`) = **0건**'],
-        'K2/K3/K4/K6 은 판정 기준이 **글자 그대로 같다** — 서로 구분되지 않으므로 '
-        '핀을 업무별로 나눠 쓴다.'),
- 'D3': ('번호변경', 'TC-CDS-021', 'BSUBS-if-hfc',
-        ['수행 **전**(옛 번호) `SVC_ID` 별 행 수 == 수행 **후**(새 번호, `JOB_CODE=D3`) 집계'],
-        '성공하면 `${CDS_ACTIVE_MDN}` 을 새 번호로 갱신한다 → 뒤의 Z1 이 그 번호로 해지한다.'),
- 'Z1': ('가입해지', 'TC-CDS-028', 'BSUBS-if-hfc',
-        ['`T_5G_SUBS_PROFILE` (MDN) = **0건**',
-         '`T_5G_SUBS_SERVICE` (MDN, `SVC_ID` 무관) = **0건**'],
-        '체인의 끝. **가입한 적이 없어도 통과한다** — 0건은 "지워졌다"와 "원래 없었다"를 '
-        '구분하지 못한다. HFC(`ZONE_SVC_D`)가 붙어 있으면 **Cell 정리가 딸려 온다** — '
-        'BSUBS 가 CellList 를 지운 뒤에야 가입자 테이블이 정리된다.'),
+         '`"LIMIT"=1`, `LIMIT_VALID_TIME`, `CNUM=COUPON_PIN`) = **1 or more cases** '
+         '(PG also stores `TIME_PERIOD_ID=113`, but removes it from the decision WHERE clause, 2026-09-29)',
+         '`T_5G_RESERVED_JOB` (MDN, `JOB_CODE=K3`, COUPON_PIN) = **1 or more**'],
+        'As soon as you sign up, your reservation will expire. **The entry code (K1) and reservation code (K3) are different.** '
+        'K3 is not a message sent by CDS — **PG.RDS makes the reservation when the coupon expires. '
+        'Look at the cue and make it yourself.** So K3 does not have a seat. Watching until expiration '
+        'With `TC-CDS-020`, it does not send a message and waits until RDS clears it. '
+        '`START_TIME` must be in the future — if it is in the past, it expires immediately after joining and the check fails.'),
+ 'K2': ('Data(Time) Coupon Cancellation', 'TC-CDS-019', 'SDM',
+        ['`T_5G_SUBS_SERVICE` (MDN, `R17`, `CNUM=K1_COUPON_PIN`) = **0 cases**'],
+        'The criteria for K2/K3/K4/K6 are **literally the same** — they are not distinct from each other, so '
+        'Divide pins by task.'),
+ 'D3': ('Change number', 'TC-CDS-021', 'BSUBS-if-hfc',
+        ['Perform **Before** (old number) `SVC_ID` Number of rows per == Perform **After** (new number, `JOB_CODE=D3`) Aggregate'],
+        'If successful, `${CDS_ACTIVE_MDN}` is updated with a new number → Z1 behind it is canceled with that number.'),
+ 'Z1': ('Cancel subscription', 'TC-CDS-028', 'BSUBS-if-hfc',
+        ['`T_5G_SUBS_PROFILE` (MDN) = **0 cases**',
+         '`T_5G_SUBS_SERVICE` (regardless of MDN, `SVC_ID`) = **0 cases**'],
+        'end of the chain. **You can pass even if you have never signed up** — 0 cases are “deleted” and “never existed before” '
+        "Can't tell the difference. If HFC (`ZONE_SVC_D`) is attached, **Cell arrangement is included** — "
+        'The subscriber table is organized only after BSUBS deletes the CellList.'),
 }
 
 # 알림이 아예 나가지 않는 코드 — RBUS NOTI / SNOTI / SBI Noti 를 그리지 않는다.
@@ -84,36 +80,36 @@ NO_NOTI = ('Z1',)
 EXEMPT = ('A1', 'Z1')
 
 ROUTE_LABEL = {
- 'BSUBS-always': ('BSUBS 경유 (**무조건**)', '규칙 1'),
- 'BSUBS-if-hfc': ('HFC **가입** 상태 → BSUBS / **미가입** → SDM', '규칙 2'),
- 'SDM': ('SDM 경유', '규칙 3'),
+ 'BSUBS-always': ('Via BSUBS (**Unconditionally**)', 'Rule 1'),
+ 'BSUBS-if-hfc': ('HFC **Subscribed** status → BSUBS / **Not subscribed** → SDM', 'Rule 2'),
+ 'SDM': ('Via SDM', 'Rule 3'),
 }
 
 # ── 다이어그램에 그릴 PDB 판정 단계 ──────────────────────────────
 # 일반 문구("SELECT COUNT(*) — 반영 판정") 대신 **코드별 실제 조회**를 그린다.
 # PRE 는 전문보다 **먼저** 나가는 조회다(전후 비교형 C1/G1/D3 의 기준선).
 PDB_PRE = {
- 'C1': ['수행 전 SVC_ID 별 행 수 집계 (MDN)'],
- 'G1': ['수행 전 SVC_ID 별 행 수 집계 (MDN)'],
- 'D3': ['수행 전 SVC_ID 별 행 수 집계 (MDN)'],
+ 'C1': ['Aggregate number of rows by SVC_ID before performing (MDN)'],
+ 'G1': ['Aggregate number of rows by SVC_ID before performing (MDN)'],
+ 'D3': ['Aggregate number of rows by SVC_ID before performing (MDN)'],
 }
 PDB_POST = {
  # 같은 표를 SVC_ID 만 바꿔 두 번 보므로 화살표는 하나로 합친다.
  # (슈트는 실제로 두 번 조회한다 — 아래 "판정 기준" 절에 각각 적혀 있다)
- 'A1': ['T_5G_SUBS_PROFILE 저장 확인 (MDN)',
-        'T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID=DATA_USAGE_LEVEL, DATA_USAGE_LEVEL_2)'],
- '1X': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + ZONE_SVC_D + SVC_TYPE=D + JOB_CODE=1X)'],
- '1Y': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + ZONE_SVC_D) — 0건'],
- 'I2': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + YOUNG_HARM_INFO_BLOCK + N + I2 + TPID=56 + LIMIT=Y)'],
- 'I3': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + YOUNG_HARM_INFO_BLOCK) — 0건'],
- 'C1': ['수행 후 JOB_CODE=C1 로 적재된 행 집계 (MDN)'],
- 'G1': ['수행 후 JOB_CODE=G1 로 적재된 행 집계 (MDN)'],
- 'K1': ['T_5G_SUBS_SERVICE 저장 확인 (MDN + R17 + N + K1 + TPID=113 + LIMIT=1 + LIMIT_VALID_TIME + CNUM)',
-        'T_5G_RESERVED_JOB 저장 확인 (MDN + JOB_CODE=K3 + COUPON_PIN)'],
- 'K2': ['T_5G_SUBS_SERVICE 삭제 확인 (MDN + R17 + CNUM) — 0건'],
- 'D3': ['수행 후 JOB_CODE=D3 로 적재된 행 집계 (NEW MDN)'],
- 'Z1': ['T_5G_SUBS_PROFILE 삭제 확인 (MDN) — 0건',
-        'T_5G_SUBS_SERVICE 삭제 확인 (MDN, SVC_ID 무관) — 0건'],
+ 'A1': ['Confirm saving T_5G_SUBS_PROFILE (MDN)',
+        'Confirm saving T_5G_SUBS_SERVICE (MDN + SVC_ID=DATA_USAGE_LEVEL, DATA_USAGE_LEVEL_2)'],
+ '1X': ['Confirm saving T_5G_SUBS_SERVICE (MDN + ZONE_SVC_D + SVC_TYPE=D + JOB_CODE=1X)'],
+ '1Y': ['Confirm deletion of T_5G_SUBS_SERVICE (MDN + ZONE_SVC_D) — 0 cases'],
+ 'I2': ['Confirm saving T_5G_SUBS_SERVICE (MDN + YOUNG_HARM_INFO_BLOCK + N + I2 + TPID=56 + LIMIT=Y)'],
+ 'I3': ['Confirm deletion of T_5G_SUBS_SERVICE (MDN + YOUNG_HARM_INFO_BLOCK) — 0 cases'],
+ 'C1': ['Aggregate rows loaded with JOB_CODE=C1 after execution (MDN)'],
+ 'G1': ['Aggregate rows loaded with JOB_CODE=G1 after execution (MDN)'],
+ 'K1': ['Confirm saving T_5G_SUBS_SERVICE (MDN + R17 + N + K1 + TPID=113 + LIMIT=1 + LIMIT_VALID_TIME + CNUM)',
+        'T_5G_RESERVED_JOB Save Confirmation (MDN + JOB_CODE=K3 + COUPON_PIN)'],
+ 'K2': ['Confirm deletion of T_5G_SUBS_SERVICE (MDN + R17 + CNUM) — 0 cases'],
+ 'D3': ['Aggregate rows loaded with JOB_CODE=D3 after execution (NEW MDN)'],
+ 'Z1': ['Confirm deletion of T_5G_SUBS_PROFILE (MDN) — 0',
+        'Confirm deletion of T_5G_SUBS_SERVICE (regardless of MDN, SVC_ID) — 0 cases'],
 }
 
 # 판정 구간 배경. 알파를 낮게 둬야 라이트/다크 양쪽에서 글자가 읽힌다.
@@ -125,7 +121,7 @@ HFC_ORDER = {
  'C1': 'INSERT T_BAROD_ORDER_HIST',
  'G1': 'INSERT T_BAROD_ORDER_HIST',
  'D3': 'INSERT T_BAROD_ORDER_HIST',
- 'Z1': 'INSERT T_BAROD_ORDER_HIST (해지 지시)',
+ 'Z1': 'INSERT T_BAROD_ORDER_HIST (cancellation instruction)',
 }
 
 # 전문 처리가 끝난 **한참 뒤**에 PG.RDS 가 예약 큐를 보고 스스로 하는 일.
@@ -134,7 +130,7 @@ HFC_ORDER = {
 RDS_EXPIRY = {
  'K1': ['    RDS->>PDB: SELECT T_5G_RESERVED_JOB(Polling)',
         '    opt START_TIME > NOW() AND STATUS = N',
-        '    RDS->>PDB: INSERT T_5G_RESERVED_ORDER_HIST (STATUS=1) K3(쿠폰 만료) 생성',
+        '    RDS->>PDB: INSERT T_5G_RESERVED_ORDER_HIST (STATUS=1) create K3 (coupon expired)',
         '    SDM->>PDB: SELECT T_5G_RESERVED_ORDER_HIST(Polling)',
         '    SDM->>PDB: SELECT T_5G_SUBS_PROFILE and SERVICE',
         '    SDM->>PDB: DELETE T_5G_SUBS_SERVICE (MDN, SVC_ID=R17, SVC_TYPE=N, CNUM=COUPON_PIN)',
@@ -153,7 +149,7 @@ TID_AFTER_NOTI = {'A1', '1X', '1Y', 'K1'}
 
 # BSUBS 가 폴링한 뒤 추가로 하는 일. 모르는 코드는 비워 둔다 — 지어내지 않는다.
 BSUBS_EXTRA = {
- 'Z1': 'DELETE T_BAROD_SUBS_CELLINFO (CellList 삭제)',
+ 'Z1': 'DELETE T_BAROD_SUBS_CELLINFO (Delete CellList)',
 }
 
 # BSUBS 가 폴링 뒤 UPM 과 왕복하는 코드. PG 소스로 확정(2026-08-24) —
@@ -175,9 +171,9 @@ BSUBS_EXTRA = {
 NOTIFY_SDM_ONLY = {'C1', 'G1', 'D3'}
 
 UPM_ROUNDTRIP = {
- 'C1': ('UPDATE T_BAROD_SUBS_CELLINFO (MIN/기종/상태)',
+ 'C1': ('UPDATE T_BAROD_SUBS_CELLINFO (MIN/model/status)',
         '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
- 'G1': ('UPDATE T_BAROD_SUBS_CELLINFO (기종/상태)',
+ 'G1': ('UPDATE T_BAROD_SUBS_CELLINFO (model/status)',
         '0x0d Info-Change-Request', '0x0e Info-Change-Response'),
  'D3': (['SELECT T_BAROD_SUBS_CELLINFO (MDN)', 'INSERT T_BAROD_SUBS_CELLINFO (NEW MDN)'],
         '0x05 Subs-Change-Request', '0x06 Subs-Change-Response'),
@@ -217,19 +213,17 @@ SDM_APPLY = {
 
 # BSUBS 가 Cell 정보에 하는 일. 가입(1X)은 저장, 해지(1Y)는 삭제다.
 CELL_STEP = {
- '1X': 'T_BAROD_SUBS_CELLINFO 저장',
+ '1X': 'Save T_BAROD_SUBS_CELLINFO',
  '1Y': 'DELETE FROM T_BAROD_SUBS_CELLINFO',
 }
 
 
 def apply_steps(code):
-    v = SDM_APPLY.get(code, 'T_5G_SUBS_* 반영')
+    v = SDM_APPLY.get(code, 'Reflect T_5G_SUBS_*')
     return v if isinstance(v, list) else [v]
 
 
-HDR = """participant TOOL as ROBOT (CDS 역할)
-    participant PCDS as PG.CDS
-    participant PDB as PDB"""
+HDR = 'participant TOOL as ROBOT (CDS role)\n    participant PCDS as PG.CDS\n    participant PDB as PDB'
 
 
 def mermaid(code, route):
@@ -242,44 +236,44 @@ def mermaid(code, route):
         # 1X/1Y 도 SDM 은 돈다 — 안 하는 것은 RBUS NOTI 뿐이다.
         L.append('    participant SDM as PG.SDM')
         L.append('    participant BSUBS as PG.BSUBS')
-        L.append('    participant UPM as ROBOT (UPM 역할)')
+        L.append('    participant UPM as ROBOT')
     else:
         L.append('    participant SDM as PG.SDM')
         L.append('    participant BSUBS as PG.BSUBS')
         if code in UPM_ROUNDTRIP:
-            L.append('    participant UPM as ROBOT (UPM 역할)')
+            L.append('    participant UPM as ROBOT')
     if code not in NO_NOTI:
         L.append('    participant SNOTI as PG.SNOTI')
-        L.append('    participant PCF as ROBOT (PCF 역할)')
+        L.append('    participant PCF as ROBOT (PCF role)')
     L.append('')
     if code in PDB_PRE:
         L.append('    rect %s' % BAND)
-        L.append('    Note over TOOL,PDB: ★ 판정 기준선 — 전문을 보내기 전에 떠야 한다')
+        L.append('    Note over TOOL,PDB: ★ Judgment baseline — must appear before sending a message')
         for step in PDB_PRE[code]:
             L.append('        TOOL->>PDB: %s' % step)
         L.append('    end')
     L.append('    TOOL->>PCDS: 0015 CommandRequest (%s) — Body 327B' % code)
     # 0016 은 **받았다는 확인**이라 처리보다 먼저 나간다. 결과는 0017 이 나른다.
-    L.append('    PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, 접수 확인')
+    L.append('    PCDS-->>TOOL: 0016 CommandRequestACK (SC) — Schannel, acknowledgment of receipt')
     L.append('    PCDS->>PDB: INSERT T_CDS_ORDER_HIST')
     if code in ('1X', '1Y'):
-        L.append('    PCDS->>PDB: INSERT T_BAROD_ORDER_HIST (주소 암호화)')
+        L.append('    PCDS->>PDB: INSERT T_BAROD_ORDER_HIST (address encryption)')
     # 이력 적재의 성패가 0017 의 SC/FA 를 가른다.
-    L.append('    alt INSERT 성공')
+    L.append('    alt INSERT success')
     L.append('        PCDS->>PDB: UPDATE T_CDS_ORDER_TID SET TID...')
     if code in HFC_ORDER:
         # PG.CDS 가 답하기 전에 끝내는 일이라 0017 보다 위다.
         # 조회는 분기를 **가르는** 쪽이라 opt 밖이다 — 조건이 어긋나도 나간다.
         L.append('        PCDS->>PDB: SELECT T_5G_SUBS_SERVICE (SVC_ID=ZONE_SVC_D)')
-        L.append('        opt ZONE_SVC_D 있음 — HFC 가입')
+        L.append('        opt ZONE_SVC_D present — Join HFC')
         L.append('            PCDS->>PDB: %s' % HFC_ORDER[code])
         L.append('        end')
     L.append('        PCDS-->>TOOL: 0017 CommandResult (SC) — Rchannel')
-    L.append('    else INSERT 실패')
+    L.append('    else INSERT failed')
     L.append('        PCDS-->>TOOL: 0017 CommandResult (FA) — Rchannel')
     L.append('    end')
-    L.append('    TOOL->>PCDS: 0018 CommandResultACK (TID 에코)')
-    L.append('    Note over TOOL,PCDS: 0017 이력 적재 결과 — 가입자 반영은 아래 PDB 판정으로 확인')
+    L.append('    TOOL->>PCDS: 0018 CommandResultACK (TID echo)')
+    L.append('    Note over TOOL,PCDS: 0017 History loading result — Subscriber reflection is confirmed by PDB judgment below')
     L.append('')
     if route == 'BSUBS-always':
         # 가입자 테이블 반영은 1X/1Y 도 SDM 이 한다. PDB 판정이 보는 행이
@@ -289,8 +283,8 @@ def mermaid(code, route):
         tid = '    SDM->>PDB: UPDATE T_CDS_ORDER_TID SET TID...'
         if code not in TID_AFTER_NOTI:
             L.append(tid)
-        L.append('    SDM--xSNOTI: RBUS NOTI 없음')
-        L.append('    Note over SDM,SNOTI: 1X/1Y 인 경우 PG.SDM 에서 RBUS NOTI 하지 않음 — PG.BSUBS 가 RBUS NOTI 한다')
+        L.append('    SDM--xSNOTI: No RBUS NOTI')
+        L.append('    Note over SDM, SNOTI: In case of 1X/1Y, PG.SDM does not do RBUS NOTI — PG.BSUBS does RBUS NOTI')
         if code in TID_AFTER_NOTI:
             L.append(tid)
         L.append('')
@@ -307,7 +301,7 @@ def mermaid(code, route):
         L.append('    SDM->>PDB: SELECT T_CDS_ORDER_HIST(Polling)')
         if code in DELETE_GUARD:
             L.append('    SDM->>PDB: %s' % DELETE_GUARD[code])
-            L.append('    opt COUNT = 0 — 대기 중인 다른 예약 없음')
+            L.append('    opt COUNT = 0 — No other reservations pending')
             [L.append('        SDM->>PDB: %s' % _s) for _s in apply_steps(code)]
             L.append('    end')
         else:
@@ -363,16 +357,16 @@ def mermaid(code, route):
                 L.append('    SNOTI->>PDB: SELECT T_SESSION_INFO (%s)' % snoti_mdn(code))
                 L.append('    SNOTI->>PDB: SELECT T_SMF_SESSION_INFO (%s)' % snoti_mdn(code))
                 L.append('    SNOTI->>PCF: SBI Noti (h2c)')
-            L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
+            L.append('    opt ZONE_SVC_D present — Join HFC')
             L.extend(_bsubs_pre_lines('        '))
             resp_line = _upm_resp_line('        ')
             if resp_line:
                 L.append(resp_line)
-            L.append('        Note over BSUBS,SNOTI: BSUBS 는 SNOTI 로 알리지 않는다 (sendnotiByRbus/Http 호출 없음)')
+            L.append('        Note over BSUBS,SNOTI: BSUBS does not notify through SNOTI (no sendnotiByRbus/Http call)')
             L.append('    end')
         else:
             # 위 opt 에서 지시가 들어갔을 때만 BSUBS 가 집을 것이 생긴다.
-            L.append('    opt ZONE_SVC_D 있음 — HFC 가입')
+            L.append('    opt ZONE_SVC_D present — Join HFC')
             L.extend(_bsubs_pre_lines('        '))
             resp_line = _upm_resp_line('        ')
             if resp_line:
@@ -380,9 +374,9 @@ def mermaid(code, route):
             L.append('    end')
             if code not in NO_NOTI:
                 # 보내는 쪽은 갈린다(규칙 2) — 여기는 진짜 alt 다.
-                L.append('    alt HFC 가입')
+                L.append('    alt Join HFC')
                 L.append('        BSUBS->>SNOTI: RBUS NOTI')
-                L.append('    else HFC 미가입')
+                L.append('    else Not enrolled in HFC')
                 L.append('        SDM->>SNOTI: RBUS NOTI')
                 L.append('    end')
             if code not in NO_NOTI:
@@ -397,11 +391,11 @@ def mermaid(code, route):
         L.append('')
     # TC 의 성패가 갈리는 자리. 위의 전문 왕복과 눈으로 구분되게 밴드로 감싼다.
     L.append('    rect %s' % BAND)
-    L.append('    Note over TOOL,PDB: ★ 판정 — ResultAck 뒤 settle 대기 → 반영될 때까지 재조회')
-    for step in PDB_POST.get(code, ['SELECT COUNT(*) — 반영 판정']):
+    L.append('    Note over TOOL, PDB: ★ Judgment — Wait for settle after ResultAck → Re-query until reflected')
+    for step in PDB_POST.get(code, ['SELECT COUNT(*) — Reflection judgment']):
         L.append('        TOOL->>PDB: %s' % step)
     if code in PDB_PRE:
-        L.append('        Note over TOOL,PDB: 두 집계가 같으면 성공')
+        L.append('        Note over TOOL,PDB: Success if two aggregates are equal.')
     L.append('    end')
     if code in RDS_EXPIRY:
         L.append('')
@@ -410,12 +404,12 @@ def mermaid(code, route):
 
 
 def anchor(code):
-    """섹션 앵커. 한글/백틱이 섞인 제목의 자동 앵커에 기대지 않는다."""
+    "Section anchor. Don't rely on automatic anchors for titles with mixed Korean/backticks."
     return 'cds-%s' % code.lower()
 
 
 def section(code):
-    """업무 코드 하나의 절. 문서 전체가 한 파일이라 h2 부터 시작한다."""
+    'Business Code One clause. Since the entire document is one file, it starts from h2.'
     name, tc, route, checks, note = T[code]
     label, rule = ROUTE_LABEL[route]
     fs = fields_of(code)
@@ -426,62 +420,62 @@ def section(code):
     L.append('')
     L.append('## `%s` — %s' % (code, name))
     L.append('')
-    L.append('| 항목 | 값 |')
+    L.append('| Item | value |')
     L.append('|---|---|')
-    L.append('| 업무 코드 | `%s` |' % code)
-    L.append('| 테스트 케이스 | %s |' % (
-        '`%s`' % tc if tc else '**없음** — 이 코드를 보내는 TC 가 아직 없다'))
-    L.append('| 알림 경로 | %s — %s |' % (label, rule))
-    L.append('| 알림 판정 | %s |' % (
-        '**건너뜀** — 예외 목록에 있음 (아래 ⚠️)' if code in EXEMPT
-        else '`Verify SBI Noti Sent` 가 도착을 확인'))
-    L.append('| UPM 연동 | %s |' % ('`0x07` 수신 → `0x08` 응답' if code in ('1X', '1Y') else '없음'))
-    L.append('| 예약 큐 적재 | %s |' % (
-        '있음' if code in ('K1', 'K5', 'Y9') else '없음'))
-    L.append('| Body 필드 수 | %d개 / 총 327B (고정) |' % len(fs))
+    L.append('| Business Code | `%s` |' % code)
+    L.append('| test case | %s |' % (
+        '`%s`' % tc if tc else '**None** — There is no TC sending this code yet'))
+    L.append('| Notification Path | %s — %s |' % (label, rule))
+    L.append('| Notification Judgment | %s |' % (
+        '**Skip** — in exception list (⚠️ below)' if code in EXEMPT
+        else '`Verify SBI Noti Sent` confirms arrival'))
+    L.append('| UPM integration | %s |' % ('Receive `0x07` → Reply `0x08`' if code in ('1X', '1Y') else 'None'))
+    L.append('| Loading reservation queue | %s |' % (
+        'Yes' if code in ('K1', 'K5', 'Y9') else 'None'))
+    L.append('| Body field count | %d units / total 327B (fixed) |' % len(fs))
     L.append('')
     if note:
         L.append('> %s' % note)
         L.append('')
-    L.append('### 콜플로우 — `%s`' % code)
+    L.append('### Callflow — `%s`' % code)
     L.append('')
     L.append(mermaid(code, route))
     L.append('')
-    L.append('### 전문 Body 필드 — `%s`' % code)
+    L.append('### message Body field — `%s`' % code)
     L.append('')
-    L.append('아래 %d개만 채우고 나머지는 공백이다 ([공통 규칙](#body-공통)).' % len(fs))
+    L.append('Fill in only %d below and leave the rest blank ([Common Rule](#body-common)).' % len(fs))
     L.append('')
-    L.append('| # | 필드 | 폭(B) |')
+    L.append('| # | field | Width (B) |')
     L.append('|---|---|---|')
     for i, n in enumerate(fs, 1):
         L.append('| %d | `%s` | %d |' % (i, n, SIZES[n]))
     L.append('')
-    L.append('### 판정 기준 — `%s`' % code)
+    L.append('### Judgment criteria — `%s`' % code)
     L.append('')
-    L.append('전문 왕복(`0016`/`0017`)으로는 판정하지 않는다 — [공통 규칙](#판정-공통) 참조.')
+    L.append('It is not judged by message round trip (`0016`/`0017`) — [See common rule ](#assertions-common).')
     L.append('')
     for c in checks:
         L.append('- %s' % c)
     L.append('')
     if code in EXEMPT:
-        L.append('#### ⚠️ `%s` 의 알림 판정은 현재 꺼져 있다' % code)
+        L.append("#### ⚠️ `%s`'s notification judgment is currently turned off" % code)
         L.append('')
-        L.append('이 코드는 `@{CDS_NOTI_EXEMPT_CODES}`(A1 / Z1)에 들어 있어 '
-                 '`Verify SBI Noti Sent` 가 **건너뛴다.**')
+        L.append('This code is in `@{CDS_NOTI_EXEMPT_CODES}`(A1 / Z1) '
+                 '`Verify SBI Noti Sent` is **skipped**')
         L.append('')
-        L.append('그런데 위 경로 규칙(2026-08-19)대로면 이 코드도 알림이 나간다 — '
-                 '**두 지시가 어긋나 있다.** 규칙이 앞의 것을 대체하는 것이면 예외 '
-                 '목록에서 이 코드를 빼면 되고, 경로는 정해지지만 SNOTI 가 PCF 로 '
-                 '보내지 않는 것이면 지금이 맞다.')
+        L.append('However, if the above path rule (2026-08-19) is followed, this code will also be notified — '
+                 '**Two instructions are out of sync.** Exception if the rule replaces the previous one. '
+                 'You can remove this code from the list, the path is determined, but SNOTI is converted to PCF. '
+                 "If you don't want to send it, now is the time.")
         L.append('')
-        L.append('확인되기 전까지 **판정을 켜지 않았다** — 켜서 틀리면 TC 가 이유 없이 '
-                 '실패하는 쪽이라 되돌리기 어렵다.')
+        L.append('**Judgment was not turned on until confirmed** — If you turn it on and get it wrong, TC will make a decision without reason. '
+                 'Since it is the one that fails, it is difficult to turn back.')
         L.append('')
     else:
-        L.append('알림은 `Verify SBI Noti Sent %s` 가 본다(도착 여부). '
-                 '경로는 수신만으로 구분되지 않아 규칙으로 계산해 실패 메시지에 싣는다.' % code)
+        L.append('The notification is viewed by `Verify SBI Noti Sent %s` (arrival or not). '
+                 'Since the path is not distinguished only by reception, it is calculated by rule and included in the failure message.' % code)
         L.append('')
-    L.append('<sub>[↑ 업무 코드 목록](#code-list)</sub>')
+    L.append('<sub>[↑ List of business codes](#code-list)</sub>')
     L.append('')
     return '\n'.join(L)
 
@@ -493,119 +487,119 @@ order = ['A1', '1X', '1Y', 'I2', 'I3', 'C1', 'G1', 'K1', 'K2', 'D3', 'Z1']
 
 # ── 머리말 ────────────────────────────────────────────────────────
 # 코드마다 똑같이 반복되던 설명(327B Body / 0016·0017 의 의미)은 여기 한 번만 둔다.
-doc = ['# CDS 업무 코드별 콜플로우', '',
-       '전문 하나가 PG 안에서 어떤 경로로 흐르고 무엇으로 판정되는지를 업무 코드별로 정리했다.',
-       '**필드 집합은 `resources/CdsHelper.py` 의 `_fill_command_fields()` 에서 뽑은 것**이라',
-       '규격서가 아니라 코드가 기준이다.', '',
-       '> 이 문서는 `gen_callflow.py` 가 생성한다. **직접 고치지 말 것** —',
-       '> 값을 바꾸려면 생성기의 표(`T` / `PDB_*` / `SDM_APPLY` …)를 고치고 다시 돌린다.',
-       '> `python docs/callflow/gen_callflow.py` (리포 루트에서)', '',
-       '## PG 프로세스 목록', '',
-       '이 흐름에 관여하는 PG 프로세스들이다. **슈트를 돌리기 전에 기동을 확인한다** —',
-       '전문은 정상으로 오가는데 뒤쪽 프로세스가 죽어 있으면 `0017` 은 `SC` 를 주고',
-       'PDB 판정만 조용히 실패한다. 이름은 `/PG/CFG/ST.cfg` 기준이다.', '',
-       '| 프로세스 | 다이어그램의 참여자 | 하는 일 |', '|---|---|---|',
-       '| `CDS201` | `PG.CDS` | 전문 수신, `T_CDS_ORDER_HIST` / `T_BAROD_ORDER_HIST` 적재, `0016`·`0017` 응답 |',
-       '| `P_SDM601` | `PG.SDM` | **주 처리**(골디락스) — 이력 폴링 → `T_5G_SUBS_*` 반영 → RBUS NOTI |',
-       '| `R_SDM601` | `PG.SDM` | **쿠폰 만료 처리**(골디락스) — `RDS601` 이 만든 만료 건을 집어 반영 |',
-       '| `P_SDM501` | `PG.SDM` | `P_SDM601` 과 같은 역할의 **알티베이스용** — `PCRF_SUPPORT=Y` 환경에서 돈다 |',
-       '| `S_SDM501` | `PG.SDM` | 알티베이스용 SDM 프로세스 — 역할 미확인, PG 소스로 확인 필요 |',
-       '| `R_SDM501` | `PG.SDM` | `R_SDM601` 과 같은 역할의 **알티베이스용** 쿠폰 만료 처리 — `PCRF_SUPPORT=Y` 환경에서 돈다 |',
-       '| `SNOTI501` | `PG.SNOTI` | 세션 조회 후 PCF 로 SBI Noti |',
-       '| `BSUBS201` | `PG.BSUBS` | BAROD(HFC) 처리, UPM 왕복, CellList 적재/삭제 |',
-       '| `RDS601` | `PG.RDS` | 예약 큐(`T_5G_RESERVED_JOB`) 폴링 — 쿠폰 만료(`K3`) 생성 |', '',
-       '다이어그램의 `PG.SDM` 은 **한 참여자로 그려져 있지만 실제로는 둘(또는 넷)이다.** 업무 코드',
-       '반영은 `P_SDM601`/`P_SDM501`, `K1` 절 아래쪽의 쿠폰 만료 구간만 `R_SDM601`/`R_SDM501` 이',
-       '맡는다. `5xx`(알티베이스) 는 지금 두 환경(DEV/TB) 모두 `PCRF_SUPPORT=N` 이라 돌지',
-       '않는다 — `../nodes/CDS.md` 의 "HIST 테이블은 두 개다" 절 참조.',
+doc = ['# Call flow by CDS business code', '',
+       'This developer reference describes PG processing and validation evidence for each CDS business code.',
+       '**Field sets are extracted directly from `libraries/CdsHelper.py` `_fill_command_fields()`**,',
+       'so the implementation, rather than the specification table, defines the generated layout.', '',
+       '> Generated by `gen_callflow.py`. **Do not edit this file directly.**',
+       '> Update the generator tables (`T`, `PDB_*`, `SDM_APPLY`, and related data), then regenerate:',
+       '> `python docs/callflow/gen_callflow.py` from the repository root.', '',
+       '## PG process list', '',
+       'These PG processes participate in the flow. **Confirm they are running before integration execution.**',
+       'A stopped downstream process can leave message exchanges apparently successful (`0017` returns `SC`)',
+       'while DB assertions fail. Process names come from `/PG/CFG/ST.cfg`.', '',
+       '| Process | Diagram participant | Responsibility |', '|---|---|---|',
+       '| `CDS201` | `PG.CDS` | Receive message, load `T_CDS_ORDER_HIST` / `T_BAROD_ORDER_HIST`, reply `0016`·`0017` |',
+       '| `P_SDM601` | `PG.SDM` | **Main Processing** (Goldilocks) — History polling → `T_5G_SUBS_*` reflection → RBUS NOTI |',
+       '| `R_SDM601` | `PG.SDM` | **Coupon expiration processing** (Goldilocks) — Pick up and reflect expiration cases created by `RDS601` |',
+       '| `P_SDM501` | `PG.SDM` | **For Altibase** with the same role as `P_SDM601` — Runs in the `PCRF_SUPPORT=Y` environment |',
+       '| `S_SDM501` | `PG.SDM` | SDM process for Altibase — role unknown, needs confirmation with PG source |',
+       '| `R_SDM501` | `PG.SDM` | Coupon expiration processing **for Altibase** with the same role as `R_SDM601` — Runs in the `PCRF_SUPPORT=Y` environment |',
+       '| `SNOTI501` | `PG.SNOTI` | SBI Noti to PCF after session inquiry |',
+       '| `BSUBS201` | `PG.BSUBS` | BAROD (HFC) processing, UPM round trip, CellList load/delete |',
+       '| `RDS601` | `PG.RDS` | Poll reservation queue (`T_5G_RESERVED_JOB`) — generate coupon expiration (`K3`) |', '',
+       'The diagram combines SDM into one participant, but two or four processes can be involved.',
+       'Business-code application uses `P_SDM601`/`P_SDM501`; only coupon expiration in the K1 section',
+       'uses `R_SDM601`/`R_SDM501`. The Altibase `5xx` processes are not running in the current DEV/TB',
+       'environments because both have `PCRF_SUPPORT=N`. See the two-HIST-table section of `../../tests/cds/AGENTS.md`.',
        '',
-       '> **쿠폰 만료(`K3`)는 `RDS601` → `R_SDM601` 두 프로세스를 탄다** — 나머지 업무 코드와',
-       '> 경로가 다르다. `TC-CDS-020` 이 3분을 기다리다 실패하면 이 둘을 본다.',
-       '> 예약이 `STATUS=E` 로만 바뀌고 `T_5G_RESERVED_ORDER_HIST` 에 만료 전문이 안 생기면',
-       '> `R_SDM601` 이 집을 것이 없어 쿠폰 행이 영영 남는다 (2026-08-27 관측).', '',
+       '> Coupon expiration (`K3`) uses `RDS601` followed by `R_SDM601`, unlike other business codes.',
+       '> If `TC-CDS-020` fails after its three-minute wait, inspect these two processes.',
+       '> If the reservation changes only to `STATUS=E` and there is no expiration message in `T_5G_RESERVED_ORDER_HIST`,',
+       '> `R_SDM601` has nothing to consume, so the coupon row remains indefinitely (observed 2026-08-27).', '',
 
-       '## HIST 규칙 (2026-08-19)', '',
-       'PG.CDS 가 전문을 어느 HIST 테이블에 적재하느냐가 **그 코드를 BSUBS 가 처리하는지**를',
-       '가른다 ([`T_CDS_ORDER_HIST`/`T_BAROD_ORDER_HIST` 적재 조건은 `../nodes/CDS.md` 의',
-       '"HIST 테이블은 두 개다" 절 참조). 위에서부터 차례로 적용한다.', '',
-       '**다만 "처리"와 "알림(SNOTI 통보)"은 별개다 — `C1`/`G1`/`D3` 는 예외다.** `1X`/`1Y`',
-       '는 BSUBS 가 처리하면서 SNOTI 로도 직접 알리지만, `C1`/`G1`/`D3` 는 BSUBS 가',
-       '`T_BAROD_ORDER_HIST` 를 폴링해 UPM 왕복(CellInfo 갱신)까지는 해도 **SNOTI 로',
-       '알리지는 않는다** — SDM 이 무조건 알리는 것과는 별도 경로다. 아래 ⚠️ 참조.', '',
-       '| # | 조건 (업무 코드) | HIST 경로 |', '|---|---|---|',
-       '| 1 | `1X` · `1Y` | 조건 없이 전부 **CDS → BSUBS** (`T_BAROD_ORDER_HIST`) |',
-       '| 2 | HFC 가입 상태 + `D3` `C1` `G1` `Z1` | **CDS → BSUBS** (`T_BAROD_ORDER_HIST`) |',
-       '| 3 | 전부 | 조건 없이 전부 **CDS → SDM** (`T_CDS_ORDER_HIST`) |', '',
-       '규칙 1·3 은 업무 코드만으로 고정되고, 규칙 2 만 HFC 가입 상태로 더 갈린다',
-       '(미가입이면 `T_BAROD_ORDER_HIST` 에 안 쌓여 BSUBS 가 폴링할 것이 없고, 그래서',
-       'SDM 경유가 된다).', '',
-       '두 경로는 `PG.SNOTI` 에서 합류해 같은 SBI Noti 로 나간다 — **수신만으로는 구분되지 않는다.**',
-       '그래서 슈트는 규칙으로 예상 경로를 계산해 실패 메시지에 싣는다.', '',
-       '> ⚠️ 지금 슈트 순서로는 **규칙 2 의 BSUBS 분기를 타는 TC 가 하나도 없다.**',
-       '> `1Y`(004)가 HFC 를 해지한 뒤에 `C1`(007) · `G1`(015) · `D3`(027) · `Z1`(028)이',
-       '> 돌기 때문에 넷 다 SDM 경유로 판정된다.', '',
-       '> ⚠️ **`C1`/`G1`/`D3` 는 BSUBS 가 SNOTI 로 알리지 않는다 (확인, 2026-10-16).**',
-       '> `processInfoChgReq`/`processInfoChgRes`(`C1`/`G1`), `processSubsChgReq`(`D3`)',
-       '> 모두 끝까지 읽어도 `sendnotiByRbus`/`sendnotiByHttp` 호출이 없다 — HFC 가입',
-       '> 상태라도 BSUBS 는 UPM 왕복(CellInfo 갱신)만 하고 끝낸다. SBI Noti 는 SDM 의',
-       '> 무조건 `doNoti()` 경유 **한 번뿐**이다. **"`D3` 는 BSUBS 경유로도 알려 HFC 가입',
-       '> 상태에서 SBI Noti 가 두 번 나간다"던 이전 메모(2026-08-28)는 틀렸다** — BSUBS',
-       '> 자신이 SNOTI 로 알리는 것은 규칙 1(`1X`/`1Y`, 무조건)뿐이다.', '',
-       '> ⚠️ **BSUBS 의 폴링 소스가 CDS 의 쓰기와 비대칭일 수 있다 (의도 확인 필요).**',
-       '> BSUBS `PollingMgr::service` 는 `bSelectAltibase_ == true` 면 **알티베이스만**',
-       '> 폴링한다 — 골디락스는 안 본다. 반면 `T_BAROD_ORDER_HIST` 를 쓰는',
-       '> `UpdateCdsHist` 는 (지금 환경에서는) **두 DB 모두에** INSERT 한다. 쓰기는 둘 다',
-       '> 하는데 읽기는 하나만 보는 구조라, `bSelectAltibase_` 가 쓰기 쪽 상황과 어긋나게',
-       '> 설정되면 BSUBS 가 보지 않는 DB 쪽 반영은 영원히 놓친다.', '',
-       '> | 환경 | `PCRF_SUPPORT` | `ALTIBASE_USE` | 영향 |',
+       '## HIST Rules (2026-08-19)', '',
+       'The HIST table written by PG.CDS determines whether BSUBS processes a business code.',
+       'See the two-HIST-table section of `../../tests/cds/AGENTS.md` for write conditions on',
+       '`T_CDS_ORDER_HIST` and `T_BAROD_ORDER_HIST`. Apply the following rules from top to bottom.', '',
+       '**Processing and SNOTI notification are separate.** BSUBS processes `1X`/`1Y` and notifies SNOTI directly.',
+       'For `C1`/`G1`/`D3`, BSUBS polls `T_BAROD_ORDER_HIST` and performs the UPM round trip',
+       'to update CellInfo, but **does not notify SNOTI**. SDM sends its own unconditional notification',
+       'through a separate path. See the detailed note below.', '',
+       '| Rule | Business-code condition | HIST path |', '|---|---|---|',
+       '| 1 | `1X`, `1Y` | Always **CDS → BSUBS** (`T_BAROD_ORDER_HIST`) |',
+       '| 2 | HFC already subscribed, and `D3`, `C1`, `G1`, or `Z1` | **CDS → BSUBS** (`T_BAROD_ORDER_HIST`) |',
+       '| 3 | All codes | Always **CDS → SDM** (`T_CDS_ORDER_HIST`) |', '',
+       'Rules 1 and 3 depend only on the business code; rule 2 also depends on HFC subscription state.',
+       'Without an HFC subscription, no matching BAROD history is written for rule 2, so BSUBS has',
+       'nothing to poll and processing follows the SDM path.', '',
+       'The notification paths converge at `PG.SNOTI`; received SBI payloads alone do not identify the origin.',
+       'The suite therefore calculates the expected route from these rules and includes it in failures.', '',
+       '> Historical observation before the dedicated HFC chain: rule 2 was not exercised while HFC was subscribed.',
+       '> `1Y` (004) cancels HFC before `C1` (007), `G1` (015), `D3` (027), and `Z1` (028),',
+       '> That earlier ordering exercised SDM paths. Current cases 024–027 explicitly restore HFC before C1/G1/D3; see the CDS node specification.', '',
+       '> **BSUBS does not notify SNOTI for `C1`/`G1`/`D3` (confirmed 2026-10-16).**',
+       '> `processInfoChgReq`/`processInfoChgRes` (`C1`/`G1`) and `processSubsChgReq` (`D3`)',
+       '> contain no `sendnotiByRbus` or `sendnotiByHttp` calls. Even for HFC subscribers, BSUBS',
+       '> completes only the UPM CellInfo update. The SBI notification is sent **once**, through SDM',
+       '> `doNoti()`. The previous 2026-08-28 note claiming that HFC `D3` sends two SBI notifications',
+       '> was incorrect. BSUBS directly notifies SNOTI only for rule 1,',
+       '> namely unconditional `1X`/`1Y` processing.', '',
+       '> **BSUBS polling and CDS writes may target different DB sets; intent still needs confirmation.**',
+       '> With `bSelectAltibase_ == true`, BSUBS `PollingMgr::service` polls only Altibase,',
+       '> not Goldilocks. `UpdateCdsHist`, which writes `T_BAROD_ORDER_HIST`, may insert into',
+       '> both databases. If read-side selection does not match the write-side configuration,',
+       '> updates in the database that BSUBS does not poll can remain unprocessed.',
+       '> Check both settings together when changing this configuration.', '',
+       '> | Environment | `PCRF_SUPPORT` | `ALTIBASE_USE` | Impact |',
        '> |---|---|---|---|',
-       '> | DEV | `N` | `N` | 쓰기·읽기 모두 골디락스만 — 일치, 증상 없음 |',
-       '> | TB | `N` | `Y` | 쓰기는 양쪽, 읽기는 골디락스만 — 어긋나지만 골디락스엔 항상 들어가 있어 증상 없음 |', '',
-       '> 두 환경 다 `PCRF_SUPPORT=N` 이라 지금은 증상이 난 적이 없다. `PCRF_SUPPORT=Y` 로',
-       '> 바뀌는 환경이 생기면 그때 `ALTIBASE_USE` 값을 꼭 같이 확인할 것.', '',
-       '## 다이어그램 읽는 법', '',
-       '주황 밴드(`★ 판정`)로 감싼 구간이 **TC 의 성패를 가르는 자리**다. 그 위의 전문 왕복과',
-       'PG 내부 처리는 배경이 없다 — `0017 CommandResult` 가 `SC` 여도 밴드 안이 틀리면 실패다.',
-       '전후 비교형(`C1` `G1` `D3`)은 밴드가 둘이다 — 전문 앞의 **기준선**과 뒤의 **집계**.', '',
-       '<a id="판정-공통"></a>', '',
-       '## 판정의 공통 규칙 — 전문 왕복으로는 판정하지 않는다', '',
-       '아래는 11개 코드에 모두 같이 적용된다. 각 절의 "판정 기준"은 이 위에 얹히는 코드별 조건이다.', '',
-       '`0016 CommandRequestACK` 는 **받았다는 확인**이라 처리 전에 나간다 — 판정에 쓸 수 없다.', '',
-       '`0017 CommandResult` 가 나르는 것은 **전문 이력 적재의 성패**다. '
-       'INSERT 가 실패하면 `FA`, 성공하면 Body 내용이 업무적으로 맞든 틀리든 `SC` 다.',
-       '가입자 테이블 반영은 PG.SDM 이 나중에 폴링해서 하므로 **PDB 로만 판정된다.**', '',
-       '<a id="body-공통"></a>', '',
-       '## 전문 Body 의 공통 규칙 — 항상 327B', '',
-       'Body 는 업무 코드와 무관하게 **항상 327B** 다. 코드별로 채우는 필드만 다르고 나머지는 공백이다.', '',
-       '출처는 `resources/CdsHelper.py` 의 `_fill_command_fields()` 분기다 — '
-       '**규격서가 아니라 이 코드가 와이어의 기준이다.**',
-       '★ 분기가 선언하지 않은 필드는 값을 넘겨도 **조용히 버려진다.**', '',
+       '> | DEV | `N` | `N` | Goldilocks for both writing and reading — matching, no symptoms |',
+       '> | TB | `N` | `Y` | Writes both DBs, reads Goldilocks only; no observed symptom because Goldilocks receives every write |', '',
+       '> Both current environments use `PCRF_SUPPORT=N`; no resulting symptoms have been observed.',
+       '> Check `ALTIBASE_USE` as well whenever an environment switches to `PCRF_SUPPORT=Y`.', '',
+       '## How to read diagrams', '',
+       'Orange bands (`★ Assertions`) identify the assertions that determine TC success or failure.',
+       'Unshaded message exchanges and internal processing provide context. `0017=SC` does not override a failed assertion.',
+       'Before/after checks (`C1`, `G1`, `D3`) have two bands: the pre-send baseline and the post-send aggregate.', '',
+       '<a id="assertions-common"></a>', '',
+       '## Common rule for judgment — judgment is not made through message round trip', '',
+       'These rules apply to all 11 codes. Each code section adds its specific acceptance criteria.', '',
+       '`0016 CommandRequestACK` acknowledges receipt before processing and cannot prove business success.', '',
+       'What `0017 CommandResult` carries is **the success or failure of loading message history**. '
+       'If INSERT fails, it is `FA`. If it succeeds, the body content is `SC`, regardless of whether it is business-wise or not.',
+       'PG.SDM applies subscriber changes asynchronously, so verify application through PDB assertions.', '',
+       '<a id="body-common"></a>', '',
+       '## Common rules for message body — always 327B', '',
+       'The body is always 327B. Each code fills its own fields and leaves all others space-padded.', '',
+       'The source is the `_fill_command_fields()` branch of `libraries/CdsHelper.py` — '
+       '**This code, not the specifications, is the standard for the wire.**',
+       'Fields not handled by a code branch are silently discarded even when supplied.', '',
        '<a id="code-list"></a>', '',
-       '## 업무 코드', '',
-       '11개 전부 슈트가 실제로 보내는 코드다. `K3`(쿠폰 만료)은 여기 없다 —',
-       'CDS 인입이 아니라 **PG.RDS 가 만료 시각에 예약 큐를 보고 스스로 만든다**',
-       '([K1](#cds-k1) 절의 마지막 두 단계).', '',
-       '| 업무 코드 | 내용 | TC | 경로 | 알림 판정 |', '|---|---|---|---|---|']
+       '## Business code', '',
+       'All 11 listed codes are actually sent by the suite. `K3` is not a CDS input code:',
+       'PG.RDS creates it when the reservation queue reaches coupon expiration time.',
+       'See the final two steps in [K1](#cds-k1).', '',
+       '| Business code | Description | TC | Route | Notification assertion |', '|---|---|---|---|---|']
 for c in order:
     name, tc, route, _, _ = T[c]
-    lbl = {'BSUBS-always': 'BSUBS (무조건)',
-           'BSUBS-if-hfc': 'BSUBS / SDM (HFC 상태)',
+    lbl = {'BSUBS-always': 'BSUBS (unconditional)',
+           'BSUBS-if-hfc': 'BSUBS/SDM (HFC status)',
            'SDM': 'SDM'}[route]
-    mark = '건너뜀 ⚠️' if c in EXEMPT else '확인'
+    mark = 'Skip ⚠️' if c in EXEMPT else 'OK'
     doc.append('| [`%s`](#%s) | %s | %s | %s | %s |' % (
-        c, anchor(c), name, '`%s`' % tc if tc else '— (TC 없음)', lbl, mark))
-doc += ['', '⚠️ = `@{CDS_NOTI_EXEMPT_CODES}` 에 있어 판정을 건너뛴다. '
-        '위 경로 규칙과 어긋나는 지점이라 확인이 필요하다(해당 절의 ⚠️ 참조).', '']
+        c, anchor(c), name, '`%s`' % tc if tc else '— (no TC)', lbl, mark))
+doc += ['', '⚠️ = Skip the judgment in `@{CDS_NOTI_EXEMPT_CODES}`. '
+        'This is a point that violates the above route rules, so confirmation is required (see ⚠️ in the relevant section).', '']
 
 # ── 코드별 절 ─────────────────────────────────────────────────────
 for code in order:
     doc.append(section(code))
     print('  %-4s %2d fields' % (code, len(fields_of(code))))
 
-doc += ['---', '', '## 그 밖의 문서', '',
-        '- [../nodes/CDS.md](../nodes/CDS.md) — CDS 노드 스펙 (인코딩 표, 함정, LTE/SA 차이)',
-        '- `tests/cds/cds_tests.robot` — 위 표의 TC 들',
-        '- `resources/CdsHelper.py` — `_fill_command_fields()` (필드 집합의 출처)', '']
+doc += ['---', '', '## Other documents', '',
+        '- [../../tests/cds/AGENTS.md](../../tests/cds/AGENTS.md) — CDS node specifications (encoding table, pitfalls, LTE/SA differences)',
+        '- `tests/cds/cds_tests.robot` — TCs in the table above',
+        '- `libraries/CdsHelper.py` — `_fill_command_fields()` (source of field set)', '']
 
 out = os.path.join(OUT, 'cds_callflow.md')
 io.open(out, 'w', encoding='utf-8', newline='').write(chr(10).join(doc))

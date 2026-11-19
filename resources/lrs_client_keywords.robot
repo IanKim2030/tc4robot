@@ -19,8 +19,8 @@ Documentation
 Library    Collections
 Library    String
 Library    BuiltIn
-Library    ${CURDIR}/TcpHelper.py     WITH NAME    Tcp
-Library    ${CURDIR}/HttpHelper.py    WITH NAME    Http
+Library    ${CURDIR}/../libraries/TcpHelper.py     WITH NAME    Tcp
+Library    ${CURDIR}/../libraries/HttpHelper.py    WITH NAME    Http
 Resource   ${CURDIR}/common_keywords.robot
 
 *** Variables ***

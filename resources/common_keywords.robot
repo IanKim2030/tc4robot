@@ -17,7 +17,7 @@ Library    Collections
 Library    String
 Library    DateTime
 Library    BuiltIn
-Library    ${CURDIR}/TcpHelper.py    WITH NAME    Tcp
+Library    ${CURDIR}/../libraries/TcpHelper.py    WITH NAME    Tcp
 
 
 *** Keywords ***

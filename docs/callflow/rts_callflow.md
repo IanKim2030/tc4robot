@@ -1,107 +1,107 @@
-# RTS `L1`/`L2` — 로밍 데이터 차단
+# RTS `L1`/`L2` — Roaming data blocking
 
-| 항목 | 값 |
+| item | value |
 |---|---|
 | SVC_CODE | `L1`(→ SVC_ID=`W_DATA_ROAMING_BLOCK`) / `L2`(→ SVC_ID=`L_DATA_ROAMING_BLOCK`) |
-| 테스트 케이스 | `TC-RTS-001`(WCDMA 차단) / `002`(WCDMA 해제) / `003`(LTE 차단) / `004`(LTE 해제) |
-| 알림 경로 | `PG.SDM_5G` → `PG.SNOTI` → PCF (SBI Noti) — 사용자 확인 |
-| 알림 판정 | `Verify RTS SBI Noti Sent` 가 도착을 확인 |
-| UPM 연동 | 없음 |
-| Body 폭 | 17B(이번 범위) — 와이어 오프셋 0(SVC_CODE)/2(MDN)/14(로밍 플래그) |
+| test case | `TC-RTS-001` (block WCDMA) / `002` (disable WCDMA) / `003` (block LTE) / `004` (disable LTE) |
+| Notification Path | `PG.SDM_5G` → `PG.SNOTI` → PCF (SBI Noti) — User confirmation |
+| Notification verdict | `Verify RTS SBI Noti Sent` confirms arrival |
+| UPM integration | None |
+| Body width | 17B (this range) — wire offset 0 (SVC_CODE)/2 (MDN)/14 (roaming flags) |
 
-> ⚠ RTS 는 CDS 문서의 "PG.RDS"(쿠폰 예약작업 폴러)와 **별개 인터페이스**다. 이름이 비슷해서
-> 생긴 혼동으로 이 노드가 추가됐다 — 절대 같은 것으로 취급하지 말 것 ([nodes/RTS.md](../nodes/RTS.md)).
+> ⚠ RTS is a separate interface from “PG.RDS” (coupon reservation task poller) in the CDS document. Because the names are similar
+> This node was added due to confusion — never treat them as the same thing ([../../tests/rts/AGENTS.md](../../tests/rts/AGENTS.md)).
 
-> L1/L2 는 ON/OFF 쌍이 아니라 **망 종류**다(사용자 확인, 2026-10-27) — L1=WCDMA, L2=LTE.
-> 차단/해제는 코드가 아니라 로밍 플래그(`Y`/`N`)로 가른다. 아래 다이어그램은 두 코드가
-> 구조적으로 동일해서 하나로 합쳐 그렸다(달라지는 값만 표에 분리).
+> L1/L2 is not an ON/OFF pair, but a  network type (user confirmation, 2026-10-27) — L1=WCDMA, L2=LTE.
+> Blocking/unblocking is determined by roaming flags (`Y`/`N`) rather than codes. The diagram below shows the two codes
+> Since they are structurally the same, they are combined into one (only the values that change are separated in the table).
 
-## PG 프로세스 목록
+## PG process list
 
-슈트를 돌리기 전에 기동을 확인한다. 이름은 `/PG/CFG/ST.cfg` 기준이다.
+Check startup before running the suite. The name is based on `/PG/CFG/ST.cfg`.
 
-| 프로세스 | 다이어그램의 참여자 | 하는 일 |
+| process | Participants in the diagram | What you do |
 |---|---|---|
-| `RTS201` | `PG.RTS` | Order(`11`) 수신, `T_RTS_ORDER_HIST` 적재, Ack(`12`) 응답 |
-| `P_SDM601` | `PG.SDM_5G` | 이력 폴링 → `T_5G_SUBS_SERVICE` 반영 → RBUS NOTI |
-| `SNOTI501` | `PG.SNOTI` | 세션 조회 후 PCF 로 SBI Noti |
+| `RTS201` | `PG.RTS` | Order(`11`) received, `T_RTS_ORDER_HIST` loaded, Ack(`12`) responded |
+| `P_SDM601` | `PG.SDM_5G` | History polling → Reflection of `T_5G_SUBS_SERVICE` → RBUS NOTI |
+| `SNOTI501` | `PG.SNOTI` | SBI Noti to PCF after session inquiry |
 
-뒤의 둘은 **CDS 흐름과 같은 프로세스다** ([cds_callflow.md](cds_callflow.md#pg-프로세스-목록)).
-그래서 `P_SDM601` 이나 `SNOTI501` 이 죽으면 RTS 와 CDS 가 **함께** 무너진다 — RTS 만
-실패하면 `RTS201` 쪽을, 둘 다 실패하면 뒤쪽을 본다.
+The latter two are the same process as the CDS flow ([cds_callflow.md](cds_callflow.md#pg-process-list)).
+So `P_SDM601` Ina `SNOTI501` If this dies, RTS and CDS collapse together — RTS only
+If you fail, look towards `RTS201`, and if both fail, look behind you.
 
-`12 Order Ack` 는 `RTS201` 이 준다. 그러니 **Ack 가 `SC` 여도 `P_SDM601` 이 죽어 있으면**
-가입자 반영과 알림이 통째로 안 일어난다 — 아래 PDB 판정에서만 드러난다.
-CDS 의 쿠폰 만료를 맡는 `R_SDM601` 은 이 흐름에 관여하지 않는다.
+`12 Order Ack` gives `RTS201`. So even if Ack is `SC`, if `P_SDM601` is dead, then
+Subscriber reflection and notification do not occur at all — it is only revealed in the PDB decision below.
+`R_SDM601`, which is in charge of CDS coupon expiration, is not involved in this flow.
 
-## 콜플로우
+## call flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant TOOL as ROBOT (RTS 역할)
+    participant TOOL as ROBOT (RTS role)
     participant PRTS as PG.RTS
     participant PDB as PDB
     participant SDM5G as PG.SDM_5G
     participant SNOTI as PG.SNOTI
-    participant PCF as ROBOT (PCF 역할)
+    participant PCF as ROBOT (PCF role)
 
-    TOOL->>PRTS: 11 Order (L1/L2) — Body 17B (SVC_CODE+MDN+로밍플래그)
-    alt TID 정상 & INSERT 성공
+    TOOL->>PRTS:11 Order (L1/L2) — Body 17B (SVC_CODE+MDN+Roaming Flag)
+    alt TID normal & INSERT successful
         PRTS->>PDB: INSERT T_RTS_ORDER_HIST (TRANSACTION_ID, MDN, ORDER_DATA 265B)
         PRTS->>PDB: UPDATE T_RTS_ORDER_TID SET TID...
         PRTS-->>TOOL: 12 Order Ack (SC, reason=0)
-    else TID 역전(3) / 중복(4) / INSERT 실패(2)
+    else TID reversal (3) / duplication (4) / INSERT failure (2)
         PRTS-->>TOOL: 12 Order Ack (FA, reason≠0)
     end
-    Note over TOOL,PRTS: Ack 는 접수 확인일 뿐 — 가입자 반영은 아래 PDB 판정으로 확인
+    Note over TOOL,PRTS:Ack is only confirmation of receipt — reflection of subscribers is confirmed by PDB decision below
 
     SDM5G->>PDB: SELECT T_RTS_ORDER_HIST (Polling)
     SDM5G->>PDB: INSERT T_5G_SUBS_SERVICE (SVC_ID=W_DATA_ROAMING_BLOCK / L_DATA_ROAMING_BLOCK)
-    SDM5G->>SNOTI: NOTI 트리거
+    SDM5G->>SNOTI:NOTI trigger
     SNOTI->>PDB: SELECT T_SESSION_INFO / T_SMF_SESSION_INFO (MDN)
     SNOTI->>PCF: SBI Noti (h2c)
 
     rect rgba(255, 176, 32, 0.14)
-    Note over TOOL,PDB: ★ 판정 — 재조회로 반영 대기(${RTS_DB_WAIT}/${RTS_DB_WAIT_INTERVAL})
-        TOOL->>PDB: T_5G_SUBS_SERVICE 저장 확인 (MDN + SVC_ID)
-        TOOL->>PCF: SBI Noti 도착 확인 (${RTS_NOTI_WAIT})
+    Note over TOOL,PDB:★ Judgment — Wait for reflection by requery (${RTS_DB_WAIT}/${RTS_DB_WAIT_INTERVAL})
+        TOOL->>PDB:Confirm saving T_5G_SUBS_SERVICE (MDN + SVC_ID)
+        TOOL->>PCF:SBI Noti arrival confirmation (${RTS_NOTI_WAIT})
     end
 ```
 
-## 코드별 값
+## Code-specific values
 
-| TC | SVC_CODE(망) | 동작 | 로밍 플래그(와이어 offset14 / DB 오프셋 85) | SVC_ID |
+| TC | SVC_CODE(Network) | action | Roaming flag (wire offset14 / DB offset 85) | SVC_ID |
 |---|---|---|---|---|
-| 001 | `L1` (WCDMA) | 차단 | `Y` / `Y` | `W_DATA_ROAMING_BLOCK` 1건 이상 확인 |
-| 002 | `L1` (WCDMA) | 해제 | `N` / `N` | 확인 안 함(해제 시 행 처리 미확인) |
-| 003 | `L2` (LTE) | 차단 | `Y` / `Y` | `L_DATA_ROAMING_BLOCK` 1건 이상 확인 |
-| 004 | `L2` (LTE) | 해제 | `N` / `N` | 확인 안 함(해제 시 행 처리 미확인) |
+| 001 | `L1` (WCDMA) | block | `Y` / `Y` | `W_DATA_ROAMING_BLOCK` Confirmed 1 or more cases |
+| 002 | `L1` (WCDMA) | off | `N` / `N` | Not confirmed (unconfirmed when deactivated) |
+| 003 | `L2` (LTE) | block | `Y` / `Y` | `L_DATA_ROAMING_BLOCK` Confirmed 1 or more cases |
+| 004 | `L2` (LTE) | off | `N` / `N` | Not confirmed (unconfirmed when deactivated) |
 
-**와이어(수신) 오프셋과 DB 저장 오프셋이 다르다** — 각각 14 / 85. `T_RTS_ORDER_HIST.ORDER_DATA`
-는 PG 가 265B 로 재조립해 넣는 별도 버퍼라서 그렇다. 상세는 [nodes/RTS.md](../nodes/RTS.md#wire-인코딩--★-이중-오프셋-구조-이-노드의-핵심-함정) 참조.
+Wire (receive) offset and DB storage offset are different — 14 / 85 respectively. `T_RTS_ORDER_HIST.ORDER_DATA`
+This is because PG is a separate buffer that is reassembled into 265B. For details, see [../../tests/rts/AGENTS.md](../../tests/rts/AGENTS.md#wire-encoding-two-offset-systems).
 
-## 판정 기준
+## Judgment criteria
 
-`12 Order Ack` 는 **접수(InsertOrder) 성패**만 나른다 — `InsertOrder` 가 실제로 성공했을 때만
-`SC`를 준다는 점은 CDS `CommandResult`보다 신뢰도가 높지만, Body 내용(SVC/로밍 플래그)이
-잘못돼도 INSERT 자체는 성공하면 `SC`가 나온다는 점은 CDS 와 같다. 가입자 서비스 테이블 반영은
-`PG.SDM_5G` 가 나중에 폴링해서 하므로 **PDB 로만 판정된다.**
+`12 Order Ack` only carries InsertOrder success or failure — only when `InsertOrder` actually succeeds
+Giving `SC` is more reliable than CDS `CommandResult`, but the body content (SVC/roaming flag) is
+It is the same as CDS in that even if something goes wrong, if the INSERT itself succeeds, `SC` comes out. Subscriber service table reflection
+Since `PG.SDM_5G` polls later, it is determined only as PDB.
 
-- `T_RTS_ORDER_HIST.ORDER_DATA[85]`(SQL `SUBSTR(ORDER_DATA, 86, 1)`) = 요청한 로밍 플래그 — **프로토콜 계층**(TC-RTS-001~004 공통)
-- `T_5G_SUBS_SERVICE`(MDN, SVC_ID) = **1건 이상** — **업무 계층**(차단 TC-RTS-001/003 만, 사용자 확인). 해제 TC-RTS-002/004 는 행 처리(삭제/잔존)가 확인되지 않아 보지 않는다
-- `Verify RTS SBI Noti Sent` — PCF SBI Noti 도착 여부(사용자 확인)
+- `T_RTS_ORDER_HIST.ORDER_DATA[85]` (SQL `SUBSTR(ORDER_DATA, 86, 1)`) = requested roaming flag — protocol layer (common to TC-RTS-001~004)
+- `T_5G_SUBS_SERVICE`(MDN, SVC_ID) = 1 more than  — Business layer (block TC-RTS-001/003 only, user confirmed). Clear TC-RTS-002/004 is not viewed because row processing (delete/remaining) is not confirmed.
+- `Verify RTS SBI Noti Sent` — Whether PCF SBI Noti has arrived (confirmed by user)
 
-`PG.SDM_5G` 가 정확히 어떤 프로세스인지(`SDM_5G/OrderDataReader.cpp` 가 `T_RTS_ORDER_HIST`를
-읽는 코드는 확인했으나 그 이후 처리 전체는 조사 범위 밖이었다)와 반영까지 걸리는 지연 시간은
-**확인 필요** — 현재 `${RTS_DB_WAIT}`/`${RTS_NOTI_WAIT}` 는 CDS 값을 참고한 추정치다.
+`PG.SDM_5G` is exactly what process it is (`SDM_5G/OrderDataReader.cpp` is `T_RTS_ORDER_HIST`
+The reading code was confirmed, but the entire processing after that was outside the scope of the investigation) and the delay time until reflection was
+Need confirmation — Currently, `${RTS_DB_WAIT}`/`${RTS_NOTI_WAIT}` are estimates referring to CDS values.
 
-**TC-RTS-005(negative, 패킷 크기 검증)**은 위 콜플로우를 타지 않는다 — Data Size 헤더 필드를
-실제 Body 보다 크게 거짓 신고해 `RTS201` 단계에서 곧바로 Order Ack(FA, REASON=`E_WRONG_SIZE`
-=12)로 거부되는 것을 기대하므로, `InsertOrder` 이후의 PDB/Noti 흐름 자체가 발생하지 않아야
-정상이다. 상세는 [nodes/RTS.md](../nodes/RTS.md) 참조.
+TC-RTS-005(negative, packet size verification) does not use the above callflow — Data Size header field
+A false report was made larger than the actual body and an Order Ack (FA, REASON=`E_WRONG_SIZE`) was received immediately at the `RTS201` stage.
+=12), so the PDB/Noti flow itself after `InsertOrder` should not occur.
+It's normal. For details, see [../../tests/rts/AGENTS.md](../../tests/rts/AGENTS.md).
 
-## 관련 문서
+## Related documents
 
-- [RTS 노드 스펙](../nodes/RTS.md) — 인코딩 표, 이중 오프셋, 함정, 확인 필요
-- `tests/rts/rts_tests.robot` — `TC-RTS-001`~`004`(WCDMA/LTE 차단·해제) / `TC-RTS-005`(negative)
+- [RTS Node Spec](../../tests/rts/AGENTS.md) — Encoding table, double offset, pitfalls, verification required
+- `tests/rts/rts_tests.robot` — `TC-RTS-001`~`004` (WCDMA/LTE block/unblock) / `TC-RTS-005` (negative)

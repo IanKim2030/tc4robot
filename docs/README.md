@@ -1,66 +1,70 @@
-# tc4robot 문서 인덱스
+# tc4robot Documentation Index
 
-SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스트 슈트.
-**7개 노드** — NAG · PCF · LRS · UPM · CDS · NWDAF · RTS.
+A Robot Framework-based regression automation testing tool for SK Telecom's **PG (PCRF Gateway)**.
+Seven nodes: NAG, PCF, LRS, UPM, CDS, NWDAF, and RTS.
 
-## 먼저 읽을 것
+## Start Here
 
-| 문서 | 내용 |
+| Document | Purpose |
 |---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 4계층 구조와 모듈 배치 — **여기부터** |
-| [INTERFACES.md](INTERFACES.md) ★ | 노드 간 연동 매트릭스 · 방향·포트·헤더·**opcode 충돌** |
+| [Agent instructions](../AGENTS.md) | Shared rules and task-specific reading paths |
+| [Applied structure and checks](agent/current-state.md) | Migration summary, verification evidence, and remaining limits |
+| [Architecture](ARCHITECTURE.md) | Four-layer structure and module layout |
+| [Interfaces](INTERFACES.md) | Connection direction, ports, headers, and opcode collisions |
+| [Development workflow](agent/workflow.md) | Setup, validation, and live integration execution |
 
-## 작업할 때
+## Task References
 
-| 문서 | 내용 |
+| Document | Purpose |
 |---|---|
-| [TC_CONVENTION.md](TC_CONVENTION.md) | TC 명명·태그·템플릿·비활성화·판정 한계 |
-| [RESOURCES.md](RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 11종 카탈로그 |
-| [ENVIRONMENTS.md](ENVIRONMENTS.md) | dev/stg/prd 설정, 변수 우선순위, 환경 축 변수 |
+| [TC conventions](../tests/TC_CONVENTION.md) | Naming, tags, templates, disabled tests, and assertion limits |
+| [Resources](../resources/AGENTS.md) | Shared keywords, variables, and Python helpers |
+| [Environments](ENVIRONMENTS.md) | dev/stg/prd configuration and variable precedence |
 
-## 노드 스펙
+## Node Specifications
 
-| 노드 | 포트 | Body | 소켓 |
+Read the relevant `tests/<node>/AGENTS.md` before writing or changing that node's TCs. Each guide contains the full node specification.
+Each document links to its test suite, keywords, and variables. Specifications cover
+connections, messages, wire encoding where applicable, existing TCs, pitfalls, and open questions.
+
+| Node | Port | Body | Socket arrangement |
 |---|---|---|---|
-| [NAG](nodes/NAG.md) | 8012 | JSON | 듀얼 (+8890 Listen) |
-| [PCF](nodes/PCF.md) | 8011 | JSON | 듀얼 (+NAG 8012) |
-| [LRS](nodes/LRS.md) | 10204 | raw `REQ`/`ANS`, HTTP AIMS | 듀얼 (+8890 Listen) |
-| [UPM](nodes/UPM.md) | 10506 | JSON | 단일 |
-| [CDS](nodes/CDS.md) | 9201 → 9200 | 48B 고정전문 | 듀얼 |
-| [NWDAF](nodes/NWDAF.md) | 10305 | TLV 바이너리 | 단일 |
-| [RTS](nodes/RTS.md) | ${RTS_PG_PORT}(6003, 설정파일 연동 TODO) | 32B 고정헤더 + 고정폭 Body | 단일 |
+| [NAG](../tests/nag/AGENTS.md) | 8012 | JSON | Dual; also listens on 8890 |
+| [PCF](../tests/pcf/AGENTS.md) | 8011 | JSON | Dual; registers a NAG session on 8012 |
+| [LRS](../tests/lrs/AGENTS.md) | 10204 | Raw `REQ`/`ANS` and HTTP AIMS | Dual; also listens on 8890 |
+| [UPM](../tests/upm/AGENTS.md) | 10506 | JSON | Single |
+| [CDS](../tests/cds/AGENTS.md) | 9201, then 9200 | 48B fixed header and fixed-width body | Dual |
+| [NWDAF](../tests/nwdaf/AGENTS.md) | 10305 | Binary TLV | Single |
+| [RTS](../tests/rts/AGENTS.md) | `${RTS_PG_PORT}` (6003; configuration-file integration TODO) | 32B fixed header and fixed-width body | Single |
 
-각 노드 스펙은 **접속 → 메시지 타입 → wire 인코딩 → TC → 함정 → 확인 필요** 순의 공통 골격을 쓴다.
-해당 없는 절은 생략하고, 노드 고유 내용은 그 사이에 끼운다(예: CDS 의 `Call Flow`).
+## Shared Topics
 
-## 공용 주제
+Document functionality used by multiple nodes here; node specifications link to it
+rather than duplicating shared details.
 
-두 노드 이상이 같이 쓰는 모듈·설정은 노드 문서가 아니라 여기 둔다. 노드 문서는 링크만 건다.
-
-| 문서 | 내용 | 쓰는 곳 |
+| Document | Purpose | Consumers |
 |---|---|---|
-| [shared/PDB.md](shared/PDB.md) | PDB 접속 문자열 · 두 번째 DB · 골디락스/알티베이스 함정 · **실행 전 DB 설정 시드** | CDS · RTS · 시드 |
-| [shared/SBI_NOTI.md](shared/SBI_NOTI.md) | PCF SBI Noti 수신(h2c Listen 16101) · 링크 감시 · `TOOL_HOST` | CDS · RTS |
-| [shared/SSH.md](shared/SSH.md) | PG 프로세스 `.RUN` touch · 시드 INSERT 후 `stopMP`/`startMP` | NAG · PCF · LRS · CDS · RTS · 시드 |
+| [PDB](shared/PDB.md) | Connection strings, optional second DB, Goldilocks/Altibase pitfalls, and pre-run configuration seeding | CDS, RTS, seed setup |
+| [SBI notifications](shared/SBI_NOTI.md) | PCF h2c receiver on 16101, link monitoring, and `TOOL_HOST` | CDS, RTS |
+| [SSH](shared/SSH.md) | PG `.RUN` touch and post-seed `stopMP`/`startMP` commands | NAG, PCF, LRS, CDS, RTS, seed setup |
 
-## Call Flow
+## Call Flows — Developer Reference Only
 
-노드 스펙보다 깊은 PG 내부 처리 흐름. 도구에서 보이지 않는 구간이라 별도로 둔다.
+These documents explain PG's internal processing flows for developers. They are
+not required reading for TC authoring. TC requirements and acceptance criteria
+belong in the node specifications and shared references.
 
-| 문서 | 내용 |
+| Document | Developer reference |
 |---|---|
-| [callflow/cds_callflow.md](callflow/cds_callflow.md) | **CDS 업무 코드별 콜플로우** — HIST 규칙(BSUBS/SDM) + 11개 코드를 한 파일에 (`gen_callflow.py` 생성) |
-| [callflow/nag_callflow.md](callflow/nag_callflow.md) | NAG(HFC/ADOT 존·셀 조회) 콜플로우 — 듀얼 소켓, LRS-PCF 교차 |
-| [callflow/lrs_callflow.md](callflow/lrs_callflow.md) | LRS(세션 정보 조회) 콜플로우 — REQ/ANS + HTTP AIMS, 8890 곁채널 교차 |
-| [callflow/rts_callflow.md](callflow/rts_callflow.md) | RTS L1/L2(로밍 데이터 차단) 콜플로우 |
-| [callflow/nwdaf_callflow.md](callflow/nwdaf_callflow.md) | NWDAF(기지국 혼잡제어) 콜플로우 — Notification/Health Check, 판정 공백 |
-| [callflow/pcf_callflow.md](callflow/pcf_callflow.md) | PCF(ZONE 알림) 콜플로우 — Zone-InOut(8011) ↔ ZION(8012) 듀얼 소켓 왕복 |
-| [callflow/upm_callflow.md](callflow/upm_callflow.md) | UPM(HFC 서비스 연동) 콜플로우 — 능동 4종 / 수동 수신 3종(트리거는 CDS) |
+| [CDS](callflow/cds_callflow.md) | HIST rules and 11 business codes; generated by `callflow/gen_callflow.py` |
+| [NAG](callflow/nag_callflow.md) | HFC/ADOT zone and cell queries, dual sockets, and LRS-PCF interaction |
+| [LRS](callflow/lrs_callflow.md) | Session retrieval, REQ/ANS, HTTP AIMS, and the 8890 side channel |
+| [RTS](callflow/rts_callflow.md) | L1/L2 roaming data blocking |
+| [NWDAF](callflow/nwdaf_callflow.md) | Notification and health-check flows and assertion gaps |
+| [PCF](callflow/pcf_callflow.md) | Zone-InOut on 8011 and ZION on 8012 |
+| [UPM](callflow/upm_callflow.md) | Four active operations and passive reception triggered by CDS |
 
-노드 간 요약 흐름은 [INTERFACES.md](INTERFACES.md#hfc-서비스-call-flow--세-노드가-어떻게-이어지는가),
-CDS 단일 노드의 즉시/예약 흐름은 [nodes/CDS.md](nodes/CDS.md#call-flow--pg-내부-처리) 에 있다.
+## Repository Skills
 
-## 그 밖에
-
-- [../CLAUDE.md](../CLAUDE.md) — 개발 가이드 및 프로젝트 메인 인덱스
-- 스킬 — `pg-tc-authoring`(TC 작성) / `pg-wire-encoding`(전문 인코딩 대조)
+- [TC authoring](../.claude/skills/pg-tc-authoring/SKILL.md)
+- [Wire encoding validation](../.claude/skills/pg-wire-encoding/SKILL.md)

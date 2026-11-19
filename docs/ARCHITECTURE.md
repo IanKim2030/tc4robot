@@ -1,160 +1,143 @@
-# ARCHITECTURE — 시스템 아키텍처 및 모듈 구조
+# ARCHITECTURE — System and Module Structure
 
-SK텔레콤 **PG (Policy Gateway)** 연동 검증 슈트 **tc4robot** 의 전체 구조.
-세부 규격은 각 문서로 넘긴다 — 여기서는 **무엇이 어디에 있는지**만 다룬다.
+Architecture of **tc4robot**, a Robot Framework-based regression automation testing tool for PG (PCRF Gateway).
+Detailed specifications live in topic and node documents; this document maps responsibilities to files.
 
----
+## 1. System Overview
 
-## 1. 시스템 개요
-
-`tc4robot` 은 PG 와 7개 외곽 노드(NAG, PCF, LRS, UPM, CDS, NWDAF, RTS) 간의 인터페이스 규격과
-전문 송수신 동작을 검증한다. 도구는 **능동 클라이언트(Client)** 로 동작해 노드별 수신 포트에
-접속하고, 전문을 송수신한 뒤 응답과 상태 변화를 판정한다.
+The suite validates PG interfaces for seven external nodes: NAG, PCF, LRS, UPM,
+CDS, NWDAF, and RTS. The tool actively connects to each node's PG listener, sends
+and receives messages, and checks responses and state changes. Auxiliary receivers
+accept PG connections for location queries, SBI notifications, and file transfers.
 
 ```mermaid
 flowchart TD
-    subgraph TestRunner ["tc4robot (Robot Framework & Python)"]
+    subgraph TestRunner ["tc4robot (Robot Framework and Python)"]
         CLI["run_tests.sh / robot CLI"]
         ENV["config/env (dev/stg/prd)"]
         KW["resources/*_keywords.robot"]
         VAR["resources/*_variables.robot"]
-
-        subgraph Helpers ["Python Protocol Helpers"]
+        subgraph Helpers ["Protocol Helpers"]
             TCP["TcpHelper.py"]
             TLV["TlvHelper.py"]
             CDS_H["CdsHelper.py"]
             HTTP["HttpHelper.py"]
             RTS_H["RtsHelper.py"]
         end
-
-        subgraph Shared ["공용 (docs/shared)"]
+        subgraph Shared ["Shared Infrastructure"]
             PDB_H["PdbHelper.py + DbSeedHelper.py"]
-            NOTI["HttpNotiServer.py (SBI Listen)"]
+            NOTI["HttpNotiServer.py (SBI listener)"]
             FTP["FtpServerHelper.py / SftpServerHelper.py"]
             SSH["SshHelper.py"]
         end
     end
-
-    PDBDB[("PDB (골디락스 / 알티베이스)")]
-
-    subgraph TargetPG ["SKT Policy Gateway (PG) System"]
-        NAG_PG["NAG PG Port (8012)"]
-        PCF_PG["PCF PG Port (8011)"]
-        LRS_PG["LRS PG Port (10204 / 8890)"]
-        UPM_PG["UPM PG Port (10506)"]
-        CDS_PG["CDS PG Port (9201 / 9200)"]
-        NWDAF_PG["NWDAF PG Port (10305)"]
-        RTS_PG["RTS PG Port (${RTS_PG_PORT}=6003, 설정파일 연동 TODO)"]
+    PDBDB[("PDB (Goldilocks / Altibase)")]
+    subgraph TargetPG ["SKT PCRF Gateway"]
+        NAG_PG["NAG PG (8012)"]
+        PCF_PG["PCF PG (8011)"]
+        LRS_PG["LRS PG (10204 / 8890)"]
+        UPM_PG["UPM PG (10506)"]
+        CDS_PG["CDS PG (9201 / 9200)"]
+        NWDAF_PG["NWDAF PG (10305)"]
+        RTS_PG["RTS PG (RTS_PG_PORT; default 6003)"]
     end
-
     CLI --> ENV
     CLI --> KW
     KW --> VAR
     KW --> Helpers
-
-    TCP -->|"8B Header Binary"| NAG_PG
-    TCP -->|"8B Header Binary"| PCF_PG
+    TCP -->|"8B header"| NAG_PG
+    TCP -->|"8B header"| PCF_PG
     TCP & HTTP -->|"Raw REQ / HTTP"| LRS_PG
-    TCP -->|"8B Header Binary"| UPM_PG
-    CDS_H -->|"48B Fixed Header"| CDS_PG
-    TLV -->|"8B Bitfield + TLV"| NWDAF_PG
-    RTS_H -->|"32B Fixed Header"| RTS_PG
-
+    TCP -->|"8B header"| UPM_PG
+    CDS_H -->|"48B fixed header"| CDS_PG
+    TLV -->|"8B bitfield header + TLV"| NWDAF_PG
+    RTS_H -->|"32B fixed header"| RTS_PG
     KW --> Shared
     PDB_H -->|"ODBC"| PDBDB
     SSH -->|"ssh: .RUN touch, stopMP/startMP"| TargetPG
-    TargetPG -->|"h2c SBI Noti (16101)"| NOTI
-    TargetPG -->|"FTP/SFTP 업로드 (UPM)"| FTP
+    TargetPG -->|"h2c SBI notification (16101)"| NOTI
+    TargetPG -->|"FTP/SFTP upload (UPM)"| FTP
 ```
 
-방향·포트·헤더·Body 의 전체 매트릭스는 [INTERFACES.md](INTERFACES.md) 에 있다.
+See [INTERFACES.md](INTERFACES.md) for connection direction, ports, headers, and bodies.
 
----
+## 2. Four-Layer Architecture
 
-## 2. 레이어드 아키텍처
-
-역할과 책임을 분리해 4계층으로 구성한다.
-
-```
-+-----------------------------------------------------------------------+
-|  Test Suite Layer (tests/*/*.robot)                                   |
-|  - 시나리오 검증, TC 명명, 태그 관리, Suite/Test Setup & Teardown     |
-+-----------------------------------------------------------------------+
-|  Business Keyword Layer (resources/*_keywords.robot)                   |
-|  - 도메인 키워드 (예: Send Subscriber QoS Notification), 응답 검증     |
-+-----------------------------------------------------------------------+
-|  Variable & Configuration Layer (config/env/*, resources/*_vars)      |
-|  - 환경별(dev/stg/prd) 변수 오버라이드, PG_HOST 캐스케이딩 상속       |
-+-----------------------------------------------------------------------+
-|  Protocol & Transport Helper Layer (resources/*Helper.py)             |
-|  - 소켓 커넥션 유지, struct 패킹/언패킹, TLV 인코딩, Keep-Alive       |
-+-----------------------------------------------------------------------+
+```text
+Test suites: tests/*/*.robot
+    Scenarios, TC names, tags, suite/test setup and teardown
+        ↓
+Business keywords: resources/*_keywords.robot
+    Domain operations, send/receive sequences, and response assertions
+        ↓
+Variables and configuration: config/env/*, resources/*_variables.robot
+    Environment overrides and shared PG_HOST inheritance
+        ↓
+Protocol and transport helpers: libraries/*.py
+    Socket management, binary packing, TLV encoding, and infrastructure services
 ```
 
-### 1) Test Suite Layer (`tests/`)
+### Test Suite Layer
 
-* 노드별 테스트케이스 정의 — [tests/nag/nag_tests.robot](../tests/nag/nag_tests.robot),
-  [tests/pcf/pcf_tests.robot](../tests/pcf/pcf_tests.robot) 등
-* `Suite Setup` / `Suite Teardown` 으로 슈트 단위 소켓 연결을 관리한다
-* `Test Setup` 의 `Check <IFACE> Socket` 이 연결 유지 상태를 검증한다
+Node suites such as [NAG](../tests/nag/nag_tests.robot) and
+[PCF](../tests/pcf/pcf_tests.robot) define scenarios. Suite setup and teardown own
+connections; `Check <IFACE> Socket` in test setup checks their state.
+See [TC conventions](../tests/TC_CONVENTION.md) for authoring rules.
 
-작성 규칙은 [TC_CONVENTION.md](TC_CONVENTION.md) 에 있다.
+### Business Keyword Layer
 
-### 2) Business Keyword Layer (`resources/*_keywords.robot`)
+`resources/*_keywords.robot` implements node operations, message construction,
+and response header/body parsing and assertions.
 
-* 노드별 비즈니스 로직과 전문 송수신 단위 키워드
-* 복합 전문 구성, 수신 응답의 Header / Body 파싱 및 검증 키워드
+### Variable and Configuration Layer
 
-### 3) Variable & Configuration Layer (`config/env/`, `resources/*_variables.robot`)
+- [Shared variables](../resources/variables.robot) contain constants and shared settings,
+  including `${SBI_NOTI_PORT}` and `${PDB_TIMEOUT}`.
+- Environment-only values (`${PG_HOST}`, `${TOOL_HOST}`, `${PDB_CONNSTR}`, and
+  `${SUBS_MDN_*}`) come from `config/env/<env>.py`, loaded with `--variablefile`.
+  They have no shared dev fallback: missing values fail instead of silently targeting dev.
+- Node-specific variable files reference shared variables and environment values.
 
-* **공용 변수** — [resources/variables.robot](../resources/variables.robot) 이 공용 상수·설정(`${SBI_NOTI_PORT}` `${PDB_TIMEOUT}` 등)을 정의한다
-* **환경값** — `${PG_HOST}` `${TOOL_HOST}` `${PDB_CONNSTR}` `${SUBS_MDN_*}` 는 **환경 파일에만** 있다
-  ([config/env/dev.py](../config/env/dev.py) / stg.py / prd.py, `--variablefile` 로 적용). 기본값이 없어
-  빠뜨리면 실패한다 — dev 값이 다른 환경으로 새지 않게 하려는 것이다
-* **상속** — 노드별 `*_variables.robot` 은 공용 변수·환경값을 참조만 한다
+Tracked environment files are [dev.py](../config/env/dev.py) and
+[stg.py](../config/env/stg.py). Production configuration is supplied separately.
+See [environment rules](ENVIRONMENTS.md) for precedence and shared configuration axes.
 
-우선순위 규칙과 환경 축 변수 목록은 [ENVIRONMENTS.md](ENVIRONMENTS.md) 에 있다.
+### Protocol and Transport Helper Layer
 
-### 4) Protocol & Transport Helper Layer (`resources/*Helper.py`)
+Eleven Python helpers fall into three groups:
 
-Python 기반 저수준 모듈 11종. 성격이 셋이다.
+- **Six protocol/data helpers:** [TcpHelper](../libraries/TcpHelper.py),
+  [TlvHelper](../libraries/TlvHelper.py), [CdsHelper](../libraries/CdsHelper.py),
+  [HttpHelper](../libraries/HttpHelper.py), [RtsHelper](../libraries/RtsHelper.py),
+  and [PdbHelper](../libraries/PdbHelper.py). PdbHelper checks database application
+  rather than constructing wire messages; CDS, RTS, and seed setup share it.
+- **Three receivers:** [HttpNotiServer](../libraries/HttpNotiServer.py),
+  [FtpServerHelper](../libraries/FtpServerHelper.py), and
+  [SftpServerHelper](../libraries/SftpServerHelper.py). PG initiates these connections.
+- **Two infrastructure helpers:** [DbSeedHelper](../libraries/DbSeedHelper.py)
+  and [SshHelper](../libraries/SshHelper.py).
 
-* **전문 헬퍼 6종** — [TcpHelper.py](../resources/TcpHelper.py) · [TlvHelper.py](../resources/TlvHelper.py) ·
-  [CdsHelper.py](../resources/CdsHelper.py) · [HttpHelper.py](../resources/HttpHelper.py) ·
-  [RtsHelper.py](../resources/RtsHelper.py) · [PdbHelper.py](../resources/PdbHelper.py).
-  마지막 하나만 전문이 아니라 **PG 가 DB 에 반영한 결과**를 본다 — CDS `CommandResult` 가
-  Body 와 무관하게 `SC` 를 주기 때문이다(`TC-CDS-002`). CDS·RTS·시드 공용이다.
-* **수신 서버 3종** — [HttpNotiServer.py](../resources/HttpNotiServer.py)(PCF SBI) ·
-  [FtpServerHelper.py](../resources/FtpServerHelper.py) / [SftpServerHelper.py](../resources/SftpServerHelper.py)(UPM 파일 업로드).
-  PG 가 도구로 **붙어 오는** 방향이다.
-* **인프라 2종** — [DbSeedHelper.py](../resources/DbSeedHelper.py)(실행 전 시드) ·
-  [SshHelper.py](../resources/SshHelper.py)(`.RUN` touch, 시드 후속 명령).
+Shared PDB, SBI, and SSH procedures live under [shared/](shared/).
+See [Resource instructions and catalog](../resources/AGENTS.md) for responsibilities and functions.
 
-여러 노드가 같이 쓰는 것(PDB · SBI Noti · SSH)의 상세는 노드 문서가 아니라 [shared/](shared/) 에 있다.
-담당 범위와 주요 함수 목록은 [RESOURCES.md](RESOURCES.md#python-헬퍼-11종) 에 있다.
+## 3. Key Mechanisms
 
----
-
-## 3. 핵심 메커니즘 — 어디를 볼 것인가
-
-이 리포에서 반드시 알아야 할 제약 3가지. 상세는 각 링크로 간다.
-
-| 메커니즘 | 요지 | 상세 |
+| Mechanism | Rule | Reference |
 |---|---|---|
-| **소켓 라이프사이클** | 슈트당 1회 접속해 `Suite Variable` 로 공유한다. **TC 별 connect/disconnect 를 추가하지 말 것.** 닫힘 감지 시 `Fatal Error` 로 슈트 전체 중단 | [RESOURCES.md](RESOURCES.md#소켓-공유-규칙-절대) · [INTERFACES.md](INTERFACES.md#연결-실패-시-동작) |
-| **`txn_id` 채번** | **0이 될 수 없다**(규격 제약). `Next TXN ID` 가 강제하며 65535 초과 시 1로 wrap | [RESOURCES.md](RESOURCES.md#common_keywordsrobot) |
-| **전문 4계열 분리** | 8-옥텟 공통 / 48-옥텟 CDS / 8-옥텟 NWDAF+TLV / 32-옥텟 RTS. 계열마다 전용 헬퍼 | [INTERFACES.md](INTERFACES.md#전문-형식-4계열) |
-| **환경 오버라이드** | `--variable` > `--variablefile` > 슈트 `*** Variables ***` > 임포트 Resource | [ENVIRONMENTS.md](ENVIRONMENTS.md#변수-우선순위) |
+| Socket lifecycle | Open once per suite and share through Suite Variables; fatal closure checks abort the suite | [Resources](../resources/AGENTS.md), [interfaces](INTERFACES.md) |
+| Transaction IDs | `Next TXN ID` never returns zero; wraps from 65535 to 1 | [Resources](../resources/AGENTS.md) |
+| Four header families | Shared 8B, CDS 48B, NWDAF 8B plus TLV, RTS 32B; use the matching helper | [Interfaces](INTERFACES.md) |
+| Variable precedence | `--variable` > `--variablefile` > suite variables > imported resource variables | [Environments](ENVIRONMENTS.md) |
 
----
+## 4. Related Documentation
 
-## 4. 관련 문서
+- [Documentation index](README.md)
+- [Interface matrix](INTERFACES.md)
+- [Environment configuration](ENVIRONMENTS.md)
+- [TC authoring conventions](../tests/TC_CONVENTION.md)
+- [Resource catalog](../resources/AGENTS.md)
+- [Node specifications](../tests/AGENTS.md)
+- Shared [PDB](shared/PDB.md), [SBI notifications](shared/SBI_NOTI.md), and [SSH](shared/SSH.md)
+- [Agent instructions](../AGENTS.md)
 
-* [README.md](README.md) — 문서 인덱스
-* [INTERFACES.md](INTERFACES.md) — 노드 간 연동 매트릭스 및 포트/헤더 스펙
-* [ENVIRONMENTS.md](ENVIRONMENTS.md) — dev/stg/prd 환경 설정 및 오버라이딩 체계
-* [TC_CONVENTION.md](TC_CONVENTION.md) — TC 명명, 태그, 템플릿 작성 규칙
-* [RESOURCES.md](RESOURCES.md) — 공통 키워드 및 Python 헬퍼 카탈로그
-* [nodes/](nodes/) — 노드별 스펙 7종
-* [shared/](shared/) — 여러 노드 공용 주제: [PDB.md](shared/PDB.md) · [SBI_NOTI.md](shared/SBI_NOTI.md) · [SSH.md](shared/SSH.md)
-* [CLAUDE.md](../CLAUDE.md) — 개발 가이드 및 프로젝트 메인 인덱스
+Call-flow documents are developer-only reference material, not required TC authoring guidance.

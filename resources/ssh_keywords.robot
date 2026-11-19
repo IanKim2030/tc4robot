@@ -32,7 +32,7 @@ Documentation
 ...    subprocess 로 그대로 부른다 — OS 명령이라 pip 설치가 없다. 비밀번호
 ...    인증도 sshpass 없이 OpenSSH 의 SSH_ASKPASS 로 자동 주입한다 — 폐쇄망
 ...    에서 패키지 추가 설치가 어려워서다.)
-Library    ${CURDIR}/SshHelper.py    WITH NAME    Ssh
+Library    ${CURDIR}/../libraries/SshHelper.py    WITH NAME    Ssh
 
 
 *** Keywords ***

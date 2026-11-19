@@ -1,69 +1,75 @@
-# INTERFACES — 노드 간 연동 매트릭스
+# INTERFACES — Inter-node interconnection matrix
 
-PG 연동 7개 노드의 방향·포트·전문 형식을 한 장에 모은 표. **어느 노드를 건드리든 여기부터 본다.**
-상세는 각 노드 스펙(`docs/nodes/<IFACE>.md`) 참조.
+A table that collects the direction, port, and message format of the 7 PG interconnected nodes on one page. No matter which node you touch, you can see it from here.
+For details, refer to each node specification (`tests/<iface>/AGENTS.md`).
 
-## 한눈에
+## At a glance
 
-| 노드 | 도구 역할 | 접속 방향 | 포트 | 헤더 | Body | 소켓 |
+| node | tool role | Connection direction | port | header | Body | socket |
 |---|---|---|---|---|---|---|
-| [NAG](nodes/NAG.md) | NAG | Client → PG | 8012 | 8B `0x00` | JSON | 듀얼 (+8890 Listen) |
-| [PCF](nodes/PCF.md) | PCF | Client → PG | 8011 | 8B `0x00` | JSON | 듀얼 (+NAG 8012) |
-| [LRS](nodes/LRS.md) | LRS | Client → PG.LRS | 10204 | 없음 / HTTP | raw `REQ`/`ANS`, HTTP AIMS | 듀얼 (+8890 Listen) |
-| [UPM](nodes/UPM.md) | UPM | Client → PG | 10506 | 8B `0x00` | JSON | 단일 |
-| [CDS](nodes/CDS.md) | CDS | Client 듀얼 → PG.CDS | Rch 9201 → Sch 9200 | **48B** | 고정전문 | 듀얼 |
-| [NWDAF](nodes/NWDAF.md) | NWDAF | Client → PG | 10305 | 8B 비트필드 | **TLV 바이너리** | 단일 |
-| [RTS](nodes/RTS.md) | RTS | Client → PG.RTS | ${RTS_PG_PORT}(6003, 설정파일 연동 TODO) | **32B** | 고정폭(로밍 차단 L1/L2) | 단일 |
+| [NAG](../tests/nag/AGENTS.md) | NAG | Client → PG | 8012 | 8B `0x00` | JSON | Dual (+8890 Listen) |
+| [PCF](../tests/pcf/AGENTS.md) | PCF | Client → PG | 8011 | 8B `0x00` | JSON | Dual (+NAG 8012) |
+| [LRS](../tests/lrs/AGENTS.md) | LRS | Client → PG.LRS | 10204 | None/HTTP | raw `REQ`/`ANS`, HTTP AIMS | Dual (+8890 Listen) |
+| [UPM](../tests/upm/AGENTS.md) | UPM | Client → PG | 10506 | 8B `0x00` | JSON | single |
+| [CDS](../tests/cds/AGENTS.md) | CDS | Client Dual → PG.CDS | Rch 9201 → Sch 9200 | 48B | fixed message | dual |
+| [NWDAF](../tests/nwdaf/AGENTS.md) | NWDAF | Client → PG | 10305 | 8B Bitfield | TLV binary | single |
+| [RTS](../tests/rts/AGENTS.md) | RTS | Client → PG.RTS | ${RTS_PG_PORT}(6003, setting file link TODO) | 32B | Fixed width (roaming blocking L1/L2) | single |
 
-**도구는 7개 노드 모두에서 능동 접속(Client) 한다.** 서버로 대기하는 건 NAG·LRS 가 함께 여는
-LRS-PCF 보조 채널(8890) 하나뿐이다.
+The tool initiates each node's primary PG connection. NAG and LRS also accept
+PG connections on the auxiliary LRS-PCF channel (8890). SBI and FTP/SFTP receivers
+are additional listeners described in the applicable shared and node references.
 
-호스트는 전부 `${PG_HOST}`(`resources/variables.robot`, 기본 `192.168.15.141`)를 상속하며
-`run_tests.sh all <IP>` 로 일괄 오버라이드된다.
+Hosts inherit environment values such as `${PG_HOST}` from `config/env/<env>.py`;
+there is no shared dev fallback in `resources/variables.robot`.
+`run_tests.sh all <IP>` loads dev configuration and overrides `PG_HOST`.
 
-## 전문 형식 4계열
+## 4 series of message formats
 
-| 계열 | 헤더 | 모듈 | 쓰는 노드 |
+| series | header | module | node to write |
 |---|---|---|---|
-| 8-옥텟 공통 | Byte0 `0x00`(ProtoVer 0) / `0x20`(LRS 계열) | `TcpHelper.py` (`WITH NAME Tcp`) | NAG, PCF, UPM, LRS-PCF 채널 |
-| 48-옥텟 CDS | Message ID / TID(date+seq) / System·App ID / Continue / Serial / Data Size | `CdsHelper.py` (`Cds`) | CDS |
-| 8-옥텟 NWDAF | Byte0 비트필드(Ext/ProtoVer/HdrType/MsgType) + SvcId(2B) + MsgId(3B) + BodyLen(2B) | `TlvHelper.py` (`Tlv`) | NWDAF |
-| 32-옥텟 RTS | Message ID / TID(date+seq) / Source·Dest System ID / Data Size | `RtsHelper.py` (`Rts`) | RTS |
+| 8-octet common | Byte0 `0x00`(ProtoVer 0) / `0x20`(LRS series) | `TcpHelper.py` (`WITH NAME Tcp`) | NAG, PCF, UPM, LRS-PCF channels |
+| 48-octet CDS | Message ID / TID(date+seq) / System·App ID / Continue / Serial / Data Size | `CdsHelper.py` (`Cds`) | CDS |
+| 8-octet NWDAF | Byte0 bitfield (Ext/ProtoVer/HdrType/MsgType) + SvcId(2B) + MsgId(3B) + BodyLen(2B) | `TlvHelper.py` (`Tlv`) | NWDAF |
+| 32-octet RTS | Message ID / TID(date+seq) / Source·Dest System ID / Data Size | `RtsHelper.py` (`Rts`) | RTS |
 
-`txn_id` 는 **절대 0이 될 수 없다**(규격 명시). `Next TXN ID` 키워드가 강제한다.
-NWDAF 는 `txn_id` 대신 Message Id(0x000~0xFFF 순환)를 쓴다.
+`txn_id` can never be 0 as  (specification specified). The `Next TXN ID` keyword forces it.
+NWDAF uses Message Id (0x000~0xFFF cycle) instead of `txn_id`.
 
-## 듀얼 소켓 구조 — 어느 노드가 어느 채널을 먼저 여는가
+## Dual socket architecture — which node opens which channel first
 
-**NAG** — 클라이언트 8012 + 서버 8890
+NAG — client 8012 and server 8890. The current suite prepares the side channel first:
+
+```text
+1. Listen/accept on LRS-PCF (8890).
+2. Receive PG Hello-Request (0x01), reply Hello-Response (0x02).
+3. Open NAG (8012); TC-NAG-001 performs NAG Hello.
 ```
-① NAG 소켓(8012) 연결 → Hello 로 세션 등록
-② LRS-PCF 서버 소켓(8890) Listen → LRS(PG) 가 접속
-③ PG 의 Hello-Request(0x01) 수신 → Hello-Response(0x02) 회신
-```
-Subs-Cellid TC 가 `0x0b` 를 보내면 PG 는 **LRS-PCF 채널로 `0x05` Location-Info-Request 를 되돌려
-보낸다.** 그래서 ②③ 이 미리 끝나 있어야 한다.
 
-**PCF** — NAG 8012(세션 선등록) + PCF 8011. 두 소켓 모두 슈트 끝까지 살아 있어야 한다.
+Subs-Cellid sends `0x0b`; PG then requests Location-Info (`0x05`) on the side
+channel. The tool must reply `0x06` before receiving the completed `0x0c` response.
+Opening NAG last avoids idle disconnection while waiting for the LRS connection.
+See the [NAG specification](../tests/nag/AGENTS.md) for prerequisites and current limits.
 
-**LRS** — 클라이언트 10204 + 서버 8890. NAG 와 같은 8890 채널을 쓴다.
-Session-Info(HTTP) 처리 중 PG 가 8890 으로 `0x05` 를 보내오므로 동일한 선처리가 필요하다.
+PCF — NAG 8012 (session pre-registration) + PCF 8011. Both sockets must survive until the end of the suite.
 
-**CDS** — **Rchannel(9201) 을 먼저 연결**하고 Schannel(9200) 을 뒤에 연다. 각 채널이
-ConnectionRequest 를 보내고 ACK 를 받는 핸드셰이크를 한다.
+LRS — Client 10204 + Server 8890. Uses the same 8890 channel as NAG.
+During Session-Info (HTTP) processing, PG sends `0x05` to 8890, so the same preprocessing is required.
 
-| 순서 | 채널 | 송신 | 기대 응답 |
+CDS — Connect Rchannel (9201) first and open Schannel (9200) later. Each channel
+A handshake is performed by sending a ConnectionRequest and receiving an ACK.
+
+| order | channel | send | expected response |
 |---|---|---|---|
 | 1 | Rchannel 9201 | `0003` RchannelConnectionRequest | `0004` ACK |
 | 2 | Schannel 9200 | `0001` SchannelConnectionRequest | `0002` ACK |
 
-## HFC 서비스 Call Flow — 세 노드가 어떻게 이어지는가
+## HFC Service Call Flow — How the three nodes connect
 
-**슈트는 CDS·UPM·NAG 를 각각 독립적으로 테스트하지만, 운영에서는 하나의 사슬이다.**
-HFC 가입(`1X`) / 해지(`1Y`) 전문 하나가 들어오면 UPM 의 Cell List 왕복과 NAG 의 Zone 정보
-왕복까지 연쇄로 일어난다. 슈트가 이 세 노드를 왜 같이 들고 있는지가 여기서 드러난다.
+suite tests CDS, UPM, and NAG independently, but is one chain in operation.
+When an HFC subscription (`1X`) / cancellation (`1Y`) message is received, UPM's Cell List round trip and NAG's Zone information are sent.
+It happens in a chain until the round trip. Here, it is revealed why the suite holds these three nodes together.
 
-출처: `PG (PCF Gateway) 교육 자료` Chapter 03 — *02. PG 서비스 별 동작 Flow — HFC 서비스*.
+Source: `PG (PCF Gateway) Training Materials` Chapter 03 — *02. Operation Flow for each PG service — HFC service*.
 
 ```mermaid
 sequenceDiagram
@@ -79,64 +85,64 @@ sequenceDiagram
     participant PDB as PDB
     participant PCF as PCF/PCRF
 
-    CDS->>PGCDS: HFC 전문 (1X / 1Y)
-    PGCDS->>PDB: SQL — T_CDS_ORDER_HIST 전문 정보 INSERT
-    SDM->>PDB: SQL — T_CDS_ORDER_HIST (주기적으로) 전문 정보 조회
-    PGCDS->>PDB: SQL — T_BAROD_ORDER_HIST 전문 정보 INSERT (주소 암호화)
-    BSUBS->>PDB: SQL — T_BAROD_ORDER_HIST (주기적으로) 전문 정보 조회
-    SDM->>PDB: SQL — T_5G_SUBS_SERVICE 가입자 정보 SELECT/INSERT/UPDATE/DELETE
-    SDM->>PDB: SQL — T_5G_SUBS_PROFILE 가입자 정보 SELECT/INSERT/UPDATE/DELETE
+    CDS->>PGCDS:HFC message (1X / 1Y)
+    PGCDS->>PDB:SQL — INSERT T_CDS_ORDER_HIST message information
+    SDM->>PDB:SQL — T_CDS_ORDER_HIST (periodically) query message information
+    PGCDS->>PDB:SQL — T_BAROD_ORDER_HIST message INSERT (address encryption)
+    BSUBS->>PDB:SQL — T_BAROD_ORDER_HIST (periodically) query message information
+    SDM->>PDB:SQL — T_5G_SUBS_SERVICE subscriber information SELECT/INSERT/UPDATE/DELETE
+    SDM->>PDB:SQL — T_5G_SUBS_PROFILE subscriber information SELECT/INSERT/UPDATE/DELETE
     SDM->>SNOTI: RBUS Noti
     SNOTI->>PCF: RBUS / SBI Noti
     BSUBS->>UPM: Cell List Request
     BSUBS->>PDB: SQL — T_BAROD_SUBS_CELLINFO Cell List INSERT
     UPM->>BSUBS: Cell List Response
     BSUBS->>PDB: SQL — T_BAROD_SUBS_CELLINFO Cell List INSERT
-    BSUBS->>PCF: Cell List 전송 (RBUS / SBI Noti)
-    PCF->>BNOTI: Zone In/Out 정보
-    BNOTI->>NAG: Zone In/Out 정보
-    NAG->>BNOTI: Zone 정보 Request
-    BNOTI->>PDB: SQL — T_SESSION_INFO / T_SMF_SESSION_INFO 가입자 세션 조회
-    BNOTI->>NAG: Zone 정보 Response
+    BSUBS->>PCF:Cell List Transmission (RBUS / SBI Noti)
+    PCF->>BNOTI:Zone In/Out Information
+    BNOTI->>NAG:Zone In/Out Information
+    NAG->>BNOTI:Zone information request
+    BNOTI->>PDB:SQL — T_SESSION_INFO / T_SMF_SESSION_INFO subscriber session query
+    BNOTI->>NAG:Zone Information Response
 ```
 
-`RBUS / SBI Noti` 는 가입자에 따라 갈린다 — LTE 는 RBUS, SA 는 SBI.
-세션 테이블도 마찬가지로 `T_SESSION_INFO`(LTE) / `T_SMF_SESSION_INFO`(SA) 다.
-자세한 LTE/SA 대응은 [CDS 노드 스펙](nodes/CDS.md#lte--sa-차이--테이블-이름과-noti-방식뿐) 참조.
+`RBUS / SBI Noti` varies depending on the subscriber — RBUS for LTE, SBI for SA.
+The session table is also `T_SESSION_INFO`(LTE) / `T_SMF_SESSION_INFO`(SA).
+For detailed LTE/SA support, refer to [CDS Node Specification](../tests/cds/AGENTS.md#ltesa-differences--only-table-names-and-noti-method).
 
-**☞ 일부 전문에 대해서는 PCF/PCRF 로 NOTI 하지 않는다.**
+☞ Some messages are not NOTIed with PCF/PCRF.
 
-### 슈트의 어느 TC 가 어느 화살표인가
+### Which arrow is which TC in the suite?
 
-도구가 실제로 잡는 구간만 추린 것이다. 나머지는 전부 PG 내부라 보이지 않는다.
+Only the sections that the tool actually catches are selected. The rest are all inside the PG and are not visible.
 
-| 흐름의 화살표 | 도구 측 | opcode / 메시지 | 근거 |
+| arrow of flow | tool side | opcode/message | basis |
 |---|---|---|---|
-| `CDS → PG.CDS` HFC 전문 | CDS 슈트 | `0015` CommandRequest, JOB Code `1X`/`1Y` | 확정 — [CDS 업무 코드](nodes/CDS.md#업무-코드별-필드-집합) |
-| `PG.BSUBS → UPM` Cell List Request | UPM 슈트 (수동 수신) | `0x07` `${MSG_UPM_SUBS_INFO_REQ}` | 확정 — [UPM 메시지 타입](nodes/UPM.md#메시지-타입--양방향) 의 PG→UPM 방향과 일치 |
-| `UPM → PG.BSUBS` Cell List Response | UPM 슈트 | `0x08` `${MSG_UPM_SUBS_INFO_RESP}` | 확정 |
-| `PG.BNOTI → NAG` Zone In/Out 정보 | NAG 슈트 (수동 수신) | `0x07` `${MSG_ZION_REQ}` | **추정** — ZION 이 PG→NAG 방향인 것은 맞으나 이 화살표와 같은 것인지 미확인 |
-| `NAG → PG.BNOTI` Zone 정보 Request/Response | NAG 슈트 | `0x09`/`0x0a` `${MSG_SUBS_ZONE_STATUS_*}` | **추정** — 위와 같음 |
+| `CDS → PG.CDS` HFC message | CDS suite | `0015` CommandRequest, JOB Code `1X`/`1Y` | Confirmed — [CDS Business Code](../tests/cds/AGENTS.md#set-of-fields-by-business-code) |
+| `PG.BSUBS → UPM` Cell List Request | UPM suite (manual reception) | `0x07` `${MSG_UPM_SUBS_INFO_REQ}` | Confirmed — [Consistent with PG → UPM direction of UPM message type ](../tests/upm/AGENTS.md#message-type--two-way) |
+| `UPM → PG.BSUBS` Cell List Response | UPM suite | `0x08` `${MSG_UPM_SUBS_INFO_RESP}` | Confirmed |
+| `PG.BNOTI → NAG` Zone In/Out Information | NAG suite (passive reception) | `0x07` `${MSG_ZION_REQ}` | estimated — It is true that ZION is in the PG → NAG direction, but it is not confirmed whether it is the same as this arrow. |
+| `NAG → PG.BNOTI` Zone Information Request/Response | NAG suite | `0x09`/`0x0a` `${MSG_SUBS_ZONE_STATUS_*}` | estimate — Same as above |
 
-`1X` 는 [CDS 노드 스펙](nodes/CDS.md#업무-코드별-필드-집합) 에 필드 집합이 확보돼 있으나
-**`1Y`(HFC해지)는 미확인**이다. 이 흐름이 `1X`/`1Y` 를 쌍으로 다루므로 1Y 목록을 구하면
-반드시 대조할 것.
+`1X` has a set of fields secured in [CDS node specification](../tests/cds/AGENTS.md#set-of-fields-by-business-code), but
+`1Y` (HFC cancellation) is unconfirmed . Since this flow deals with `1X`/`1Y` as a pair, getting the 1Y list gives
+Be sure to compare.
 
-**~~미확인~~ `T_BAROD_ORDER_HIST` 를 읽고 쓰는 주체 — 확정됐다(2026-08-04).**
-**PG.CDS 가 쓰고 PG.BSUBS 가 주기적으로 읽는다.** 이전에 SDM 이 읽는 것으로 그렸던 것을
-바로잡았다.
+~~Unconfirmed~~ Subject who reads and writes `T_BAROD_ORDER_HIST` — Confirmed (2026-08-04).
+Written by PG.CDS and read periodically by PG.BSUBS. What was previously depicted as read by SDM
+It was corrected.
 
-**위 다이어그램은 요약이다.** 1X 전문의 실제 처리에는 위에 없는 요소가 더 있다 —
-주소 필드의 Masking/암호화 이중 저장, UPM 연동 시 Base64 인코딩, EMS 의 복호화 조회,
-BSUBS 의 DB 폴링 기반 비동기 처리.
+The above diagram is a summary. The actual processing of a 1X message has more elements than the above —
+Masking/encryption double storage of address field, Base64 encoding when linking UPM, decryption inquiry of EMS,
+Asynchronous processing based on DB polling of BSUBS.
 
-> 이 넷을 한자리에 그려 둔 `callflow/CDS_X1.md` 는 2026-08-21 에 삭제됐다.
-> 지금 문서에 남아 있는 것은 위 네 줄이 전부다 — PG 내부 상세가 다시 필요하면
-> PG 소스에서 다시 뜨거나 그 문서를 복원해야 한다.
+> `callflow/CDS_X1.md`, which drew these four together, was deleted on 2026-08-21.
+> All that remains in the document now are the four lines above — if you need the PG internal details again
+> You will need to re-open or restore the document from the PG source.
 
-## opcode 충돌 — 노드별 상수명을 그대로 써라
+## Opcode conflict — Use the constant name for each node as is.
 
-같은 opcode 가 노드마다 다른 의미다. **숫자를 직접 쓰지 말고 상수명을 쓴다.**
+The same opcode has a different meaning for each node. Do not write numbers directly, but use constant names.
 
 | opcode | NAG | PCF | LRS(8890) | UPM |
 |---|---|---|---|---|
@@ -146,25 +152,25 @@ BSUBS 의 DB 폴링 기반 비동기 처리.
 | `0x09` | `${MSG_SUBS_ZONE_STATUS_REQ}` | | | `${MSG_UPM_CELLINFO_NOTI_REQ}` |
 | `0x0b` | `${MSG_SUBS_CELLID_REQ}` (ADOT) | | | `${MSG_UPM_SUBS_SYNC_REQ}` |
 
-`0x01`~`0x04`(Hello/Ping)만 `resources/variables.robot` 에서 공용이다.
+Only `0x01`~`0x04`(Hello/Ping) is shared in `resources/variables.robot`.
 
-## 환경별 접속 정보
+## Connection information by environment
 
-포트·호스트는 각 `<iface>_variables.robot` 의 기본값을 쓰고, 환경별로 다르면
-`config/env/<env>.py` 에서 노드별로 오버라이드한다 — [ENVIRONMENTS.md](ENVIRONMENTS.md).
+For port and host, use the default value of each `<iface>_variables.robot`, and if it differs depending on the environment,
+Override by node in `config/env/<env>.py` — [ENVIRONMENTS.md](ENVIRONMENTS.md).
 
 ```bash
 bash run_tests.sh cds stg
 ```
 
-과거 SSH 로 PG 의 `PG_V2.cfg` 를 읽던 `DynamicVars` 는 제거됐다.
-실측 cfg 값이 하드코딩 기본값과 전부 같아 동작 차이가 없었기 때문이다.
+`DynamicVars`, which read PG's `PG_V2.cfg` through SSH in the past, has been removed.
+This is because the actual cfg values were all the same as the hard-coded default values, so there was no difference in operation.
 
-## 연결 실패 시 동작
+## Behavior when connection fails
 
-전 노드 공통. `Test Setup` 의 `Check ... Socket` 계열 키워드가 소켓이 닫혀 있으면
-**`Fatal Error` 로 슈트 전체를 즉시 중단**한다. 연결이 없으면 이후 TC 가 의미 없기 때문이다.
-TC 별 connect/disconnect 를 추가하지 말 것 — 자세한 규칙은 [RESOURCES.md](RESOURCES.md).
+Common to all nodes. If the `Check ... Socket` series keyword of `Test Setup` is used when the socket is closed,
+`Fatal Error` Stop the entire suite immediately. This is because if there is no connection, subsequent TC is meaningless.
+Do not add TC-specific connect/disconnect — see detailed rules in [Resource instructions and catalog](../resources/AGENTS.md).
 
-NWDAF 만 `Nwdaf Peer Closed`(논블로킹 `MSG_PEEK`)로 **PG 측 FIN/RST 까지 감지**한다.
-다른 노드의 `Is Connected` 는 로컬 fd 만 보므로 상대가 끊은 것을 알지 못한다.
+NWDAF only `Nwdaf Peer Closed`(Non-blocking `MSG_PEEK`) to detect FIN/RST on the PG side.
+`Is Connected` on other nodes only sees the local fd, so it does not know that the peer has hung up.

@@ -31,9 +31,9 @@ Documentation
 ...    명령이 실패하면 시드가 실패한다(본 실행 안 함). 끄기: --no-db-seed-ssh
 
 Resource    ../resources/variables.robot
-Library     ../resources/PdbHelper.py    WITH NAME    SeedDb
-Library     ../resources/DbSeedHelper.py    WITH NAME    Seed
-Library     ../resources/SshHelper.py    WITH NAME    Ssh
+Library     ../libraries/PdbHelper.py    WITH NAME    SeedDb
+Library     ../libraries/DbSeedHelper.py    WITH NAME    Seed
+Library     ../libraries/SshHelper.py    WITH NAME    Ssh
 Library     OperatingSystem
 
 Suite Teardown    Close Seed DB Connections

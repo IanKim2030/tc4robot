@@ -215,3 +215,9 @@ config/env/local.py
 config/env/*
 !config/env/dev.py
 !config/env/stg.py
+
+# Robot Framework execution artifacts
+/results/
+
+# Keep scoped instructions alongside tracked environment files
+!config/env/AGENTS.md

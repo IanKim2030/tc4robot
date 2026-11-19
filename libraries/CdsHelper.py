@@ -266,7 +266,7 @@ _CMD_LAYOUT = [
     #   SDM/SubsProcessing/SubsProcessing.cpp ValidationCheck() 이 START_TIME 을 _endT,
     #   REAL_START_TIME 을 _startT 로 읽고 (시작 >= 종료)면 반영을 건너뛴다.
     #   같은 필드가 SS/ST(시간프리)에서는 Start 다 — 그래서 키를 coupon_stop_time 으로
-    #   바꾸지 않았다. 코드별 의미는 아래 두 줄과 docs/nodes/CDS.md 함정 절을 볼 것.
+    #   바꾸지 않았다. 코드별 의미는 아래 두 줄과 tests/cds/AGENTS.md 함정 절을 볼 것.
     ('start_time',                    12),   # START_TIME  — K*/Y9: couponStopTime(종료) / SS·ST: 시간프리 Start
     ('coupon_type',                    2),   # COUPON_TYPE — K*/Y9: 쿠폰 권종          / SS·ST: 시간프리 End
     ('coupon_pin',                    11),   # COUPON_PIN

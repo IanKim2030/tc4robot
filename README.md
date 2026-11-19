@@ -1,73 +1,85 @@
 # tc4robot
 
-SK텔레콤 **PG(Policy Gateway)** 연동을 검증하는 Robot Framework 테스트 슈트.
-**6개 노드** — NAG · PCF · LRS · UPM · CDS · NWDAF.
+A Robot Framework-based regression automation testing tool for SK Telecom's **PG (PCRF Gateway)**.
+Seven nodes: NAG, PCF, LRS, UPM, CDS, NWDAF, and RTS.
 
-## 설치
+## Agent Instructions
+
+Read [AGENTS.md](AGENTS.md) before making changes. It links to task-specific
+references and the [development workflow](docs/agent/workflow.md).
+
+## Installation
 
 ```bash
 python -m venv .venv
-pip install robotframework
-pip install pyodbc            # CDS PDB(골디락스/알티베이스) 조회용 — TC-CDS-002
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-`pyodbc` 는 CDS 슈트의 DB 검증(`db` 태그)에만 필요하다. 없으면 그 TC 만 실패하고
-전문 송수신 TC 는 그대로 돈다. 접속 정보는 [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) 참조.
+PDB checks require `pyodbc` and the appropriate system ODBC driver.
+CDS connects to PDB in suite setup, so missing DB dependencies or configuration
+can prevent the entire suite from running. See [environment configuration](docs/ENVIRONMENTS.md).
+Additional service dependencies are described in `requirements.txt`.
 
-## 실행
+## Execution
 
 ```bash
-bash run_tests.sh nag         # 노드별 (nag/pcf/lrs/upm/cds/nwdaf)
-bash run_tests.sh all         # 전체
-bash run_tests.sh smoke       # --include smoke
-bash run_tests.sh nag stg     # 환경 지정 (dev 기본 / stg / prd)
+bash run_tests.sh nag         # A node suite: nag/pcf/lrs/upm/cds/nwdaf/rts
+bash run_tests.sh all         # All suites
+bash run_tests.sh smoke       # Tests tagged smoke
+bash run_tests.sh nag stg     # Environment: dev by default, stg, or supplied prd
 ```
 
-결과물: `results/<YYYYMMDD_HHMMSS>/report.html`, `log.html`
+These are live integration commands; the runner seeds configuration data by default.
+See the [workflow](docs/agent/workflow.md) before running them.
+Reports: `results/<YYYYMMDD_HHMMSS>/report.html` and `log.html`.
 
-## 문서
+## Documentation
 
-[docs/README.md](docs/README.md) 가 전체 인덱스다. 작업 전에 해당 문서를 읽을 것.
+See [the applied structure and validation summary](docs/agent/current-state.md) for the current refactoring status.
 
-| 문서 | 내용 |
+[docs/README.md](docs/README.md) is the complete documentation index.
+Read the relevant node specification before writing TCs.
+
+| Document | Purpose |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 4계층 구조와 모듈 배치 |
-| [docs/INTERFACES.md](docs/INTERFACES.md) ★ | 노드 간 연동 매트릭스 · opcode 충돌 |
-| [docs/TC_CONVENTION.md](docs/TC_CONVENTION.md) | TC 명명·태그·템플릿 |
-| [docs/RESOURCES.md](docs/RESOURCES.md) | 공통 키워드·변수·Python 헬퍼 |
-| [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) | dev/stg/prd 환경 설정 |
-| [docs/nodes/](docs/nodes/) | 노드별 스펙 7종 |
+| [Architecture](docs/ARCHITECTURE.md) | Four-layer structure and module layout |
+| [Interfaces](docs/INTERFACES.md) | Node interface matrix and opcode collisions |
+| [TC conventions](tests/TC_CONVENTION.md) | Naming, tags, templates, and validation |
+| [Resources](resources/AGENTS.md) | Shared keywords, variables, and Python helpers |
+| [Environments](docs/ENVIRONMENTS.md) | dev/stg/prd configuration |
+| [Node specifications](tests/AGENTS.md) | Specifications for all seven nodes |
+| [Call flows](docs/callflow/) | Developer-only reference for understanding internal processing |
 
----
+## Interface Specification Inventory
 
-##  연동규격서 목록
+Specification titles below are translated descriptions; retain original source documents
+as the authority for their exact titles and contents. Status labels reflect the existing inventory.
 
-| No. | PROCESS명 | 구간 | 규격서 | 상태 | 비고 |
-| :--- | :--- | :--- | :--- | :---: | :--- |
-| 01 | PG.BNOTI | NAG (C) → PG.BNOTI (S) | PG_NAG HFC_ADOT 서비스 연동 규격서_20230718 | 완료 | ... |
-| 02 | PG.BNOTI | PCF (C) → PG.BONTI (S) | PCRF-PG 간 ZONE 알림 정보 처리 연동 규격서_20210329 | 완료 | ... |
-| 03 | PG.BNOTI | BNOTI (C) → PG.LRS (S) | PG_LRS_정보조회_연동규격_2021021_V1.7 | 완료 | ... |
-| 04 | PG.LRS | LRS (C) → PG.LRS (S) | PG_LRS_정보조회_연동규격_2021021_V1.7 | 완료 | ... |
-| 05 | PG.LRS | PG.LRS (C) → PCF (S) | PCRF&PCF-PG 간 RAR 경량화 연동 규격서_v0.8_20231115 | 완료 | ... |
-| 06 | PG.UPM | ... | UPM ↔ PG.BSUBS HFC 서비스 연동 규격 v1.1 | 작업중 | ... |
-| 90 | PG.SCMQOS | ITM → PG.SCMQOS | ... | 적용필요 | 기지국 혼잡제어 |
-| 91 | PG.NWMQOS | NWDAF → PG.NWMQOS | PG_연동 규격서_V1.2_20240920 | 적용필요 | 기지국 혼잡제어 |
+| No. | Process | Connection | Specification | Status | Notes |
+|---|---|---|---|---|---|
+| 01 | PG.BNOTI | NAG (C) → PG.BNOTI (S) | PG–NAG HFC/ADOT Service Interface, 2023-07-18 | Complete | ... |
+| 02 | PG.BNOTI | PCF (C) → PG.BONTI (S) | PCRF–PG ZONE Notification Processing Interface, 2021-03-29 | Complete | ... |
+| 03 | PG.BNOTI | BNOTI (C) → PG.LRS (S) | PG–LRS Information Query Interface, 2021021, V1.7 | Complete | ... |
+| 04 | PG.LRS | LRS (C) → PG.LRS (S) | PG–LRS Information Query Interface, 2021021, V1.7 | Complete | ... |
+| 05 | PG.LRS | PG.LRS (C) → PCF (S) | PCRF/PCF–PG RAR Optimization Interface, v0.8, 2023-11-15 | Complete | ... |
+| 06 | PG.UPM | ... | UPM–PG.BSUBS HFC Service Interface, v1.1 | In progress | ... |
+| 90 | PG.SCMQOS | ITM → PG.SCMQOS | ... | Implementation required | Base-station congestion control |
+| 91 | PG.NWMQOS | NWDAF → PG.NWMQOS | PG Interface, V1.2, 2024-09-20 | Implementation required | Base-station congestion control |
 
-###  작성 팁
+### Inventory Tips
 
-* **통신 방식:** REST API (HTTPS), gRPC, Socket, SFTP, DB Link 등
-* **데이터 포맷:** JSON, XML, Fixed Length (고정길이 전문), CSV 등
-* **상태:** 대기 / 설계중 / 개발중 / 테스트중 / 완료 / 보류
+- Transport examples: REST API (HTTPS), gRPC, sockets, SFTP, DB Link.
+- Data format examples: JSON, XML, fixed-width messages, CSV.
+- Status examples: pending, design, development, testing, complete, on hold.
 
----
+## Components and Acronyms
 
-##  구성 요소 및 약어 목록
-
-| 약어 (Acronym) | 용어 (Full Name) | 주요 역할 및 설명 |
-| :--- | :--- | :--- |
+| Acronym | Full name | Role or description |
+|---|---|---|
 | PG | PCRF Gateway | ... |
 | NAG | Network Access Gateway | ... |
-| MSS | Mobile Switching Server/System | 통화 경로 제어 및 가입자 위치 관리 |
+| MSS | Mobile Switching Server/System | Call routing and subscriber location management |
 | ABC | A-side, B-side / Call Processing | ... |
 | HD Voice | High Definition Voice | ... |
 | HFC | Home-Fi Call | ... |
@@ -75,5 +87,5 @@ bash run_tests.sh nag stg     # 환경 지정 (dev 기본 / stg / prd)
 | NWDAF | Network Data Analytics Function | ... |
 | CDS | Customer Data Distributed | ... |
 | RDS | Reserved Data Distributed | ... |
-| ITM | Integrated Traffic Manager/Management | 통신망 내에서 가입자 데이터베이스와 연동하여 트래픽 정책을 제어하고, 가입자의 서비스 품질(QoS)과 정책 정보를 실시간으로 관리하는 시스템 |
+| ITM | Integrated Traffic Manager/Management | Applies traffic policies and manages subscriber service quality and policy information using telecommunications subscriber databases |
 | PG.BNOTI | BaroD Noti | ... |

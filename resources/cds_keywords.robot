@@ -26,10 +26,10 @@ Library    Collections
 Library    String
 Library    DateTime
 Library    BuiltIn
-Library    ${CURDIR}/CdsHelper.py    WITH NAME    Cds
-Library    ${CURDIR}/PdbHelper.py    WITH NAME    CdsDb
+Library    ${CURDIR}/../libraries/CdsHelper.py    WITH NAME    Cds
+Library    ${CURDIR}/../libraries/PdbHelper.py    WITH NAME    CdsDb
 # 도구가 PCF 역할로 SBI Noti(HTTP/2 h2c)를 받는다 → 의존성: pip install h2
-Library    ${CURDIR}/HttpNotiServer.py    WITH NAME    Noti
+Library    ${CURDIR}/../libraries/HttpNotiServer.py    WITH NAME    Noti
 Resource   ${CURDIR}/common_keywords.robot
 # HFC 전문(1X 가입 / 1Y 해지)이 PG.BSUBS→UPM Subs-Info(0x07)를 유발한다
 # → TC-CDS-003 / TC-CDS-004 가 UPM 키워드를 쓴다.

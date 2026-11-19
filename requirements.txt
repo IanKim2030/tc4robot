@@ -36,7 +36,7 @@ pyftpdlib
 #   구 pip 는 cryptography/pynacl wheel 을 못 받고 소스 빌드로 빠져 실패한다.
 paramiko
 
-# PG 프로세스 .RUN 파일 touch 용(resources/SshHelper.py) — pip 패키지가 아니라
+# PG 프로세스 .RUN 파일 touch 용(libraries/SshHelper.py) — pip 패키지가 아니라
 # **OS 명령 ssh 하나만** 있으면 된다(라이브러리·추가 패키지 없음). 키 인증
 # (${PG_SSH_KEY_FILE})/비밀번호 인증(PG_PWD_SSH) 모두 ssh 하나로 처리한다
 # — 비밀번호는 sshpass 가 아니라 OpenSSH 내장 SSH_ASKPASS 메커니즘으로 자동

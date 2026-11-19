@@ -301,7 +301,7 @@ TC-CDS-003 1X (HFC가입) - CDS 전문 + UPM Subs-Info + PDB
     ...      때문이다. 여기서 ${CDS_NOTI_WAIT} 동안 기다려 도착으로 판정한다.
     ...      ${SNOTI_PCF_NOTI}=${FALSE}(--no-sbi) 면 이 단계를 통째로 건너뛴다.
     ...    ★ 이 판정은 **SA(5G) 가입자 전제**다 — LTE 는 SBI 가 아니라 RBUS 라
-    ...      아무것도 안 들어온다(docs/nodes/CDS.md).
+    ...      아무것도 안 들어온다(tests/cds/AGENTS.md).
     ...    ※ 구간별로 끌 수 있다(끄면 접속·Listen 자체를 하지 않는다).
     ...       --variable CDS_UPM_VERIFY:False    --variable SNOTI_PCF_NOTI:False
     [Tags]    cds    command    validation    db    upm    noti

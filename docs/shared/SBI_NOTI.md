@@ -1,79 +1,79 @@
-# SBI_NOTI — PCF SBI Noti 수신 (CDS · RTS 공용)
+# SBI_NOTI — PCF SBI Noti reception (CDS · RTS common)
 
-SA(5G) 가입자 처리 중 PG 는 PCF 로 **SBI Noti**(HTTP/2) 를 보낸다. 도구가 **PCF 역할로 Listen**
-해 그 도착을 판정한다 — 전문(SC)·PDB 어느 쪽으로도 보이지 않는 구간이라서다.
-서버는 [resources/HttpNotiServer.py](../../resources/HttpNotiServer.py) 하나이고, CDS 와 RTS 가
-**같은 포트·같은 서버**를 쓴다.
+During SA (5G) subscriber processing, PG sends SBI Noti (HTTP/2) to PCF. The tool listens to the PCF role as Listen
+This is because it is a section that is not visible to either the message (SC) or PDB.
+The server is [libraries/HttpNotiServer.py](../../libraries/HttpNotiServer.py), and CDS and RTS are
+Use the same port, , and the same server, .
 
-| 사용처 | 무엇을 기다리나 | 상세 |
+| Where to use | what are you waiting for | Details |
 |---|---|---|
-| CDS | `1X`/`1Y` 뒤 `PG.BSUBS` → PCF Cell List (`TC-CDS-003`) | [nodes/CDS.md](../nodes/CDS.md#pcf-sbi-noti-수신--무엇을-기다리나) |
-| RTS | L1/L2 차단 뒤 가입자 Noti | [nodes/RTS.md](../nodes/RTS.md) |
+| CDS | `1X`/`1Y` followed by `PG.BSUBS` → PCF Cell List (`TC-CDS-003`) | [../../tests/cds/AGENTS.md](../../tests/cds/AGENTS.md#pcf-sbi-noti-received--what-are-you-waiting-for) |
+| RTS | Subscriber Notification after L1/L2 blocking | [../../tests/rts/AGENTS.md](../../tests/rts/AGENTS.md) |
 
-## 변수
+## variable
 
-| 변수 | 기본값 | 설명 |
+| variable | default | Description |
 |---|---|---|
-| `${SNOTI_PCF_NOTI}` | `${TRUE}` | 끄면 Listen 자체를 안 한다(`h2` 없이도 슈트가 돈다). `--no-sbi` |
-| `${SBI_NOTI_PORT}` | `16101` | Listen 포트 — **PG 설정과 일치해야 한다.** 노드 변수 `${CDS_NOTI_PORT}` / `${RTS_NOTI_PORT}` 의 기본값 |
-| `${SBI_NOTI_HOST}` | `0.0.0.0` | bind 주소. 노드 변수 `${CDS_NOTI_HOST}` / `${RTS_NOTI_HOST}` 의 기본값 |
-| `${TOOL_HOST}` | **없음 (환경 파일 필수)** | PG 가 **닿는** 도구 주소. CDS 세션 `RES_URI`/`UDR_NOTI_URI` 호스트가 된다 |
+| `${SNOTI_PCF_NOTI}` | `${TRUE}` | If you turn it off, Listen itself does not work (the suite runs without `h2`). `--no-sbi` |
+| `${SBI_NOTI_PORT}` | `16101` | Listen port — Must match PG setting. Default value of node variables `${CDS_NOTI_PORT}` / `${RTS_NOTI_PORT}` |
+| `${SBI_NOTI_HOST}` | `0.0.0.0` | bind address. Default value of node variables `${CDS_NOTI_HOST}` / `${RTS_NOTI_HOST}` |
+| `${TOOL_HOST}` | None (environment file required) | PG reaches  tool address. CDS session `RES_URI`/`UDR_NOTI_URI` becomes host |
 
-대기 시간(`${CDS_NOTI_WAIT}` 30s / `${RTS_NOTI_WAIT}` 12s)과 링크 표본 주기는 노드별로 따로 쥔다.
-구 이름(`CDS_NOTI_PORT` 등)으로 환경 파일에서 덮어도 계속 먹는다.
+Waiting time (`${CDS_NOTI_WAIT}` 30s / `${RTS_NOTI_WAIT}` 12s) and link sampling period are determined separately for each node.
+Even if you overwrite it in the environment file with the old name (`CDS_NOTI_PORT`, etc.), it continues to be used.
 
-★ **PG 가 이 주소로 보내도록 설정돼 있어야 한다.** 도구가 붙는 게 아니라 PG 가 붙어 오는
-방향이라, 포트만 열어 둔다고 오지 않는다. `0.0.0.0` 은 bind 주소라 세션 URI 에 못 쓴다 —
-그래서 `${TOOL_HOST}` 가 따로 있다. `config/db_seed/<env>.sql` 의 URI 리터럴은 Robot 변수를
-못 쓰므로 `TOOL_HOST`·포트가 바뀌면 거기도 같이 고친다.
+★ PG must be set to send to this address. The tool is not attached, but PG is attached.
+Since it is a direction, it will not come if you just open the port. `0.0.0.0` is a bind address and cannot be used in the session URI —
+So there is a separate `${TOOL_HOST}`. The URI literal of `config/db_seed/<env>.sql` sets the Robot variable to
+Since it cannot be used, if the `TOOL_HOST` port changes, it must be changed as well.
 
-## 프로토콜 — HTTP/2 평문(h2c), prior-knowledge 만
+## Protocol — HTTP/2 plaintext (h2c), prior-knowledge only
 
-**프로토콜이 HTTP/2 평문(h2c)이다.** 3GPP SBI 라 표준 `http.server` 로는 첫 프리페이스에서
-막힌다 — `h2` 패키지(sans-IO 스택)로 프레임을 직접 처리한다. `pip install h2`.
+The protocol is HTTP/2 plain text (h2c). 3GPP SBI standard `http.server` is used in the first freeface.
+Blocked — Process the frame directly with the `h2` package (sans-IO stack). `pip install h2`.
 
-> **`No keyword with name 'Noti.Noti Server Start' found`** 가 뜬다면 `h2` 미설치다.
-> 예전에는 `HttpNotiServer.py` 가 최상단에서 `import h2` 를 해서, 패키지가 없으면
-> **라이브러리 자체가 안 올라오고** Robot 이 저 메시지로 보고했다 — 진짜 원인이 전혀
-> 드러나지 않았다. 지금은 지연 임포트라 서버를 띄울 때 `pip install h2` 안내와 함께
-> 실패하고, `${SNOTI_PCF_NOTI}=False` 면 `h2` 없이도 슈트가 그대로 돈다.
-> 시험 장비가 개발 PC 와 다르면 **그 장비에** 설치해야 한다.
-지원하는 건 **prior-knowledge** 방식뿐이라, PG 가 HTTP/1.1 Upgrade 로 붙으면 받지 못하고
-`noti_errors()` 에 "h2c prior-knowledge 가 아닌 접속" 이 남는다 — 알림이 안 잡히면 여기부터 볼 것.
+> If `No keyword with name 'Noti.Noti Server Start' found` appears, `h2` is not installed.
+> In the past, `HttpNotiServer.py` did `import h2` at the top, so if there was no package,
+> The  library itself is not loaded, and  Robot reported it with that message — the real cause is not at all
+> It wasn't revealed. Currently, it is a delayed import, so when you start the server, you will see `pip install h2` instructions.
+> If it fails and `${SNOTI_PCF_NOTI}=False`, the suite runs without `h2`.
+> If the test equipment is different from the development PC, it must be installed on that equipment.
+The only supported method is prior-knowledge, so if PG is attached as HTTP/1.1 Upgrade, it cannot be received.
+“Non-h2c prior-knowledge connection” is left in `noti_errors()` — If you don’t get the notification, look here.
 
-접속 성립(프리페이스 + 서버 SETTINGS)은 요청 수신과 **따로 센다** — PG 가 붙어만
-두고 알림은 나중에 보내는 경우도 구분해야 하기 때문이다.
+Connection establishment (free face + server SETTINGS) is counted separately from request reception — only with PG attached.
+This is because it is necessary to distinguish between cases where notifications are sent later.
 
-## 링크 감시 — 별도 스레드
+## Link Watch — Separate Thread
 
-accept 루프와 무관하게 도는 감시 스레드가
-`${CDS_NOTI_MONITOR_INTERVAL}`(기본 1s)마다 "지금 몇 개 붙어 있는지" 표본을 뜬다.
-누적 접속 이력만으로는 **슈트 중간에 PG 가 끊긴 것을 알 수 없기 때문**이다 — 이력은
-그대로 남아 "접속 있음" 으로 보인다. 알림이 안 오면 `Verify PCF Noti Received` 가
-**그 TC 동안의 링크 상태**를 실패 메시지에 붙인다.
+Monitoring thread that runs independently of the accept loop
+Every `${CDS_NOTI_MONITOR_INTERVAL}` (default 1s), a sample of “how many are currently attached” is displayed.
+It is  because it is impossible to know that the PG was disconnected in the middle of suite just by looking at the cumulative connection history. — The history is
+It remains as is and appears as “connected”. If you don't get a notification, go to `Verify PCF Noti Received`
+The link status during the TC, , is attached to the failure message.
 
 ```
 {'live': 0, 'connected': False, 'total_connects': 1,
  'connects_since': 0, 'disconnects_since': 1, 'samples_with_no_link': 3, ...}
 ```
 
-`disconnects_since` 가 0이 아니면 전문이 아니라 **링크가 끊겼던 것**이다.
+`disconnects_since` If is not 0, it is not a message but a broken link.
 
-`${CDS_NOTI_REQUIRE_LINK}`(기본 `${FALSE}`)를 켜면 알림을 기다리기 전에 링크가
-살아 있는지부터 본다. 기본이 꺼짐인 이유는 **PG 가 알림마다 새로 붙는 구현일 수
-있어서**다 — 그러면 평소 연결 수가 0이라 켜 두면 멀쩡한 흐름을 막는다.
+If you turn on `${CDS_NOTI_REQUIRE_LINK}` (default `${FALSE}`), links will be displayed before waiting for a notification.
+First, check to see if he or she is alive. The reason the default is off may be the implementation where PG is added to each notification.
+It is  — then the normal connection count is 0, so turning it on blocks the normal flow.
 
-(RTS 는 같은 역할의 `${RTS_NOTI_MONITOR_INTERVAL}` 을 쓴다.)
+(RTS uses `${RTS_NOTI_MONITOR_INTERVAL}`, which plays the same role.)
 
-## 수신 상태는 TC 마다 리셋된다
+## Reception status is reset every TC
 
-`Test Setup`(`CDS Test Setup`)이 소켓 생존 확인과
-함께 쌓인 알림·오류를 비우고 TC 시작 시각을 찍는다. **알림을 판정하는 TC 는 일부뿐
-이지만 리셋은 전 TC 에서 한다** — 판정 TC 안에서만 비우면 그 전에 다른 TC 가 유발한
-알림이 큐에 남아 자기 결과로 오인된다. 접속 이력은 지우지 않는다(지우면 링크 진단이
-불가능해진다).
+`Test Setup`(`CDS Test Setup`) checks socket survival and
+Empty the accumulated notifications and errors and record the TC start time. There are only some TCs that judge  notifications.
+However, the reset is done in the previous TC — If it is emptied only within the judgment TC, the
+Notifications remain in the queue and are mistaken for self-results. The connection history is not erased (doing so will cause link diagnosis to be disabled).
+becomes impossible).
 
-## 함정 — LTE 가입자면 아무것도 안 온다
+## Trap — If you are an LTE subscriber, nothing comes.
 
-LTE 는 SBI 가 아니라 RBUS 로 나간다([nodes/CDS.md](../nodes/CDS.md) LTE/SA 대조표).
-이 판정은 **SA 전제**다.
+LTE goes out through RBUS, not SBI ([../../tests/cds/AGENTS.md](../../tests/cds/AGENTS.md) LTE/SA comparison table).
+This judgment is based on the premise SA .
