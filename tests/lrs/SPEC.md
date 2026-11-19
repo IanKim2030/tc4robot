@@ -27,7 +27,7 @@ The primary LRS interface operates in client mode.
 | Channel | Tool role | Direction | Port | Protocol |
 |---|---|---|---|---|
 | Primary LRS client | Client | Tool → PG.LRS | `${LRS_CLIENT_DEFAULT_PORT}` = 10204 | Raw TCP and HTTP |
-| Auxiliary LRS-PCF | Server | PG → tool | `${LRS_SERVER_PORT}`: dev 8889, shared fallback 8890 | 8-octet header |
+| Auxiliary LRS-PCF | Server | PG → tool | `${LRS_SERVER_PORT}`: dev 8890, shared fallback 8890 | 8-octet header |
 
 Port discovery from `PG_V2.cfg` `[LRS] LISTEN_PORT` is currently commented out
 in the `Variables` declaration, so the default 10204 is used.
@@ -117,4 +117,4 @@ requiring a separate PG state trigger. Most other negative cases
 
 ## Dev LRS-PCF Endpoint
 
-The dev environment binds the tool-side PCF listener to `192.168.15.142:8889`. This is the same inbound LRS channel used by NAG. References to 8890 above describe the legacy shared default; runtime selection follows `config/env/<env>.py`.
+The dev environment binds the tool-side PCF listener to `192.168.15.142:8890`. This is the same inbound LRS channel used by NAG. References to 8890 above describe the legacy shared default; runtime selection follows `config/env/<env>.py`.

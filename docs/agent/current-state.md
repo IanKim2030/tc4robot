@@ -211,17 +211,21 @@ and standalone ZION receivers remain unsupported due to documented ordering cons
 ## Dev LRS-to-PCF Prerequisite Endpoint
 
 Dev now sets `LRS_SERVER_HOST = TOOL_HOST` (`192.168.15.142`) and
-`LRS_SERVER_PORT = 8889`. PG LRS connects inbound to that tool-side PCF listener.
+`LRS_SERVER_PORT = 8890`. PG LRS connects inbound to that tool-side PCF listener.
 The NAG request path waits for accept and a valid Hello before opening NAG,
 and checks both NAG and LRS handles before each request TC. A prerequisite failure
 aborts the path rather than sending NAG requests. PCF-only selection retains its
 separate initialization path. The shared default remains 8890 for environments
-without an override; the LRS dev suite shares the configured 8889 endpoint.
+without an override; the LRS dev suite shares the configured 8890 endpoint.
 
-Validation: the dev whole-suite dry run passed 94 cases. Local fake PG/LRS peers
+Historical validation before the port correction: the dev whole-suite dry run passed 94 cases. Local fake PG/LRS peers
 passed all 17 NAG cases using loopback port 8889. An invalid LRS Hello caused
 prerequisite failure without attempting a NAG connection. These are local checks,
 not confirmation that the private host 142 is reachable from this environment.
+
+Port correction validation: after correcting the dev endpoint to port 8890, the
+mandatory dev whole-suite dry run passed all 94 cases. This affects the NAG
+request path and LRS side channel. No live PG connectivity was verified.
 
 ## Remaining Limits
 
