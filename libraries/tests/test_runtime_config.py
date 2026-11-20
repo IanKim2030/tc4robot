@@ -162,10 +162,10 @@ class RuntimeConfigTests(unittest.TestCase):
         output = Path(self.temp.name) / 'runtime.json'
         result = subprocess.run([sys.executable, str(Path(RuntimeConfig.__file__)), str(output), 'nag',
                                  'config/db_seed/dev.sql', '-V', str(self.env), '--dryrun'],
-                                check=True, capture_output=True, encoding='utf-8',
+                                check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 env=dict(os.environ, PYTHONIOENCODING='utf-8'))
         report = Path(self.temp.name) / 'runtime-report.txt'
-        self.assertIn('[Config]', result.stdout)
+        self.assertIn('[Config]', result.stdout.decode('utf-8'))
         text = report.read_text(encoding='utf-8')
         self.assertIn('DB_SEED_FILE', text)
         self.assertIn('러너 (환경별 시드 파일)', text)

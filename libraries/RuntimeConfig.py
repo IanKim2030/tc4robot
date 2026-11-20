@@ -7,13 +7,31 @@ import sys
 
 from robot.conf import RobotSettings
 from robot.run import RobotFramework
-from robot.running import ResourceFile
 from robot.utils import split_args_from_name_or_path
 from robot.variables.scopes import GlobalVariables
 
 import SshHelper
 
 _ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_resource_variables(variables, path: str) -> None:
+    """Apply a resource file's Variables section without overwriting.
+
+    RF 7 exposes ``robot.running.ResourceFile`` and ``set_from_variable_section``;
+    RF 6 and older only have ``ResourceFileBuilder`` and ``set_from_variable_table``.
+    The test host still runs an older RF, so both are supported.
+    """
+    try:
+        from robot.running import ResourceFile
+        section = ResourceFile.from_file_system(path).variables
+    except ImportError:
+        from robot.running.builder import ResourceFileBuilder
+        section = ResourceFileBuilder().build(path).variables
+    setter = getattr(variables, 'set_from_variable_section', None)
+    if setter is None:
+        setter = variables.set_from_variable_table
+    setter(section)
 
 
 def get_variables(snapshot: str) -> dict:
@@ -30,6 +48,9 @@ def _resolve(options: dict, target: str, reader=None, sources=None) -> dict:
     for spec in options.get('variablefile', []):
         path, args = split_args_from_name_or_path(spec)
         for name, _ in variables.set_from_file(path, args):
+            # RF 6 returns decorated names ('${X}'); RF 7 returns bare ones ('X').
+            if name[:2] in ('${', '@{', '&{') and name.endswith('}'):
+                name = name[2:-1]
             names.add(name)
             sources[name] = '환경 파일 %s' % Path(path).name
     cli = options.get('variable', [])
@@ -44,8 +65,7 @@ def _resolve(options: dict, target: str, reader=None, sources=None) -> dict:
                      'cds_variables', 'nwdaf_variables', 'rts_variables']:
         path = _ROOT / 'resources' / (resource + '.robot')
         variables['${CURDIR}'] = str(path.parent)
-        section = ResourceFile.from_file_system(str(path)).variables
-        variables.set_from_variable_section(section)
+        _load_resource_variables(variables, str(path))
     enabled = variables['${REMOTE_CONFIG_ENABLED}']
     enabled = str(enabled).lower() not in {'false', '0', 'no', 'off', ''}
     remote_names = set()
