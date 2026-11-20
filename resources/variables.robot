@@ -108,6 +108,21 @@ ${PG_SSH_RUN_DIR}            /PG/BIN/PDB_RUN
 # 지연되므로 별도로 넣지 않았다.
 ${PG_SSH_SETTLE}             3s
 
+# ── PG.BNOTI 설정 파일에서 NAG/PCF 포트 읽기 (SSH, 선택) ────────
+# NAG 슈트 Suite Setup 이 ${PG_HOST} 에 ssh 로 붙어 ${BNOTI_CFG_PATH} 를 읽고
+# [${BNOTI_CFG_SECTION}] 의 두 키로 ${PCF_PG_PORT} / ${NAG_PG_PORT} 를 덮는다
+# (resources/ssh_keywords.robot 의 `Load NAG Ports From BNOTI Cfg`).
+#   Barod.IF.Port.PCF=8011   # Zone-InOut 을 보내는 PCF/PCRF 가 접속
+#   Barod.IF.Port.NAG=8012   # Subs-Zone-Status / Subs-Cellid 를 보내는 NAG 가 접속
+# 계정·인증은 위 기동 보장과 같다(${PG_SSH_USER}, ${PG_SSH_KEY_FILE}, PG_PWD_SSH).
+# 건너뛰는 경우: ${BNOTI_CFG_PATH} 가 비어 있음(--no-bnoti-cfg) / ${PG_SSH_USER} 가 비어 있음
+#   → nag_variables.robot / pcf_variables.robot 의 기본 포트를 그대로 쓴다.
+# 읽기로 했는데 파일을 못 읽거나 키가 없으면 Suite Setup 이 실패한다(기본값으로 넘어가지 않는다).
+${BNOTI_CFG_PATH}            /PG/CFG/BarodNoti.cfg
+${BNOTI_CFG_SECTION}         Barod.IF
+${BNOTI_CFG_KEY_PCF}         Barod.IF.Port.PCF
+${BNOTI_CFG_KEY_NAG}         Barod.IF.Port.NAG
+
 # ── PCF SBI Noti 수신 검증 (CDS · RTS 공용) ──
 # 도구가 PCF 역할로 h2c 를 Listen 해 PG.SNOTI 가 보내는 SBI Noti 를 받는 판정.
 # **CDS 와 RTS 가 같은 포트(16101)·같은 HttpNotiServer 를 쓴다** — 손잡이도 하나다.

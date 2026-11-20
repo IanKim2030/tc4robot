@@ -191,6 +191,9 @@ Remains — If the account is actually used, the password itself must be changed
 
 ### Remove DynamicVars
 
+> Since 2026-11-20 the NAG suite reads `BarodNoti.cfg [Barod.IF]` ports again, but through
+> `Load NAG Ports From BNOTI Cfg` with no silent fallback — see [shared/SSH.md](shared/SSH.md).
+
 `DynamicVars`, which read PG settings with SSH, has been removed. (Current SSH is `.RUN` touch and seed successor
 This is the command — [shared/SSH.md](shared/SSH.md).)
 

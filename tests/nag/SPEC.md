@@ -30,7 +30,13 @@ Files: [`nag_tests.robot`](nag_tests.robot) · [`nag_keywords.robot`](../../reso
 | Body | JSON |
 | Timeout | `${NAG_TIMEOUT}` = 10 seconds |
 
-The default NAG destination port is 8012 in `nag_variables.robot`; override it in `config/env/<env>.py` when required.
+The default NAG destination port is 8012 in `nag_variables.robot`. Suite Setup
+(`Initialize NAG Regression` → `Load NAG Ports From BNOTI Cfg`) then reads
+`${BNOTI_CFG_PATH}` (default `/PG/CFG/BarodNoti.cfg`) on `${PG_HOST}` over SSH and
+overrides `${PCF_PG_PORT}` / `${NAG_PG_PORT}` from `[Barod.IF]`
+`Barod.IF.Port.PCF` / `Barod.IF.Port.NAG`. It is skipped when `${BNOTI_CFG_PATH}`
+(`--no-bnoti-cfg`) or `${PG_SSH_USER}` is empty; once enabled, a missing file or key
+fails Suite Setup instead of falling back to the default. See [SSH](../../docs/shared/SSH.md).
 
 The separate LRS→PCF prerequisite is an inbound connection from PG LRS to the test tool, not a connection from the tool to PG. In dev the listener binds `${TOOL_HOST}` = `192.168.15.142`, port 8890. The environment overrides `LRS_SERVER_HOST` and `LRS_SERVER_PORT`; the shared legacy port fallback remains 8890 for environments without an override. NAG requests must wait for accept and the successful Hello exchange before the NAG socket opens. Per-test readiness checks cover both handles. The LRS suite shares these environment variables, so its dev side channel also uses 8890.
 

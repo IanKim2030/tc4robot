@@ -7,6 +7,7 @@ Two operations execute commands on `${PG_HOST}` through
 |---|---|---|---|
 | Ensure PG processes are running | Suite Setup | `Ensure PG Process Running` in [ssh_keywords.robot](../../resources/ssh_keywords.robot) → `ensure_pg_process_running` | System `ssh` through subprocess; no Python package |
 | Commands after seed INSERT | End of `setup/db_seed.robot` | `Run Seed SSH Commands` → `run_remote_command` | `paramiko`; install with `pip install paramiko` |
+| Read NAG/PCF ports from PG cfg | NAG Suite Setup | `Load NAG Ports From BNOTI Cfg` → `read_remote_cfg` | System `ssh` (`cat`); no Python package |
 
 Paramiko is imported lazily. It is unnecessary when no rows were inserted, the
 command list is empty, or `--no-db-seed-ssh` is set. If an enabled command needs
@@ -89,3 +90,27 @@ DB_SEED_SSH_ENABLE = False
 No commands run when zero rows were inserted or `--db-seed-check` is enabled.
 For enabled commands, an empty `${PG_SSH_USER}` is a failure rather than a skip.
 A nonzero remote exit status fails seeding and prevents the main suite execution.
+
+## Read NAG/PCF ports from `BarodNoti.cfg`
+
+The NAG suite's Suite Setup (`Initialize NAG Regression`) runs `cat ${BNOTI_CFG_PATH}`
+on `${PG_HOST}` before any socket is opened and overrides the destination ports:
+
+```ini
+[Barod.IF]
+Barod.IF.Port.PCF=8011 # → ${PCF_PG_PORT}
+Barod.IF.Port.NAG=8012 # → ${NAG_PG_PORT}
+```
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `${BNOTI_CFG_PATH}` | `/PG/CFG/BarodNoti.cfg` | Empty skips (`bash run_tests.sh nag --no-bnoti-cfg`) |
+| `${BNOTI_CFG_SECTION}` | `Barod.IF` | Section to read |
+| `${BNOTI_CFG_KEY_PCF}` / `${BNOTI_CFG_KEY_NAG}` | `Barod.IF.Port.PCF` / `Barod.IF.Port.NAG` | Keys |
+
+An empty `${PG_SSH_USER}` also skips it and keeps the defaults from
+`nag_variables.robot` / `pcf_variables.robot`. Once enabled, an SSH failure, a
+missing section or key, an empty value, or a non-integer value fails Suite Setup.
+It never silently falls back: the removed `DynamicVars` looked up a wrong key for
+a long time without anyone noticing, because the fallback matched the real value
+([ENVIRONMENTS](../ENVIRONMENTS.md)). `#` starts an inline comment.

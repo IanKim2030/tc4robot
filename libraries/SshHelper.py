@@ -10,9 +10,12 @@ touch 해 깨운다. 대상 프로세스 이름은 각 노드 콜플로우 문�
 했을 때 setup/db_seed.robot 이 ${DB_SEED_SSH_CMDS}(dev: stopMP app → startMP app)를
 차례로 보낸다(PG 가 설정을 다시 읽게 하는 용도).
 
+PG 설정 파일을 읽어 오기도 한다(`read_remote_cfg`) — NAG 슈트가 BarodNoti.cfg
+[Barod.IF] 에서 NAG/PCF 포트를 읽는다(2026-11-20).
+
 [접속 방식이 둘이다 — 2026-11-04]
-  · .RUN touch(`ensure_pg_process_running`) — 시스템 `ssh` 를 subprocess 로 부른다.
-    추가 pip 설치가 없다(아래 askpass 절).
+  · .RUN touch(`ensure_pg_process_running`)·cfg 읽기(`read_remote_cfg`) — 시스템 `ssh`
+    를 subprocess 로 부른다. 추가 pip 설치가 없다(아래 askpass 절).
   · 원격 명령(`run_remote_command`, stopMP/startMP) — **paramiko** 로 붙는다(사용자 지정).
     종료코드·stdout·stderr 를 채널에서 직접 받는다. paramiko 는 **지연 임포트**한다 —
     시드 후속 명령을 안 쓰면(INSERT 0건 / 명령 비어 있음 / --no-db-seed-ssh) 없어도 된다.
@@ -69,6 +72,7 @@ touch 해 깨운다. 대상 프로세스 이름은 각 노드 콜플로우 문�
         Fatal Error 를 쓸 필요가 없다).
 """
 import os
+import shlex
 import shutil
 import socket
 import stat
@@ -188,6 +192,50 @@ def ensure_pg_process_running(host, user, run_dir, processes, key_file=''):
     _run_ssh(host, user, remote_cmd, key_file, _SSH_TIMEOUT, 'PG 프로세스 기동 보장')
     for name in processes:
         print('[SSH] touch %s/%s.RUN' % (run_dir, name))
+
+
+def parse_cfg_section(text, section):
+    """INI 비슷한 PG cfg 텍스트에서 [section] 의 key=value 를 dict 로 돌려준다.
+
+    `#` 뒤는 주석으로 버린다(값 뒤 인라인 주석 포함 — `Port.NAG=8012 # ...`).
+    키·값 양끝 공백은 지운다. 섹션 이름은 정확히 일치해야 한다(대소문자 구분).
+    """
+    out, cur = {}, None
+    for raw in text.splitlines():
+        line = raw.split('#', 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith('[') and line.endswith(']'):
+            cur = line[1:-1].strip()
+            continue
+        if cur == section and '=' in line:
+            k, v = line.split('=', 1)
+            out[k.strip()] = v.strip()
+    return out
+
+
+def read_remote_cfg(host, user, path, section, keys, key_file=''):
+    """PG 서버의 cfg 파일(path)을 ssh 로 `cat` 해 [section] 의 keys 값을 dict 로 돌려준다.
+
+    접속은 `.RUN` touch 와 같은 시스템 ssh 경로다(paramiko 불필요, 비밀번호는 PG_PWD_SSH).
+    user 가 비어 있으면 호출부가 미리 건너뛰어야 한다 — 여기까지 오면 설정 누락이라 실패다.
+    파일을 못 읽거나, 섹션·키가 없거나, 값이 비어 있으면 `SshEnsureError`.
+    ★ 키가 없을 때 기본값으로 조용히 넘어가지 않는다 — 예전 DynamicVars 가 틀린 키를 찾다
+      폴백만 타고 있었는데 값이 같아서 아무도 몰랐던 전례가 있다(docs/ENVIRONMENTS.md).
+    """
+    what = 'cfg 읽기(%s@%s:%s)' % (user, host, path)
+    if not user:
+        raise SshEnsureError('PG_SSH_USER 가 비어 있어 %s 을(를) 할 수 없습니다.' % what)
+    result = _run_ssh(host, user, 'cat %s' % shlex.quote(path), key_file, _SSH_TIMEOUT, what)
+    values = parse_cfg_section(result.stdout.decode(errors='replace'), section)
+    missing = [k for k in keys if not values.get(k)]
+    if missing:
+        raise SshEnsureError('%s — [%s] 에 키가 없거나 값이 비어 있습니다: %s'
+                             % (what, section, ', '.join(missing)))
+    picked = {k: values[k] for k in keys}
+    for k, v in picked.items():
+        print('[SSH] %s [%s] %s=%s' % (path, section, k, v))
+    return picked
 
 
 def _load_paramiko():

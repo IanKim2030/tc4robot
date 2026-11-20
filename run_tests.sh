@@ -52,6 +52,12 @@
 # 있어 자연히 그만큼 지연되므로 따로 넣지 않았다.
 #   bash run_tests.sh nag --variable PG_SSH_SETTLE:5s   # 더 느린 환경이면 늘린다
 #
+# NAG 포트 자동 설정 (SSH) — NAG 슈트 Suite Setup 이 PG 의 ${BNOTI_CFG_PATH}
+# (기본 /PG/CFG/BarodNoti.cfg) [Barod.IF] 에서 Barod.IF.Port.PCF / Barod.IF.Port.NAG 를
+# 읽어 ${PCF_PG_PORT} / ${NAG_PG_PORT} 를 덮는다. ${PG_SSH_USER} 가 없으면 건너뛴다.
+# 읽기로 한 뒤 파일·키가 없으면 Suite Setup 이 실패한다(기본 포트로 넘어가지 않는다).
+#   bash run_tests.sh nag --no-bnoti-cfg    # cfg 를 읽지 않고 기본 포트(8011/8012) 사용
+#
 # 실행 전 DB 설정 시드 — 모든 대상 공통. 본 실행 전에 setup/db_seed.robot 을
 # 따로 한 번 돌려 config/db_seed/<env>.sql 의 블록마다 확인 SELECT → 0건이면 INSERT,
 # 1건 이상이면 (블록에 있으면) UPDATE 한다. 실행한 문장은 콘솔·log.html 에 남는다.
@@ -176,6 +182,8 @@ for arg in "${@:2}"; do
         # nag/lrs/cds/rts 공용 플래그다 — 대상 슈트가 안 쓰면 그대로 무시된다.
         --no-ssh-ensure)   TOGGLE_VARS+=(--variable PG_SSH_ENSURE:False) ;;
         --ssh-ensure)      TOGGLE_VARS+=(--variable PG_SSH_ENSURE:True) ;;
+        # NAG 슈트가 PG BarodNoti.cfg 에서 NAG/PCF 포트를 읽는 것을 끈다(기본 포트 사용).
+        --no-bnoti-cfg)    TOGGLE_VARS+=(--variable BNOTI_CFG_PATH:) ;;
         # 실행 전 DB 설정 시드(setup/db_seed.robot, config/db_seed/<env>.sql).
         --no-db-seed)      DB_SEED=0 ;;
         --db-seed-check)   TOGGLE_VARS+=(--variable DB_SEED_CHECK_ONLY:True) ;;

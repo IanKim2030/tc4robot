@@ -6,7 +6,8 @@ Resource    ${CURDIR}/ssh_keywords.robot
 
 *** Keywords ***
 Initialize NAG Regression
-    [Documentation]    선택된 테스트의 첫 경로에서만 연결하도록 상태를 초기화한다.
+    [Documentation]    PG BarodNoti.cfg 에서 NAG/PCF 포트를 읽고, 선택된 테스트의 첫 경로에서만 연결하도록 상태를 초기화한다.
+    Load NAG Ports From BNOTI Cfg
     Set Suite Variable    ${NAG_PHASE_STARTED}    ${FALSE}
     Set Suite Variable    ${PCF_PHASE_STARTED}    ${FALSE}
 
