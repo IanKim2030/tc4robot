@@ -39,11 +39,11 @@ ${NAG_SOCK}      ${NONE}
 
 Suite Connect NAG
     [Documentation]
-    ...    NAG 요청 경로 초기화 전용. NAG → PG(${NAG_PG_PORT}) 소켓 1회 연결.
+    ...    NAG 요청 경로 초기화 전용. NAG → PG.BNOTI(${NAG_PG_PORT}) 소켓 1회 연결.
     ...    (NAG Hello 는 TC-NAG-001 에서 수행)
     [Arguments]    ${nag_host}=${NAG_PG_HOST}    ${nag_port}=${NAG_PG_PORT}
     ...            ${timeout}=${NAG_TIMEOUT}
-    Log    [Suite] NAG 연결 시작 → ${nag_host}:${nag_port}    console=True
+    Log    [Suite] NAG → PG.BNOTI 연결 시작 → ${nag_host}:${nag_port}    console=True
     ${nag_sock}=    Tcp.Tcp Connect    ${nag_host}    ${nag_port}    ${timeout}
     Set Suite Variable    ${NAG_SOCK}    ${nag_sock}
 

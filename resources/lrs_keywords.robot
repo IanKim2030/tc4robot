@@ -49,10 +49,10 @@ Suite LRS Accept
     Log    [Suite] LRS 서버 시작 → ${host}:${port} Listen (허용 IP: ${allowed_ips})    console=True
     ${srv}=    Tcp.Server Start    ${port}    ${host}
     Set Suite Variable    ${LRS_SRV_SOCK}    ${srv}
-    Log    [Suite] LRS(PG) 접속 대기 중...    console=True
+    Log    [Suite] PG.LRS → LRS  접속 대기 중...    console=True
     ${conn}    ${addr}=    Tcp.Server Accept    ${LRS_SRV_SOCK}    ${LRS_ACCEPT_TIMEOUT}    ${allowed_ips}
     Set Suite Variable    ${LRS_CONN}    ${conn}
-    Log    [Suite] LRS(PG) 접속 수락: ${addr}    console=True
+    Log    [Suite] PG.LRS 접속 수락: ${addr}    console=True
 
 Suite LRS Disconnect
     [Documentation]    LRS Suite Teardown 전용. 클라이언트 연결 + 서버 소켓 모두 종료.
