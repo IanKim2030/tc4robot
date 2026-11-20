@@ -50,14 +50,39 @@ variables are unavailable.
 
 ## Variable Priority
 
-```
---variable > --variablefile > suite *** Variables *** > Imported Resource
-```
+From highest to lowest:
 
-Robot loads variable files first, then command-line `--variable` overrides.
-Suite variables use `overwrite=False`, so they do not replace names already set.
-The environment variable file therefore overrides both node resource variables
-and suite-local defaults.
+1. Explicit CLI `--variable` values.
+2. Explicit values in `config/env/<env>.py` or other CLI variable files.
+3. Supported values read from the target server configuration.
+4. Defaults in `resources/*_variables.robot` and shared `variables.robot`.
+
+An explicit environment value wins even when it equals the node default. Multiple
+variable files and CLI variables follow Robot's ordering rules. The remote mapping catalog is
+[`config/remote_settings.json`](../config/remote_settings.json). All runner targets
+read its enabled mappings at startup: currently NAG/PCF destination ports from
+`BarodNoti.cfg` and CDS O/R ports from `PG_V2.cfg [CDS]`. Unmapped settings retain
+their environment overrides and defaults; unverified server keys are not guessed.
+See [SSH configuration](shared/SSH.md#read-nagpcf-ports-from-barodnoticfg).
+
+`run_tests.sh` resolves configuration **before DB seeding**, writes a private JSON
+snapshot under the ignored results directory, and passes it to both the seed and
+main Robot processes through `libraries/RuntimeConfig.py`. Explicit CLI variables,
+including DB connection and subscriber overrides, therefore reach both phases.
+The seed imports node defaults for SQL variable substitution. Suite-local protocol
+state and overrides remain local; the snapshot does not promote every resource
+default above suite variables. DB credentials retain the existing environment
+variable handling in `PdbHelper`.
+
+Configuration resolution failure prevents DB seed and tests. Dry runs skip remote
+reads and make the seed phase a dry run too. Snapshot files may contain private
+configuration; keep their owner-only permissions and never commit or share them.
+Post-seed SSH commands do not trigger a second configuration read: a run uses one
+snapshot. Start a new run to pick up later server configuration changes.
+
+Direct `robot -V config/env/dev.py ...` NAG CLI execution applies the same port
+priority in Suite Setup, but does not execute DB seed. Use the runner for one
+shared configuration snapshot across both phases.
 
 ## environment axis variables
 
@@ -211,3 +236,24 @@ It failed and was only riding a fallback. The fallback value was the same as the
 > ⚠ Previously, the SSH password was committed in plain text to `resources/variables.robot`.
 > Although it was removed from the file, it remains in the git history. If the account is actually used,
 > The password itself must be replaced.
+
+## Startup Remote Configuration Catalog
+
+Every runner target resolves the same catalog before DB seed. Configure
+`REMOTE_CONFIG_MAP_PATH` in the environment file to use an extended JSON catalog.
+Each entry supplies `variable`, `path`, `section`, `key`, and optional `type`
+(`string`, `integer`, `port`, or `boolean`) and `host` (default `${PG_HOST}`).
+Path, section, key, and host fields can reference existing Robot variables.
+Entries with an empty path are explicitly disabled; explicit CLI/environment
+values override the matching remote entries. Reads are grouped by host, path,
+and section. Missing keys, invalid values, SSH failures, or a missing SSH account
+abort startup before DB access. Use `--no-remote-config` for an explicitly offline
+run. `--no-bnoti-cfg` disables only the BarodNoti mappings; CDS still resolves.
+Dry runs perform no remote reads.
+
+Only add mappings with confirmed server configuration keys and direction. A
+server listen address is not necessarily a valid tool bind address. Passwords
+remain environment variables, outside the remote catalog. UPM, NWDAF, RTS,
+LRS side-channel, DB, and notification mappings require verified server files
+and keys before automatic discovery can cover them. Existing environment values,
+including the LRS listener endpoint, remain effective meanwhile.

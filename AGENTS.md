@@ -29,7 +29,7 @@ suite setup/teardown and can access PG, DB, and SSH services; use the selected
 environment and the folder's execution guidance. A dry run does not execute Python
 keyword bodies or prove runtime correctness.
 
-`regression` tags, `libraries/tests/`, and the lint/format tools are not currently
+`regression` tags and the lint/format tools are not currently
 configured as a complete validation toolchain. Until configured, use existing test
 tags and report the missing checks. Do not install packages or add dependencies
 without prior confirmation. Detailed validation belongs in the folder guides and

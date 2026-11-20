@@ -7,7 +7,7 @@ Two operations execute commands on `${PG_HOST}` through
 |---|---|---|---|
 | Ensure PG processes are running | Suite Setup | `Ensure PG Process Running` in [ssh_keywords.robot](../../resources/ssh_keywords.robot) → `ensure_pg_process_running` | System `ssh` through subprocess; no Python package |
 | Commands after seed INSERT | End of `setup/db_seed.robot` | `Run Seed SSH Commands` → `run_remote_command` | `paramiko`; install with `pip install paramiko` |
-| Read NAG/PCF ports from PG cfg | NAG Suite Setup | `Load NAG Ports From BNOTI Cfg` → `read_remote_cfg` | System `ssh` (`cat`); no Python package |
+| Read NAG/PCF ports from PG cfg | Runner before DB seed; Suite Setup for direct Robot CLI | `Load NAG Ports From BNOTI Cfg` → `read_remote_cfg` | System `ssh` (`cat`); no Python package |
 
 Paramiko is imported lazily. It is unnecessary when no rows were inserted, the
 command list is empty, or `--no-db-seed-ssh` is set. If an enabled command needs
@@ -93,8 +93,9 @@ A nonzero remote exit status fails seeding and prevents the main suite execution
 
 ## Read NAG/PCF ports from `BarodNoti.cfg`
 
-The NAG suite's Suite Setup (`Initialize NAG Regression`) runs `cat ${BNOTI_CFG_PATH}`
-on `${PG_HOST}` before any socket is opened and overrides the destination ports:
+The runner resolves ports before DB seed and freezes them for both phases. Direct
+Robot CLI runs resolve them in NAG Suite Setup. `cat ${BNOTI_CFG_PATH}` on
+`${PG_HOST}` supplies only ports without explicit environment or CLI overrides:
 
 ```ini
 [Barod.IF]
@@ -108,9 +109,21 @@ Barod.IF.Port.NAG=8012 # → ${NAG_PG_PORT}
 | `${BNOTI_CFG_SECTION}` | `Barod.IF` | Section to read |
 | `${BNOTI_CFG_KEY_PCF}` / `${BNOTI_CFG_KEY_NAG}` | `Barod.IF.Port.PCF` / `Barod.IF.Port.NAG` | Keys |
 
-An empty `${PG_SSH_USER}` also skips it and keeps the defaults from
+An empty `${PG_SSH_USER}` fails enabled remote lookup. Fully overridden ports need
+no remote lookup. For remaining ports, keep the defaults from
 `nag_variables.robot` / `pcf_variables.robot`. Once enabled, an SSH failure, a
-missing section or key, an empty value, or a non-integer value fails Suite Setup.
+missing section or key, an empty value, or a non-integer value fails configuration resolution.
 It never silently falls back: the removed `DynamicVars` looked up a wrong key for
 a long time without anyone noticing, because the fallback matched the real value
 ([ENVIRONMENTS](../ENVIRONMENTS.md)). `#` starts an inline comment.
+
+## Startup Settings Beyond NAG
+
+All runner targets resolve the [remote catalog](../../config/remote_settings.json)
+before DB seed. The catalog also maps `PG_V2.cfg [CDS] O_PORT` to `CDS_SCH_PORT`
+and `R_PORT` to `CDS_RCH_PORT`. `PG_CFG_PATH` controls that file path. Confirmed
+settings for other nodes can be added through `REMOTE_CONFIG_MAP_PATH`, preserving
+CLI > environment > remote > resource-default priority. See the
+[startup catalog contract](../ENVIRONMENTS.md#startup-remote-configuration-catalog).
+`--no-remote-config` disables all remote reads; an empty SSH account fails an
+enabled lookup instead of silently retaining defaults.

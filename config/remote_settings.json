@@ -1,0 +1,6 @@
+[
+  {"variable": "NAG_PG_PORT", "path": "${BNOTI_CFG_PATH}", "section": "${BNOTI_CFG_SECTION}", "key": "${BNOTI_CFG_KEY_NAG}", "type": "port"},
+  {"variable": "PCF_PG_PORT", "path": "${BNOTI_CFG_PATH}", "section": "${BNOTI_CFG_SECTION}", "key": "${BNOTI_CFG_KEY_PCF}", "type": "port"},
+  {"variable": "CDS_SCH_PORT", "path": "${PG_CFG_PATH}", "section": "CDS", "key": "O_PORT", "type": "port"},
+  {"variable": "CDS_RCH_PORT", "path": "${PG_CFG_PATH}", "section": "CDS", "key": "R_PORT", "type": "port"}
+]

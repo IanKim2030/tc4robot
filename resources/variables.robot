@@ -109,7 +109,9 @@ ${PG_SSH_RUN_DIR}            /PG/BIN/PDB_RUN
 ${PG_SSH_SETTLE}             3s
 
 # ── PG.BNOTI 설정 파일에서 NAG/PCF 포트 읽기 (SSH, 선택) ────────
-# NAG 슈트 Suite Setup 이 ${PG_HOST} 에 ssh 로 붙어 ${BNOTI_CFG_PATH} 를 읽고
+# Runner resolves before DB seed; direct Robot CLI resolves in NAG Suite Setup.
+# CLI > environment variable file > remote cfg > node defaults.
+# ${PG_HOST} 에 ssh 로 붙어 ${BNOTI_CFG_PATH} 를 읽고
 # [${BNOTI_CFG_SECTION}] 의 두 키로 ${PCF_PG_PORT} / ${NAG_PG_PORT} 를 덮는다
 # (resources/ssh_keywords.robot 의 `Load NAG Ports From BNOTI Cfg`).
 #   Barod.IF.Port.PCF=8011   # Zone-InOut 을 보내는 PCF/PCRF 가 접속
@@ -140,3 +142,8 @@ ${SUBS_MOBILE_IP}            2001:0d88:131f:0000::/64
 ${NET_CELL_ID}               123456:0
 ${NET_PGW_IP}                60.50.10.2
 ${NET_SI_FROM_IP}            112.172.129.68    # PG 에 등록된 IP 여야 함 (아니면 403)
+
+# Remote settings are resolved before DB seed for every runner target.
+${REMOTE_CONFIG_ENABLED}     ${TRUE}
+${REMOTE_CONFIG_MAP_PATH}    ${CURDIR}/../config/remote_settings.json
+${PG_CFG_PATH}               /PG/CFG/PG_V2.cfg

@@ -12,6 +12,7 @@ Documentation
 ...    본 실행과 같은 --variablefile / --variable 을 넘기므로 접속 문자열 우선순위
 ...    (환경변수 PG_PDB_CONNSTR > --variable > config/env/<env>.py > variables.robot)는
 ...    본 실행과 같다.
+...    Runner 는 DB seed 전에 설정을 확정하고 동일한 RuntimeConfig snapshot 을 두 실행에 전달한다.
 ...
 ...    블록마다 확인 SELECT(1행 1열 정수)가 0 이면 INSERT 하고, 다시 세어 1 이상인지
 ...    본다. 1 이상이면 그 블록의 UPDATE 를 실행한다(없으면 건너뛴다 — 멱등).
@@ -31,6 +32,14 @@ Documentation
 ...    명령이 실패하면 시드가 실패한다(본 실행 안 함). 끄기: --no-db-seed-ssh
 
 Resource    ../resources/variables.robot
+Resource    ../resources/nag_variables.robot
+Resource    ../resources/pcf_variables.robot
+Resource    ../resources/upm_variables.robot
+Resource    ../resources/lrs_server_variables.robot
+Resource    ../resources/lrs_variables.robot
+Resource    ../resources/cds_variables.robot
+Resource    ../resources/nwdaf_variables.robot
+Resource    ../resources/rts_variables.robot
 Library     ../libraries/PdbHelper.py    WITH NAME    SeedDb
 Library     ../libraries/DbSeedHelper.py    WITH NAME    Seed
 Library     ../libraries/SshHelper.py    WITH NAME    Ssh

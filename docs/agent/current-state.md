@@ -237,3 +237,31 @@ references and can contain historical observations; TC requirements belong in no
 
 Existing uncommitted work was preserved. No commit, push, merge, or deployment is
 implied by this summary.
+
+## Shared Pre-seed Configuration Resolution
+
+The runner now resolves CLI > explicit environment > supported remote settings >
+node defaults before DB seed. Seed and regression consume the same private
+snapshot. Remote mapping currently covers NAG/PCF destination ports only. Direct
+Robot CLI runs use the same port priority without automatically executing seed.
+Offline checks cover precedence, disabled lookup, invalid ports, remote failures,
+and snapshot permissions. No live PG SSH or DB mutation was performed.
+
+Validation for this change: 9 offline configuration tests passed, including shared
+seed/test snapshot and explicit CLI override checks. The direct Robot CLI port
+check passed; the runner dry run passed 1 seed case and 17 NAG cases. The required
+whole-suite dev dry run passed all 94 cases. Bash syntax and diff checks passed.
+
+## Remote Configuration Catalog at Startup
+
+All runner targets now read enabled mappings from `config/remote_settings.json`
+before DB seed. Confirmed mappings cover NAG/PCF and CDS O/R ports. The catalog
+supports additional verified variables, paths, sections, keys, hosts, and types;
+unknown UPM/NWDAF/RTS/LRS/DB mappings are pending server configuration evidence.
+`--no-remote-config` disables all reads, and dry runs remain offline. A direct SSH
+attempt to the configured PG host failed with connection refused; no live server
+configuration was obtained or applied during this development check.
+
+Catalog extension validation: 12 offline configuration checks passed, including
+all runner targets and custom typed mappings. Whole-suite direct and runner dry
+runs each passed 94 cases; the runner also dry-ran its seed case successfully.

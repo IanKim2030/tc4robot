@@ -24,8 +24,7 @@ Use the actual case-sensitive `libraries/` path in commands and links.
 ### Current Validation Toolchain Limits
 
 Robot Framework is declared in `requirements.txt`. Robocop, Robotidy, pytest,
-and Ruff are not declared as a development toolchain, `libraries/tests/` does
-not exist, and current suites have no `regression` tag. Do not treat a missing
+and Ruff are not declared as a development toolchain, `libraries/tests/` contains offline configuration tests, and current suites have no `regression` tag. Do not treat a missing
 target or an empty tag selection as a successful check. Report missing checks
 and obtain prior confirmation before adding dependencies. The formatter command
 can modify many files; keep formatting within the authorized scope.

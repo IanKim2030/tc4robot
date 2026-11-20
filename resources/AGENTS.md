@@ -45,14 +45,14 @@ resources/ssh_keywords.robot ← Guaranteed PG process startup (.RUN touch)
 resources/variables.robot ← Shared variables (Hello/Ping opcode, PDB·SBI·SSH settings). There is no environmental value
         │ USE (WITH NAME …)
         ▼
-libraries/*.py ← 11 types of Python helpers (table below)
+libraries/*.py ← Python helpers (table below)
 ```
 
 Import order is important. Node-specific variable files include common variables of `variables.robot` (`${SBI_NOTI_PORT}`, etc.)
 Environment values in the environment file (`${PG_HOST}` etc.), so`variables.robot` Always import first.
 All suites follow this order.
 
-### 11 types of Python helpers
+### Python helpers
 
 There are three personalities — 6 types of message helper  (creates and sends messages with PG),  receiving server  (sends messages with PG attached)
 (received) 3 types,  infrastructure (DB seed, SSH) 2 types.
@@ -167,3 +167,6 @@ Legacy receive paths use the connection timeout rather than a per-receive overri
 
 If you have to wait longer, upload and revert only in that section —
 NWDAF Health Check (30 second standard) uses this pattern as `Tlv.Nwdaf Set Timeout` + `TRY/FINALLY`.
+
+`libraries/RuntimeConfig.py` resolves configuration priority and loads the shared
+pre-seed snapshot; see [environment priority](../docs/ENVIRONMENTS.md#variable-priority).

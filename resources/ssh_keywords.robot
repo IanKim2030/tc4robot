@@ -33,6 +33,7 @@ Documentation
 ...    인증도 sshpass 없이 OpenSSH 의 SSH_ASKPASS 로 자동 주입한다 — 폐쇄망
 ...    에서 패키지 추가 설치가 어려워서다.)
 Library    ${CURDIR}/../libraries/SshHelper.py    WITH NAME    Ssh
+Library    ${CURDIR}/../libraries/RuntimeConfig.py    WITH NAME    Runtime
 
 
 *** Keywords ***
@@ -54,24 +55,7 @@ Ensure PG Process Running
     ...    ${processes}    key_file=${PG_SSH_KEY_FILE}
 
 Load NAG Ports From BNOTI Cfg
-    [Documentation]
-    ...    PG 서버의 ${BNOTI_CFG_PATH} [${BNOTI_CFG_SECTION}] 를 ssh 로 읽어
-    ...    ${PCF_PG_PORT} ← ${BNOTI_CFG_KEY_PCF}, ${NAG_PG_PORT} ← ${BNOTI_CFG_KEY_NAG} 로 덮는다.
-    ...    ${BNOTI_CFG_PATH} 또는 ${PG_SSH_USER} 가 비어 있으면 건너뛰고 기본 포트를 쓴다.
-    ...    읽기로 한 뒤 접속·파일·키·숫자 형식 중 하나라도 실패하면 이 키워드가 실패한다.
-    IF    not $BNOTI_CFG_PATH
-        Log    [BNOTI cfg] BNOTI_CFG_PATH 미설정 — 기본 포트 사용 (PCF=${PCF_PG_PORT}, NAG=${NAG_PG_PORT})    console=True
-        RETURN
-    END
-    IF    not $PG_SSH_USER
-        Log    [BNOTI cfg] PG_SSH_USER 미설정 — 기본 포트 사용 (PCF=${PCF_PG_PORT}, NAG=${NAG_PG_PORT})    console=True
-        RETURN
-    END
-    @{keys}=    Create List    ${BNOTI_CFG_KEY_PCF}    ${BNOTI_CFG_KEY_NAG}
-    ${cfg}=    Ssh.Read Remote Cfg    ${PG_HOST}    ${PG_SSH_USER}    ${BNOTI_CFG_PATH}
-    ...    ${BNOTI_CFG_SECTION}    ${keys}    key_file=${PG_SSH_KEY_FILE}
-    ${pcf_port}=    Convert To Integer    ${cfg}[${BNOTI_CFG_KEY_PCF}]
-    ${nag_port}=    Convert To Integer    ${cfg}[${BNOTI_CFG_KEY_NAG}]
-    Set Suite Variable    ${PCF_PG_PORT}    ${pcf_port}
-    Set Suite Variable    ${NAG_PG_PORT}    ${nag_port}
-    Log    [BNOTI cfg] ${PG_HOST}:${BNOTI_CFG_PATH} → PCF_PG_PORT=${pcf_port}, NAG_PG_PORT=${nag_port}    console=True
+    [Documentation]    CLI > 환경 파일 > PG cfg > 노드 기본값 순으로 확정한 포트를 적용한다.
+    ${ports}=    Runtime.Resolve Nag Ports
+    Set Suite Variable    ${NAG_PG_PORT}    ${ports}[NAG_PG_PORT]
+    Set Suite Variable    ${PCF_PG_PORT}    ${ports}[PCF_PG_PORT]

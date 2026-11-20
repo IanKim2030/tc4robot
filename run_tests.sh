@@ -52,7 +52,8 @@
 # 있어 자연히 그만큼 지연되므로 따로 넣지 않았다.
 #   bash run_tests.sh nag --variable PG_SSH_SETTLE:5s   # 더 느린 환경이면 늘린다
 #
-# NAG 포트 자동 설정 (SSH) — NAG 슈트 Suite Setup 이 PG 의 ${BNOTI_CFG_PATH}
+# NAG ports: CLI > env > remote cfg > defaults. Resolve before DB seed.
+# PG 의 ${BNOTI_CFG_PATH}
 # (기본 /PG/CFG/BarodNoti.cfg) [Barod.IF] 에서 Barod.IF.Port.PCF / Barod.IF.Port.NAG 를
 # 읽어 ${PCF_PG_PORT} / ${NAG_PG_PORT} 를 덮는다. ${PG_SSH_USER} 가 없으면 건너뛴다.
 # 읽기로 한 뒤 파일·키가 없으면 Suite Setup 이 실패한다(기본 포트로 넘어가지 않는다).
@@ -183,6 +184,7 @@ for arg in "${@:2}"; do
         --no-ssh-ensure)   TOGGLE_VARS+=(--variable PG_SSH_ENSURE:False) ;;
         --ssh-ensure)      TOGGLE_VARS+=(--variable PG_SSH_ENSURE:True) ;;
         # NAG 슈트가 PG BarodNoti.cfg 에서 NAG/PCF 포트를 읽는 것을 끈다(기본 포트 사용).
+        --no-remote-config) TOGGLE_VARS+=(--variable REMOTE_CONFIG_ENABLED:False) ;;
         --no-bnoti-cfg)    TOGGLE_VARS+=(--variable BNOTI_CFG_PATH:) ;;
         # 실행 전 DB 설정 시드(setup/db_seed.robot, config/db_seed/<env>.sql).
         --no-db-seed)      DB_SEED=0 ;;
@@ -194,8 +196,8 @@ for arg in "${@:2}"; do
 done
 
 TS=$(date +%Y%m%d_%H%M%S)
-OUT="results/${TS}"
-mkdir -p "${OUT}"
+mkdir -p results
+OUT=$(mktemp -d "results/${TS}_XXXXXX") || exit 2
 
 # 2번째 인자: 환경명(dev|stg|prd|local) 또는 IP
 # 인자가 없거나 IP 만 주면 dev 로 보고 config/env/dev.py 를 읽는다 — dev 의 실제
@@ -259,25 +261,39 @@ if [ -d "${GOLDILOCKS_HOME}/lib" ]; then
     esac
 fi
 
-# ── 실행 전 DB 설정 시드 ──────────────────────────────────────────
-# 본 실행과 같은 환경 파일·변수를 넘겨 접속 문자열 우선순위를 맞춘다. 위의
-# LD_LIBRARY_PATH 설정 뒤여야 한다(골디락스 문자셋 라이브러리).
-# 시드 파일은 환경별이다 — config/db_seed/<env>.sql. IP 직접 지정은 dev 로 본다.
-# 파일이 없으면(prd/local 등) DB 에 접속하지 않고 건너뛴다.
 case "${ENV_NAME}" in
     host=*) SEED_ENV="dev" ;;
     *)      SEED_ENV="${ENV_NAME}" ;;
 esac
 SEED_FILE="config/db_seed/${SEED_ENV}.sql"
+# Resolve once before seeding. Both Robot processes consume the same snapshot.
+CONFIG_SNAPSHOT="${OUT}/runtime-config.json"
+python3 libraries/RuntimeConfig.py "${CONFIG_SNAPSHOT}" "${TARGET}" "${SEED_FILE}" \
+    "${VAR_OVERRIDE[@]}" "${TOGGLE_VARS[@]}" "${EXTRA_ARGS[@]}"
+CONFIG_RC=$?
+if [ "${CONFIG_RC}" -ne 0 ]; then
+    echo "Configuration resolution failed; DB seed and tests were not started." >&2
+    exit "${CONFIG_RC}"
+fi
+VAR_OVERRIDE=(--variablefile "libraries/RuntimeConfig.py:${CONFIG_SNAPSHOT}")
+SEED_MODE=()
+if python3 -c 'import json,sys; sys.exit(not json.load(open(sys.argv[1]))["RUNTIME_CONFIG_DRYRUN"])' "${CONFIG_SNAPSHOT}"; then
+    SEED_MODE=(--dryrun)
+fi
+
+# ── 실행 전 DB 설정 시드 ──────────────────────────────────────────
+# 본 실행과 같은 환경 파일·변수를 넘겨 접속 문자열 우선순위를 맞춘다. 위의
+# LD_LIBRARY_PATH 설정 뒤여야 한다(골디락스 문자셋 라이브러리).
+# 시드 파일은 환경별이다 — config/db_seed/<env>.sql. IP 직접 지정은 dev 로 본다.
+# 파일이 없으면(prd/local 등) DB 에 접속하지 않고 건너뛴다.
 if [ "${DB_SEED}" = "1" ]; then
     echo "▶ DB 설정 시드 확인 (${SEED_FILE})"
     python3 -m robot \
         --outputdir "${OUT}/db_seed" \
         --loglevel DEBUG \
         --console dotted \
-        --variable "DB_SEED_FILE:${SEED_FILE}" \
+        "${SEED_MODE[@]}" \
         "${VAR_OVERRIDE[@]}" \
-        "${TOGGLE_VARS[@]}" \
         setup/db_seed.robot
     SEED_RC=$?
     if [ ${SEED_RC} -ne 0 ]; then
@@ -294,7 +310,6 @@ BASE_CMD=(python3 -m robot
     --outputdir "${OUT}"
     --loglevel DEBUG
     "${VAR_OVERRIDE[@]}"
-    "${TOGGLE_VARS[@]}"
     "${EXTRA_ARGS[@]}"
 )
 

@@ -1,6 +1,6 @@
 # Python Library Instructions
 
-This directory owns all 11 Python protocol and infrastructure libraries.
+This directory owns Python protocol, infrastructure, and configuration helpers.
 Read the [resource catalog](../resources/AGENTS.md) and the affected [node specification](../tests/AGENTS.md).
 
 - Preserve public Robot keyword names, function signatures, aliases, and wire layouts during structural refactors.
@@ -26,7 +26,7 @@ cleanup. Internal helpers must use underscore-prefixed names.
 ## Test and Lint Availability
 
 The requested commands are `pytest libraries/tests/` and `ruff check libraries/`.
-There is currently no `libraries/tests/` directory, and pytest/ruff are not declared
-as project development dependencies. Report unavailable checks; do not create empty
-placeholder tests or install tools without prior confirmation. Import, byte-level,
-and local-peer checks complement the mandatory Robot dry run.
+Configuration precedence tests live in `libraries/tests/` and run without additional
+packages: `python -m unittest discover -s libraries/tests -v`. pytest/ruff are not
+declared development dependencies; report unavailable tools rather than installing
+them. Import, byte-level, and local-peer checks complement the mandatory dry run.

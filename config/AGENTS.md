@@ -7,3 +7,7 @@ Read [environment rules](../docs/ENVIRONMENTS.md) before editing values or prece
 - Do not add credentials or silently substitute dev values for missing stg/prd keys.
 - Preserve the distinction between shared defaults, node defaults, and explicit environment overrides.
 - Configuration changes can affect multiple nodes; validate all affected suite imports with the chosen variable file.
+
+`remote_settings.json` owns verified server-file-to-Robot-variable mappings.
+Keep precedence and startup behavior in [environment rules](../docs/ENVIRONMENTS.md).
+Do not infer keys or copy server listener addresses into tool bind variables.
