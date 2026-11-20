@@ -74,6 +74,17 @@ state and overrides remain local; the snapshot does not promote every resource
 default above suite variables. DB credentials retain the existing environment
 variable handling in `PdbHelper`.
 
+### Configuration report
+
+After resolving, the runner prints a table of every snapshot value with its source and saves it as
+`<outputdir>/runtime-config-report.txt` (owner-only, like the snapshot). Sources are
+`원격 <host>:<path> [section] key` (with whether it differs from the node default),
+`CLI --variable`, `환경 파일 <file>`, `러너` and `기본값`. A mapped variable that an explicit
+value overrides is marked `(원격 매핑보다 우선)`; dry runs and `--no-remote-config` show why
+the remote value was not read. Names containing PWD/PASSWORD/SECRET/TOKEN and `PWD=` inside
+connection strings are masked as `****`. Direct Robot CLI NAG runs print the same table for
+the two NAG ports from Suite Setup.
+
 Configuration resolution failure prevents DB seed and tests. Dry runs skip remote
 reads and make the seed phase a dry run too. Snapshot files may contain private
 configuration; keep their owner-only permissions and never commit or share them.

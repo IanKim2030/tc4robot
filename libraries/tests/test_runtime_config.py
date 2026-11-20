@@ -133,6 +133,43 @@ class RuntimeConfigTests(unittest.TestCase):
         self.assertEqual(output.stat().st_mode & 0o777, 0o600)
         self.assertEqual(json.loads(output.read_text())['LRS_SERVER_PORT'], 8890)
 
+    def test_report_names_origin_of_every_value(self):
+        sources = {}
+        self.options['variable'] = ['UPM_PG_PORT:10599']
+        values = RuntimeConfig._resolve(self.options, 'nag', self.reader, sources)
+        self.assertEqual(sources['UPM_PG_PORT'], 'CLI --variable')
+        self.assertEqual(sources['PG_HOST'], '환경 파일 env.py')
+        self.assertIn('BarodNoti.cfg [Barod.IF] Barod.IF.Port.NAG', sources['NAG_PG_PORT'])
+        self.assertIn('기본값 8012 와 다름', sources['NAG_PG_PORT'])
+        self.assertIn('기본값과 같음', sources['CDS_SCH_PORT'])
+        report = RuntimeConfig.format_report(values, sources)
+        self.assertIn('원격 cfg 적용 4개', report)
+        self.assertTrue(set(values) - {'RUNTIME_CONFIG_RESOLVED', 'RUNTIME_CONFIG_DRYRUN'}
+                        <= set(sources))
+
+    def test_report_marks_skipped_remote_and_masks_credentials(self):
+        sources = {}
+        values = RuntimeConfig._resolve(dict(self.options, dryrun=True), 'nag', self.reader, sources)
+        self.assertIn('dryrun', sources['NAG_PG_PORT'])
+        self.assertIn('dryrun', sources['CDS_RCH_PORT'])
+        values['PDB_CONNSTR'] = 'DSN=PDB;UID=pdb;PWD=topsecret;'
+        values['UPM_FTP_PASSWORD'] = 'topsecret'
+        report = RuntimeConfig.format_report(values, sources)
+        self.assertNotIn('topsecret', report)
+        self.assertIn('PWD=****', report)
+
+    def test_runner_report_file_is_written_next_to_snapshot(self):
+        output = Path(self.temp.name) / 'runtime.json'
+        result = subprocess.run([sys.executable, str(Path(RuntimeConfig.__file__)), str(output), 'nag',
+                                 'config/db_seed/dev.sql', '-V', str(self.env), '--dryrun'],
+                                check=True, capture_output=True, encoding='utf-8',
+                                env=dict(os.environ, PYTHONIOENCODING='utf-8'))
+        report = Path(self.temp.name) / 'runtime-report.txt'
+        self.assertIn('[Config]', result.stdout)
+        text = report.read_text(encoding='utf-8')
+        self.assertIn('DB_SEED_FILE', text)
+        self.assertIn('러너 (환경별 시드 파일)', text)
+
 
 if __name__ == '__main__':
     unittest.main()

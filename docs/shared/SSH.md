@@ -121,7 +121,8 @@ a long time without anyone noticing, because the fallback matched the real value
 
 All runner targets resolve the [remote catalog](../../config/remote_settings.json)
 before DB seed. The catalog also maps `PG_V2.cfg [CDS] O_PORT` to `CDS_SCH_PORT`
-and `R_PORT` to `CDS_RCH_PORT`. `PG_CFG_PATH` controls that file path. Confirmed
+and `R_PORT` to `CDS_RCH_PORT`. Every resolved value and its source is reported at startup —
+see [ENVIRONMENTS.md](../ENVIRONMENTS.md#configuration-report). `PG_CFG_PATH` controls that file path. Confirmed
 settings for other nodes can be added through `REMOTE_CONFIG_MAP_PATH`, preserving
 CLI > environment > remote > resource-default priority. See the
 [startup catalog contract](../ENVIRONMENTS.md#startup-remote-configuration-catalog).
