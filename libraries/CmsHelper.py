@@ -666,11 +666,13 @@ def _fin_open(host, port, user, timeout=10):
     paramiko = _load_sftp()._load_paramiko()
     if not user:
         raise AssertionError('FIN 확인 계정이 없습니다 — CMS_FIN_SSH_USER 를 넣으십시오')
-    pwd = os.environ.get(_FIN_PWD_ENV, '')
+    # PG 는 FIN 을 CMSWEB 다운로드 계정으로 올린다 — 그래서 따로 주지 않으면 다운로드 비밀번호를 쓴다
+    # (dev 142 의 실제 pg 비밀번호가 다운로드 비밀번호와 같음을 2026-11-24 로그인으로 확인).
+    pwd = os.environ.get(_FIN_PWD_ENV, '') or os.environ.get(_SFTP_PWD_ENV, '')
     if not pwd:
-        raise AssertionError("FIN 확인용 비밀번호가 없습니다 — 환경변수 %s(도구 호스트 실제 계정 %s 의 "
-                             "비밀번호)를 설정하십시오. 예: export %s='...'"
-                             % (_FIN_PWD_ENV, user, _FIN_PWD_ENV))
+        raise AssertionError("FIN 확인용 비밀번호가 없습니다 — 환경변수 %s(없으면 %s)에 도구 호스트 실제 계정 "
+                             "%s 의 비밀번호를 설정하십시오. 예: export %s='...'"
+                             % (_FIN_PWD_ENV, _SFTP_PWD_ENV, user, _SFTP_PWD_ENV))
     timeout = float(timeout)
     try:
         sock = socket.create_connection((str(host), int(port)), timeout=timeout)

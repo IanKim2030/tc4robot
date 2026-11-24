@@ -14,16 +14,16 @@ Documentation
 ...    FTP 모드는 도구가 21 을 열어야 한다(root 또는 리다이렉트 + --variable CMS_FTP_PORT).
 ...    다르면 Suite Setup 이 무엇을 바꿔야 하는지 알려 주고 중단한다.
 ...    파일 계정(SFTP/FTP 공통) = 환경 파일 CMS_SFTP_USER + 환경변수 PG_PWD_CMS_SFTP(시뮬레이터 다운로드)
-...    / PG_PWD_CMS_FIN_SSH(도구 호스트 실제 pg 계정 — FIN 확인). ${CMS_REMOTE_DIR} 는 그 계정이 쓸 수 있어야 한다.
+...    / PG_PWD_CMS_FIN_SSH(도구 호스트 실제 pg 계정 — FIN 확인, 없으면 PG_PWD_CMS_SFTP). ${CMS_REMOTE_DIR} 는 그 계정이 쓸 수 있어야 한다.
 ...    시험 서비스코드 ${CMS_SERVICE_CODE} · ${CMS_SERVICE_CODE_SC}(SC_FTP_YN=Y) 의 T_ZONE_LIST 행은 DB 시드가 넣는다.
 ...    SC 전달(006)은 [SC] SC_PRIIP=${TOOL_HOST} 가 전제다 — 틀리면 그 TC 만 실패한다. [CMS] NWDAF_SFTP 가
 ...    'N' 이면 FTP(NWDAF_FTP_PORT), 아니면 SFTP(NWDAF_SFTP_PORT)로 받는다.
 ...    PG 는 SC_PATH(${CMS_SC_PATH})로 올리고 도구는 그것을 ${CMS_SC_UPLOAD_DIR} 에 받는다(비밀번호 PG_PWD_CMS_SFTP_UPLOAD).
 ...
 ...    [Suite 정책]
-...    Suite Setup    : Prepare CMSWEB Simulator (REG 수신 → REG_OK 까지)
+...    Suite Setup    : Prepare CMSWEB (REG 수신 → REG_OK 까지)
 ...    Test Setup     : Check CMS Session (파일 서버 이력 초기화)
-...    Suite Teardown : Close CMSWEB Simulator (T_CMSWEB_ZONE 시험 행·이번 실행 FIN 정리)
+...    Suite Teardown : Close CMSWEB (T_CMSWEB_ZONE 시험 행 정리 — FIN·SC 파일은 남김)
 ...
 ...    [TC 번호 체계]
 ...    001       REG 세션키
@@ -37,8 +37,8 @@ Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
 Resource    ../../resources/cms_keywords.robot
 
-Suite Setup      Prepare CMSWEB Simulator
-Suite Teardown   Close CMSWEB Simulator
+Suite Setup      Prepare CMSWEB
+Suite Teardown   Close CMSWEB
 Test Setup       Check CMS Session
 
 

@@ -14,11 +14,11 @@ Documentation
 ...      PDB       : PG 가 처리 결과를 T_CMSWEB_ZONE 에 넣는다
 ...
 ...    [Suite 정책]
-...      Suite Setup    : Prepare CMSWEB Simulator — 설정 확정(PG_V2.cfg) → 전제 확인 → FIN 디렉터리 확인
+...      Suite Setup    : Prepare CMSWEB — 설정 확정(PG_V2.cfg) → 전제 확인 → FIN 디렉터리 확인
 ...                       → 파일 서버(SFTP/FTP) 기동 → CMS201 .RUN touch → Listen → PG 접속·REG 수신 → REG_OK
 ...                       (PDB 는 첫 DB 판정 때 접속한다 — db 태그를 빼면 PDB 없이 돈다)
 ...      Test Setup     : Check CMS Session (닫혀 있으면 슈트 중단)
-...      Suite Teardown : Close CMSWEB Simulator — 시험 행·FIN·SC 파일 정리 → 연결·서버 종료
+...      Suite Teardown : Close CMSWEB — 시험 행 정리(FIN·SC 파일은 기본으로 남김) → 연결·서버 종료
 ...
 ...    상세: tests/cms/SPEC.md
 Library    Collections
@@ -51,7 +51,7 @@ ${CMS_SC_REAL_DIR}    ${EMPTY}
 # Suite 수명주기
 # ══════════════════════════════════════════════════════════════════
 
-Prepare CMSWEB Simulator
+Prepare CMSWEB
     [Documentation]    CMS 슈트 Suite Setup. 어느 단계든 실패하면 슈트를 세운다(조용히 넘어가지 않는다).
     Resolve CMS Settings
     Check CMS Prerequisites
@@ -109,7 +109,7 @@ Check CMS FIN Target
     [Documentation]
     ...    sshd 모드: PG 의 FIN 이 떨어질 도구 호스트 실제 디렉터리(${CMS_REMOTE_DIR})를 FIN 계정으로
     ...    미리 확인한다(로그인·존재·쓰기). FIN PUT 이 실패하면 CmsMain 이 종료되므로 시험 전에 막는다.
-    ...    비밀번호는 환경변수 PG_PWD_CMS_FIN_SSH(도구 호스트 실제 pg 계정).
+    ...    비밀번호는 환경변수 PG_PWD_CMS_FIN_SSH(도구 호스트 실제 pg 계정), 없으면 PG_PWD_CMS_SFTP.
     IF    $CMS_FIN_MODE != 'sshd'
         Log    [Suite] FIN 확인 모드 ${CMS_FIN_MODE} — FIN 을 시뮬레이터 파일 서버(${CMS_FILE_PROTO}) 업로드 이력에서 본다    console=True
         RETURN
@@ -182,6 +182,7 @@ Accept CMS Session
     [Documentation]    PG.CMS 접속을 받아 첫 REG 를 확인하고 REG_OK 로 답한다. 받은 REG 는 ${CMS_REG_MSG} 에 둔다.
     Log    [Suite] PG.CMS → CMSWEB 접속 대기 중 (최대 ${CMS_ACCEPT_TIMEOUT}초)...    console=True
     ${conn}    ${addr}=    Tcp.Server Accept    ${CMS_SRV_SOCK}    ${CMS_ACCEPT_TIMEOUT}    ${CMS_ALLOWED_PEER_IPS}
+    ...    label=PG.CMS → CMSWEB(${CMS_LISTEN_PORT})
     Set Suite Variable    ${CMS_CONN}    ${conn}
     ${reg}=    Cms.Cms Expect    ${CMS_CONN}    REG    ${CMS_RECV_TIMEOUT}
     Log    [Suite] PG.CMS 접속 수락: ${addr} — REG ${reg}[body]    console=True
@@ -215,7 +216,7 @@ Restore CMS Session
     Set Suite Variable    ${CMS_CONN}    ${NONE}
     Accept CMS Session
 
-Close CMSWEB Simulator
+Close CMSWEB
     [Documentation]    Suite Teardown — 시험 행 정리 → PDB·제어 채널·SFTP 종료. 앞 단계가 실패해도 뒤 단계는 한다.
     Run Keyword And Ignore Error    Cleanup CMS Zone Rows
     Run Keyword And Ignore Error    Cleanup CMS FIN Files
@@ -244,6 +245,7 @@ Cleanup CMS FIN Files
     ...    sshd 모드: 이번 실행에서 보낸 NTI 의 FIN 접두사와 맞는 .FIN 만 실제 디렉터리에서 지운다
     ...    (${CMS_FIN_CLEANUP}). 못 지운 것은 로그만 남긴다. simulator 모드는 임시 디렉터리라 할 일이 없다.
     IF    not ${CMS_FIN_CLEANUP} or $CMS_FIN_MODE != 'sshd' or not $CMS_FIN_PREFIXES
+        IF    not ${CMS_FIN_CLEANUP} and $CMS_FIN_MODE == 'sshd' and $CMS_FIN_PREFIXES    Log    [Suite] CMSWEB FIN 을 남깁니다 — ${CMS_REMOTE_DIR}    console=True
         RETURN
     END
     ${result}=    Cms.Cms Fin Ssh Cleanup    ${CMS_FIN_SSH_HOST}    ${CMS_FIN_SSH_PORT}    ${CMS_FIN_SSH_USER}
@@ -255,8 +257,9 @@ Cleanup CMS FIN Files
     END
 
 Cleanup CMS SC Files
-    [Documentation]    SC 수신 디렉터리에서 이번 실행의 SC 시험이 기대한 이름의 파일만 지운다. 못 지운 것은 로그만 남긴다.
-    IF    $CMS_SC_SERVER is None or not $CMS_SC_FILES
+    [Documentation]    ${CMS_SC_CLEANUP} 일 때만 SC 수신 디렉터리에서 이번 실행의 SC 시험이 기대한 이름의 파일만 지운다(기본은 남긴다).
+    IF    not ${CMS_SC_CLEANUP} or $CMS_SC_SERVER is None or not $CMS_SC_FILES
+        IF    $CMS_SC_FILES    Log    [Suite] SC 수신 파일을 남깁니다 — ${CMS_SC_REAL_DIR} ${CMS_SC_FILES}    console=True
         RETURN
     END
     ${result}=    Cms.Cms Sc Cleanup    ${CMS_SC_REAL_DIR}    ${CMS_SC_FILES}

@@ -86,7 +86,7 @@ passwords only through environment variables:
 |---|---|
 | `PG_PWD_CMS_SFTP` | CMSWEB download simulator (GET, SFTP `${CMS_SFTP_PORT}` or FTP `${CMS_FTP_PORT}`). Required. |
 | `PG_PWD_CMS_SFTP_UPLOAD` | SC receive server (SFTP `${CMS_SC_SFTP_PORT}` or FTP `${CMS_SC_FTP_PORT}`), used for the SC forward of TC-006. Without it only TC-006 fails. |
-| `PG_PWD_CMS_FIN_SSH` | Real `pg` OS account on the tool host. The suite logs in to `${CMS_FIN_SSH_HOST}:${CMS_FIN_SSH_PORT}` with it to check, wait for and delete the CMSWEB FIN. Required in `sshd` mode. |
+| `PG_PWD_CMS_FIN_SSH` | Real `pg` OS account on the tool host. The suite logs in to `${CMS_FIN_SSH_HOST}:${CMS_FIN_SSH_PORT}` with it to check, wait for and delete the CMSWEB FIN. Optional: when unset, `PG_PWD_CMS_SFTP` is used, because PG PUTs the FIN with the CMSWEB download account (dev 142: the same password, checked 2026-11-24). |
 
 Each simulator accepts only its own password.
 
@@ -156,7 +156,7 @@ NTI is rejected after ANS (no SFTP) when any of these are empty: `messageType`, 
 
 | Mode | Use | Check | Cleanup |
 |---|---|---|---|
-| `sshd` (default) | Real PG | SFTP client to `${CMS_FIN_SSH_HOST}:${CMS_FIN_SSH_PORT}` (127.0.0.1:22) as `${CMS_FIN_SSH_USER}`, listing `${CMS_REMOTE_DIR}` | Suite Teardown deletes only `.FIN` files that match this run's prefixes. A failure is logged as WARN |
+| `sshd` (default) | Real PG | SFTP client to `${CMS_FIN_SSH_HOST}:${CMS_FIN_SSH_PORT}` (127.0.0.1:22) as `${CMS_FIN_SSH_USER}`, listing `${CMS_REMOTE_DIR}` | Kept by default. With `${CMS_FIN_CLEANUP}=True`, Suite Teardown deletes only `.FIN` files that match this run's prefixes; a failure is logged as WARN |
 | `simulator` | PG built with the FIN port, a fake PG, or FTP mode (set automatically) | Simulator upload history | Not needed (temp dir, removed when the server stops) |
 
 ## PDB result (`setData` / `setFileStatus`)

@@ -66,9 +66,9 @@ ${CMS_FIN_MODE}            sshd
 ${CMS_FIN_SSH_HOST}        127.0.0.1              # 슈트가 도구 호스트(142)에서 돈다 — PG 는 CMSWEB_ADDR:22 로 올린다
 ${CMS_FIN_SSH_PORT}        22                     # SFTP 기본 포트(DEV/Common SFTPCurlBase.h)
 # PG 는 GET 과 FIN PUT 에 같은 CMSWEB 계정(userId_/passWd_)을 쓴다. 슈트의 확인용 비밀번호는
-# 환경변수 PG_PWD_CMS_FIN_SSH(도구 호스트 실제 pg 계정).
+# 환경변수 PG_PWD_CMS_FIN_SSH(도구 호스트 실제 pg 계정) — 없으면 PG_PWD_CMS_SFTP(같은 값, dev 142 확인).
 ${CMS_FIN_SSH_USER}        ${CMS_SFTP_USER}
-${CMS_FIN_CLEANUP}         ${TRUE}                # Suite Teardown 에서 이번 실행의 FIN 만 지운다
+${CMS_FIN_CLEANUP}         ${FALSE}               # 기본은 남긴다. ${TRUE} 면 Suite Teardown 이 이번 실행의 FIN 만 지운다
 
 # ════════════════════════════════════════════
 # SC(NWDAF) 전달 — SC_FTP_YN='Y' 서비스코드면 PG 가 받은 파일과 .FIN 을 다시 올린다
@@ -89,6 +89,7 @@ ${CMS_SC_UPLOAD_DIR}       ${EMPTY}
 # 비밀번호는 환경변수 PG_PWD_CMS_SFTP_UPLOAD 로만 받는다.
 ${CMS_SC_SFTP_USER}        pg
 ${CMS_SC_TIMEOUT}          60                     # NTI 후 SC 업로드 두 파일까지 대기(초) — GET·FIN 뒤에 온다
+${CMS_SC_CLEANUP}          ${FALSE}               # 기본은 SC 로 올라온 데이터 파일·FIN 을 남긴다. ${TRUE} 면 이번 실행 것만 지운다
 
 # ════════════════════════════════════════════
 # 서비스코드 / PDB

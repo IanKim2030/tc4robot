@@ -200,8 +200,16 @@ class CmsFinSshTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {'PG_PWD_CMS_FIN_SSH': 'wrong'}):
             with self.assertRaisesRegex(AssertionError, '로그인 실패'):
                 C.cms_fin_ssh_check(*self.args())
-        with mock.patch.dict(os.environ, {'PG_PWD_CMS_FIN_SSH': ''}):
+        with mock.patch.dict(os.environ, {'PG_PWD_CMS_FIN_SSH': '', 'PG_PWD_CMS_SFTP': ''}):
             with self.assertRaisesRegex(AssertionError, 'PG_PWD_CMS_FIN_SSH'):
+                C.cms_fin_ssh_check(*self.args())
+
+    def test_fin_password_falls_back_to_download_password(self):
+        # PG 는 FIN 을 CMSWEB 다운로드 계정으로 올린다 — FIN 전용 값이 없으면 다운로드 비밀번호를 쓴다
+        with mock.patch.dict(os.environ, {'PG_PWD_CMS_FIN_SSH': '', 'PG_PWD_CMS_SFTP': 'fin-secret'}):
+            self.assertIn('쓰기 가능', C.cms_fin_ssh_check(*self.args()))
+        with mock.patch.dict(os.environ, {'PG_PWD_CMS_FIN_SSH': 'wrong', 'PG_PWD_CMS_SFTP': 'fin-secret'}):
+            with self.assertRaisesRegex(AssertionError, '로그인 실패'):   # 따로 주면 그 값이 우선
                 C.cms_fin_ssh_check(*self.args())
 
     def test_wait_quiet_and_cleanup_by_prefix(self):

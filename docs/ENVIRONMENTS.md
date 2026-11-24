@@ -218,7 +218,7 @@ Do not leave it. If  is given as an environment variable in the execution shell,
 | `PG_PWD_UPM_FTP` | UPM FTP/SFTP listening server — same value as PG setting `PASSWORD_04` | `FtpServerHelper.py` | If you turn on FTP reception (`UPM_FTP_ENABLE`), Suite Setup will fail (avoid with `--no-ftp`) |
 | `PG_PWD_CMS_SFTP` | CMSWEB download simulator, SFTP or FTP per `[CMS] CMSWEB_SFTP`. Password PG.CMS uses to GET data files (user `CMS_SFTP_USER`, port `CMS_SFTP_PORT` or FTP `CMS_FTP_PORT`) | `CmsHelper.py` | CMS suite Setup fails |
 | `PG_PWD_CMS_SFTP_UPLOAD` | CMS SC (NWDAF) receive server, SFTP or FTP per `[CMS] NWDAF_SFTP`. Upload password PG.CMS uses for SC forwarding (user `CMS_SC_SFTP_USER`, port `CMS_SC_SFTP_PORT` or `CMS_SC_FTP_PORT`) | `CmsHelper.py` | Only TC-CMS-006 (SC forwarding) fails |
-| `PG_PWD_CMS_FIN_SSH` | Real `pg` OS account on the tool host (`CMS_FIN_SSH_USER`) — the suite logs in to the real sshd (port 22) to check, wait for and clean up the `.FIN` that PG.CMS PUTs there | `CmsHelper.py` | CMS suite Setup fails in `CMS_FIN_MODE=sshd` (default) |
+| `PG_PWD_CMS_FIN_SSH` | Real `pg` OS account on the tool host (`CMS_FIN_SSH_USER`) — the suite logs in to the real sshd (port 22) to check, wait for and clean up the `.FIN` that PG.CMS PUTs there | `CmsHelper.py` | Optional — falls back to `PG_PWD_CMS_SFTP` (PG PUTs the FIN with the download account). Setup fails in `CMS_FIN_MODE=sshd` only if both are empty |
 
 ```bash
 export PG_PWD_SSH='...'

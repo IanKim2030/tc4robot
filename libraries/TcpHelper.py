@@ -76,13 +76,14 @@ def _parse_allowed_ips(allowed_ips):
     return {str(ip).strip() for ip in items if str(ip).strip()}
 
 
-def server_accept(server_sock, timeout=30, allowed_ips=None):
+def server_accept(server_sock, timeout=30, allowed_ips=None, label='LRS(PG)'):
     """
     클라이언트 접속 대기 (LRS 서버 모드)
     timeout 초 초과 시 TimeoutError 발생
     allowed_ips 지정 시 해당 출발지 IP 접속만 수락하고,
       그 외 IP 는 즉시 닫은 뒤 남은 시간 동안 계속 대기한다.
       (None/빈 값 = 모든 IP 허용, 기존 동작)
+    label 은 타임아웃 메시지에 쓰는 상대 이름이다(기본 LRS — 예: CMS 는 'PG.CMS → CMSWEB').
     반환: (client_socket, client_addr)
     """
     allowset = _parse_allowed_ips(allowed_ips)
@@ -91,7 +92,7 @@ def server_accept(server_sock, timeout=30, allowed_ips=None):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError(
-                f"LRS(PG) 접속 대기 타임아웃 ({timeout}초). "
+                f"{label} 접속 대기 타임아웃 ({timeout}초). "
                 f"허용 IP({', '.join(sorted(allowset)) or '전체'}) 접속이 없었습니다."
             )
         server_sock.settimeout(remaining)
@@ -99,7 +100,7 @@ def server_accept(server_sock, timeout=30, allowed_ips=None):
             conn, addr = server_sock.accept()
         except socket.timeout:
             raise TimeoutError(
-                f"LRS(PG) 접속 대기 타임아웃 ({timeout}초). PG가 접속하지 않았습니다."
+                f"{label} 접속 대기 타임아웃 ({timeout}초). PG가 접속하지 않았습니다."
             )
         peer_ip = addr[0]
         if allowset and peer_ip not in allowset:

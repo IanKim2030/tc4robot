@@ -20,10 +20,10 @@ The tool is the **server** here (CMSWEB); PG.CMS (`CMS201`) connects to it.
 - SFTP/FTP passwords only from environment variables, never a Robot argument or a committed value:
   - `PG_PWD_CMS_SFTP`: simulator download.
   - `PG_PWD_CMS_SFTP_UPLOAD`: SC receive server.
-  - `PG_PWD_CMS_FIN_SSH`: real `pg` account on the tool host, for the FIN check.
-- The SC receive server (`${CMS_SC_SFTP_PORT}`) starts only in the SC test (`Ensure CMS SC Server`). Its prerequisites fail that test alone. Delete only the files named by `${CMS_SC_FILES}` from `${CMS_SC_UPLOAD_DIR}`.
+  - `PG_PWD_CMS_FIN_SSH`: real `pg` account on the tool host, for the FIN check. Optional; defaults to `PG_PWD_CMS_SFTP`.
+- The SC receive server (`${CMS_SC_SFTP_PORT}`) starts only in the SC test (`Ensure CMS SC Server`). Its prerequisites fail that test alone. Received files are kept by default; with `${CMS_SC_CLEANUP}=True`, delete only the files named by `${CMS_SC_FILES}` from `${CMS_SC_UPLOAD_DIR}`.
 - The simulator serves GET only. Real PG PUTs the `.FIN` to the tool host's real sshd (port 22), so `${CMS_REMOTE_DIR}` must exist there and be writable by `pg` ([File handling](SPEC.md#file-handling)). Keep `${CMS_FIN_MODE}=sshd` for real PG; `simulator` is for a patched or fake PG.
-- Delete only FIN files matching this run's prefixes (`${CMS_FIN_PREFIXES}`). Never remove other files in the real directory.
+- FIN files are kept by default (`${CMS_FIN_CLEANUP}=False`). When cleanup is on, delete only FIN files matching this run's prefixes (`${CMS_FIN_PREFIXES}`). Never remove other files in the real directory.
 - Tests that wait for PG to close the control channel must first call `Cms Should Be Connected`, so an already closed socket fails instead of passing.
 - Give every NTI case a unique file name and `dateTime` (`cms_new_case` does this).
 - Negative "must not happen" checks observe a bounded window (`${CMS_QUIET_WINDOW}`) by file name, not by count.
