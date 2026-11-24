@@ -96,8 +96,9 @@ def _load_pyftpdlib():
 class FtpServer(object):
     def __init__(self, port, host='0.0.0.0', user='pg', password='pg1234',
                  directory=None, passive_ports=None, masquerade_address=None,
-                 remote_path=None):
+                 remote_path=None, mounts=None, own_ioloop=False):
         self.host = host
+        self.own_ioloop = own_ioloop    # CMSWEB 시뮬레이터처럼 한 프로세스에 FTP 서버를 둘 이상 띄울 때 True
         self.port = int(port)
         self.user = user
         self.password = password
@@ -111,10 +112,17 @@ class FtpServer(object):
         # 서브디렉터리가 실제로 없으면 CWD 자체가 550 으로 거부된다 — 그래서
         # 여기서 미리 만들어 둔다.
         self.remote_path = remote_path
+        # 선택: FTP 가상 경로 접두사 → 실제 디렉터리 (CMSWEB SC 수신용, 2026-11-24 —
+        # SftpServer.mounts 와 같은 계약). 기본은 없음 — 그때는 예전처럼 모든 경로가
+        # directory 아래로 간다(UPM 동작 그대로).
+        self.mounts = sorted(((('/' + k.strip('/')) if k.strip('/') else '/', os.path.abspath(v))
+                              for k, v in (mounts or {}).items()),
+                             key=lambda kv: len(kv[0]), reverse=True)
         self._server = None
         self._thread = None
         self._lock = threading.Lock()
         self._files = []          # 수신 완료 이력 (dict: path/filename/peer/size/received_at)
+        self._downloads = []      # PG 가 읽어 간(RETR) 이력 — CMSWEB 시뮬레이터(CmsHelper.py)가 쓴다
         self._errors = []         # 미완료 수신·로그인 실패 등 진단용
         self._connections = []    # 접속 이력 — **요청과 별개로** 쌓이고 clear() 해도 안 지운다
         # HttpNotiServer.NotiServer._conns 와 같은 이유: "붙었는가"와 "보냈는가"는
@@ -161,17 +169,29 @@ class FtpServer(object):
             def on_file_received(self, file):
                 outer._note_file(file, self.remote_ip, self.remote_port)
 
+            def on_file_sent(self, file):
+                outer._note_download(file, self.remote_ip, self.remote_port)
+
             def on_incomplete_file_received(self, file):
                 outer._note_error(
                     '업로드 미완료(incomplete) 파일: %s (peer=%s)'
                     % (file, self.remote_ip))
 
+        if self.mounts:
+            _CaptureHandler.abstracted_fs = _mounted_fs_class(self.mounts)
         if self.passive_ports:
             _CaptureHandler.passive_ports = self.passive_ports
         if self.masquerade_address:
             _CaptureHandler.masquerade_address = self.masquerade_address
 
-        self._server = servers_mod.FTPServer((self.host, self.port), _CaptureHandler)
+        if self.own_ioloop:
+            # pyftpdlib 기본은 프로세스 공용 IOLoop.instance() 하나다 — 서버 둘을 동시에 띄우면
+            # (CMSWEB 다운로드 FTP + SC 수신 FTP) 같은 루프를 두 스레드가 돌려 한쪽이 응답하지 않는다.
+            ioloop_mod = __import__('pyftpdlib.ioloop', fromlist=['IOLoop'])
+            self._server = servers_mod.FTPServer((self.host, self.port), _CaptureHandler,
+                                                 ioloop=ioloop_mod.IOLoop())
+        else:
+            self._server = servers_mod.FTPServer((self.host, self.port), _CaptureHandler)
         self._thread = threading.Thread(target=self._serve, daemon=True)
         self._thread.start()
         return self
@@ -216,6 +236,16 @@ class FtpServer(object):
                 'received_at': time.time(),
             })
 
+    def _note_download(self, path, peer, peer_port):
+        with self._lock:
+            self._downloads.append({
+                'path': path,
+                'filename': os.path.basename(path),
+                'peer': peer,
+                'peer_port': peer_port,
+                'at': time.time(),
+            })
+
     def _note_error(self, msg):
         with self._lock:
             self._errors.append(msg)
@@ -223,6 +253,10 @@ class FtpServer(object):
     def files(self):
         with self._lock:
             return list(self._files)
+
+    def downloads(self):
+        with self._lock:
+            return list(self._downloads)
 
     def errors(self):
         with self._lock:
@@ -237,7 +271,43 @@ class FtpServer(object):
         와 같은 이유: TC 마다 초기화하면 "PG 가 붙어 있다"는 사실까지 지워지기 때문이다."""
         with self._lock:
             self._files = []
+            self._downloads = []
             self._errors = []
+
+
+def _mounted_fs_class(mounts):
+    """FTP 가상 경로 접두사를 실제 디렉터리로 바꾸는 AbstractedFS 서브클래스.
+
+    pyftpdlib 는 모든 경로를 사용자 홈(root) 아래로만 풀고 그 밖은 validpath 로 막는다.
+    mounts 의 접두사(예: /PG/FTP/CMS) 아래 경로만 실제 디렉터리로 보내고, 나머지는 원래대로 둔다.
+    """
+    fs_mod = __import__('pyftpdlib.filesystems', fromlist=['AbstractedFS'])
+
+    class _MountedFS(fs_mod.AbstractedFS):
+        def ftp2fs(self, ftppath):
+            virtual = self.ftpnorm(ftppath)
+            for prefix, target in mounts:
+                if virtual == prefix or virtual.startswith(prefix.rstrip('/') + '/'):
+                    return os.path.normpath(os.path.join(target, virtual[len(prefix):].lstrip('/')))
+            return super(_MountedFS, self).ftp2fs(ftppath)
+
+        def fs2ftp(self, fspath):
+            real = os.path.normpath(os.path.abspath(fspath))
+            for prefix, target in mounts:
+                if real == target or real.startswith(target.rstrip(os.sep) + os.sep):
+                    rest = real[len(target):].replace(os.sep, '/').lstrip('/')
+                    return prefix.rstrip('/') + ('/' + rest if rest else '') or '/'
+            return super(_MountedFS, self).fs2ftp(fspath)
+
+        def validpath(self, path):
+            real = os.path.realpath(path)
+            for _prefix, target in mounts:
+                base = os.path.realpath(target)
+                if real == base or real.startswith(base.rstrip(os.sep) + os.sep):
+                    return True
+            return super(_MountedFS, self).validpath(path)
+
+    return _MountedFS
 
 
 # ══════════════════════════════════════════════════════════════════

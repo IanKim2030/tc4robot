@@ -423,6 +423,32 @@ def db_group_counts(conn, sql, *params):
     return _query(conn, sql, params, _fetch_group_counts, 'GROUP BY')
 
 
+def _fetch_rows(cur, sql, params):
+    """모든 행을 `{컬럼명: 값}` 목록으로 만든다. 문자열 값은 양끝 공백을 뗀다(CHAR 패딩)."""
+    if params:
+        _try_setinputsizes(cur, len(params))
+        cur.execute(sql, tuple(params))
+    else:
+        cur.execute(sql)
+    columns = [d[0] for d in cur.description]
+    out = []
+    for row in cur.fetchall():
+        item = {}
+        for name, value in zip(columns, row):
+            item[name] = value.strip() if isinstance(value, str) else value
+        out.append(item)
+    return out
+
+
+def db_rows(conn, sql, *params):
+    """`SELECT ...` 결과 전체를 `[{컬럼명: 값}, ...]` 로 반환한다(행이 없으면 빈 목록).
+
+    값 판정이 필요한 조회용이다(예: CMSWEB T_CMSWEB_ZONE 의 STATUS/REASON/FILESIZE).
+    트랜잭션·바인딩 규칙은 db_count 와 같다.
+    """
+    return _query(conn, sql, params, _fetch_rows, 'ROWS')
+
+
 # ── 세션 생성 (TC 수행 전 사전 적재) ───────────────────────────────
 #
 # CDS 전문을 보내기 전에 대상 가입자의 5G 세션이 PDB 에 있어야 한다. PG.SNOTI 는

@@ -2,5 +2,17 @@
   {"variable": "NAG_PG_PORT", "path": "${BNOTI_CFG_PATH}", "section": "${BNOTI_CFG_SECTION}", "key": "${BNOTI_CFG_KEY_NAG}", "type": "port"},
   {"variable": "PCF_PG_PORT", "path": "${BNOTI_CFG_PATH}", "section": "${BNOTI_CFG_SECTION}", "key": "${BNOTI_CFG_KEY_PCF}", "type": "port"},
   {"variable": "CDS_SCH_PORT", "path": "${PG_CFG_PATH}", "section": "CDS", "key": "O_PORT", "type": "port"},
-  {"variable": "CDS_RCH_PORT", "path": "${PG_CFG_PATH}", "section": "CDS", "key": "R_PORT", "type": "port"}
+  {"variable": "CDS_RCH_PORT", "path": "${PG_CFG_PATH}", "section": "CDS", "key": "R_PORT", "type": "port"},
+  {"variable": "CMS_LISTEN_PORT", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "CMSWEB_PORT", "type": "port", "targets": ["cms"]},
+  {"variable": "CMS_PG_USE_SFTP", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "CMSWEB_SFTP", "type": "string", "targets": ["cms"], "pg_default": "Y"},
+  {"variable": "CMS_SFTP_PORT", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "CMS_SFTP_PORT", "type": "port", "targets": ["cms"], "pg_default": "22"},
+  {"variable": "CMS_PG_TARGET_ADDR", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "CMSWEB_ADDR", "type": "string", "targets": ["cms"]},
+  {"variable": "CMS_PG_GROUP", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "GROUP", "type": "string", "targets": ["cms"]},
+  {"variable": "CMS_PG_KEY", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "KEY", "type": "string", "targets": ["cms"]},
+  {"variable": "CMS_PG_TIMEOUT", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "CMSWEB_TIMEOUT", "type": "integer", "targets": ["cms"]},
+  {"variable": "CMS_SC_USE_SFTP", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "NWDAF_SFTP", "type": "string", "targets": ["cms"], "pg_default": "Y"},
+  {"variable": "CMS_SC_SFTP_PORT", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "NWDAF_SFTP_PORT", "type": "port", "targets": ["cms"], "pg_default": "22"},
+  {"variable": "CMS_SC_FTP_PORT", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "NWDAF_FTP_PORT", "type": "port", "targets": ["cms"], "pg_default": "21"},
+  {"variable": "CMS_SC_PATH", "path": "${PG_CFG_PATH}", "section": "CMS", "key": "SC_PATH", "type": "string", "targets": ["cms"]},
+  {"variable": "CMS_SC_PG_ADDR", "path": "${PG_CFG_PATH}", "section": "SC", "key": "SC_PRIIP", "type": "string", "targets": ["cms"]}
 ]

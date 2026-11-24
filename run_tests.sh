@@ -19,6 +19,7 @@
 #   bash run_tests.sh nwdaf            # NWDAF 전체 (TLV Notification)
 #   bash run_tests.sh cds              # CDS 전체 (PG.CDS 듀얼소켓 접속)
 #   bash run_tests.sh rts              # RTS 전체 (PG.RTS 접속, 로밍 데이터 차단)
+#   bash run_tests.sh cms              # CMS 전체 (도구=CMSWEB 서버, PG.CMS 접속 + SFTP)
 #   bash run_tests.sh all              # NAG + PCF + LRS + UPM + NWDAF + CDS + RTS 전체
 #   bash run_tests.sh smoke            # smoke 태그만
 #   bash run_tests.sh nag --log-msg    # REQ/RESP 시각 출력 ON
@@ -321,6 +322,7 @@ case "${TARGET}" in
     nwdaf)      "${BASE_CMD[@]}" tests/nwdaf/ ;;
     cds)        "${BASE_CMD[@]}" tests/cds/ ;;
     rts)        "${BASE_CMD[@]}" tests/rts/ ;;
+    cms)        "${BASE_CMD[@]}" tests/cms/ ;;
     all)        "${BASE_CMD[@]}" tests/ ;;
     smoke)      "${BASE_CMD[@]}" --include smoke tests/ ;;
     negative)   "${BASE_CMD[@]}" --include negative tests/ ;;

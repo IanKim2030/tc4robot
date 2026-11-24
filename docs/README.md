@@ -1,7 +1,7 @@
 # tc4robot Documentation Index
 
 A Robot Framework-based regression automation testing tool for SK Telecom's **PG (PCRF Gateway)**.
-Six test groups: NAG (including PCF integration), LRS, UPM, CDS, NWDAF, and RTS.
+Seven test groups: NAG (including PCF integration), LRS, UPM, CDS, NWDAF, RTS, and CMS.
 
 ## Start Here
 
@@ -35,6 +35,7 @@ connections, messages, wire encoding where applicable, existing TCs, pitfalls, a
 | [CDS](../tests/cds/AGENTS.md) | 9201, then 9200 | 48B fixed header and fixed-width body | Dual |
 | [NWDAF](../tests/nwdaf/AGENTS.md) | 10305 | Binary TLV | Single |
 | [RTS](../tests/rts/AGENTS.md) | `${RTS_PG_PORT}` (6003; configuration-file integration TODO) | 32B fixed header and fixed-width body | Single |
+| [CMS](../tests/cms/AGENTS.md) | Tool listens on `[CMS] CMSWEB_PORT` (dev 9980) + SFTP | 13B header and compact EUC-KR JSON | Single (PG connects) + SFTP |
 
 ## Shared Topics
 

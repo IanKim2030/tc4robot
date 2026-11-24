@@ -40,6 +40,7 @@ Resource    ../resources/lrs_variables.robot
 Resource    ../resources/cds_variables.robot
 Resource    ../resources/nwdaf_variables.robot
 Resource    ../resources/rts_variables.robot
+Resource    ../resources/cms_variables.robot
 Library     ../libraries/PdbHelper.py    WITH NAME    SeedDb
 Library     ../libraries/DbSeedHelper.py    WITH NAME    Seed
 Library     ../libraries/SshHelper.py    WITH NAME    Ssh

@@ -61,7 +61,12 @@ An explicit environment value wins even when it equals the node default. Multipl
 variable files and CLI variables follow Robot's ordering rules. The remote mapping catalog is
 [`config/remote_settings.json`](../config/remote_settings.json). All runner targets
 read its enabled mappings at startup: currently NAG/PCF destination ports from
-`BarodNoti.cfg` and CDS O/R ports from `PG_V2.cfg [CDS]`. Unmapped settings retain
+`BarodNoti.cfg`, CDS O/R ports from `PG_V2.cfg [CDS]`, and the CMSWEB settings from
+`PG_V2.cfg [CMS]`. An entry may carry `"targets": ["cms"]`; it is then read only for
+that target and for `all`, so other nodes and tag targets such as `smoke` do not depend
+on its keys. An entry with `"pg_default"` may be missing from the cfg: PG then uses that
+default, so the suite does too, and the report says `없음 → PG 기본값`. Entries without
+it still fail when the key is missing. A key repeated in one section uses its last value (as PG does) and logs a warning. Unmapped settings retain
 their environment overrides and defaults; unverified server keys are not guessed.
 See [SSH configuration](shared/SSH.md#read-nagpcf-ports-from-barodnoticfg).
 
@@ -211,6 +216,9 @@ Do not leave it. If  is given as an environment variable in the execution shell,
 | `PG_PWD_PDB_1` | First PDB — Insert `PWD=` in `PDB_CONNSTR` | `PdbHelper.py` | If there is no PWD in the connection string, the connection fails. |
 | `PG_PWD_PDB_2` | Second PDB — `PWD=` of `PDB_CONNSTR_2` | `PdbHelper.py` | Same as above only when using DB2 |
 | `PG_PWD_UPM_FTP` | UPM FTP/SFTP listening server — same value as PG setting `PASSWORD_04` | `FtpServerHelper.py` | If you turn on FTP reception (`UPM_FTP_ENABLE`), Suite Setup will fail (avoid with `--no-ftp`) |
+| `PG_PWD_CMS_SFTP` | CMSWEB download simulator, SFTP or FTP per `[CMS] CMSWEB_SFTP`. Password PG.CMS uses to GET data files (user `CMS_SFTP_USER`, port `CMS_SFTP_PORT` or FTP `CMS_FTP_PORT`) | `CmsHelper.py` | CMS suite Setup fails |
+| `PG_PWD_CMS_SFTP_UPLOAD` | CMS SC (NWDAF) receive server, SFTP or FTP per `[CMS] NWDAF_SFTP`. Upload password PG.CMS uses for SC forwarding (user `CMS_SC_SFTP_USER`, port `CMS_SC_SFTP_PORT` or `CMS_SC_FTP_PORT`) | `CmsHelper.py` | Only TC-CMS-006 (SC forwarding) fails |
+| `PG_PWD_CMS_FIN_SSH` | Real `pg` OS account on the tool host (`CMS_FIN_SSH_USER`) — the suite logs in to the real sshd (port 22) to check, wait for and clean up the `.FIN` that PG.CMS PUTs there | `CmsHelper.py` | CMS suite Setup fails in `CMS_FIN_MODE=sshd` (default) |
 
 ```bash
 export PG_PWD_SSH='...'

@@ -49,3 +49,4 @@ against current code when editing them, and distinguish confirmed behavior from 
 - [CDS](cds/AGENTS.md)
 - [NWDAF](nwdaf/AGENTS.md)
 - [RTS](rts/AGENTS.md)
+- [CMS](cms/AGENTS.md)

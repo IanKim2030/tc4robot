@@ -98,10 +98,13 @@ class RuntimeConfigTests(unittest.TestCase):
         self.assertNotIn('PG_SSH_ENSURE:False', calls[0])
 
     def test_every_runner_target_reads_mapped_server_settings(self):
-        for target in ['nag', 'pcf', 'lrs', 'upm', 'cds', 'nwdaf', 'rts', 'all']:
+        for target in ['nag', 'pcf', 'lrs', 'upm', 'cds', 'nwdaf', 'rts', 'cms', 'all', 'smoke']:
             self.calls.clear()
             values = RuntimeConfig._resolve(self.options, target, self.reader)
-            self.assertEqual(len(self.calls), 2)
+            # [CMS] and [SC] entries carry "targets": ["cms"] — read for cms and all only.
+            self.assertEqual(len(self.calls), 4 if target in ('cms', 'all') else 2, target)
+            self.assertEqual('CMS_LISTEN_PORT' in values, target in ('cms', 'all'), target)
+            self.assertEqual('CMS_SC_PG_ADDR' in values, target in ('cms', 'all'), target)
             self.assertEqual(values['CDS_SCH_PORT'], 9200)
             self.assertEqual(values['CDS_RCH_PORT'], 9200)
             self.assertEqual(values['NAG_PG_PORT'], 9100)
@@ -118,6 +121,42 @@ class RuntimeConfigTests(unittest.TestCase):
                                        lambda *a, **kw: {'port': '10507', 'enabled': 'yes'})
         self.assertEqual(values['UPM_PG_PORT'], 10507)
         self.assertIs(values['UPM_FTP_ENABLE'], True)
+
+    def test_pg_default_entry_is_optional_and_uses_pg_value_when_absent(self):
+        mapping = Path(self.temp.name) / 'mapping.json'
+        mapping.write_text(json.dumps([
+            {'variable': 'CMS_SFTP_PORT', 'path': '/pg.cfg', 'section': 'CMS',
+             'key': 'CMS_SFTP_PORT', 'type': 'port', 'pg_default': '22'},
+            {'variable': 'CMS_PG_USE_SFTP', 'path': '/pg.cfg', 'section': 'CMS',
+             'key': 'CMSWEB_SFTP', 'type': 'string', 'pg_default': 'Y'},
+            {'variable': 'CMS_PG_GROUP', 'path': '/pg.cfg', 'section': 'CMS',
+             'key': 'GROUP', 'type': 'string'}]))
+        seen = {}
+
+        def reader(host, user, path, section, keys, key_file='', optional=()):
+            seen['optional'] = sorted(optional)
+            return {'GROUP': 'PGN', 'CMSWEB_SFTP': 'N'}      # CMS_SFTP_PORT 없음
+        options = dict(self.options, variable=['REMOTE_CONFIG_MAP_PATH:' + str(mapping)])
+        sources = {}
+        values = RuntimeConfig._resolve(options, 'cms', reader, sources=sources)
+        self.assertEqual(seen['optional'], ['CMSWEB_SFTP', 'CMS_SFTP_PORT'])
+        self.assertEqual(values['CMS_SFTP_PORT'], 22)
+        self.assertEqual(values['CMS_PG_USE_SFTP'], 'N')
+        self.assertIn('없음 → PG 기본값', sources['CMS_SFTP_PORT'])
+        self.assertNotIn('PG 기본값', sources['CMS_PG_USE_SFTP'])
+
+    def test_read_remote_cfg_optional_keys_may_be_absent_required_may_not(self):
+        import SshHelper
+        from types import SimpleNamespace
+        from unittest import mock
+        text = b'[CMS]\nCMSWEB_SFTP = N\nGROUP = PGN\nCMS_SFTP_PORT =\n'
+        with mock.patch.object(SshHelper, '_run_ssh', return_value=SimpleNamespace(stdout=text)):
+            got = SshHelper.read_remote_cfg('h', 'pg', '/p', 'CMS',
+                                            ['CMSWEB_SFTP', 'CMS_SFTP_PORT', 'NWDAF_FTP_PORT', 'GROUP'],
+                                            optional=['CMS_SFTP_PORT', 'NWDAF_FTP_PORT'])
+            self.assertEqual(got, {'CMSWEB_SFTP': 'N', 'GROUP': 'PGN'})
+            with self.assertRaisesRegex(SshHelper.SshEnsureError, 'KEY_X'):
+                SshHelper.read_remote_cfg('h', 'pg', '/p', 'CMS', ['GROUP', 'KEY_X'], optional=['GROUP'])
 
     def test_missing_ssh_account_blocks_enabled_remote_resolution(self):
         options = dict(self.options, variable=['PG_SSH_USER:'])

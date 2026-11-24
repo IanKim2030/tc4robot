@@ -194,11 +194,13 @@ def ensure_pg_process_running(host, user, run_dir, processes, key_file=''):
         print('[SSH] touch %s/%s.RUN' % (run_dir, name))
 
 
-def parse_cfg_section(text, section):
+def parse_cfg_section(text, section, duplicates=None):
     """INI 비슷한 PG cfg 텍스트에서 [section] 의 key=value 를 dict 로 돌려준다.
 
     `#` 뒤는 주석으로 버린다(값 뒤 인라인 주석 포함 — `Port.NAG=8012 # ...`).
     키·값 양끝 공백은 지운다. 섹션 이름은 정확히 일치해야 한다(대소문자 구분).
+    같은 키가 여러 번 나오면 마지막 값이 남는다. duplicates(dict)를 주면 키마다
+    나온 값을 순서대로 모아 준다 — 호출부가 값이 엇갈리는지 판단한다.
     """
     out, cur = {}, None
     for raw in text.splitlines():
@@ -211,10 +213,12 @@ def parse_cfg_section(text, section):
         if cur == section and '=' in line:
             k, v = line.split('=', 1)
             out[k.strip()] = v.strip()
+            if duplicates is not None:
+                duplicates.setdefault(k.strip(), []).append(v.strip())
     return out
 
 
-def read_remote_cfg(host, user, path, section, keys, key_file=''):
+def read_remote_cfg(host, user, path, section, keys, key_file='', optional=()):
     """PG 서버의 cfg 파일(path)을 ssh 로 `cat` 해 [section] 의 keys 값을 dict 로 돌려준다.
 
     접속은 `.RUN` touch 와 같은 시스템 ssh 경로다(paramiko 불필요, 비밀번호는 PG_PWD_SSH).
@@ -222,19 +226,33 @@ def read_remote_cfg(host, user, path, section, keys, key_file=''):
     파일을 못 읽거나, 섹션·키가 없거나, 값이 비어 있으면 `SshEnsureError`.
     ★ 키가 없을 때 기본값으로 조용히 넘어가지 않는다 — 예전 DynamicVars 가 틀린 키를 찾다
       폴백만 타고 있었는데 값이 같아서 아무도 몰랐던 전례가 있다(docs/ENVIRONMENTS.md).
+      예외: optional 에 든 키는 없거나 비어도 실패하지 않고 결과에서 빠진다 — PG 자신이
+      기본값을 쓰는 키(예: [CMS] CMS_SFTP_PORT 없으면 22)만 카탈로그가 이렇게 표시한다.
     """
     what = 'cfg 읽기(%s@%s:%s)' % (user, host, path)
     if not user:
         raise SshEnsureError('PG_SSH_USER 가 비어 있어 %s 을(를) 할 수 없습니다.' % what)
     result = _run_ssh(host, user, 'cat %s' % shlex.quote(path), key_file, _SSH_TIMEOUT, what)
-    values = parse_cfg_section(result.stdout.decode(errors='replace'), section)
-    missing = [k for k in keys if not values.get(k)]
+    seen = {}
+    values = parse_cfg_section(result.stdout.decode(errors='replace'), section, seen)
+    # 같은 키가 다른 값으로 여러 번 있으면 **마지막 값**을 쓴다 — PG(NLCConfig)와 같다.
+    # 근거: 2026-11-24 [CMS] 에 CMSWEB_ADDR/CMS_SFTP_PORT 가 옛 값 아래 새 값으로 덧붙여진
+    # 상태에서 CmsMain 기동 로그가 새(마지막) 값을 찍었다. 헷갈리지 않게 경고만 남긴다.
+    for k in keys:
+        if len(set(seen.get(k, []))) > 1:
+            print('[SSH] ⚠ %s [%s] %s 가 여러 번 있습니다 (%s) — PG 와 같이 마지막 값 %s 를 씁니다'
+                  % (path, section, k, ' / '.join(seen[k]), seen[k][-1]))
+    optional = set(optional or ())
+    missing = [k for k in keys if not values.get(k) and k not in optional]
     if missing:
         raise SshEnsureError('%s — [%s] 에 키가 없거나 값이 비어 있습니다: %s'
                              % (what, section, ', '.join(missing)))
-    picked = {k: values[k] for k in keys}
+    picked = {k: values[k] for k in keys if values.get(k)}
     for k, v in picked.items():
         print('[SSH] %s [%s] %s=%s' % (path, section, k, v))
+    for k in keys:
+        if k not in picked:
+            print('[SSH] %s [%s] %s 없음 — PG 기본값을 쓴다' % (path, section, k))
     return picked
 
 

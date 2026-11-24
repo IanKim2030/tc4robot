@@ -26,7 +26,8 @@
 --   주석 안의 ${...} 는 치환하지 않는다. 지금 쓰는 변수:
 --     CDS_MDN/MIN · CDS_NEW_MDN/MIN · NAG_MDN/MIN · NAG_MDN_NO_HFC/NAG_MIN_NO_HFC ·
 --     NWDAF_MDN/MIN · NWDAF_MDN_5G/MIN_5G · UPM_MDN/MIN · UPM_SYS_ID · UPM_BRANCH_NAME ·
---     TOOL_HOST · SBI_NOTI_PORT(variables.robot)
+--     TOOL_HOST · SBI_NOTI_PORT(variables.robot) ·
+--     CMS_SERVICE_CODE · CMS_ZONE_CODE · CMS_ZONE_TYPE · CMS_SERVICE_CODE_SC · CMS_SC_ZONE_CODE(cms_variables.robot)
 --   dev.py 에 대응 변수가 없는 값(01090050002, 192.168.15.144)은 리터럴로 남겼다.
 -- ★ 표 이름에 스키마 접두사("PDB.")를 붙이지 말 것 — 실환경에서
 --   schema 'PDB' does not exist 로 거부된 전례가 있다.
@@ -249,6 +250,9 @@ VALUES
     'http://${TOOL_HOST}:${SBI_NOTI_PORT}/npcf-event-exposure/v1/nudr-gxp-notify/gxpa/01010105000-01-0-00-',
     NULL
 );
+
+
+
 
 -- NAG 세션 선등록용 가입자
 SELECT COUNT(*) FROM T_SESSION_INFO WHERE MDN='${NAG_MDN}';
@@ -1044,3 +1048,69 @@ UPDATE T_CDS_ORDER_TID SET TID = (SELECT MAX(TRANSACTION_ID) FROM T_CDS_ORDER_HI
 -- FOR BSUBS
 SELECT COUNT(*) FROM T_BAROD_ORDER_HIST WHERE STATUS = 'N' AND MDN IN ('${CDS_MDN}', '${CDS_NEW_MDN}');
 UPDATE T_BAROD_ORDER_HIST SET STATUS = 'Y' WHERE STATUS = 'N' AND MDN IN ('${CDS_MDN}', '${CDS_NEW_MDN}');
+
+-- @name: CMSWEB 시험 서비스코드 (tests/cms — T_ZONE_LIST)
+-- PG.CMS 는 NTI 의 serviceCode 로 T_ZONE_LIST 를 찾는다. 시험 전용 행이다 — 실제 존 코드와
+-- 겹치지 않게 ZN999999 를 쓰고, NWDAF 전달(SC_FTP_YN)·LM 전달(LM_FTP_YN)은 끈다.
+SELECT COUNT(*) FROM T_ZONE_LIST WHERE SERVICE_CODE = '${CMS_SERVICE_CODE}';
+INSERT INTO T_ZONE_LIST
+(
+    SERVICE_CODE,
+    ZONE_CODE,
+    ZONE_TYPE,
+    LM_FTP_YN,
+    SC_FTP_YN,
+    NOTI_YN,
+    ZONE_DESC,
+    DCG_FTP_YN,
+    BIZP_FTP_YN
+)
+VALUES
+(
+    '${CMS_SERVICE_CODE}',
+    '${CMS_ZONE_CODE}',
+    '${CMS_ZONE_TYPE}',
+    'N',
+    'N',
+    'Y',
+    'ROBOT CMSWEB TEST',
+    'N',
+    'N'
+);
+UPDATE T_ZONE_LIST
+SET    ZONE_CODE = '${CMS_ZONE_CODE}', ZONE_TYPE = '${CMS_ZONE_TYPE}',
+       LM_FTP_YN = 'N', SC_FTP_YN = 'N', NOTI_YN = 'Y'
+WHERE  SERVICE_CODE = '${CMS_SERVICE_CODE}';
+
+-- @name: CMSWEB SC 전달 시험 서비스코드 (tests/cms TC-CMS-006 — T_ZONE_LIST)
+-- SC_FTP_YN='Y' 면 PG.CMS 가 받은 파일과 .FIN 을 [SC] SC_PRIIP:[CMS] NWDAF_SFTP_PORT 의 SC_PATH 로
+-- 다시 올린다(CCMSWeb::RunSFtpSC, T_CMSWEB_ZONE 행 없음). 쓰지 않는 존 코드 ZN999998 을 쓴다.
+SELECT COUNT(*) FROM T_ZONE_LIST WHERE SERVICE_CODE = '${CMS_SERVICE_CODE_SC}';
+INSERT INTO T_ZONE_LIST
+(
+    SERVICE_CODE,
+    ZONE_CODE,
+    ZONE_TYPE,
+    LM_FTP_YN,
+    SC_FTP_YN,
+    NOTI_YN,
+    ZONE_DESC,
+    DCG_FTP_YN,
+    BIZP_FTP_YN
+)
+VALUES
+(
+    '${CMS_SERVICE_CODE_SC}',
+    '${CMS_SC_ZONE_CODE}',
+    '${CMS_ZONE_TYPE}',
+    'N',
+    'Y',
+    'Y',
+    'ROBOT CMSWEB SC TEST',
+    'N',
+    'N'
+);
+UPDATE T_ZONE_LIST
+SET    ZONE_CODE = '${CMS_SC_ZONE_CODE}', ZONE_TYPE = '${CMS_ZONE_TYPE}',
+       LM_FTP_YN = 'N', SC_FTP_YN = 'Y', NOTI_YN = 'Y'
+WHERE  SERVICE_CODE = '${CMS_SERVICE_CODE_SC}';

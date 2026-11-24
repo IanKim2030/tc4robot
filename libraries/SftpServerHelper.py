@@ -63,13 +63,18 @@ def _load_paramiko():
 
 class SftpServer(object):
     def __init__(self, port, host='0.0.0.0', user='upm', password='upm',
-                 directory=None, remote_path=None):
+                 directory=None, remote_path=None, mounts=None):
         self.host = host
         self.port = int(port)
         self.user = user
         self.password = password
         self.directory = os.path.abspath(directory or tempfile.mkdtemp(prefix='upm_sftp_'))
         self.remote_path = remote_path
+        # 선택: 가상 경로 접두사 → 실제 디렉터리 (CMSWEB SC 수신용, 2026-11-24). 기본은 없음 —
+        # 그때는 예전처럼 모든 경로가 directory 아래로 간다(UPM 동작 그대로).
+        self.mounts = sorted(((('/' + k.strip('/')) if k.strip('/') else '/', os.path.abspath(v))
+                              for k, v in (mounts or {}).items()),
+                             key=lambda kv: len(kv[0]), reverse=True)
         self._host_key = None
         self._sock = None
         self._accept_thread = None
@@ -77,6 +82,7 @@ class SftpServer(object):
         self._lock = threading.Lock()
         self._transports = []     # 접속 중인 Transport — stop() 에서 강제로 닫는다
         self._files = []          # 수신 완료 이력 — FtpServer._files 와 같은 스키마
+        self._downloads = []      # PG 가 읽어 간 이력 — CMSWEB 시뮬레이터(CmsHelper.py)가 쓴다
         self._errors = []
         self._connections = []    # 접속 이력 — clear() 해도 안 지운다(FtpServer 와 같은 계약)
 
@@ -154,13 +160,23 @@ class SftpServer(object):
                         outer._note_file(self.filename, peer, peer_port)
                     except Exception:
                         outer._note_error(traceback.format_exc())
+                else:
+                    # 읽기 핸들 — PG 가 도구에서 파일을 가져간 기록(CMSWEB 시뮬레이터용).
+                    try:
+                        outer._note_download(self.filename, peer, peer_port)
+                    except Exception:
+                        outer._note_error(traceback.format_exc())
                 return result
 
         class _Sftp(paramiko.SFTPServerInterface):
             def _realpath(self, path):
                 # canonicalize() 는 유닉스 스타일 '/' 로 돌려준다 — os.sep 가 다른
                 # 플랫폼(Windows)에서도 os.* 호출이 먹게 normpath 로 정리한다.
-                return os.path.normpath(root + self.canonicalize(path))
+                virtual = self.canonicalize(path)
+                for prefix, target in outer.mounts:
+                    if virtual == prefix or virtual.startswith(prefix.rstrip('/') + '/'):
+                        return os.path.normpath(target + '/' + virtual[len(prefix):].lstrip('/'))
+                return os.path.normpath(root + virtual)
 
             def list_folder(self, path):
                 p = self._realpath(path)
@@ -314,6 +330,16 @@ class SftpServer(object):
                 'received_at': time.time(),
             })
 
+    def _note_download(self, path, peer, peer_port):
+        with self._lock:
+            self._downloads.append({
+                'path': path,
+                'filename': os.path.basename(path),
+                'peer': peer,
+                'peer_port': peer_port,
+                'at': time.time(),
+            })
+
     def _note_error(self, msg):
         with self._lock:
             self._errors.append(msg)
@@ -321,6 +347,10 @@ class SftpServer(object):
     def files(self):
         with self._lock:
             return list(self._files)
+
+    def downloads(self):
+        with self._lock:
+            return list(self._downloads)
 
     def errors(self):
         with self._lock:
@@ -334,4 +364,5 @@ class SftpServer(object):
         """FtpServer.clear() 와 같은 계약 — 수신 이력·오류만 비우고 접속 이력은 남긴다."""
         with self._lock:
             self._files = []
+            self._downloads = []
             self._errors = []

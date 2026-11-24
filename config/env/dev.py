@@ -84,6 +84,17 @@ PCF_MDN              = NAG_MDN
 LRS_MDN              = CDS_MDN        
 
 
+# PG.CMS <-> CMSWEB (도구가 CMSWEB 서버) — tests/cms/SPEC.md
+# 포트·세션키·타임아웃은 기동 시 PG_V2.cfg [CMS] 에서 읽는다(config/remote_settings.json).
+# SFTP 계정은 PG.CMS 가 쓰는 CMSWEB 계정과 같아야 한다(dev: pg, 2026-11-24 사용자 확인).
+# 비밀번호는 파일에 적지 않는다 — 다운로드(시뮬레이터 SFTP)용 PG_PWD_CMS_SFTP,
+# SC 수신(업로드)용 PG_PWD_CMS_SFTP_UPLOAD, FIN 확인(도구 호스트 실제 sshd 의 pg)용 PG_PWD_CMS_FIN_SSH.
+CMS_SFTP_USER      = 'pg'
+# SC(NWDAF) 전달 수신 — PG 가 [CMS] SC_PATH 로 올리는 파일이 이 실제 디렉터리에 쌓인다(사용자 지정 2026-11-24).
+# 비밀번호는 PG_PWD_CMS_SFTP_UPLOAD. 실제 sshd FIN 확인 비밀번호는 PG_PWD_CMS_FIN_SSH.
+CMS_SC_UPLOAD_DIR  = '/home/kky/ROBOT/cmsweb/upload'
+
+
 # PG.NWQOS <-> NWDAF
 NWDAF_MDN            = '01090040001'          # NWDAF QoS 알림 (${NWDAF_TEST_MDN}) — NAG 세션 선등록과 같은 번호
 NWDAF_MIN            = NWDAF_MDN[1:]

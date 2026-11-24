@@ -6,7 +6,7 @@
 TC-<IFACE>-NNN <Korean description>
 ```
 
-- `<IFACE>` is `NAG`, `PCF`, `LRS`, `UPM`, `CDS`, `NWDAF`, or `RTS`.
+- `<IFACE>` is `NAG`, `PCF`, `LRS`, `UPM`, `CDS`, `NWDAF`, `RTS`, or `CMS`.
 - `NNN` is a three-digit, zero-padded number.
 - Preserve Korean test names, Robot `Documentation`, and log messages.
 
@@ -70,7 +70,7 @@ Common tags: `smoke`, `negative`, `validation`, `lte`, `5g`.
 application. `TC-CDS-020` waits for coupon expiration processing by PG.RDS, which
 can take several minutes. Use `--exclude slow` for faster runs.
 
-Node tags: `nag`, `pcf`, `lrs`, `upm`, `cds`, `nwdaf`, `rts`.
+Node tags: `nag`, `pcf`, `lrs`, `upm`, `cds`, `nwdaf`, `rts`, `cms`.
 
 | Node | Feature tags |
 |---|---|
@@ -81,6 +81,7 @@ Node tags: `nag`, `pcf`, `lrs`, `upm`, `cds`, `nwdaf`, `rts`.
 | CDS | `connect`, `process-state`, `command`, `db`, `subs-data`*, `upload`*, `release` |
 | NWDAF | `nwdaf_smoke`, `nwdaf_pgw`, `nwdaf_enb`, `nwdaf_dpi`, `nwdaf_5g`, `nwdaf_status`, `nwdaf_quick`, `nwdaf_qos_policy`, `nwdaf_support`, `nwdaf_arpqci`, `nwdaf_band`, `nwdaf_cu`, `nwdaf_network`, `nwdaf_ratio`, `nwdaf_usage`, `nwdaf_common1`, `nwdaf_common2`, `nwdaf_msgid_wrap`, `nwdaf_healthcheck` |
 | RTS | `order`, `roaming`, `db`, `noti` |
+| CMS | `reg`, `hbc`, `nti`, `sftp`, `sc`, `db` (TC-CMS-011 is `slow`) |
 
 `*` marks tags on commented-out TCs; they become active when those tests are enabled.
 Some historical tags may no longer be used; check the current suite before selecting tests.

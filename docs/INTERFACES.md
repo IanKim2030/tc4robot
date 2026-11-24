@@ -14,6 +14,7 @@ For details, refer to each node specification (`tests/<iface>/AGENTS.md`).
 | [CDS](../tests/cds/SPEC.md) | CDS | Client Dual → PG.CDS | Rch 9201 → Sch 9200 | 48B | fixed message | dual |
 | [NWDAF](../tests/nwdaf/SPEC.md) | NWDAF | Client → PG | 10305 | 8B Bitfield | TLV binary | single |
 | [RTS](../tests/rts/SPEC.md) | RTS | Client → PG.RTS | ${RTS_PG_PORT}(6003, setting file link TODO) | 32B | Fixed width (roaming blocking L1/L2) | single |
+| [CMS](../tests/cms/SPEC.md) | CMSWEB | **Server** ← PG.CMS (+ tool SFTP or FTP server, per `CMSWEB_SFTP`) | `[CMS] CMSWEB_PORT` (dev 9980) / `CMS_SFTP_PORT` (FTP: 21) | 13B `Cmd(3)+Len(10)` | compact EUC-KR JSON | single + SFTP |
 
 The tool initiates each node's primary PG connection. NAG and LRS also accept
 PG connections on the auxiliary LRS-PCF channel (`LRS_SERVER_PORT`; dev 8890, shared fallback 8890). SBI and FTP/SFTP receivers
@@ -31,6 +32,7 @@ there is no shared dev fallback in `resources/variables.robot`.
 | 48-octet CDS | Message ID / TID(date+seq) / System·App ID / Continue / Serial / Data Size | `CdsHelper.py` (`Cds`) | CDS |
 | 8-octet NWDAF | Byte0 bitfield (Ext/ProtoVer/HdrType/MsgType) + SvcId(2B) + MsgId(3B) + BodyLen(2B) | `TlvHelper.py` (`Tlv`) | NWDAF |
 | 32-octet RTS | Message ID / TID(date+seq) / Source·Dest System ID / Data Size | `RtsHelper.py` (`Rts`) | RTS |
+| 13-octet CMS | ASCII command (REG/DRG/HBC/NTI/ANS) + 10-digit body length | `CmsHelper.py` (`Cms`) | CMS |
 
 `txn_id` can never be 0 as  (specification specified). The `Next TXN ID` keyword forces it.
 NWDAF uses Message Id (0x000~0xFFF cycle) instead of `txn_id`.

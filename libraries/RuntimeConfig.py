@@ -14,6 +14,16 @@ import SshHelper
 
 _ROOT = Path(__file__).resolve().parent.parent
 
+# A catalog entry may carry "targets": [...]. It is then read only for those runner
+# targets and for `all` (which runs every suite), so other runs — single nodes and
+# tag targets such as smoke — never depend on its keys. A direct Robot CLI run of
+# that suite resolves the entry itself (resolve_settings with its own target).
+
+
+def _entry_applies(entry: dict, target: str) -> bool:
+    targets = entry.get('targets')
+    return not targets or target == 'all' or target in targets
+
 
 def _load_resource_variables(variables, path: str) -> None:
     """Apply a resource file's Variables section without overwriting.
@@ -62,7 +72,8 @@ def _resolve(options: dict, target: str, reader=None, sources=None) -> dict:
     protected = {name.replace('_', '').replace(' ', '').lower() for name in names}
     for resource in ['variables', 'nag_variables', 'pcf_variables',
                      'upm_variables', 'lrs_server_variables', 'lrs_variables',
-                     'cds_variables', 'nwdaf_variables', 'rts_variables']:
+                     'cds_variables', 'nwdaf_variables', 'rts_variables',
+                     'cms_variables']:
         path = _ROOT / 'resources' / (resource + '.robot')
         variables['${CURDIR}'] = str(path.parent)
         _load_resource_variables(variables, str(path))
@@ -78,6 +89,8 @@ def _resolve(options: dict, target: str, reader=None, sources=None) -> dict:
     if remote_skip:
         mapping_path = variables['${REMOTE_CONFIG_MAP_PATH}']
         for entry in json.loads(Path(mapping_path).read_text(encoding='utf-8')):
+            if not _entry_applies(entry, target):
+                continue
             sources.setdefault(entry['variable'], '기본값 (%s)' % remote_skip)
             names.add(entry['variable'])
     if enabled and not options.get('dryrun'):
@@ -91,6 +104,8 @@ def _resolve(options: dict, target: str, reader=None, sources=None) -> dict:
             if normalized in seen:
                 raise AssertionError('Duplicate remote variable mapping: %s' % name)
             seen.add(normalized)
+            if not _entry_applies(entry, target):
+                continue
             if normalized in protected:
                 sources[name] = sources.get(name, '명시값') + ' (원격 매핑보다 우선)'
                 continue
@@ -102,17 +117,24 @@ def _resolve(options: dict, target: str, reader=None, sources=None) -> dict:
             host = variables.replace_scalar(entry.get('host', '${PG_HOST}'))
             section = variables.replace_scalar(entry['section'])
             key = variables.replace_scalar(entry['key'])
-            groups.setdefault((host, path, section), []).append((name, key, entry.get('type', 'string')))
+            groups.setdefault((host, path, section), []).append(
+                (name, key, entry.get('type', 'string'), entry.get('pg_default')))
         user = variables['${PG_SSH_USER}']
         if groups and not user:
             raise AssertionError('PG_SSH_USER is required for remote configuration; '
                                  'use --no-remote-config for an explicitly offline run.')
         read = reader or SshHelper.read_remote_cfg
         for (host, path, section), entries in groups.items():
-            remote = read(host, user, path, section, list(dict.fromkeys(key for _, key, _ in entries)),
-                          key_file=variables['${PG_SSH_KEY_FILE}'])
-            for name, key, kind in entries:
-                raw = remote[key]
+            keys = list(dict.fromkeys(key for _, key, _, _ in entries))
+            # "pg_default" 가 있는 항목은 cfg 에 없어도 된다 — PG 가 그 값을 쓰기 때문이다.
+            optional = [key for _, key, _, pg_default in entries if pg_default is not None]
+            kwargs = {'key_file': variables['${PG_SSH_KEY_FILE}']}
+            if optional:
+                kwargs['optional'] = optional
+            remote = read(host, user, path, section, keys, **kwargs)
+            for name, key, kind, pg_default in entries:
+                absent = key not in remote
+                raw = pg_default if absent else remote[key]
                 if kind in {'port', 'integer'}:
                     value = int(raw)
                     if kind == 'port' and not 1 <= value <= 65535:
@@ -132,10 +154,14 @@ def _resolve(options: dict, target: str, reader=None, sources=None) -> dict:
                 variables['${%s}' % name] = value
                 remote_names.add(name)
                 where = '원격 %s:%s [%s] %s' % (host, path, section, key)
+                if absent:
+                    where += ' 없음 → PG 기본값'
                 if previous is None:
                     sources[name] = where
                 elif str(previous) == str(value):
                     sources[name] = where + ' (기본값과 같음)'
+                elif previous == '':
+                    sources[name] = where + ' (기본값 비어 있음)'
                 else:
                     sources[name] = where + ' (기본값 %s 와 다름)' % previous
     # Freeze explicit overrides and remotely resolved ports, preserving suite-local
@@ -185,20 +211,29 @@ def format_report(resolved: dict, sources: dict, header: str = '') -> str:
     return '\n'.join(lines)
 
 
-def resolve_nag_ports() -> dict:
-    """Resolve direct Robot CLI runs using the same precedence as the runner."""
+def resolve_settings(target: str, *names) -> dict:
+    """Return ``names`` with runner precedence (CLI > env > remote cfg > defaults).
+
+    Under run_tests.sh the snapshot already holds the values. A direct Robot CLI
+    run resolves them here once, with the same catalog, and prints the report.
+    """
     from robot.libraries.BuiltIn import BuiltIn
     builtin = BuiltIn()
     if builtin.get_variable_value('${RUNTIME_CONFIG_RESOLVED}', False):
-        return {name: builtin.get_variable_value('${%s}' % name)
-                for name in ('NAG_PG_PORT', 'PCF_PG_PORT')}
+        return {name: builtin.get_variable_value('${%s}' % name) for name in names}
     options, _ = RobotFramework().parse_arguments(sys.argv[1:])
     sources = {}
-    values = _resolve(options, 'nag', sources=sources)
-    ports = {name: values[name] for name in ('NAG_PG_PORT', 'PCF_PG_PORT')}
+    values = _resolve(options, target, sources=sources)
+    picked = {name: values[name] if name in values else builtin.get_variable_value('${%s}' % name)
+              for name in names}
     from robot.api import logger
-    logger.console(format_report(ports, sources, ' (Robot CLI 직접 실행 — NAG 포트)'))
-    return ports
+    logger.console(format_report(picked, sources, ' (Robot CLI 직접 실행 — %s)' % target))
+    return picked
+
+
+def resolve_nag_ports() -> dict:
+    """Resolve direct Robot CLI runs using the same precedence as the runner."""
+    return resolve_settings('nag', 'NAG_PG_PORT', 'PCF_PG_PORT')
 
 
 def _main() -> None:
