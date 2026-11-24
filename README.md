@@ -34,6 +34,26 @@ These are live integration commands; the runner seeds configuration data by defa
 See the [workflow](docs/agent/workflow.md) before running them.
 Reports: `results/<YYYYMMDD_HHMMSS>/report.html` and `log.html`.
 
+### Run on the test host without commit or pull
+
+`scripts/remote_test.sh` copies the local working tree, including uncommitted changes,
+to a fresh temporary directory on the test host (default `kky@192.168.15.142`). It runs
+the unit tests and then `run_tests.sh <target>` there. It copies the reports back to
+`results/remote/<time>_<target>/` and deletes the temporary directory. The host's own
+checkout is not touched.
+
+```bash
+bash scripts/remote_test.sh cms                    # unit tests + run_tests.sh cms (real PG)
+bash scripts/remote_test.sh cms --include sftp     # extra arguments go to run_tests.sh
+bash scripts/remote_test.sh cms --no-unit --dryrun # skip unit tests; Robot dry run
+bash scripts/remote_test.sh unit                   # unit tests only
+```
+
+SSH uses a key by default. Without one, set `REMOTE_SSH_PWD` in the shell; the script
+never writes it to a file or a command line. Local `PG_PWD_*` variables are passed to
+the remote run through stdin. Host, user, venv and base directory can be overridden
+with `REMOTE_HOST`, `REMOTE_USER`, `REMOTE_VENV` and `REMOTE_BASE`.
+
 ## Documentation
 
 See [the applied structure and validation summary](docs/agent/current-state.md) for the current refactoring status.
