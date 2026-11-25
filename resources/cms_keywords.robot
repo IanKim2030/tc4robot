@@ -42,6 +42,7 @@ ${CMS_SC_FILE_PROTO}  SFTP       # Resolve CMS Settings 가 [CMS] NWDAF_SFTP 로
 ${CMS_DB_CONN}        ${NONE}
 ${CMS_DB_CONN_2}      ${NONE}
 &{CMS_ZONES}         # 시작 전 T_ZONE_LIST 조회 결과(DB1) — 서비스코드 → Cms Zone Summary
+@{CMS_MSG_IDS}         # 이번 실행에서 보낸 NTI 의 messageId — Suite Teardown 이 이 MSG_ID 의 T_CMSWEB_ZONE 행만 지운다
 @{CMS_FIN_PREFIXES}    # 이번 실행에서 보낸 NTI 의 FIN 접두사 — Suite Teardown 이 이것과 맞는 FIN 만 지운다
 ${CMS_SC_SERVER}      ${NONE}
 ${CMS_SC_REAL_DIR}    ${EMPTY}
@@ -268,7 +269,7 @@ Show CMS Zone List
             # 메시지 안에 공백 2칸 이상을 두지 말 것 — Robot 이 인자 구분으로 읽어 로그 레벨로 해석한다
             Log    [Suite] T_ZONE_LIST(${db}) ${info}[text]    console=True
             IF    $code in $CMS_SERVICE_CODES_SC and $info['sc_ftp_yn'] != 'Y'
-                Log    [Suite] T_ZONE_LIST(${db}) ${code} 는 SC_FTP_YN 이 'Y' 가 아님 → TC-006 에서 이 코드는 실패로 남는다    level=WARN
+                Log    [Suite] T_ZONE_LIST(${db}) ${code} 는 SC_FTP_YN 이 'Y' 가 아님 → 이 코드의 SC 업로드 TC 는 실패로 남는다    level=WARN
             END
             # TC 판정은 DB1(PG 가 조회하는 쪽과 같다고 본다) 값으로 한다
             IF    $db == 'DB1'    Set To Dictionary    ${zones}    ${code}=${info}
@@ -277,7 +278,7 @@ Show CMS Zone List
     Set Suite Variable    ${CMS_ZONES}    ${zones}
 
 CMS Zone Should Allow SC Forward
-    [Documentation]    TC-006 — 시작 전 조회한 이 코드의 SC_FTP_YN 이 'Y' 가 아니면 실패(조회하지 못했으면 통과시켜 그대로 시험).
+    [Documentation]    SC 업로드 TC — 시작 전 조회한 이 코드의 SC_FTP_YN 이 'Y' 가 아니면 실패(조회하지 못했으면 그대로 시험).
     [Arguments]    ${code}
     IF    $code not in $CMS_ZONES
         RETURN
@@ -287,20 +288,20 @@ CMS Zone Should Allow SC Forward
         Fail    ${info}[text] — SC_FTP_YN 이 'Y' 가 아니라 PG 가 SC 로 올리지 않습니다(T_ZONE_LIST 는 슈트가 바꾸지 않음)
     END
 
-CMS Zone Code For Normal Case
-    [Documentation]    TC-005 의 기대 ZONE_CODE — ${CMS_ZONE_CODE} 가 있으면 그 값, 없으면 시작 전 조회값. 등록이 없거나 SC 전달 코드면 실패.
-    IF    $CMS_ZONE_CODE
-        RETURN    ${CMS_ZONE_CODE}
+CMS Zone Code For Collect
+    [Documentation]
+    ...    T_CMSWEB_ZONE TC 의 기대 ZONE_CODE — 시작 전 조회값. 조회하지 못했거나, 등록이 없거나,
+    ...    SC_FTP_YN='Y'(PG 가 T_CMSWEB_ZONE 에 기록하지 않음)면 실패.
+    [Arguments]    ${code}
+    IF    $code not in $CMS_ZONES
+        Fail    ${code} 의 T_ZONE_LIST 값을 시작 전에 조회하지 못했습니다 — PDB 접속을 확인하십시오
     END
-    IF    $CMS_SERVICE_CODE not in $CMS_ZONES
-        Fail    ${CMS_SERVICE_CODE} 의 T_ZONE_LIST 값을 시작 전에 조회하지 못했습니다 — CMS_ZONE_CODE 를 주거나 PDB 접속을 확인하십시오
-    END
-    ${info}=    Set Variable    ${CMS_ZONES}[${CMS_SERVICE_CODE}]
+    ${info}=    Set Variable    ${CMS_ZONES}[${code}]
     IF    not $info['found']
-        Fail    ${info}[text] — TC-005 는 T_ZONE_LIST 에 등록된(SC_FTP_YN='N') 서비스코드가 필요합니다. CMS_SERVICE_CODE 를 바꾸십시오(슈트는 행을 만들지 않음)
+        Fail    ${info}[text] — T_CMSWEB_ZONE 판정에는 T_ZONE_LIST 에 등록된(SC_FTP_YN='N') 서비스코드가 필요합니다(슈트는 행을 만들지 않음)
     END
     IF    $info['sc_ftp_yn'] == 'Y'
-        Fail    ${info}[text] — SC_FTP_YN='Y' 면 PG 가 T_CMSWEB_ZONE 에 기록하지 않습니다. SC_FTP_YN='N' 인 코드를 CMS_SERVICE_CODE 로 주십시오
+        Fail    ${info}[text] — SC_FTP_YN='Y' 면 PG 가 SC 로 올리고 T_CMSWEB_ZONE 에 기록하지 않습니다
     END
     RETURN    ${info}[zone_code]
 
@@ -344,15 +345,23 @@ Close CMSWEB
     Cms.Cms Sftp Stop    ${CMS_SC_SERVER}
 
 Cleanup CMS Zone Rows
-    [Documentation]    이번 슈트의 서비스코드로 생긴 T_CMSWEB_ZONE 행을 지운다(${CMS_CLEANUP_ON_TEARDOWN}).
-    IF    not ${CMS_CLEANUP_ON_TEARDOWN} or $CMS_DB_CONN is None
+    [Documentation]    이번 실행에서 보낸 NTI(MSG_ID)로 생긴 T_CMSWEB_ZONE 행만 지운다(${CMS_CLEANUP_ON_TEARDOWN}).
+    IF    not ${CMS_CLEANUP_ON_TEARDOWN} or $CMS_DB_CONN is None or not $CMS_MSG_IDS
         RETURN
     END
-    ${n}=    CmsDb.Db Execute    ${CMS_DB_CONN}    ${CMS_DB_SQL_CLEANUP}    ${CMS_SERVICE_CODE}    ${CMS_SERVICE_CODE_UNREG}
-    Log    [Suite] 종료 시 정리 — ${CMS_DB_TBL_ZONE} ${n}건 삭제 (DB1)    console=True
+    ${dbs}=    Create List    DB1
     IF    $CMS_DB_CONN_2 is not None
-        ${n2}=    CmsDb.Db Execute    ${CMS_DB_CONN_2}    ${CMS_DB_SQL_CLEANUP}    ${CMS_SERVICE_CODE}    ${CMS_SERVICE_CODE_UNREG}
-        Log    [Suite] 종료 시 정리 — ${CMS_DB_TBL_ZONE} ${n2}건 삭제 (DB2)    console=True
+        Append To List    ${dbs}    DB2
+    END
+    FOR    ${db}    IN    @{dbs}
+        ${conn}=    Set Variable If    $db == 'DB1'    ${CMS_DB_CONN}    ${CMS_DB_CONN_2}
+        ${total}=    Set Variable    ${0}
+        FOR    ${msg_id}    IN    @{CMS_MSG_IDS}
+            ${n}=    CmsDb.Db Execute    ${conn}    ${CMS_DB_SQL_CLEANUP}    ${msg_id}
+            ${total}=    Evaluate    $total + int($n or 0)
+        END
+        ${sent}=    Get Length    ${CMS_MSG_IDS}
+        Log    [Suite] 종료 시 정리 — ${CMS_DB_TBL_ZONE} ${total}건 삭제 (${db}, 이번 실행 NTI ${sent}건의 MSG_ID)    console=True
     END
 
 Cleanup CMS FIN Files
@@ -452,6 +461,7 @@ Send CMS NTI
     ...    omit=${omit}    source_group=${CMS_SRC_GROUP}    source_key=${CMS_SRC_KEY}
     ...    id_group=${CMS_MSG_ID_GROUP}
     Append To List    ${CMS_FIN_PREFIXES}    ${case}[fin_prefix]
+    Append To List    ${CMS_MSG_IDS}    ${case}[message_id]
     IF    $service_code in $CMS_SERVICE_CODES_SC
         Append To List    ${CMS_SC_FILES}    ${case}[sc_data]    ${case}[sc_fin]
     END
