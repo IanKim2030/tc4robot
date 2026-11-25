@@ -222,6 +222,19 @@ The NTI TCs are split by side:
 Files are kept by default. With `${CMS_SC_CLEANUP}=True`, Suite Teardown deletes only the names this
 run expected (`${CMS_SC_FILES}`), locally or on the remote SC.
 
+## When the environment is not ready, no TC runs (FAIL)
+
+`Prepare CMSWEB` runs every setup step inside `Start CMSWEB Session`. If any step fails, it logs
+`[Suite] CMS TC 미수행 — <reason>` at ERROR level and fails Suite Setup with `CMS TC 미수행 — <reason>`.
+No TC body runs; every TC is FAIL with `Parent suite setup failed: CMS TC 미수행 — <reason>`, and the
+exit code is non-zero. Typical reasons:
+
+- A setting the TCs need is empty (`Check CMS Settings Present` lists them all).
+- A password is missing, or the download/upload server cannot start (port in use, no permission).
+- PG.CMS does not connect to `${CMS_LISTEN_PORT}` within `${CMS_ACCEPT_TIMEOUT}` s, or sends no REG.
+- A PG cfg prerequisite is wrong (`CMSWEB_ADDR`, SC server unreachable).
+
+
 ## Test cases
 
 | TC | Check | Tags |

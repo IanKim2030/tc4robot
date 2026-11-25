@@ -15,6 +15,7 @@ The tool is the **server** here (CMSWEB); PG.CMS (`CMS201`) connects to it.
 ## Essential Rules
 
 - Send compact JSON only; PG's parser needs `"`/`["` right after each colon ([Wire format](SPEC.md#wire-format)).
+- If Suite Setup cannot prepare the environment (missing setting, server start failure, PG.CMS not connecting), no TC body runs and every TC fails with `CMS TC 미수행 — <reason>` ([SPEC](SPEC.md#when-the-environment-is-not-ready-no-tc-runs-fail)). Put new setup steps inside `Start CMSWEB Session`.
 - Never edit PG configuration from the suite. Report mismatches in `Check CMS Prerequisites`.
 - File-server protocol follows the PG cfg (`[CMS] CMSWEB_SFTP` / `NWDAF_SFTP`; first character `N` → FTP). Never hard-code SFTP-only behaviour in a TC ([FTP or SFTP](SPEC.md#ftp-or-sftp--chosen-from-the-pg-cfg-at-startup)).
 - SFTP/FTP passwords only from environment variables, never a Robot argument or a committed value:

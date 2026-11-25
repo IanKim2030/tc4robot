@@ -56,8 +56,21 @@ ${CMS_SC_PORT}        ${EMPTY}   # PG 가 SC 로 올리는 포트 (NWDAF_SFTP_PO
 # ══════════════════════════════════════════════════════════════════
 
 Prepare CMSWEB
-    [Documentation]    CMS 슈트 Suite Setup. 어느 단계든 실패하면 슈트를 세운다(조용히 넘어가지 않는다).
+    [Documentation]
+    ...    CMS 슈트 Suite Setup. 시험 환경이 준비되지 않으면 TC 를 **수행하지 않고 실패**로 끝낸다:
+    ...    TC 에 필요한 설정값이 없음 / 파일 서버(SFTP·FTP)·업로드 서버 기동 실패 / PG.CMS 미접속 등.
+    ...    이유는 콘솔에 ERROR 한 줄로 남기고, 각 TC 는 "Parent suite setup failed: CMS TC 미수행 — <이유>"
+    ...    로 FAIL 된다(본문은 한 줄도 돌지 않는다). 종료 코드도 실패다.
+    ${status}    ${error}=    Run Keyword And Ignore Error    Start CMSWEB Session
+    IF    $status == 'FAIL'
+        Log    [Suite] CMS TC 미수행 — ${error}    level=ERROR
+        Fail    CMS TC 미수행 — ${error}
+    END
+
+Start CMSWEB Session
+    [Documentation]    시험 환경 준비 — 설정 확정 → 전제 확인 → 서버 기동 → Listen → PG.CMS 접속·REG. 어느 단계든 실패하면 실패.
     Resolve CMS Settings
+    Check CMS Settings Present
     Check CMS Prerequisites
     Check CMS FIN Target
     Start CMS File Server
@@ -90,6 +103,22 @@ Resolve CMS Settings
     ${file_port}=    Set Variable If    $proto == 'SFTP'    ${CMS_SFTP_PORT}    ${CMS_FTP_PORT}
     ${sc_port}=    Set Variable If    $sc_proto == 'SFTP'    ${CMS_SC_SFTP_PORT}    ${CMS_SC_FTP_PORT}
     Log    [Suite] 파일 채널 ${proto} (CMSWEB_SFTP=${CMS_PG_USE_SFTP}) 포트 ${file_port} / SC 전달 ${sc_proto} (NWDAF_SFTP=${CMS_SC_USE_SFTP}) 포트 ${sc_port}    console=True
+
+Check CMS Settings Present
+    [Documentation]    TC 수행에 필요한 설정값이 모두 있는지 본다 — 비어 있으면 그 이름을 모두 모아 실패한다.
+    ${missing}=    Create List
+    FOR    ${name}    IN    CMS_LISTEN_PORT    CMS_PG_GROUP    CMS_PG_KEY    CMS_PG_USE_SFTP    CMS_SC_USE_SFTP
+    ...    CMS_SFTP_PORT    CMS_SC_SFTP_PORT    CMS_SC_FTP_PORT    CMS_SC_PATH    CMS_SFTP_USER    CMS_SC_SFTP_USER
+    ...    CMS_REMOTE_DIR    CMS_PROCESS
+        ${value}=    Get Variable Value    \${${name}}    ${EMPTY}
+        IF    $value is None or str($value).strip() == ''
+            Append To List    ${missing}    ${name}
+        END
+    END
+    IF    $missing
+        ${names}=    Evaluate    ', '.join($missing)
+        Fail    TC 에 필요한 설정값이 없습니다 — ${names} (PG_V2.cfg [CMS]/[SC] 또는 환경 파일 config/env/<env>.py 확인)
+    END
 
 Check CMS Prerequisites
     [Documentation]
@@ -368,12 +397,12 @@ Send CMS NTI
 # 파일 채널 — SFTP GET(시뮬레이터) / FIN PUT(실제 sshd 또는 시뮬레이터)
 # ══════════════════════════════════════════════════════════════════
 
-PG Should Fetch CMS File
+PG Should Download File From CMSWEB
     [Documentation]    PG 가 NTI 의 파일을 파일 서버(${CMS_FILE_PROTO})에서 가져갔는지 본다.
     [Arguments]    ${case}
     Cms.Cms Sftp Wait Download    ${CMS_SFTP_SERVER}    ${case}[file_name]    ${CMS_FIN_TIMEOUT}
 
-PG Should Upload CMS FIN
+PG Should Upload FIN To CMSWEB
     [Documentation]
     ...    PG 가 `<serviceCode>_<dateTime>_<GROUP><KEY>_<시각>.FIN` 을 올렸는지 본다 → 파일명.
     ...    sshd 모드는 도구 호스트 실제 sshd 의 ${CMS_REMOTE_DIR} 를, simulator 모드는 시뮬레이터 업로드 이력을 본다.
@@ -390,7 +419,7 @@ PG Should Upload CMS FIN
     Should Be Equal As Integers    ${fin}[size]    0    msg=FIN 파일은 빈 파일이어야 합니다: ${fin}[size]바이트
     RETURN    ${fin}[filename]
 
-PG Should Forward CMS File To SC
+PG Should Upload File And FIN To SC
     [Documentation]
     ...    SC_FTP_YN=Y — PG 가 받은 파일(이름 바뀐 .dat, 크기 그대로)과 빈 .FIN 을 SC 로(${CMS_SC_FILE_PROTO}) 올려
     ...    두 파일이 생겼는지 본다(CCMSWeb::RunSFtpSC / RunFtpSC). local 은 도구의 수신 디렉터리
@@ -405,12 +434,12 @@ PG Should Forward CMS File To SC
     Log    [CMS] SC 수신 — ${got}[data][path] (${got}[data][size]바이트), ${got}[fin][path]    console=True
     RETURN    ${got}
 
-PG Should Not Fetch CMS File
+PG Should Not Download File From CMSWEB
     [Documentation]    ${CMS_QUIET_WINDOW}초 동안 PG 가 이 파일을 가져가지 않는지 본다(음성 판정).
     [Arguments]    ${case}
     Cms.Cms Sftp Should Stay Quiet    ${CMS_SFTP_SERVER}    ${case}[file_name]    ${CMS_QUIET_WINDOW}    kind=download
 
-PG Should Not Upload CMS FIN
+PG Should Not Upload FIN To CMSWEB
     [Documentation]    ${CMS_QUIET_WINDOW}초 동안 이 NTI 에 대한 FIN 이 올라오지 않는지 본다(음성 판정, ${CMS_FIN_MODE} 모드).
     [Arguments]    ${case}
     IF    $CMS_FIN_MODE == 'sshd'

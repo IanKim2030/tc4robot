@@ -22,7 +22,7 @@ Documentation
 ...    PG 는 SC_PATH(${CMS_SC_PATH})로 올리고 도구는 그것을 ${CMS_SC_UPLOAD_DIR} 에 받는다(비밀번호 PG_PWD_CMS_SFTP_UPLOAD).
 ...
 ...    [Suite 정책]
-...    Suite Setup    : Prepare CMSWEB (REG 수신 → REG_OK 까지)
+...    Suite Setup    : Prepare CMSWEB (REG 수신 → REG_OK 까지). 설정값 없음·서버 기동 실패·PG.CMS 미접속이면 TC 를 수행하지 않고 실패(CMS TC 미수행)
 ...    Test Setup     : Check CMS Session (파일 서버 이력 초기화)
 ...    Suite Teardown : Close CMSWEB (T_CMSWEB_ZONE 시험 행 정리 — FIN·SC 파일은 남김)
 ...
@@ -79,8 +79,8 @@ TC-CMS-004 NTI - CMSWEB 파일 다운로드 → FIN 생성
     ...    빈 파일 <serviceCode>_<dateTime>_<GROUP><KEY>_<시각>.FIN 이 생겼는지 본다(규격 5.1 / 5.4.2).
     [Tags]    cms    sftp
     ${case}=    Send CMS NTI
-    PG Should Fetch CMS File    ${case}
-    PG Should Upload CMS FIN    ${case}
+    PG Should Download File From CMSWEB    ${case}
+    PG Should Upload FIN To CMSWEB    ${case}
 
 TC-CMS-005 NTI - T_CMSWEB_ZONE 반영 (STATUS·REASON·FILESIZE)
     [Documentation]
@@ -88,7 +88,7 @@ TC-CMS-005 NTI - T_CMSWEB_ZONE 반영 (STATUS·REASON·FILESIZE)
     ...    뗀 이름, ZONE_CODE=T_ZONE_LIST 값으로 기록한다. STATUS 는 'C'(ZONE 처리 후 'E' 허용).
     [Tags]    cms    db
     ${case}=    Send CMS NTI
-    PG Should Upload CMS FIN    ${case}
+    PG Should Upload FIN To CMSWEB    ${case}
     Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_OK}    ${CMS_REASON_OK}
     ...    file_name=${case}[renamed]    file_size=${case}[size]
     ...    zone_code=${CMS_ZONE_CODE}    service_code=${CMS_SERVICE_CODE}
@@ -105,7 +105,7 @@ TC-CMS-006 NTI - SC 파일 업로드 → FIN 생성
     ...    이 경로는 T_CMSWEB_ZONE 에 행을 남기지 않는다.
     [Tags]    cms    sftp    sc
     ${case}=    Send CMS NTI    service_code=${CMS_SERVICE_CODE_SC}
-    PG Should Forward CMS File To SC    ${case}
+    PG Should Upload File And FIN To SC    ${case}
 
 # ════════════════════════════════════════════════════════════════
 # NTI 파일 연동 — 이상
@@ -118,8 +118,8 @@ TC-CMS-007 NTI - 파일명 크기 ≠ 실제 크기 → FIN 없음, Waiting Stat
     [Tags]    cms    sftp    db    negative
     ${declared}=    Evaluate    int(${CMS_FILE_BYTES}) + 1
     ${case}=    Send CMS NTI    declared_size=${declared}
-    PG Should Fetch CMS File    ${case}
-    PG Should Not Upload CMS FIN    ${case}
+    PG Should Download File From CMSWEB    ${case}
+    PG Should Not Upload FIN To CMSWEB    ${case}
     Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_WAITING}    ${CMS_REASON_WAITING}
     ...    file_size=${0}
 
@@ -127,7 +127,7 @@ TC-CMS-008 NTI - 필수 필드(serviceCode) 누락 → ANS 는 오고 수집 안
     [Documentation]    PG 는 필드 검증 전에 ANS 를 보낸다. serviceCode 가 없으면 알람만 남기고 파일을 가져가지 않는다.
     [Tags]    cms    nti    negative
     ${case}=    Send CMS NTI    omit=serviceCode
-    PG Should Not Fetch CMS File    ${case}
+    PG Should Not Download File From CMSWEB    ${case}
 
 TC-CMS-009 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
     [Documentation]
@@ -135,7 +135,7 @@ TC-CMS-009 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
     ...    STATUS='F', REASON='Err ZoneCode', FILESIZE=0 이다(dev 실측 행과 같은 형태).
     [Tags]    cms    db    negative
     ${case}=    Send CMS NTI    service_code=${CMS_SERVICE_CODE_UNREG}
-    PG Should Upload CMS FIN    ${case}
+    PG Should Upload FIN To CMSWEB    ${case}
     Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_FAILED}    ${CMS_REASON_ZONE}
     ...    file_size=${0}    zone_code=NO    service_code=${CMS_SERVICE_CODE_UNREG}
 
