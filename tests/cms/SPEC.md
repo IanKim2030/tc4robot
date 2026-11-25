@@ -176,12 +176,12 @@ NTI is rejected after ANS (no SFTP) when any of these are empty: `messageType`, 
 The suite and the DB seed never INSERT or UPDATE `T_ZONE_LIST`; they use the rows that already exist.
 
 Before any TC runs, Suite Setup (`Show CMS Zone List`) reads `SC_FTP_YN`, `NOTI_YN` and `ZONE_CODE` and prints them.
-It reads the four SC service codes (`CMS_SERVICE_CODES_SC`: `TRAP_5G_EQP_INFO`, `TRAP_5G_EQP_INFO_V1`,
-`TRAP_LTE_EQP_INFO`, `TRAP_LTE_EQP_INFO_CO`) and `CMS_SERVICE_CODE`, from DB1 and, if configured, DB2.
+It reads the two SC service codes (`CMS_SERVICE_CODES_SC`: `TRAP_LTE_EQP_INFO`, `TRAP_5G_EQP_INFO`)
+and `CMS_SERVICE_CODE`, from DB1 and, if configured, DB2.
 
 - The values never stop the suite. If PDB is unreachable, Suite Setup logs a warning and starts anyway.
 - `CMS_ZONE_SHOW=False` skips the lookup (fake-PG runs without PDB).
-- PG strips a trailing `_V...` before the lookup (`deleteVersion`), so `TRAP_5G_EQP_INFO_V1` reads the `TRAP_5G_EQP_INFO` row.
+- PG strips a trailing `_V...` before the lookup (`deleteVersion`), so a code such as `TRAP_5G_EQP_INFO_V1` reads the `TRAP_5G_EQP_INFO` row.
   The lookup uses the same key.
 - PG reads `T_ZONE_LIST` from Altibase when `Pcrf_Support=Y`, otherwise from Goldilocks. TCs judge by the DB1 values.
 
@@ -193,7 +193,7 @@ The TCs use those values as follows:
   The default `TRAP_ROBOT_ZONE_TEST` is no longer seeded.
 
 Suite Teardown deletes `T_CMSWEB_ZONE` rows only for `CMS_SERVICE_CODE` and `TRAP_ROBOT_ZONE_UNREG`.
-It never deletes rows for the four SC codes.
+It never deletes rows for the SC codes.
 
 ## SC (NWDAF) forwarding (RunSFtpSC)
 
@@ -265,7 +265,7 @@ exit code is non-zero. Typical reasons:
 | 010 | `REG_NOK` → PG closes and re-registers | reg negative |
 | 011 | Idle `CMSWEB_TIMEOUT` → PG closes and re-registers | reg slow |
 
-TC-006 sends one NTI for each of the four SC service codes and checks each upload; one failure does not stop the rest.
+TC-006 sends one NTI for each of the two SC service codes and checks each upload; one failure does not stop the rest.
 It uses the `SC_FTP_YN` values read in Suite Setup and does not query the DB itself, so it is not tagged `db`.
 
 010 and 011 first check that the control socket is still open (`Cms Should Be Connected`,

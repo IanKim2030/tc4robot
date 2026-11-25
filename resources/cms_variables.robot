@@ -103,8 +103,8 @@ ${CMS_SERVICE_CODE_UNREG}    TRAP_ROBOT_ZONE_UNREG
 # SC 전달(TC-006) 서비스코드 — 실제 T_ZONE_LIST 행을 쓴다. 슈트는 T_ZONE_LIST 를 INSERT/UPDATE 하지 않는다.
 # Suite Setup 이 시작 전에 각 코드의 SC_FTP_YN 값을 조회해 보여 주고(막지 않는다), TC-006 은 'Y' 가 아닌
 # 코드를 그 코드의 실패로 남긴다(${CMS_ZONE_SHOW}).
-# PG 는 조회 전에 마지막 '_V..' 를 뗀다(deleteVersion) — TRAP_5G_EQP_INFO_V1 은 TRAP_5G_EQP_INFO 행을 본다.
-@{CMS_SERVICE_CODES_SC}    TRAP_5G_EQP_INFO    TRAP_5G_EQP_INFO_V1    TRAP_LTE_EQP_INFO    TRAP_LTE_EQP_INFO_CO
+# PG 는 조회 전에 마지막 '_V..' 를 뗀다(deleteVersion) — 버전 붙은 코드를 넣어도 조회 키는 PG 와 같다.
+@{CMS_SERVICE_CODES_SC}    TRAP_LTE_EQP_INFO    TRAP_5G_EQP_INFO
 ${CMS_ZONE_SHOW}           ${TRUE}                # ${FALSE} 면 시작 전 T_ZONE_LIST 조회를 건너뛴다(PDB 없는 가짜 PG 시험)
 
 ${CMS_DB_TBL_ZONE}         T_CMSWEB_ZONE

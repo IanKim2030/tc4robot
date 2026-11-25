@@ -16,7 +16,7 @@ Documentation
 ...    파일 계정(SFTP/FTP 공통) = 환경 파일 CMS_SFTP_USER + 환경변수 PG_PWD_CMS_SFTP(시뮬레이터 다운로드)
 ...    / PG_PWD_CMS_FIN_SSH(도구 호스트 실제 pg 계정 — FIN 확인, 없으면 PG_PWD_CMS_SFTP). ${CMS_REMOTE_DIR} 는 그 계정이 쓸 수 있어야 한다.
 ...    T_ZONE_LIST 는 조회만 한다(이미 등록된 행을 쓴다). Suite Setup 이 시작 전에
-...    SC 전달 서비스코드 4종(${CMS_SERVICE_CODES_SC})과 ${CMS_SERVICE_CODE} 의 SC_FTP_YN 등을 조회해 보여 준다.
+...    SC 전달 서비스코드 2종(${CMS_SERVICE_CODES_SC})과 ${CMS_SERVICE_CODE} 의 SC_FTP_YN 등을 조회해 보여 준다.
 ...    SC 쪽도 Suite Setup 에서 준비한다 — [SC] SC_PRIIP 가 도구(${TOOL_HOST})면 업로드(SC 수신) 서버를 띄우고,
 ...    다른 IP 면 그 SC 서버에 SC 계정으로 접속해 확인한다(비밀번호 PG_PWD_CMS_SFTP_UPLOAD). [CMS] NWDAF_SFTP 가
 ...    'N' 이면 FTP(NWDAF_FTP_PORT), 아니면 SFTP(NWDAF_SFTP_PORT)로 받는다.
@@ -32,7 +32,7 @@ Documentation
 ...    001       REG 세션키
 ...    002       HBC HeartBeat
 ...    003 ~ 005 NTI 정상 — ANS / CMSWEB 파일 다운로드 → FIN 생성 / T_CMSWEB_ZONE
-...    006       NTI SC 전달 — SC_FTP_YN=Y 서비스코드 4종 → SC 파일 업로드 → FIN 생성
+...    006       NTI SC 전달 — SC_FTP_YN=Y 서비스코드 2종 → SC 파일 업로드 → FIN 생성
 ...    007 ~ 009 NTI 이상 — 크기 불일치 / 필수 필드 누락 / 미등록 서비스코드
 ...    010 ~ 011 세션 — REG_NOK 재접속 / 무수신 타임아웃(slow)
 
@@ -105,7 +105,7 @@ TC-CMS-006 NTI - SC 파일 업로드 → FIN 생성
     ...    T_ZONE_LIST.SC_FTP_YN='Y' 인 서비스코드면 PG.CMS 가 CMSWEB 에서 받은 파일(크기 자리를 뗀 이름)을
     ...    SC(${CMS_SC_FILE_PROTO})의 SC_PATH 로 업로드하고 빈 .FIN 을 올린다 → 두 파일이 생기고 데이터 파일
     ...    크기가 같아야 한다. [SC] SC_PRIIP 가 도구면 도구의 수신 디렉터리, 아니면 그 SC 서버에 접속해 본다.
-    ...    이 경로는 T_CMSWEB_ZONE 에 행을 남기지 않는다. 서비스코드 4종(${CMS_SERVICE_CODES_SC})을 차례로
+    ...    이 경로는 T_CMSWEB_ZONE 에 행을 남기지 않는다. 서비스코드 2종(${CMS_SERVICE_CODES_SC})을 차례로
     ...    보내고, 하나가 실패해도 나머지를 확인한다.
     [Tags]    cms    sftp    sc
     FOR    ${code}    IN    @{CMS_SERVICE_CODES_SC}
