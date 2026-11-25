@@ -78,7 +78,8 @@ remote_script() {
     done < <(env)
     cat <<'REMOTE'
 cd "$W/repo" || exit 2
-[ -f "${VENV/#\~/$HOME}/bin/activate" ] && . "${VENV/#\~/$HOME}/bin/activate"
+# venv activate 는 set -u 에서 미정의 변수($1 등)로 죽는다 — 그동안만 끈다
+if [ -f "${VENV/#\~/$HOME}/bin/activate" ]; then set +u; . "${VENV/#\~/$HOME}/bin/activate"; set -u; fi
 # Windows 작업 트리(autocrlf)에서 온 텍스트 파일의 CR 제거
 find . -type f \( -name '*.py' -o -name '*.robot' -o -name '*.sh' -o -name '*.json' -o -name '*.sql' \
     -o -name '*.cfg' -o -name '*.txt' -o -name '*.md' \) -exec sed -i 's/\r$//' {} +

@@ -15,14 +15,16 @@ Documentation
 ...    다르면 Suite Setup 이 무엇을 바꿔야 하는지 알려 주고 중단한다.
 ...    파일 계정(SFTP/FTP 공통) = 환경 파일 CMS_SFTP_USER + 환경변수 PG_PWD_CMS_SFTP(시뮬레이터 다운로드)
 ...    / PG_PWD_CMS_FIN_SSH(도구 호스트 실제 pg 계정 — FIN 확인, 없으면 PG_PWD_CMS_SFTP). ${CMS_REMOTE_DIR} 는 그 계정이 쓸 수 있어야 한다.
-...    시험 서비스코드 ${CMS_SERVICE_CODE} · ${CMS_SERVICE_CODE_SC}(SC_FTP_YN=Y) 의 T_ZONE_LIST 행은 DB 시드가 넣는다.
+...    T_ZONE_LIST 는 조회만 한다(이미 등록된 행을 쓴다). Suite Setup 이 시작 전에
+...    SC 전달 서비스코드 4종(${CMS_SERVICE_CODES_SC})과 ${CMS_SERVICE_CODE} 의 SC_FTP_YN 등을 조회해 보여 준다.
 ...    SC 쪽도 Suite Setup 에서 준비한다 — [SC] SC_PRIIP 가 도구(${TOOL_HOST})면 업로드(SC 수신) 서버를 띄우고,
 ...    다른 IP 면 그 SC 서버에 SC 계정으로 접속해 확인한다(비밀번호 PG_PWD_CMS_SFTP_UPLOAD). [CMS] NWDAF_SFTP 가
 ...    'N' 이면 FTP(NWDAF_FTP_PORT), 아니면 SFTP(NWDAF_SFTP_PORT)로 받는다.
 ...    PG 는 SC_PATH(${CMS_SC_PATH})로 올리고 도구는 그것을 ${CMS_SC_UPLOAD_DIR} 에 받는다(비밀번호 PG_PWD_CMS_SFTP_UPLOAD).
 ...
 ...    [Suite 정책]
-...    Suite Setup    : Prepare CMSWEB (REG 수신 → REG_OK 까지). 설정값 없음·서버 기동 실패·PG.CMS 미접속이면 TC 를 수행하지 않고 실패(CMS TC 미수행)
+...    Suite Setup    : Prepare CMSWEB (T_ZONE_LIST 값 표시 → REG 수신 → REG_OK 까지). 설정값 없음·서버 기동 실패·
+...                     PG.CMS 미접속이면 TC 를 수행하지 않고 실패(CMS TC 미수행)
 ...    Test Setup     : Check CMS Session (파일 서버 이력 초기화)
 ...    Suite Teardown : Close CMSWEB (T_CMSWEB_ZONE 시험 행 정리 — FIN·SC 파일은 남김)
 ...
@@ -30,7 +32,7 @@ Documentation
 ...    001       REG 세션키
 ...    002       HBC HeartBeat
 ...    003 ~ 005 NTI 정상 — ANS / CMSWEB 파일 다운로드 → FIN 생성 / T_CMSWEB_ZONE
-...    006       NTI SC 전달 — SC_FTP_YN=Y 서비스코드 → SC 파일 업로드 → FIN 생성
+...    006       NTI SC 전달 — SC_FTP_YN=Y 서비스코드 4종 → SC 파일 업로드 → FIN 생성
 ...    007 ~ 009 NTI 이상 — 크기 불일치 / 필수 필드 누락 / 미등록 서비스코드
 ...    010 ~ 011 세션 — REG_NOK 재접속 / 무수신 타임아웃(slow)
 
@@ -87,11 +89,12 @@ TC-CMS-005 NTI - T_CMSWEB_ZONE 반영 (STATUS·REASON·FILESIZE)
     ...    정상 수집이면 PG 가 T_CMSWEB_ZONE 에 REASON='OK', FILESIZE=실제 크기, FILENAME=크기 자리를
     ...    뗀 이름, ZONE_CODE=T_ZONE_LIST 값으로 기록한다. STATUS 는 'C'(ZONE 처리 후 'E' 허용).
     [Tags]    cms    db
+    ${zone_code}=    CMS Zone Code For Normal Case
     ${case}=    Send CMS NTI
     PG Should Upload FIN To CMSWEB    ${case}
     Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_OK}    ${CMS_REASON_OK}
     ...    file_name=${case}[renamed]    file_size=${case}[size]
-    ...    zone_code=${CMS_ZONE_CODE}    service_code=${CMS_SERVICE_CODE}
+    ...    zone_code=${zone_code}    service_code=${CMS_SERVICE_CODE}
 
 # ════════════════════════════════════════════════════════════════
 # NTI 파일 연동 — SC(NWDAF) 전달 (CCMSWeb::RunSFtpSC / RunFtpSC)
@@ -102,10 +105,18 @@ TC-CMS-006 NTI - SC 파일 업로드 → FIN 생성
     ...    T_ZONE_LIST.SC_FTP_YN='Y' 인 서비스코드면 PG.CMS 가 CMSWEB 에서 받은 파일(크기 자리를 뗀 이름)을
     ...    SC(${CMS_SC_FILE_PROTO})의 SC_PATH 로 업로드하고 빈 .FIN 을 올린다 → 두 파일이 생기고 데이터 파일
     ...    크기가 같아야 한다. [SC] SC_PRIIP 가 도구면 도구의 수신 디렉터리, 아니면 그 SC 서버에 접속해 본다.
-    ...    이 경로는 T_CMSWEB_ZONE 에 행을 남기지 않는다.
+    ...    이 경로는 T_CMSWEB_ZONE 에 행을 남기지 않는다. 서비스코드 4종(${CMS_SERVICE_CODES_SC})을 차례로
+    ...    보내고, 하나가 실패해도 나머지를 확인한다.
     [Tags]    cms    sftp    sc
-    ${case}=    Send CMS NTI    service_code=${CMS_SERVICE_CODE_SC}
-    PG Should Upload File And FIN To SC    ${case}
+    FOR    ${code}    IN    @{CMS_SERVICE_CODES_SC}
+        ${ok}=    Run Keyword And Return Status    CMS Zone Should Allow SC Forward    ${code}
+        IF    not ${ok}
+            Run Keyword And Continue On Failure    CMS Zone Should Allow SC Forward    ${code}
+            CONTINUE
+        END
+        ${case}=    Send CMS NTI    service_code=${code}
+        Run Keyword And Continue On Failure    PG Should Upload File And FIN To SC    ${case}
+    END
 
 # ════════════════════════════════════════════════════════════════
 # NTI 파일 연동 — 이상

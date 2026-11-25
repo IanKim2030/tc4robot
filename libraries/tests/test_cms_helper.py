@@ -302,6 +302,35 @@ class SftpServerMountDefaultTests(unittest.TestCase):
         self.assertEqual(server.mounts, [])
 
 
+class CmsScZoneListTests(unittest.TestCase):
+    """T_ZONE_LIST 표시 — PG deleteVersion 과 같은 조회 키, 판정 없이 값만 요약."""
+
+    def test_lookup_code_strips_version_suffix_like_pg(self):
+        self.assertEqual(C.cms_zone_lookup_code('TRAP_5G_EQP_INFO_V1'), 'TRAP_5G_EQP_INFO')
+        self.assertEqual(C.cms_zone_lookup_code('TRAP_5G_EQP_INFO'), 'TRAP_5G_EQP_INFO')
+        self.assertEqual(C.cms_zone_lookup_code('TRAP_LTE_EQP_INFO'), 'TRAP_LTE_EQP_INFO')
+        self.assertEqual(C.cms_zone_lookup_code('TRAP_LTE_EQP_INFO_CO'), 'TRAP_LTE_EQP_INFO_CO')
+        self.assertEqual(C.cms_zone_lookup_code('NOUNDERSCORE'), 'NOUNDERSCORE')
+
+    def test_summary_found_row(self):
+        got = C.cms_zone_summary('TRAP_LTE_EQP_INFO',
+                                 [{'SC_FTP_YN': 'Y', 'NOTI_YN': 'Y', 'ZONE_CODE': 'ZN000123'}])
+        self.assertTrue(got['found'])
+        self.assertEqual(got['sc_ftp_yn'], 'Y')
+        self.assertIn('SC_FTP_YN=Y NOTI_YN=Y ZONE_CODE=ZN000123', got['text'])
+
+    def test_summary_missing_row_shows_lookup_key(self):
+        got = C.cms_zone_summary('TRAP_5G_EQP_INFO_V1', [])
+        self.assertFalse(got['found'])
+        self.assertEqual(got['sc_ftp_yn'], '')
+        self.assertIn('TRAP_5G_EQP_INFO_V1(조회 키 TRAP_5G_EQP_INFO)', got['text'])
+        self.assertIn('행 없음', got['text'])
+
+    def test_summary_joins_multiple_rows_and_none(self):
+        got = C.cms_zone_summary('X', [{'SC_FTP_YN': 'Y'}, {'SC_FTP_YN': None}])
+        self.assertEqual(got['sc_ftp_yn'], 'Y,')
+
+
 class CmsProtocolSelectionTests(unittest.TestCase):
     def test_same_rule_as_pg_first_char_capital_n_means_ftp(self):
         # CCMSEnv::ReadConfig — Sftp_CmsWeb[0] == 'N' → FTP, 그 밖(빈 값·'n' 포함) → SFTP

@@ -41,6 +41,7 @@ ${CMS_FILE_PROTO}     SFTP       # Resolve CMS Settings 가 [CMS] CMSWEB_SFTP �
 ${CMS_SC_FILE_PROTO}  SFTP       # Resolve CMS Settings 가 [CMS] NWDAF_SFTP 로 정한다
 ${CMS_DB_CONN}        ${NONE}
 ${CMS_DB_CONN_2}      ${NONE}
+&{CMS_ZONES}         # 시작 전 T_ZONE_LIST 조회 결과(DB1) — 서비스코드 → Cms Zone Summary
 @{CMS_FIN_PREFIXES}    # 이번 실행에서 보낸 NTI 의 FIN 접두사 — Suite Teardown 이 이것과 맞는 FIN 만 지운다
 ${CMS_SC_SERVER}      ${NONE}
 ${CMS_SC_REAL_DIR}    ${EMPTY}
@@ -71,6 +72,7 @@ Start CMSWEB Session
     [Documentation]    시험 환경 준비 — 설정 확정 → 전제 확인 → 서버 기동 → Listen → PG.CMS 접속·REG. 어느 단계든 실패하면 실패.
     Resolve CMS Settings
     Check CMS Settings Present
+    Show CMS Zone List
     Check CMS Prerequisites
     Check CMS FIN Target
     Start CMS File Server
@@ -235,6 +237,69 @@ Accept CMS Session
     Cms.Cms Send    ${CMS_CONN}    REG    ${ok}
     Set Suite Variable    ${CMS_REG_MSG}    ${reg}
 
+Show CMS Zone List
+    [Documentation]
+    ...    시작 전 — SC 전달 서비스코드(${CMS_SERVICE_CODES_SC})와 정상 수집 코드(${CMS_SERVICE_CODE})의
+    ...    T_ZONE_LIST 값(SC_FTP_YN·NOTI_YN·ZONE_CODE)을 조회해 보여 준다. 조회만 하고 INSERT/UPDATE 하지 않는다.
+    ...    PG 와 같이 '_V..' 를 뗀 코드로 조회한다. 값이 어떻든 시작을 막지 않는다 — 판정은 TC 가 한다.
+    ...    PDB 에 붙지 못하면 경고만 남기고 시작한다(값을 모르는 코드는 TC 가 그대로 시험한다).
+    IF    not ${CMS_ZONE_SHOW}
+        Log    [Suite] T_ZONE_LIST 조회 생략 (CMS_ZONE_SHOW=False)    console=True
+        RETURN
+    END
+    ${status}    ${error}=    Run Keyword And Ignore Error    Ensure CMS DB Connection
+    IF    $status == 'FAIL'
+        Log    [Suite] T_ZONE_LIST 조회 불가 — PDB 접속 실패: ${error}    level=WARN    console=True
+        RETURN
+    END
+    ${codes}=    Create List    @{CMS_SERVICE_CODES_SC}    ${CMS_SERVICE_CODE}
+    ${dbs}=    Create List    DB1
+    IF    $CMS_DB_CONN_2 is not None
+        Append To List    ${dbs}    DB2
+    END
+    ${zones}=    Create Dictionary
+    Log    [Suite] T_ZONE_LIST 조회 (시작 전, 변경 없음)    console=True
+    FOR    ${db}    IN    @{dbs}
+        ${conn}=    Set Variable If    $db == 'DB1'    ${CMS_DB_CONN}    ${CMS_DB_CONN_2}
+        FOR    ${code}    IN    @{codes}
+            ${key}=    Cms.Cms Zone Lookup Code    ${code}
+            ${rows}=    CmsDb.Db Rows    ${conn}    ${CMS_DB_SQL_ZONE_LIST}    ${key}
+            ${info}=    Cms.Cms Zone Summary    ${code}    ${rows}
+            Log    [Suite]   ${db} ${info}[text]    console=True
+            # TC 판정은 DB1(PG 가 조회하는 쪽과 같다고 본다) 값으로 한다
+            IF    $db == 'DB1'    Set To Dictionary    ${zones}    ${code}=${info}
+        END
+    END
+    Set Suite Variable    ${CMS_ZONES}    ${zones}
+
+CMS Zone Should Allow SC Forward
+    [Documentation]    TC-006 — 시작 전 조회한 이 코드의 SC_FTP_YN 이 'Y' 가 아니면 실패(조회하지 못했으면 통과시켜 그대로 시험).
+    [Arguments]    ${code}
+    IF    $code not in $CMS_ZONES
+        RETURN
+    END
+    ${info}=    Set Variable    ${CMS_ZONES}[${code}]
+    IF    $info['sc_ftp_yn'] != 'Y'
+        Fail    ${info}[text] — SC_FTP_YN 이 'Y' 가 아니라 PG 가 SC 로 올리지 않습니다(T_ZONE_LIST 는 슈트가 바꾸지 않음)
+    END
+
+CMS Zone Code For Normal Case
+    [Documentation]    TC-005 의 기대 ZONE_CODE — ${CMS_ZONE_CODE} 가 있으면 그 값, 없으면 시작 전 조회값. 등록이 없거나 SC 전달 코드면 실패.
+    IF    $CMS_ZONE_CODE
+        RETURN    ${CMS_ZONE_CODE}
+    END
+    IF    $CMS_SERVICE_CODE not in $CMS_ZONES
+        Fail    ${CMS_SERVICE_CODE} 의 T_ZONE_LIST 값을 시작 전에 조회하지 못했습니다 — CMS_ZONE_CODE 를 주거나 PDB 접속을 확인하십시오
+    END
+    ${info}=    Set Variable    ${CMS_ZONES}[${CMS_SERVICE_CODE}]
+    IF    not $info['found']
+        Fail    ${info}[text] — TC-005 는 T_ZONE_LIST 에 등록된(SC_FTP_YN='N') 서비스코드가 필요합니다. CMS_SERVICE_CODE 를 바꾸십시오(슈트는 행을 만들지 않음)
+    END
+    IF    $info['sc_ftp_yn'] == 'Y'
+        Fail    ${info}[text] — SC_FTP_YN='Y' 면 PG 가 T_CMSWEB_ZONE 에 기록하지 않습니다. SC_FTP_YN='N' 인 코드를 CMS_SERVICE_CODE 로 주십시오
+    END
+    RETURN    ${info}[zone_code]
+
 Ensure CMS DB Connection
     [Documentation]    T_CMSWEB_ZONE 판정용 PDB 접속(한 번만). ${PDB_CONNSTR_2} 가 있으면 두 번째 DB 도 붙는다.
     IF    $CMS_DB_CONN is not None
@@ -279,10 +344,10 @@ Cleanup CMS Zone Rows
     IF    not ${CMS_CLEANUP_ON_TEARDOWN} or $CMS_DB_CONN is None
         RETURN
     END
-    ${n}=    CmsDb.Db Execute    ${CMS_DB_CONN}    ${CMS_DB_SQL_CLEANUP}    ${CMS_SERVICE_CODE}    ${CMS_SERVICE_CODE_UNREG}    ${CMS_SERVICE_CODE_SC}
+    ${n}=    CmsDb.Db Execute    ${CMS_DB_CONN}    ${CMS_DB_SQL_CLEANUP}    ${CMS_SERVICE_CODE}    ${CMS_SERVICE_CODE_UNREG}
     Log    [Suite] 종료 시 정리 — ${CMS_DB_TBL_ZONE} ${n}건 삭제 (DB1)    console=True
     IF    $CMS_DB_CONN_2 is not None
-        ${n2}=    CmsDb.Db Execute    ${CMS_DB_CONN_2}    ${CMS_DB_SQL_CLEANUP}    ${CMS_SERVICE_CODE}    ${CMS_SERVICE_CODE_UNREG}    ${CMS_SERVICE_CODE_SC}
+        ${n2}=    CmsDb.Db Execute    ${CMS_DB_CONN_2}    ${CMS_DB_SQL_CLEANUP}    ${CMS_SERVICE_CODE}    ${CMS_SERVICE_CODE_UNREG}
         Log    [Suite] 종료 시 정리 — ${CMS_DB_TBL_ZONE} ${n2}건 삭제 (DB2)    console=True
     END
 
@@ -383,7 +448,7 @@ Send CMS NTI
     ...    omit=${omit}    source_group=${CMS_SRC_GROUP}    source_key=${CMS_SRC_KEY}
     ...    id_group=${CMS_MSG_ID_GROUP}
     Append To List    ${CMS_FIN_PREFIXES}    ${case}[fin_prefix]
-    IF    $service_code == $CMS_SERVICE_CODE_SC
+    IF    $service_code in $CMS_SERVICE_CODES_SC
         Append To List    ${CMS_SC_FILES}    ${case}[sc_data]    ${case}[sc_fin]
     END
     ${sent}=    Cms.Cms Send    ${CMS_CONN}    NTI    ${case}[body]

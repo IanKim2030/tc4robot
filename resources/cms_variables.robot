@@ -94,19 +94,24 @@ ${CMS_SC_CLEANUP}          ${FALSE}               # 기본은 SC 로 올라온 �
 # ════════════════════════════════════════════
 # 서비스코드 / PDB
 # ════════════════════════════════════════════
-# 시험 전용 행 — config/db_seed/<env>.sql 이 T_ZONE_LIST 에 넣는다(NOTI_YN=Y, SC_FTP_YN=N).
+# 정상 수집(TC-004/005/007) 서비스코드. 슈트·시드는 T_ZONE_LIST 를 만들지 않는다 — TC-005 는 이 코드가
+# T_ZONE_LIST 에 SC_FTP_YN='N' 으로 등록돼 있어야 판정할 수 있다(환경 파일·--variable 로 바꾼다).
 ${CMS_SERVICE_CODE}        TRAP_ROBOT_ZONE_TEST
-${CMS_ZONE_CODE}           ZN999999
-${CMS_ZONE_TYPE}           RU
+${CMS_ZONE_CODE}           ${EMPTY}               # 비면 TC-005 는 Suite Setup 이 조회한 ${CMS_SERVICE_CODE} 의 ZONE_CODE 와 비교한다
 # T_ZONE_LIST 에 없는 서비스코드 — PG 가 ZONE_CODE='NO', STATUS='F' 로 기록한다.
 ${CMS_SERVICE_CODE_UNREG}    TRAP_ROBOT_ZONE_UNREG
-# SC 전달 시험 전용 행 — DB 시드가 SC_FTP_YN='Y', NOTI_YN='Y' 로 넣는다(쓰지 않는 존 코드).
-${CMS_SERVICE_CODE_SC}     TRAP_ROBOT_ZONE_SC
-${CMS_SC_ZONE_CODE}        ZN999998
+# SC 전달(TC-006) 서비스코드 — 실제 T_ZONE_LIST 행을 쓴다. 슈트는 T_ZONE_LIST 를 INSERT/UPDATE 하지 않는다.
+# Suite Setup 이 시작 전에 각 코드의 SC_FTP_YN 값을 조회해 보여 주고(막지 않는다), TC-006 은 'Y' 가 아닌
+# 코드를 그 코드의 실패로 남긴다(${CMS_ZONE_SHOW}).
+# PG 는 조회 전에 마지막 '_V..' 를 뗀다(deleteVersion) — TRAP_5G_EQP_INFO_V1 은 TRAP_5G_EQP_INFO 행을 본다.
+@{CMS_SERVICE_CODES_SC}    TRAP_5G_EQP_INFO    TRAP_5G_EQP_INFO_V1    TRAP_LTE_EQP_INFO    TRAP_LTE_EQP_INFO_CO
+${CMS_ZONE_SHOW}           ${TRUE}                # ${FALSE} 면 시작 전 T_ZONE_LIST 조회를 건너뛴다(PDB 없는 가짜 PG 시험)
 
 ${CMS_DB_TBL_ZONE}         T_CMSWEB_ZONE
 ${CMS_DB_SQL_ZONE_BY_MSG}    SELECT ZONE_CODE, FILE_TYPE, SERVICE_CODE, FILENAME, STATUS, REASON, FILESIZE FROM T_CMSWEB_ZONE WHERE MSG_ID = ?
-${CMS_DB_SQL_CLEANUP}      DELETE FROM T_CMSWEB_ZONE WHERE SERVICE_CODE IN (?, ?, ?)
+${CMS_DB_SQL_ZONE_LIST}    SELECT SERVICE_CODE, ZONE_CODE, SC_FTP_YN, NOTI_YN FROM T_ZONE_LIST WHERE SERVICE_CODE = ?
+# 시험 전용 서비스코드만 지운다 — SC 전달 코드(실제 운용 코드)는 T_CMSWEB_ZONE 행도 남기지 않고 지우지도 않는다.
+${CMS_DB_SQL_CLEANUP}      DELETE FROM T_CMSWEB_ZONE WHERE SERVICE_CODE IN (?, ?)
 ${CMS_DB_WAIT}             30s
 ${CMS_DB_WAIT_INTERVAL}    2s
 ${CMS_CLEANUP_ON_TEARDOWN}    ${TRUE}

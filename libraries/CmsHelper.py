@@ -312,6 +312,42 @@ def cms_renamed_file_name(file_name: str) -> str:
     return file_name
 
 
+def cms_zone_lookup_code(service_code: str) -> str:
+    """PG `deleteVersion` 과 같다 — 마지막 '_' 뒤가 'V' 로 시작하면 그 앞까지가 T_ZONE_LIST 조회 키다.
+
+    예) TRAP_5G_EQP_INFO_V1 → TRAP_5G_EQP_INFO, TRAP_LTE_EQP_INFO_CO → 그대로.
+    """
+    head, sep, tail = str(service_code).rpartition('_')
+    if sep and tail.startswith('V'):
+        return head
+    return str(service_code)
+
+
+def cms_zone_summary(service_code: str, rows) -> dict:
+    """T_ZONE_LIST 조회 결과를 보여 주기 좋게 줄인다(판정하지 않는다).
+
+    → {'code', 'key', 'found', 'sc_ftp_yn', 'noti_yn', 'zone_code', 'text'}.
+    행이 없으면 PG 는 ZONE_CODE='NO', SC_FTP_YN='N' 으로 본다(CCMSWeb::Run) — sc_ftp_yn 은 '' 로 둔다.
+    같은 키가 여러 행이면 값들을 ',' 로 잇는다.
+    """
+    key = cms_zone_lookup_code(service_code)
+    label = service_code if key == service_code else '%s(조회 키 %s)' % (service_code, key)
+
+    def col(name):
+        vals = [str(r.get(name) if r.get(name) is not None else '').strip() for r in rows or []]
+        return ','.join(vals)
+
+    found = bool(rows)
+    out = {'code': service_code, 'key': key, 'found': found,
+           'sc_ftp_yn': col('SC_FTP_YN'), 'noti_yn': col('NOTI_YN'), 'zone_code': col('ZONE_CODE')}
+    if found:
+        out['text'] = '%s → SC_FTP_YN=%s NOTI_YN=%s ZONE_CODE=%s' % (
+            label, out['sc_ftp_yn'] or "''", out['noti_yn'] or "''", out['zone_code'] or "''")
+    else:
+        out['text'] = '%s → 행 없음 (PG 는 ZONE_CODE=NO, SC_FTP_YN=N 으로 처리)' % label
+    return out
+
+
 def cms_fin_prefix(service_code: str, date_time: str, group: str, key: str) -> str:
     """PG 가 올리는 FIN 파일명의 고정 앞부분 — 뒤에 업로드 시각 14자리 + `.FIN` 이 붙는다."""
     return '%s_%s_%s%s_' % (service_code, cms_digits(date_time), group, key)
