@@ -655,6 +655,168 @@ def cms_sc_cleanup(upload_dir: str, names) -> dict:
     return result
 
 
+# ── SC 원격 확인 — [SC] SC_PRIIP 가 도구가 아니면 그 서버에 접속해 본다 ─────────
+
+class _ScRemote(object):
+    """원격 SC 서버 클라이언트(SFTP 또는 FTP). PG 와 같은 SC 계정(PG_PWD_CMS_SFTP_UPLOAD)으로 붙는다."""
+
+    def __init__(self, protocol, host, port, user, timeout=10):
+        self.protocol = str(protocol).upper()
+        self.where = '%s://%s@%s:%s' % (self.protocol.lower(), user, host, port)
+        pwd = os.environ.get(_SC_PWD_ENV, '')
+        if not pwd:
+            raise AssertionError("SC 원격 확인 비밀번호가 없습니다 — 환경변수 %s(PG 의 SC 업로드 계정)를 설정하십시오."
+                                 % _SC_PWD_ENV)
+        if not user:
+            raise AssertionError('SC 계정이 없습니다 — CMS_SC_SFTP_USER 를 넣으십시오')
+        timeout = float(timeout)
+        self._transport = self._sftp = self._ftp = None
+        if self.protocol == 'SFTP':
+            paramiko = _load_sftp()._load_paramiko()
+            try:
+                sock = socket.create_connection((str(host), int(port)), timeout=timeout)
+            except OSError as exc:
+                raise AssertionError('SC 서버 %s 접속 실패 — %s' % (self.where, exc))
+            self._transport = paramiko.Transport(sock)
+            self._transport.banner_timeout = timeout
+            try:
+                self._transport.connect(username=str(user), password=pwd)
+                self._sftp = paramiko.SFTPClient.from_transport(self._transport)
+            except paramiko.AuthenticationException:
+                self.close()
+                raise AssertionError('SC 서버 %s 로그인 실패 — 계정 %s / 환경변수 %s 를 확인하십시오'
+                                     % (self.where, user, _SC_PWD_ENV))
+            except Exception as exc:
+                self.close()
+                raise AssertionError('SC 서버 %s SFTP 세션 실패 — %s' % (self.where, exc))
+            self._sftp.get_channel().settimeout(timeout)
+        else:
+            import ftplib
+            self._ftp = ftplib.FTP()
+            try:
+                self._ftp.connect(str(host), int(port), timeout=timeout)
+                self._ftp.login(str(user), pwd)
+                self._ftp.voidcmd('TYPE I')          # SIZE 는 바이너리 모드에서만 믿을 수 있다
+            except ftplib.error_perm as exc:
+                self.close()
+                raise AssertionError('SC 서버 %s 로그인 실패 — %s (환경변수 %s 확인)' % (self.where, exc, _SC_PWD_ENV))
+            except (OSError, EOFError, ftplib.Error) as exc:
+                self.close()
+                raise AssertionError('SC 서버 %s 접속 실패 — %s' % (self.where, exc))
+
+    def sizes(self, directory):
+        """directory 의 파일 → {이름: 크기}. 디렉터리를 못 읽으면 AssertionError."""
+        directory = str(directory)
+        try:
+            if self._sftp is not None:
+                return {e.filename: e.st_size for e in self._sftp.listdir_attr(directory)}
+            out = {}
+            names = self._ftp.nlst(directory)
+            self._ftp.voidcmd('TYPE I')          # nlst 가 TYPE A 로 바꿔 놓는다 — SIZE 는 바이너리에서만 된다
+            for name in names:
+                base = name.rsplit('/', 1)[-1]
+                if base in ('.', '..'):
+                    continue
+                try:
+                    out[base] = self._ftp.size('%s/%s' % (directory.rstrip('/'), base))
+                except Exception:
+                    out[base] = None
+            return out
+        except AssertionError:
+            raise
+        except Exception as exc:
+            raise AssertionError('SC 서버 %s 의 %s 를 읽을 수 없습니다 — %s' % (self.where, directory, exc))
+
+    def remove(self, path):
+        if self._sftp is not None:
+            self._sftp.remove(path)
+        else:
+            self._ftp.delete(path)
+
+    def close(self):
+        for closer in (lambda: self._ftp and self._ftp.quit(), lambda: self._transport and self._transport.close()):
+            try:
+                closer()
+            except Exception:
+                pass
+
+
+def cms_sc_remote_check(protocol: str, host: str, port, user: str, sc_path: str, timeout=10) -> str:
+    """원격 SC 서버에 PG 의 SC 계정으로 로그인해 SC_PATH 를 읽을 수 있는지 본다(Suite Setup).
+
+    PG 가 올릴 곳을 미리 확인할 뿐 아무것도 쓰지 않는다. 문제가 있으면 AssertionError.
+    """
+    client = _ScRemote(protocol, host, port, user, timeout)
+    try:
+        count = len(client.sizes(sc_path))
+    finally:
+        client.close()
+    return '%s%s 읽기 가능 (파일 %d개)' % (client.where, sc_path, count)
+
+
+def cms_sc_remote_wait_uploads(protocol: str, host: str, port, user: str, sc_path: str, case: dict,
+                               timeout=30, poll=1.0) -> dict:
+    """원격 SC 서버의 SC_PATH 에 이 시험의 데이터 파일과 FIN 이 생길 때까지 본다.
+
+    판정은 cms_sc_wait_uploads 와 같다 — 데이터 파일 크기 = case['size'], FIN = 0바이트.
+    반환: {'data': {filename, size, path}, 'fin': {...}}
+    """
+    want = {'data': case['sc_data'], 'fin': case['sc_fin']}
+    deadline = time.time() + float(timeout)
+    client = _ScRemote(protocol, host, port, user)
+    try:
+        while True:
+            listing = client.sizes(sc_path)
+            if all(name in listing for name in want.values()):
+                break
+            if time.time() >= deadline:
+                seen = sorted(n for n in listing if n.endswith(('.dat', '.FIN')))[-10:]
+                raise AssertionError('%s초 안에 SC 서버 %s%s 에 업로드가 다 오지 않았습니다 — 기대 %s, 받은 것 %s, '
+                                     '그 디렉터리 %s' % (timeout, client.where, sc_path, sorted(want.values()),
+                                                       sorted(n for n in want.values() if n in listing), seen))
+            time.sleep(float(poll))
+    finally:
+        client.close()
+    found = {kind: {'filename': name, 'size': listing[name], 'path': '%s/%s' % (str(sc_path).rstrip('/'), name)}
+             for kind, name in want.items()}
+    problems = []
+    if found['data']['size'] is not None and int(found['data']['size']) != int(case['size']):
+        problems.append('데이터 파일 크기 기대=%s 실제=%s' % (case['size'], found['data']['size']))
+    if found['fin']['size'] not in (None, 0):
+        problems.append('FIN 은 빈 파일이어야 합니다: %s바이트' % found['fin']['size'])
+    if problems:
+        raise AssertionError('SC 업로드 판정 실패(%s) — %s' % (client.where, '; '.join(problems)))
+    return found
+
+
+def cms_sc_remote_cleanup(protocol: str, host: str, port, user: str, sc_path: str, names) -> dict:
+    """원격 SC 서버의 SC_PATH 에서 이름이 정확히 names 인 파일만 지운다. 예외를 내지 않는다(Teardown 용)."""
+    result = {'removed': [], 'failed': []}
+    try:
+        client = _ScRemote(protocol, host, port, user)
+    except AssertionError as exc:
+        result['failed'].append(str(exc))
+        return result
+    try:
+        present = client.sizes(sc_path)
+        for name in [str(n) for n in _as_list(names)]:
+            if '/' in name or name in ('.', '..'):
+                result['failed'].append('%s: 이름이 올바르지 않습니다' % name)
+                continue
+            if name not in present:
+                continue
+            try:
+                client.remove('%s/%s' % (str(sc_path).rstrip('/'), name))
+                result['removed'].append(name)
+            except Exception as exc:
+                result['failed'].append('%s: %s' % (name, exc))
+    except AssertionError as exc:
+        result['failed'].append(str(exc))
+    finally:
+        client.close()
+    return result
+
+
 # ── FIN — 실제 PG 는 도구 호스트의 실제 sshd(22)로 올린다 ────────────────
 
 def _fin_open(host, port, user, timeout=10):

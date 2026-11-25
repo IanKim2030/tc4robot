@@ -15,7 +15,9 @@ Documentation
 ...
 ...    [Suite 정책]
 ...      Suite Setup    : Prepare CMSWEB — 설정 확정(PG_V2.cfg) → 전제 확인 → FIN 디렉터리 확인
-...                       → 파일 서버(SFTP/FTP) 기동 → CMS201 .RUN touch → Listen → PG 접속·REG 수신 → REG_OK
+...                       → 다운로드 서버·업로드(SC 수신) 서버 기동 → CMS201 .RUN touch → Listen
+...                       → PG 접속·REG 수신 → REG_OK
+...      TC 판정        : NTI → ANS 수신 뒤 다운로드 서버에서 가져갔는지, 업로드 서버로 올라왔는지 본다
 ...                       (PDB 는 첫 DB 판정 때 접속한다 — db 태그를 빼면 PDB 없이 돈다)
 ...      Test Setup     : Check CMS Session (닫혀 있으면 슈트 중단)
 ...      Suite Teardown : Close CMSWEB — 시험 행 정리(FIN·SC 파일은 기본으로 남김) → 연결·서버 종료
@@ -42,6 +44,8 @@ ${CMS_DB_CONN_2}      ${NONE}
 @{CMS_FIN_PREFIXES}    # 이번 실행에서 보낸 NTI 의 FIN 접두사 — Suite Teardown 이 이것과 맞는 FIN 만 지운다
 ${CMS_SC_SERVER}      ${NONE}
 ${CMS_SC_REAL_DIR}    ${EMPTY}
+${CMS_SC_MODE}        local      # local: 도구가 SC 수신 서버를 띄운다 / remote: [SC] SC_PRIIP 서버에 접속해 확인한다
+${CMS_SC_PORT}        ${EMPTY}   # PG 가 SC 로 올리는 포트 (NWDAF_SFTP_PORT 또는 NWDAF_FTP_PORT)
 @{CMS_SC_FILES}       # 이번 실행의 SC 시험이 기대한 파일 이름 — Suite Teardown 이 이것만 지운다
 
 
@@ -57,6 +61,7 @@ Prepare CMSWEB
     Check CMS Prerequisites
     Check CMS FIN Target
     Start CMS File Server
+    Start CMS Upload Server
     Ensure PG Process Running    ${CMS_PROCESS}
     Log    [Suite] CMSWEB 제어 채널 Listen → ${CMS_LISTEN_HOST}:${CMS_LISTEN_PORT} (허용 IP: ${CMS_ALLOWED_PEER_IPS})    console=True
     ${srv}=    Tcp.Server Start    ${CMS_LISTEN_PORT}    ${CMS_LISTEN_HOST}
@@ -132,18 +137,16 @@ Start CMS File Server
     Set Suite Variable    ${CMS_SFTP_SERVER}    ${srv}
     Log    [Suite] CMSWEB ${CMS_FILE_PROTO} 기동 → ${where} (계정 ${CMS_SFTP_USER}, 디렉터리 ${CMS_REMOTE_DIR})    console=True
 
-Ensure CMS SC Server
+Start CMS Upload Server
     [Documentation]
-    ...    SC(NWDAF) 전달 시험 전제 확인 → SC 수신 SFTP 를 한 번만 띄운다. 이 시험에서만 부른다 —
-    ...    SC 설정이 틀려도 다른 TC 는 돈다. 틀린 항목을 모두 모아 이 TC 만 실패시킨다.
-    IF    $CMS_SC_SERVER is not None
+    ...    PG 가 SC_FTP_YN=Y 서비스코드의 파일·FIN 을 올리는 SC 쪽을 Suite Setup 에서 준비한다.
+    ...    - [SC] SC_PRIIP 가 비었거나 도구(${TOOL_HOST})면 local: 도구가 SC 수신 서버를 띄운다.
+    ...    - 다른 IP 면 remote: 서버를 띄우지 않고 그 SC 서버에 PG 의 SC 계정으로 접속해 SC_PATH 를
+    ...      읽을 수 있는지 확인한다. 판정 때도 그 서버의 SC_PATH 를 본다.
+    ...    전제가 틀리면 틀린 항목을 모두 모아 슈트를 세운다.
+    IF    $CMS_SC_SERVER is not None or $CMS_SC_MODE == 'remote'
         RETURN
     END
-    ${problems}=    Create List
-    IF    $CMS_SC_PG_ADDR and $CMS_SC_PG_ADDR != $TOOL_HOST
-        Append To List    ${problems}    [SC] SC_PRIIP=${CMS_SC_PG_ADDR} → ${TOOL_HOST} 로 바꿔야 PG 가 이 도구로 올립니다
-    END
-    ${file_port}=    Set Variable If    $CMS_FILE_PROTO == 'SFTP'    ${CMS_SFTP_PORT}    ${CMS_FTP_PORT}
     IF    $CMS_SC_FILE_PROTO == 'SFTP'
         ${sc_port}=    Set Variable    ${CMS_SC_SFTP_PORT}
         ${sc_key}=    Set Variable    NWDAF_SFTP_PORT
@@ -151,6 +154,18 @@ Ensure CMS SC Server
         ${sc_port}=    Set Variable    ${CMS_SC_FTP_PORT}
         ${sc_key}=    Set Variable    NWDAF_FTP_PORT
     END
+    Set Suite Variable    ${CMS_SC_PORT}    ${sc_port}
+    IF    $CMS_SC_PG_ADDR and $CMS_SC_PG_ADDR != $TOOL_HOST
+        Set Suite Variable    ${CMS_SC_MODE}    remote
+        Set Suite Variable    ${CMS_SC_REAL_DIR}    ${CMS_SC_PG_ADDR}:${CMS_SC_PATH}
+        Log    [Suite] [SC] SC_PRIIP=${CMS_SC_PG_ADDR} 는 도구가 아님 → SC 서버에 접속해 확인한다 (${CMS_SC_FILE_PROTO} ${sc_port}, ${CMS_SC_PATH})    console=True
+        ${checked}=    Cms.Cms Sc Remote Check    ${CMS_SC_FILE_PROTO}    ${CMS_SC_PG_ADDR}    ${sc_port}
+        ...    ${CMS_SC_SFTP_USER}    ${CMS_SC_PATH}
+        Log    [Suite] SC 서버 확인 — ${checked}    console=True
+        RETURN
+    END
+    ${problems}=    Create List
+    ${file_port}=    Set Variable If    $CMS_FILE_PROTO == 'SFTP'    ${CMS_SFTP_PORT}    ${CMS_FTP_PORT}
     IF    $CMS_SC_FILE_PROTO == 'SFTP' and int($sc_port) < 1024
         Append To List    ${problems}    [CMS] ${sc_key}=${sc_port} → 도구 호스트의 실제 sshd/특권 포트입니다. 1024 이상으로 두십시오
     END
@@ -164,7 +179,7 @@ Ensure CMS SC Server
     END
     IF    $problems
         ${detail}=    Evaluate    ' / '.join($problems)
-        Fail    SC 전달 시험 전제가 맞지 않습니다 — ${detail}. 바꾼 뒤 CMS201 을 재기동하십시오.
+        Fail    업로드(SC 수신) 서버 전제가 맞지 않습니다 — ${detail}. 바꾼 뒤 CMS201 을 재기동하십시오.
     END
     IF    $CMS_SC_FILE_PROTO == 'SFTP'
         ${srv}=    Cms.Cms Sc Sftp Start    ${sc_port}    ${CMS_SC_SFTP_HOST}    ${CMS_SC_SFTP_USER}
@@ -176,6 +191,7 @@ Ensure CMS SC Server
     ${real_dir}=    Evaluate    $srv.mounts[0][1]
     Set Suite Variable    ${CMS_SC_SERVER}    ${srv}
     Set Suite Variable    ${CMS_SC_REAL_DIR}    ${real_dir}
+    Set Suite Variable    ${CMS_SC_MODE}    local
     Log    [Suite] SC 수신 ${CMS_SC_FILE_PROTO} 기동 → ${CMS_SC_SFTP_HOST}:${sc_port} (계정 ${CMS_SC_SFTP_USER}, ${CMS_SC_PATH} → ${real_dir})    console=True
 
 Accept CMS Session
@@ -209,6 +225,7 @@ Check CMS Session
         Fail    PG.CMS 제어 채널이 없습니다 — Suite Setup 이 실패했거나 앞 TC 가 복구하지 못했습니다.
     END
     Cms.Cms Sftp Clear    ${CMS_SFTP_SERVER}
+    Cms.Cms Sftp Clear    ${CMS_SC_SERVER}
 
 Restore CMS Session
     [Documentation]    TC 가 연결을 끊었다면(REG_NOK·타임아웃 시험) PG 재접속을 받아 원상태로 돌린다.
@@ -257,12 +274,19 @@ Cleanup CMS FIN Files
     END
 
 Cleanup CMS SC Files
-    [Documentation]    ${CMS_SC_CLEANUP} 일 때만 SC 수신 디렉터리에서 이번 실행의 SC 시험이 기대한 이름의 파일만 지운다(기본은 남긴다).
-    IF    not ${CMS_SC_CLEANUP} or $CMS_SC_SERVER is None or not $CMS_SC_FILES
-        IF    $CMS_SC_FILES    Log    [Suite] SC 수신 파일을 남깁니다 — ${CMS_SC_REAL_DIR} ${CMS_SC_FILES}    console=True
+    [Documentation]
+    ...    ${CMS_SC_CLEANUP} 일 때만 이번 실행의 SC 시험이 기대한 이름의 파일만 지운다(기본은 남긴다).
+    ...    local 은 도구의 수신 디렉터리, remote 는 SC 서버의 SC_PATH 에서 지운다.
+    IF    not ${CMS_SC_CLEANUP} or not $CMS_SC_FILES or ($CMS_SC_MODE == 'local' and $CMS_SC_SERVER is None)
+        IF    $CMS_SC_FILES    Log    [Suite] SC 파일을 남깁니다 — ${CMS_SC_REAL_DIR} ${CMS_SC_FILES}    console=True
         RETURN
     END
-    ${result}=    Cms.Cms Sc Cleanup    ${CMS_SC_REAL_DIR}    ${CMS_SC_FILES}
+    IF    $CMS_SC_MODE == 'remote'
+        ${result}=    Cms.Cms Sc Remote Cleanup    ${CMS_SC_FILE_PROTO}    ${CMS_SC_PG_ADDR}    ${CMS_SC_PORT}
+        ...    ${CMS_SC_SFTP_USER}    ${CMS_SC_PATH}    ${CMS_SC_FILES}
+    ELSE
+        ${result}=    Cms.Cms Sc Cleanup    ${CMS_SC_REAL_DIR}    ${CMS_SC_FILES}
+    END
     ${removed}=    Get Length    ${result}[removed]
     Log    [Suite] 종료 시 정리 — ${CMS_SC_REAL_DIR} SC 파일 ${removed}건 삭제 ${result}[removed]    console=True
     IF    $result['failed']
@@ -369,9 +393,15 @@ PG Should Upload CMS FIN
 PG Should Forward CMS File To SC
     [Documentation]
     ...    SC_FTP_YN=Y — PG 가 받은 파일(이름 바뀐 .dat, 크기 그대로)과 빈 .FIN 을 SC 로(${CMS_SC_FILE_PROTO}) 올려
-    ...    실제 디렉터리(${CMS_SC_UPLOAD_DIR})에 두 파일이 생겼는지 본다(CCMSWeb::RunSFtpSC / RunFtpSC).
+    ...    두 파일이 생겼는지 본다(CCMSWeb::RunSFtpSC / RunFtpSC). local 은 도구의 수신 디렉터리
+    ...    (${CMS_SC_UPLOAD_DIR}), remote 는 [SC] SC_PRIIP 서버의 SC_PATH 에 접속해 본다.
     [Arguments]    ${case}
-    ${got}=    Cms.Cms Sc Wait Uploads    ${CMS_SC_SERVER}    ${case}    ${CMS_SC_REAL_DIR}    ${CMS_SC_TIMEOUT}
+    IF    $CMS_SC_MODE == 'remote'
+        ${got}=    Cms.Cms Sc Remote Wait Uploads    ${CMS_SC_FILE_PROTO}    ${CMS_SC_PG_ADDR}    ${CMS_SC_PORT}
+        ...    ${CMS_SC_SFTP_USER}    ${CMS_SC_PATH}    ${case}    ${CMS_SC_TIMEOUT}
+    ELSE
+        ${got}=    Cms.Cms Sc Wait Uploads    ${CMS_SC_SERVER}    ${case}    ${CMS_SC_REAL_DIR}    ${CMS_SC_TIMEOUT}
+    END
     Log    [CMS] SC 수신 — ${got}[data][path] (${got}[data][size]바이트), ${got}[fin][path]    console=True
     RETURN    ${got}
 

@@ -1,22 +1,23 @@
 *** Settings ***
 Documentation
-...    CMS(CMSWEB) 연동 기능 검증 — 도구가 CMSWEB 서버, PG.CMS(CMS201)가 클라이언트
+...    CMS(CMSWEB) 연동 기능 검증 — 도구(ROBOT)가 CMSWEB 서버, PG.CMS(CMS201)가 클라이언트
 ...
 ...    [테스트 대상]
-...    PG.CMS → 도구 ${CMS_LISTEN_PORT} (13B 헤더 + EUC-KR JSON, 규격 v1.9)
-...    PG.CMS → 도구 파일 서버 (NTI 파일 GET) — [CMS] CMSWEB_SFTP 로 기동 시 고른다
-...      SFTP(기본): ${CMS_SFTP_PORT}([CMS] CMS_SFTP_PORT), .FIN 은 도구 호스트 실제 sshd ${CMS_FIN_SSH_PORT}
-...      FTP(CMSWEB_SFTP=N): ${CMS_FTP_PORT}(PG 고정 21), .FIN 도 같은 FTP 세션으로 온다
+...    PG.CMS → 도구로 Port:${CMS_LISTEN_PORT}로 접속 (13B 헤더 + EUC-KR JSON, 규격 v1.9)
+...    PG.CMS → 도구 파일 서버 (NTI 파일 GET) — [CMS] CMSWEB_SFTP (Y:SFTP, N:FTP) 로 기동 시 고른다
+...      SFTP(기본): ${CMS_SFTP_PORT}([CMS] CMS_SFTP_PORT), .FIN 은 도구 호스트 실제 ssh ${CMS_FIN_SSH_PORT}
+...      FTP(CMSWEB_SFTP=N): ${CMS_FTP_PORT}(PG.CMS 21포트 고정), .FIN 도 같은 FTP 세션으로 온다
 ...    PG.CMS → PDB T_CMSWEB_ZONE (처리 결과)
 ...
-...    [전제 — PG 설정, 슈트가 고치지 않는다]
-...    PG_V2.cfg [CMS] CMSWEB_ADDR=${TOOL_HOST}, (SFTP 모드) CMS_SFTP_PORT=1024 이상(도구 SFTP 포트).
-...    FTP 모드는 도구가 21 을 열어야 한다(root 또는 리다이렉트 + --variable CMS_FTP_PORT).
+...    [전제 — PG 설정, ${PG_HOST} SSH 연결후 설정파일 다운로드 후 적용]
+...    PG_V2.cfg 설정 적용: [CMS] CMSWEB_ADDR=${TOOL_HOST}, CMSWEB_SFTP(SFTP 모드), CMS_SFTP_PORT=1024 이상(도구 SFTP 포트).
+...    FTP 모드에서는 도구가 무조건 21 을 열어야 한다(root 또는 리다이렉트 + --variable CMS_FTP_PORT).
 ...    다르면 Suite Setup 이 무엇을 바꿔야 하는지 알려 주고 중단한다.
 ...    파일 계정(SFTP/FTP 공통) = 환경 파일 CMS_SFTP_USER + 환경변수 PG_PWD_CMS_SFTP(시뮬레이터 다운로드)
 ...    / PG_PWD_CMS_FIN_SSH(도구 호스트 실제 pg 계정 — FIN 확인, 없으면 PG_PWD_CMS_SFTP). ${CMS_REMOTE_DIR} 는 그 계정이 쓸 수 있어야 한다.
 ...    시험 서비스코드 ${CMS_SERVICE_CODE} · ${CMS_SERVICE_CODE_SC}(SC_FTP_YN=Y) 의 T_ZONE_LIST 행은 DB 시드가 넣는다.
-...    SC 전달(006)은 [SC] SC_PRIIP=${TOOL_HOST} 가 전제다 — 틀리면 그 TC 만 실패한다. [CMS] NWDAF_SFTP 가
+...    SC 쪽도 Suite Setup 에서 준비한다 — [SC] SC_PRIIP 가 도구(${TOOL_HOST})면 업로드(SC 수신) 서버를 띄우고,
+...    다른 IP 면 그 SC 서버에 SC 계정으로 접속해 확인한다(비밀번호 PG_PWD_CMS_SFTP_UPLOAD). [CMS] NWDAF_SFTP 가
 ...    'N' 이면 FTP(NWDAF_FTP_PORT), 아니면 SFTP(NWDAF_SFTP_PORT)로 받는다.
 ...    PG 는 SC_PATH(${CMS_SC_PATH})로 올리고 도구는 그것을 ${CMS_SC_UPLOAD_DIR} 에 받는다(비밀번호 PG_PWD_CMS_SFTP_UPLOAD).
 ...
@@ -27,9 +28,9 @@ Documentation
 ...
 ...    [TC 번호 체계]
 ...    001       REG 세션키
-...    002       HBC
-...    003 ~ 005 NTI 정상 — ANS / 파일 GET·FIN / T_CMSWEB_ZONE
-...    006       NTI SC 전달 — SC_FTP_YN=Y 서비스코드 → SC(SFTP/FTP) 로 데이터 파일·FIN 업로드
+...    002       HBC HeartBeat
+...    003 ~ 005 NTI 정상 — ANS / CMSWEB 파일 다운로드 → FIN 생성 / T_CMSWEB_ZONE
+...    006       NTI SC 전달 — SC_FTP_YN=Y 서비스코드 → SC 파일 업로드 → FIN 생성
 ...    007 ~ 009 NTI 이상 — 크기 불일치 / 필수 필드 누락 / 미등록 서비스코드
 ...    010 ~ 011 세션 — REG_NOK 재접속 / 무수신 타임아웃(slow)
 
@@ -49,7 +50,7 @@ Test Setup       Check CMS Session
 # ════════════════════════════════════════════════════════════════
 
 TC-CMS-001 REG - PG 세션키 확인 → REG_OK
-    [Documentation]    접속 직후 PG 가 보낸 REG 의 sourceSessionKey 가 PG_V2.cfg [CMS] GROUP/KEY 인지 본다(Suite Setup 에서 수신).
+    [Documentation]    접속 직후 PG.CMS 가 보낸 REG 의 sourceSessionKey 가 PG_V2.cfg [CMS] GROUP/KEY 인지 확인한다(Suite Setup 에서 수신).
     [Tags]    cms    reg
     REG Should Carry PG Session Key
 
@@ -57,8 +58,8 @@ TC-CMS-001 REG - PG 세션키 확인 → REG_OK
 # Heartbeat (규격 3.3 / 4.5)
 # ════════════════════════════════════════════════════════════════
 
-TC-CMS-002 HBC - 도구 HBC → PG HBC 응답
-    [Documentation]    도구가 HBC 를 보내면 PG 가 sourceSessionKey / dateTime / result=HBC_OK 로 답한다.
+TC-CMS-002 HBC - CMSWEB HBC → PG.CMS HBC 응답
+    [Documentation]    도구(CMSWEB)가 HBC 를 보내면 PG.CMS 가 sourceSessionKey / dateTime / result=HBC_OK 응답을 확인한다.
     [Tags]    cms    hbc
     ${reply}=    Send CMS HBC And Expect Reply
     HBC Reply Should Be Valid    ${reply}
@@ -68,14 +69,14 @@ TC-CMS-002 HBC - 도구 HBC → PG HBC 응답
 # ════════════════════════════════════════════════════════════════
 
 TC-CMS-003 NTI - ANS 수신 (messageId 에코, NTI_OK)
-    [Documentation]    NTI(Report) 를 보내면 PG 가 같은 messageId 와 data=NTI_OK 로 ANS 를 보낸다.
+    [Documentation]    도구(CMSWEB)이 NTI(Report) 를 보내면 PG.CMS 가 같은 messageId 와 data=NTI_OK 로 ANS 를 보낸다.
     [Tags]    cms    nti
     Send CMS NTI
 
-TC-CMS-004 NTI - 파일 수집 후 FIN 업로드
+TC-CMS-004 NTI - CMSWEB 파일 다운로드 → FIN 생성
     [Documentation]
-    ...    PG 가 COLUMN_DATA 경로의 파일을 ${CMS_FILE_PROTO} 로 가져가고, 같은 디렉터리에 빈 파일
-    ...    <serviceCode>_<dateTime>_<GROUP><KEY>_<시각>.FIN 을 올린다(규격 5.1 / 5.4.2).
+    ...    PG.CMS 가 CMSWEB 에서 COLUMN_DATA 경로의 파일을 ${CMS_FILE_PROTO} 로 다운로드하고, 같은 디렉터리에
+    ...    빈 파일 <serviceCode>_<dateTime>_<GROUP><KEY>_<시각>.FIN 이 생겼는지 본다(규격 5.1 / 5.4.2).
     [Tags]    cms    sftp
     ${case}=    Send CMS NTI
     PG Should Fetch CMS File    ${case}
@@ -96,16 +97,14 @@ TC-CMS-005 NTI - T_CMSWEB_ZONE 반영 (STATUS·REASON·FILESIZE)
 # NTI 파일 연동 — SC(NWDAF) 전달 (CCMSWeb::RunSFtpSC / RunFtpSC)
 # ════════════════════════════════════════════════════════════════
 
-TC-CMS-006 NTI - SC_FTP_YN=Y → SC 로 데이터 파일·FIN 업로드
+TC-CMS-006 NTI - SC 파일 업로드 → FIN 생성
     [Documentation]
-    ...    T_ZONE_LIST.SC_FTP_YN='Y' 인 서비스코드면 PG 가 CMSWEB 에서 받은 파일(크기 자리를 뗀 이름)과
-    ...    빈 .FIN 을 SC(${CMS_SC_FILE_PROTO})의 SC_PATH 로 올린다 → ${CMS_SC_UPLOAD_DIR} 에 두 파일이
-    ...    생기고 데이터 파일 크기가 같아야 한다. 이 경로는 T_CMSWEB_ZONE 에 행을 남기지 않는다.
+    ...    T_ZONE_LIST.SC_FTP_YN='Y' 인 서비스코드면 PG.CMS 가 CMSWEB 에서 받은 파일(크기 자리를 뗀 이름)을
+    ...    SC(${CMS_SC_FILE_PROTO})의 SC_PATH 로 업로드하고 빈 .FIN 을 올린다 → 두 파일이 생기고 데이터 파일
+    ...    크기가 같아야 한다. [SC] SC_PRIIP 가 도구면 도구의 수신 디렉터리, 아니면 그 SC 서버에 접속해 본다.
+    ...    이 경로는 T_CMSWEB_ZONE 에 행을 남기지 않는다.
     [Tags]    cms    sftp    sc
-    Ensure CMS SC Server
     ${case}=    Send CMS NTI    service_code=${CMS_SERVICE_CODE_SC}
-    PG Should Fetch CMS File    ${case}
-    PG Should Upload CMS FIN    ${case}
     PG Should Forward CMS File To SC    ${case}
 
 # ════════════════════════════════════════════════════════════════

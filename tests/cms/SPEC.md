@@ -85,7 +85,7 @@ passwords only through environment variables:
 | Variable | Use |
 |---|---|
 | `PG_PWD_CMS_SFTP` | CMSWEB download simulator (GET, SFTP `${CMS_SFTP_PORT}` or FTP `${CMS_FTP_PORT}`). Required. |
-| `PG_PWD_CMS_SFTP_UPLOAD` | SC receive server (SFTP `${CMS_SC_SFTP_PORT}` or FTP `${CMS_SC_FTP_PORT}`), used for the SC forward of TC-006. Without it only TC-006 fails. |
+| `PG_PWD_CMS_SFTP_UPLOAD` | SC receive server (SFTP `${CMS_SC_SFTP_PORT}` or FTP `${CMS_SC_FTP_PORT}`), started in Suite Setup. Required. |
 | `PG_PWD_CMS_FIN_SSH` | Real `pg` OS account on the tool host. The suite logs in to `${CMS_FIN_SSH_HOST}:${CMS_FIN_SSH_PORT}` with it to check, wait for and delete the CMSWEB FIN. Optional: when unset, `PG_PWD_CMS_SFTP` is used, because PG PUTs the FIN with the CMSWEB download account (dev 142: the same password, checked 2026-11-24). |
 
 Each simulator accepts only its own password.
@@ -204,14 +204,23 @@ dev `PG_V2.cfg` on 141 (read 2026-11-24, last value wins):
 The tool's SC receiver (`Cms Sc Sftp Start`) listens on `${CMS_SC_SFTP_PORT}`. It mounts the
 virtual prefix `${CMS_SC_PATH}` onto the real directory `${CMS_SC_UPLOAD_DIR}` (dev
 `/home/kky/ROBOT/cmsweb/upload`, created if missing). Uploads outside the prefix land in a temp root.
-The receiver starts only in TC-006 (`Ensure CMS SC Server`). Its checks are collected into one failure **of that TC only**:
+Suite Setup prepares the SC side (`Start CMS Upload Server`) together with the download server.
+`[SC] SC_PRIIP` decides how:
 
-- `[SC] SC_PRIIP` must equal `${TOOL_HOST}` (skipped if empty).
-- `NWDAF_SFTP` must not be `N`.
-- The port must be ≥ 1024 and differ from `CMS_SFTP_PORT`.
+| `[SC] SC_PRIIP` | Mode | Suite Setup | TC-006 check |
+|---|---|---|---|
+| Empty or `${TOOL_HOST}` | `local` | Starts the tool's SC receiver. Port checks: SFTP port ≥ 1024, and different from the download server's port | Receiver history and `${CMS_SC_UPLOAD_DIR}` |
+| Any other IP | `remote` | Starts nothing. Logs in to `SC_PRIIP:<NWDAF_SFTP_PORT or NWDAF_FTP_PORT>` with PG's SC account (`CMS_SC_SFTP_USER` + `PG_PWD_CMS_SFTP_UPLOAD`) and checks that `SC_PATH` is readable. Writes nothing | Polls `SC_PATH` on that server for the data file and `.FIN` (same size checks) |
 
-The other TCs therefore run even when the SC settings are wrong. Suite Teardown deletes
-only the file names this run expected (`${CMS_SC_FILES}`) from the upload directory.
+A failed check stops Suite Setup with every problem listed.
+
+The NTI TCs are split by side:
+
+- TC-004 checks the CMSWEB side: PG downloaded the file, and the `.FIN` exists in the CMSWEB directory.
+- TC-006 checks the SC side: PG uploaded the data file and its `.FIN` to the SC.
+
+Files are kept by default. With `${CMS_SC_CLEANUP}=True`, Suite Teardown deletes only the names this
+run expected (`${CMS_SC_FILES}`), locally or on the remote SC.
 
 ## Test cases
 

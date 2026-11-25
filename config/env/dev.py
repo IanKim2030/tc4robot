@@ -193,5 +193,3 @@ DB_SEED_SSH_GAP    = '5s'
 # CDS / RTS — 대상 번호는 위 "노드별 대상 번호" 절로 옮겼다.
 #CDS_NOTI_PORT      = 11301
 #RDS_NOTI_PORT      = 11301
-
-

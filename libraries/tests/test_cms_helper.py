@@ -442,6 +442,74 @@ class CmsFtpTests(unittest.TestCase):
                 C.cms_sftp_stop(sc)
 
 
+class _RemoteScMixin(object):
+    """[SC] SC_PRIIP 가 다른 서버일 때 — 그 서버에 SC 계정으로 붙어 SC_PATH 를 확인한다."""
+    SC_PATH = '/PG/FTP/CMS'
+    PROTO = 'SFTP'
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.port = _free_port()
+        env = mock.patch.dict(os.environ, {'PG_PWD_CMS_SFTP_UPLOAD': 'sc-secret'})
+        env.start()
+        self.addCleanup(env.stop)
+        self.server = self.start_server()
+        self.dir = Path(self.tmp.name, 'PG', 'FTP', 'CMS')
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.case = {'sc_data': 'SVC_20261125100000.dat', 'sc_fin': 'SVC_20261125100000.FIN', 'size': 30}
+
+    def tearDown(self):
+        self.server.stop()
+        self.tmp.cleanup()
+
+    def args(self):
+        return (self.PROTO, '127.0.0.1', self.port, 'pg', self.SC_PATH)
+
+    def test_check_wait_and_cleanup_on_remote_sc(self):
+        self.assertIn('읽기 가능', C.cms_sc_remote_check(*self.args()))
+        with self.assertRaisesRegex(AssertionError, '업로드가 다 오지'):
+            C.cms_sc_remote_wait_uploads(*self.args(), self.case, timeout=0.5, poll=0.1)
+        (self.dir / self.case['sc_data']).write_bytes(b'x' * 30)
+        (self.dir / self.case['sc_fin']).write_bytes(b'')
+        (self.dir / 'OTHER.dat').write_bytes(b'')
+        got = C.cms_sc_remote_wait_uploads(*self.args(), self.case, timeout=3, poll=0.1)
+        self.assertEqual((got['data']['size'], got['fin']['size']), (30, 0))
+        with self.assertRaisesRegex(AssertionError, '크기'):
+            C.cms_sc_remote_wait_uploads(*self.args(), dict(self.case, size=31), timeout=1, poll=0.1)
+        result = C.cms_sc_remote_cleanup(*self.args(), [self.case['sc_data'], self.case['sc_fin'], '../x'])
+        self.assertEqual(sorted(result['removed']), sorted([self.case['sc_data'], self.case['sc_fin']]))
+        self.assertEqual(sorted(os.listdir(self.dir)), ['OTHER.dat'])
+
+    def test_wrong_password_and_missing_dir_fail_clearly(self):
+        with mock.patch.dict(os.environ, {'PG_PWD_CMS_SFTP_UPLOAD': 'wrong'}):
+            with self.assertRaisesRegex(AssertionError, '로그인 실패'):
+                C.cms_sc_remote_check(*self.args())
+        with mock.patch.dict(os.environ, {'PG_PWD_CMS_SFTP_UPLOAD': ''}):
+            with self.assertRaisesRegex(AssertionError, 'PG_PWD_CMS_SFTP_UPLOAD'):
+                C.cms_sc_remote_check(*self.args())
+        with self.assertRaisesRegex(AssertionError, '읽을 수 없습니다'):
+            C.cms_sc_remote_check(self.PROTO, '127.0.0.1', self.port, 'pg', '/no/such/dir')
+        self.assertTrue(C.cms_sc_remote_cleanup(self.PROTO, '127.0.0.1', _free_port(), 'pg', '/x', ['a'])['failed'])
+
+
+@unittest.skipUnless(HAVE_PARAMIKO, 'paramiko 필요(142 venv)')
+class CmsScRemoteSftpTests(_RemoteScMixin, unittest.TestCase):
+    PROTO = 'SFTP'
+
+    def start_server(self):
+        return C._load_sftp().SftpServer(self.port, '127.0.0.1', 'pg', 'sc-secret',
+                                         directory=self.tmp.name).start()
+
+
+@unittest.skipUnless(HAVE_PYFTPDLIB, 'pyftpdlib 필요(142 venv)')
+class CmsScRemoteFtpTests(_RemoteScMixin, unittest.TestCase):
+    PROTO = 'FTP'
+
+    def start_server(self):
+        return C._load_ftp().FtpServer(self.port, '127.0.0.1', 'pg', 'sc-secret',
+                                       directory=self.tmp.name, own_ioloop=True).start()
+
+
 class FtpServerDefaultTests(unittest.TestCase):
     def test_upm_ftp_server_has_no_mounts_by_default(self):
         server = C._load_ftp().FtpServer(2121, directory=tempfile.gettempdir())
