@@ -265,7 +265,11 @@ Show CMS Zone List
             ${key}=    Cms.Cms Zone Lookup Code    ${code}
             ${rows}=    CmsDb.Db Rows    ${conn}    ${CMS_DB_SQL_ZONE_LIST}    ${key}
             ${info}=    Cms.Cms Zone Summary    ${code}    ${rows}
-            Log    [Suite]   ${db} ${info}[text]    console=True
+            # 메시지 안에 공백 2칸 이상을 두지 말 것 — Robot 이 인자 구분으로 읽어 로그 레벨로 해석한다
+            Log    [Suite] T_ZONE_LIST(${db}) ${info}[text]    console=True
+            IF    $code in $CMS_SERVICE_CODES_SC and $info['sc_ftp_yn'] != 'Y'
+                Log    [Suite] T_ZONE_LIST(${db}) ${code} 는 SC_FTP_YN 이 'Y' 가 아님 → TC-006 에서 이 코드는 실패로 남는다    level=WARN
+            END
             # TC 판정은 DB1(PG 가 조회하는 쪽과 같다고 본다) 값으로 한다
             IF    $db == 'DB1'    Set To Dictionary    ${zones}    ${code}=${info}
         END
