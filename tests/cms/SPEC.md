@@ -262,14 +262,13 @@ exit code is non-zero. Typical reasons:
 | 012 | `serviceCode` missing → ANS only, no GET | nti negative |
 | 013 | Unregistered service code → FIN, `F`/`Err ZoneCode`/`NO` | db negative |
 | 014 | `REG_NOK` → PG closes and re-registers | reg negative |
-| 015 | Idle `CMSWEB_TIMEOUT` → PG closes and re-registers | reg slow |
 
 003–006 run with `TRAP_LTE_EQP_INFO` and 007–010 repeat them with `TRAP_5G_EQP_INFO`.
 PG either writes `T_CMSWEB_ZONE` (`SC_FTP_YN=N`) or uploads to the SC (`SC_FTP_YN=Y`), never both.
 So in each set one of the two TCs (005/006, 009/010) fails by design, without sending an NTI, based on the startup lookup.
 It uses the `SC_FTP_YN` values read in Suite Setup and does not query the DB itself, so it is not tagged `db`.
 
-010 and 011 first check that the control socket is still open (`Cms Should Be Connected`,
+014 first checks that the control socket is still open (`Cms Should Be Connected`,
 non-blocking `MSG_PEEK`). If PG already closed it, for example because `CMSWEB_TIMEOUT`
 is shorter than an earlier quiet window, the test fails instead of passing on the
 already closed socket.

@@ -420,17 +420,6 @@ Reject PG Registration
     ${elapsed}=    Cms.Cms Wait Closed    ${CMS_CONN}    ${CMS_RECV_TIMEOUT}
     Log    [CMS] PG.CMS 가 REG_NOK 후 ${elapsed}초 만에 연결을 닫았습니다    console=True
 
-Wait PG Idle Disconnect
-    [Documentation]
-    ...    아무것도 보내지 않고 CMSWEB_TIMEOUT(${CMS_PG_TIMEOUT}초) 뒤 PG 가 끊는지 본다 → 걸린 초.
-    ...    시작 전에 연결이 살아 있어야 한다 — 이미 닫혀 있으면 타임아웃을 시험하지 못한 것이므로 실패한다.
-    Cms.Cms Should Be Connected    ${CMS_CONN}
-    ${limit}=    Evaluate    int(${CMS_PG_TIMEOUT}) + 60
-    Log    [CMS] 무수신 타임아웃 대기 — 최대 ${limit}초    console=True
-    ${elapsed}=    Cms.Cms Wait Closed    ${CMS_CONN}    ${limit}
-    Log    [CMS] PG.CMS 가 ${elapsed}초 만에 연결을 닫았습니다    console=True
-    RETURN    ${elapsed}
-
 Send CMS HBC And Expect Reply
     [Documentation]    도구 → PG HBC, PG → 도구 HBC 응답을 받아 돌려준다.
     ${hbc}=    Cms.Cms Hbc

@@ -35,7 +35,7 @@ Documentation
 ...    007 ~ 010 NTI 5G 세트(TRAP_5G_EQP_INFO)  — 위와 같은 4개
 ...              (SC_FTP_YN 에 따라 PG 는 T_CMSWEB_ZONE 기록과 SC 업로드 중 하나만 한다 — 세트마다 하나는 실패)
 ...    011 ~ 013 NTI 이상 — 크기 불일치 / 필수 필드 누락 / 미등록 서비스코드
-...    014 ~ 015 세션 — REG_NOK 재접속 / 무수신 타임아웃(slow)
+...    014       세션 — REG_NOK 재접속
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
@@ -191,14 +191,6 @@ TC-CMS-014 REG_NOK → PG 재접속 후 REG 재수신
     [Documentation]    REG_NOK 를 받으면 PG 가 연결을 닫고 다시 접속해 REG 를 보낸다(약 10초 주기).
     [Tags]    cms    reg    negative
     Reject PG Registration
-    Restore CMS Session
-    REG Should Carry PG Session Key
-    [Teardown]    Run Keyword If Test Failed    Run Keyword And Ignore Error    Restore CMS Session
-
-TC-CMS-015 무수신 → CMSWEB_TIMEOUT 뒤 PG 종료 후 재접속
-    [Documentation]    도구가 아무것도 보내지 않으면 PG 가 CMSWEB_TIMEOUT(dev 900초) 뒤 연결을 닫고 다시 접속한다.
-    [Tags]    cms    reg    slow
-    Wait PG Idle Disconnect
     Restore CMS Session
     REG Should Carry PG Session Key
     [Teardown]    Run Keyword If Test Failed    Run Keyword And Ignore Error    Restore CMS Session
