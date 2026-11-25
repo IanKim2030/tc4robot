@@ -51,7 +51,9 @@ ${CMS_SFTP_USER}           ${EMPTY}               # 환경 파일에서 채운�
 # 실제 파일시스템의 같은 절대 경로로 간다 — 그래서 실제 FIN 계정이 쓸 수 있어야 한다.
 # 근거(2026-11-24, 142 조회): pg:x:500:500::/PG, /PG/FTP/CMS = pg:pg drwxr-xr-x(비어 있음).
 ${CMS_REMOTE_DIR}          /PG/FTP/CMS
-${CMS_FILE_BYTES}          128                    # 시험 파일 크기(바이트)
+${CMS_FILE_BYTES}          128                    # 샘플 파일이 없을 때 만드는 시험 파일 크기(바이트)
+# 실제 샘플 파일 디렉터리 — <serviceCode>.dat 가 있으면 그 파일을 그대로 올리고 크기도 실제 크기를 쓴다.
+${CMS_DATA_DIR}            ${CURDIR}/../tests/cms/data
 ${CMS_FIN_TIMEOUT}         30                     # NTI 후 FIN 업로드까지 대기(초)
 ${CMS_QUIET_WINDOW}        10                     # "안 일어나야 하는" 판정의 관찰 시간(초)
 

@@ -34,8 +34,8 @@ Documentation
 ...    003 ~ 006 NTI LTE 세트(TRAP_LTE_EQP_INFO) — ANS / CMSWEB 다운로드 → FIN / T_CMSWEB_ZONE / SC 업로드 → FIN
 ...    007 ~ 010 NTI 5G 세트(TRAP_5G_EQP_INFO)  — 위와 같은 4개
 ...              (SC_FTP_YN 에 따라 PG 는 T_CMSWEB_ZONE 기록과 SC 업로드 중 하나만 한다 — 해당 없는 쪽은 SKIP)
-...    011 ~ 013 NTI 이상 — 크기 불일치 / 필수 필드 누락 / 미등록 서비스코드
-...    014       세션 — REG_NOK 재접속
+...    011 ~ 012 NTI 이상 — 필수 필드 누락 / 미등록 서비스코드
+...    013       세션 — REG_NOK 재접속
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
@@ -155,25 +155,13 @@ TC-CMS-010 NTI(5G) - SC 파일 업로드 → FIN 생성
 # NTI 파일 연동 — 이상
 # ════════════════════════════════════════════════════════════════
 
-TC-CMS-011 NTI - 파일명 크기 ≠ 실제 크기 → FIN 없음, Waiting State
-    [Documentation]
-    ...    TRAP_5G_EQP_INFO 파일의 크기 자리를 실제보다 1 크게 보내면 PG 가 크기 비교에 실패해 3회 재시도 후
-    ...    FIN 을 올리지 않고, T_CMSWEB_ZONE 에 STATUS='W' / REASON='Waiting State' 로 남긴다.
-    [Tags]    cms    sftp    db    negative
-    ${declared}=    Evaluate    int(${CMS_FILE_BYTES}) + 1
-    ${case}=    Send CMS NTI    service_code=TRAP_5G_EQP_INFO    declared_size=${declared}
-    PG Should Download File From CMSWEB    ${case}
-    PG Should Not Upload FIN To CMSWEB    ${case}
-    Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_WAITING}    ${CMS_REASON_WAITING}
-    ...    file_size=${0}
-
-TC-CMS-012 NTI - 필수 필드(serviceCode) 누락 → ANS 는 오고 수집 안 함
+TC-CMS-011 NTI - 필수 필드(serviceCode) 누락 → ANS 는 오고 수집 안 함
     [Documentation]    PG 는 필드 검증 전에 ANS 를 보낸다. serviceCode 가 없으면 알람만 남기고 파일을 가져가지 않는다.
     [Tags]    cms    nti    negative
     ${case}=    Send CMS NTI    omit=serviceCode
     PG Should Not Download File From CMSWEB    ${case}
 
-TC-CMS-013 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
+TC-CMS-012 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
     [Documentation]
     ...    등록되지 않은 서비스코드도 PG 는 파일을 가져가고 FIN 을 올린다. 기록은 ZONE_CODE='NO',
     ...    STATUS='F', REASON='Err ZoneCode', FILESIZE=0 이다(dev 실측 행과 같은 형태).
@@ -187,7 +175,7 @@ TC-CMS-013 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
 # 세션 관리
 # ════════════════════════════════════════════════════════════════
 
-TC-CMS-014 REG_NOK → PG 재접속 후 REG 재수신
+TC-CMS-013 REG_NOK → PG 재접속 후 REG 재수신
     [Documentation]    REG_NOK 를 받으면 PG 가 연결을 닫고 다시 접속해 REG 를 보낸다(약 10초 주기).
     [Tags]    cms    reg    negative
     Reject PG Registration

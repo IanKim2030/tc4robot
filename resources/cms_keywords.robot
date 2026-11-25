@@ -443,10 +443,15 @@ Send CMS NTI
     ...    시험 파일을 SFTP 서버에 만들고 NTI 를 보낸 뒤, PG 의 ANS 를 받아 검증한다 → 시험 정보(dict).
     ...    omit 에 필드 이름을 주면 그 필드를 뺀 NTI 를 보낸다(음성 시험). ANS 는 그래도 와야 한다
     ...    — PG 는 필드 검증 전에 ANS 를 보낸다.
+    ...    ${CMS_DATA_DIR}/<serviceCode>.dat 실제 샘플 파일이 있으면 그 파일을 올리고 크기도 그 파일 크기를 쓴다.
+    ...    없으면 ${CMS_FILE_BYTES} 바이트 시험 데이터를 만든다.
+    ...    declared_offset 을 주면 파일명의 크기 자리 = 실제 크기 + offset(크기 불일치 시험).
     [Arguments]    ${service_code}=${CMS_SERVICE_CODE}    ${size}=${CMS_FILE_BYTES}
-    ...            ${declared_size}=${EMPTY}    ${omit}=${EMPTY}
+    ...            ${declared_size}=${EMPTY}    ${omit}=${EMPTY}    ${declared_offset}=${EMPTY}
+    ${source}=    Cms.Cms Sample File    ${CMS_DATA_DIR}    ${service_code}
     ${case}=    Cms.Cms New Case    ${CMS_SFTP_SERVER}    ${CMS_REMOTE_DIR}    ${service_code}
     ...    ${CMS_PG_GROUP}    ${CMS_PG_KEY}    size=${size}    declared_size=${declared_size}
+    ...    source=${source}    declared_offset=${declared_offset}
     ...    omit=${omit}    source_group=${CMS_SRC_GROUP}    source_key=${CMS_SRC_KEY}
     ...    id_group=${CMS_MSG_ID_GROUP}
     Append To List    ${CMS_FIN_PREFIXES}    ${case}[fin_prefix]
@@ -455,6 +460,11 @@ Send CMS NTI
         Append To List    ${CMS_SC_FILES}    ${case}[sc_data]    ${case}[sc_fin]
     END
     ${sent}=    Cms.Cms Send    ${CMS_CONN}    NTI    ${case}[body]
+    IF    $source
+        Log    [CMS] 시험 파일 ${case}[file_name] = 샘플 ${source} (${case}[size] 바이트)
+    ELSE
+        Log    [CMS] 시험 파일 ${case}[file_name] = 생성 데이터 (${case}[size] 바이트, 샘플 없음)
+    END
     Log    [CMS] → NTI ${sent}
     ${ans}=    Cms.Cms Expect    ${CMS_CONN}    ANS    ${CMS_RECV_TIMEOUT}
     Log    [CMS] ← ANS ${ans}[text]

@@ -96,6 +96,30 @@ class CmsHelperTests(unittest.TestCase):
             self.assertEqual(first['sc_data'], first['renamed'])
             self.assertEqual(first['sc_fin'], first['renamed'][:-len('.dat')] + '.FIN')
 
+    def test_sample_file_is_copied_and_its_real_size_is_used(self):
+        with tempfile.TemporaryDirectory() as root, tempfile.TemporaryDirectory() as data:
+            sample = Path(data, 'TRAP_5G_EQP_INFO.dat')
+            sample.write_bytes(b'a|b|c\r\n1|2|3\n' * 10)
+            self.assertEqual(C.cms_sample_file(data, 'TRAP_5G_EQP_INFO'), str(sample))
+            self.assertEqual(C.cms_sample_file(data, 'TRAP_LTE_EQP_INFO'), '')
+            self.assertEqual(C.cms_sample_file('', 'TRAP_5G_EQP_INFO'), '')
+            server = FakeServer(root)
+            case = C.cms_new_case(server, '/CMS', 'TRAP_5G_EQP_INFO', 'PGN', 'PGN99',
+                                  size=128, source=str(sample))
+            real = sample.stat().st_size
+            self.assertEqual(case['size'], real)
+            self.assertEqual(case['source'], str(sample))
+            self.assertTrue(case['file_name'].endswith('_%d.dat' % real))
+            self.assertEqual(Path(root, 'CMS', case['file_name']).read_bytes(), sample.read_bytes())
+            bad = C.cms_new_case(server, '/CMS', 'TRAP_5G_EQP_INFO', 'PGN', 'PGN99',
+                                 source=str(sample), declared_offset='1')
+            self.assertTrue(bad['file_name'].endswith('_%d.dat' % (real + 1)))
+            self.assertEqual(bad['size'], real)
+            gen = C.cms_new_case(server, '/CMS', 'TRAP_X', 'PGN', 'PGN99', size=40,
+                                 source='', declared_offset='')
+            self.assertEqual((gen['size'], gen['source']), (40, ''))
+            self.assertTrue(gen['file_name'].endswith('_40.dat'))
+
     def test_zone_row_assertion_reports_every_mismatch(self):
         row = {'STATUS': 'F', 'REASON': 'Err ZoneCode', 'FILENAME': 'a.dat', 'FILESIZE': 0,
                'ZONE_CODE': 'NO', 'SERVICE_CODE': 'X'}

@@ -493,8 +493,19 @@ def cms_sftp_stop(server) -> None:
         _discard_owned_dir(server)
 
 
-def cms_sftp_put(server, remote_dir: str, file_name: str, size=128) -> str:
-    """SFTP 서버 가상 경로 `<remote_dir>/<file_name>` 에 size 바이트 시험 파일을 만든다.
+def cms_sample_file(data_dir, service_code: str) -> str:
+    """`<data_dir>/<service_code>.dat` 실제 샘플 파일이 있으면 그 경로, 없으면 '' 를 돌려준다."""
+    if not data_dir:
+        return ''
+    path = os.path.join(str(data_dir), '%s.dat' % service_code)
+    return path if os.path.isfile(path) else ''
+
+
+def cms_sftp_put(server, remote_dir: str, file_name: str, size=128, source=None) -> str:
+    """SFTP 서버 가상 경로 `<remote_dir>/<file_name>` 에 시험 파일을 만든다.
+
+    source(실제 샘플 파일 경로)를 주면 그 내용을 그대로 복사하고 size 는 무시한다.
+    없으면 size 바이트 시험 데이터를 만든다.
 
     반환: PG 에 알릴 절대 경로(`/<dir>/<file>`) — NTI COLUMN_DATA 값.
     """
@@ -503,9 +514,13 @@ def cms_sftp_put(server, remote_dir: str, file_name: str, size=128) -> str:
     if not os.path.isdir(local_dir):
         os.makedirs(local_dir)
     # 줄바꿈 없음 — PG 의 FTP 는 TYPE A 라 서버가 LF→CRLF 로 바꾸면 크기가 달라진다.
-    line = b'ROBOT CMSWEB TEST DATA '
-    size = int(size)
-    content = (line * (size // len(line) + 1))[:size]
+    if source:
+        with open(str(source), 'rb') as stream:
+            content = stream.read()
+    else:
+        line = b'ROBOT CMSWEB TEST DATA '
+        size = int(size)
+        content = (line * (size // len(line) + 1))[:size]
     with open(os.path.join(local_dir, file_name), 'wb') as stream:
         stream.write(content)
     return '/%s/%s' % (rel, file_name) if rel else '/%s' % file_name
@@ -1007,25 +1022,30 @@ def cms_fin_ssh_cleanup(host: str, port, user: str, remote_dir: str, prefixes) -
 
 def cms_new_case(server, remote_dir: str, service_code: str, target_group: str, target_key: str,
                  size=128, size_in_name=True, declared_size=None, omit=None,
-                 source_group='CMS', source_key='CMS', id_group='CMS') -> dict:
+                 source_group='CMS', source_key='CMS', id_group='CMS',
+                 source=None, declared_offset=None) -> dict:
     """NTI 시험 1건을 준비한다 — SFTP 서버에 파일을 만들고 NTI 본문을 짠다.
 
     size_in_name=True 면 파일명에 크기를 넣는다(PG 가 이름을 바꾸고 크기를 비교한다).
     declared_size 를 주면 파일명에는 그 값을 쓴다 — 실제 크기와 다르게 줘서 PG 의
-    크기 불일치 처리를 시험한다.
+    크기 불일치 처리를 시험한다. declared_offset 을 주면 파일명 크기 = 실제 크기 + offset.
+    source(실제 샘플 파일)를 주면 그 파일을 올리고 size 는 그 파일의 실제 크기가 된다.
     반환 dict: message_id, date_time, file_name(보낸 이름), renamed(PG 가 바꿀 이름),
               path(COLUMN_DATA), size, body(NTI 본문), fin_prefix
     """
-    size = int(size)
+    size = os.path.getsize(str(source)) if source else int(size)
     # 시각을 시험마다 다르게 — 파일명과 FIN 접두사(NTI dateTime 기반)가 겹치면 앞 시험의
     # 늦은 GET/FIN 을 다음 시험의 것으로 착각한다(같은 초에 두 시험이 돌면 실제로 겹쳤다).
     moment = _unique_moment()
     stamp = moment.strftime('%Y%m%d%H%M%S')
     name_size = None
     if _truthy(size_in_name):
-        name_size = size if declared_size in (None, '') else int(declared_size)
+        if declared_size not in (None, ''):
+            name_size = int(declared_size)
+        else:
+            name_size = size + (int(declared_offset) if declared_offset not in (None, '') else 0)
     file_name = cms_data_file_name(service_code, stamp, name_size)
-    path = cms_sftp_put(server, remote_dir, file_name, size)
+    path = cms_sftp_put(server, remote_dir, file_name, size, source=source or None)
     date_time = moment.strftime('%Y-%m-%d %H:%M:%S')
     message_id = cms_message_id(id_group)
     body = cms_nti(service_code, path, message_id, target_group, target_key,
@@ -1037,6 +1057,7 @@ def cms_new_case(server, remote_dir: str, service_code: str, target_group: str, 
         'renamed': cms_renamed_file_name(file_name),
         'path': path,
         'size': size,
+        'source': str(source) if source else '',
         'service_code': service_code,
         'body': body,
         'fin_prefix': cms_fin_prefix(service_code, date_time, target_group, target_key),
