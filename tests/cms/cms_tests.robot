@@ -157,11 +157,11 @@ TC-CMS-010 NTI(5G) - SC 파일 업로드 → FIN 생성
 
 TC-CMS-011 NTI - 파일명 크기 ≠ 실제 크기 → FIN 없음, Waiting State
     [Documentation]
-    ...    파일명의 크기 자리를 실제보다 1 크게 보내면 PG 가 크기 비교에 실패해 3회 재시도 후
+    ...    TRAP_5G_EQP_INFO 파일의 크기 자리를 실제보다 1 크게 보내면 PG 가 크기 비교에 실패해 3회 재시도 후
     ...    FIN 을 올리지 않고, T_CMSWEB_ZONE 에 STATUS='W' / REASON='Waiting State' 로 남긴다.
     [Tags]    cms    sftp    db    negative
     ${declared}=    Evaluate    int(${CMS_FILE_BYTES}) + 1
-    ${case}=    Send CMS NTI    declared_size=${declared}
+    ${case}=    Send CMS NTI    service_code=TRAP_5G_EQP_INFO    declared_size=${declared}
     PG Should Download File From CMSWEB    ${case}
     PG Should Not Upload FIN To CMSWEB    ${case}
     Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_WAITING}    ${CMS_REASON_WAITING}

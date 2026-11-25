@@ -259,7 +259,7 @@ exit code is non-zero. Typical reasons:
 | 004 / 008 | SFTP GET + FIN name rule | sftp lte / 5g |
 | 005 / 009 | `T_CMSWEB_ZONE` row: C/E, OK, size, renamed file, zone code (needs `SC_FTP_YN=N`) | db lte / 5g |
 | 006 / 010 | `SC_FTP_YN=Y` → data file (same size) + `.FIN` arrive at the SC | sftp sc lte / 5g |
-| 011 | Declared size ≠ actual → no FIN, `W`/`Waiting State` | sftp db negative |
+| 011 | `TRAP_5G_EQP_INFO` file, declared size ≠ actual → no FIN, `W`/`Waiting State` | sftp db negative |
 | 012 | `serviceCode` missing → ANS only, no GET | nti negative |
 | 013 | Unregistered service code → FIN, `F`/`Err ZoneCode`/`NO` | db negative |
 | 014 | `REG_NOK` → PG closes and re-registers | reg negative |
