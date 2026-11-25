@@ -187,9 +187,10 @@ and `CMS_SERVICE_CODE`, from DB1 and, if configured, DB2.
 
 The TCs use those values as follows:
 
-- **SC upload TCs (006/010):** fail without an NTI when the code's `SC_FTP_YN` is not `Y`.
+- **SC upload TCs (006/010):** skip without an NTI when the code's `SC_FTP_YN` is not `Y`. PG then never calls `RunSFtpSC`,
+  so no data file or `.FIN` reaches the SC and there is nothing to check.
 - **`T_CMSWEB_ZONE` TCs (005/009):** need the code registered with `SC_FTP_YN='N'`; the expected `ZONE_CODE` is the value read at startup.
-  A missing row, `SC_FTP_YN='Y'`, or no lookup (PDB unreachable) fails without an NTI.
+  `SC_FTP_YN='Y'` skips (PG writes no row). A missing row or no lookup (PDB unreachable) fails without an NTI.
 
 Suite Teardown deletes `T_CMSWEB_ZONE` rows only by the `MSG_ID`s of the NTIs this run sent.
 It never deletes other rows for the real service codes.
@@ -265,7 +266,7 @@ exit code is non-zero. Typical reasons:
 
 003–006 run with `TRAP_LTE_EQP_INFO` and 007–010 repeat them with `TRAP_5G_EQP_INFO`.
 PG either writes `T_CMSWEB_ZONE` (`SC_FTP_YN=N`) or uploads to the SC (`SC_FTP_YN=Y`), never both.
-So in each set one of the two TCs (005/006, 009/010) fails by design, without sending an NTI, based on the startup lookup.
+So in each set one of the two TCs (005/006, 009/010) is skipped, without sending an NTI, based on the startup lookup.
 It uses the `SC_FTP_YN` values read in Suite Setup and does not query the DB itself, so it is not tagged `db`.
 
 014 first checks that the control socket is still open (`Cms Should Be Connected`,

@@ -269,7 +269,7 @@ Show CMS Zone List
             # 메시지 안에 공백 2칸 이상을 두지 말 것 — Robot 이 인자 구분으로 읽어 로그 레벨로 해석한다
             Log    [Suite] T_ZONE_LIST(${db}) ${info}[text]    console=True
             IF    $code in $CMS_SERVICE_CODES_SC and $info['sc_ftp_yn'] != 'Y'
-                Log    [Suite] T_ZONE_LIST(${db}) ${code} 는 SC_FTP_YN 이 'Y' 가 아님 → 이 코드의 SC 업로드 TC 는 실패로 남는다    level=WARN
+                Log    [Suite] T_ZONE_LIST(${db}) ${code} 는 SC_FTP_YN 이 'Y' 가 아님 → 이 코드의 SC 업로드 TC 는 SKIP 된다    level=WARN
             END
             # TC 판정은 DB1(PG 가 조회하는 쪽과 같다고 본다) 값으로 한다
             IF    $db == 'DB1'    Set To Dictionary    ${zones}    ${code}=${info}
@@ -278,20 +278,20 @@ Show CMS Zone List
     Set Suite Variable    ${CMS_ZONES}    ${zones}
 
 CMS Zone Should Allow SC Forward
-    [Documentation]    SC 업로드 TC — 시작 전 조회한 이 코드의 SC_FTP_YN 이 'Y' 가 아니면 실패(조회하지 못했으면 그대로 시험).
+    [Documentation]    SC 업로드 TC — 시작 전 조회한 이 코드의 SC_FTP_YN 이 'Y' 가 아니면 SKIP(PG 가 SC 로 올리지 않아 확인할 파일이 없다). 조회하지 못했으면 그대로 시험.
     [Arguments]    ${code}
     IF    $code not in $CMS_ZONES
         RETURN
     END
     ${info}=    Set Variable    ${CMS_ZONES}[${code}]
     IF    $info['sc_ftp_yn'] != 'Y'
-        Fail    ${info}[text] — SC_FTP_YN 이 'Y' 가 아니라 PG 가 SC 로 올리지 않습니다(T_ZONE_LIST 는 슈트가 바꾸지 않음)
+        Skip    ${info}[text] — SC_FTP_YN 이 'Y' 가 아니라 PG 가 SC 로 올리지 않습니다(데이터·FIN 파일 없음, 확인 불가)
     END
 
 CMS Zone Code For Collect
     [Documentation]
     ...    T_CMSWEB_ZONE TC 의 기대 ZONE_CODE — 시작 전 조회값. 조회하지 못했거나, 등록이 없거나,
-    ...    SC_FTP_YN='Y'(PG 가 T_CMSWEB_ZONE 에 기록하지 않음)면 실패.
+    ...    SC_FTP_YN='Y'(PG 가 SC 로 올리고 T_CMSWEB_ZONE 에 기록하지 않음)면 SKIP — 확인할 행이 없다.
     [Arguments]    ${code}
     IF    $code not in $CMS_ZONES
         Fail    ${code} 의 T_ZONE_LIST 값을 시작 전에 조회하지 못했습니다 — PDB 접속을 확인하십시오
@@ -301,7 +301,7 @@ CMS Zone Code For Collect
         Fail    ${info}[text] — T_CMSWEB_ZONE 판정에는 T_ZONE_LIST 에 등록된(SC_FTP_YN='N') 서비스코드가 필요합니다(슈트는 행을 만들지 않음)
     END
     IF    $info['sc_ftp_yn'] == 'Y'
-        Fail    ${info}[text] — SC_FTP_YN='Y' 면 PG 가 SC 로 올리고 T_CMSWEB_ZONE 에 기록하지 않습니다
+        Skip    ${info}[text] — SC_FTP_YN='Y' 면 PG 가 SC 로 올리고 T_CMSWEB_ZONE 에 기록하지 않습니다(확인 불가)
     END
     RETURN    ${info}[zone_code]
 
