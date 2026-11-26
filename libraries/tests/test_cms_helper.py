@@ -120,6 +120,21 @@ class CmsHelperTests(unittest.TestCase):
             self.assertEqual((gen['size'], gen['source']), (40, ''))
             self.assertTrue(gen['file_name'].endswith('_40.dat'))
 
+    def test_sc_should_stay_quiet_fails_only_on_this_cases_files(self):
+        case = {'sc_data': 'TRAP_X_20261126120000.dat', 'sc_fin': 'TRAP_X_20261126120000.FIN'}
+
+        class Srv:
+            def __init__(self, names):
+                self.names = names
+
+            def files(self):
+                return [{'filename': n} for n in self.names]
+
+        C.cms_sc_should_stay_quiet(Srv(['OTHER_20261126120000.dat']), case, window=0, poll=0)
+        with self.assertRaises(AssertionError) as ctx:
+            C.cms_sc_should_stay_quiet(Srv(['TRAP_X_20261126120000.FIN']), case, window=0, poll=0)
+        self.assertIn('SC_FTP_YN=N', str(ctx.exception))
+
     def test_zone_row_assertion_reports_every_mismatch(self):
         row = {'STATUS': 'F', 'REASON': 'Err ZoneCode', 'FILENAME': 'a.dat', 'FILESIZE': 0,
                'ZONE_CODE': 'NO', 'SERVICE_CODE': 'X'}

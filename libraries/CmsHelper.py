@@ -683,6 +683,19 @@ def cms_sc_wait_uploads(server, case: dict, upload_dir: str, timeout=30, poll=0.
     return found
 
 
+def cms_sc_should_stay_quiet(server, case: dict, window=10, poll=0.5) -> None:
+    """window 초 동안 SC 수신 서버에 이 시험의 데이터 파일·FIN 이 **올라오지 않는지** 본다(SC_FTP_YN=N 음성 판정)."""
+    names = {case['sc_data'], case['sc_fin']}
+    deadline = time.time() + float(window)
+    while True:
+        hits = sorted(i['filename'] for i in server.files() if i['filename'] in names)
+        if hits:
+            raise AssertionError('SC_FTP_YN=N 인데 PG 가 SC 로 업로드했습니다: %s' % hits)
+        if time.time() >= deadline:
+            return
+        time.sleep(float(poll))
+
+
 def cms_sc_cleanup(upload_dir: str, names) -> dict:
     """upload_dir 에서 이름이 정확히 names 인 파일만 지운다 → {'removed': [...], 'failed': [...]}.
 
@@ -838,6 +851,26 @@ def cms_sc_remote_wait_uploads(protocol: str, host: str, port, user: str, sc_pat
     if problems:
         raise AssertionError('SC 업로드 판정 실패(%s) — %s' % (client.where, '; '.join(problems)))
     return found
+
+
+def cms_sc_remote_should_stay_quiet(protocol: str, host: str, port, user: str, sc_path: str, case: dict,
+                                    window=10, poll=1.0) -> None:
+    """window 초 동안 원격 SC 서버의 SC_PATH 에 이 시험의 데이터 파일·FIN 이 생기지 않는지 본다."""
+    names = (case['sc_data'], case['sc_fin'])
+    deadline = time.time() + float(window)
+    client = _ScRemote(protocol, host, port, user)
+    try:
+        while True:
+            listing = client.sizes(sc_path)
+            hits = sorted(n for n in names if n in listing)
+            if hits:
+                raise AssertionError('SC_FTP_YN=N 인데 PG 가 SC 서버 %s%s 로 업로드했습니다: %s'
+                                     % (client.where, sc_path, hits))
+            if time.time() >= deadline:
+                return
+            time.sleep(float(poll))
+    finally:
+        client.close()
 
 
 def cms_sc_remote_cleanup(protocol: str, host: str, port, user: str, sc_path: str, names) -> dict:

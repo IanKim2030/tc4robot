@@ -193,10 +193,11 @@ and `CMS_SERVICE_CODE`, from DB1 and, if configured, DB2.
 
 The TCs use those values as follows:
 
-- **SC upload TCs (006/010):** skip without an NTI when the code's `SC_FTP_YN` is not `Y`. PG then never calls `RunSFtpSC`,
-  so no data file or `.FIN` reaches the SC and there is nothing to check.
-- **`T_CMSWEB_ZONE` TCs (005/009):** need the code registered with `SC_FTP_YN='N'`; the expected `ZONE_CODE` is the value read at startup.
-  `SC_FTP_YN='Y'` skips (PG writes no row). A missing row or no lookup (PDB unreachable) fails without an NTI.
+- **`SC_FTP_YN` switch TCs (005/008, `PG Should Forward By SC_FTP_YN`):** send the NTI, check the CMSWEB `.FIN`, then branch on the value read at startup:
+  - `Y`: the data file (same size) and an empty `.FIN` must arrive at the SC (SFTP when `NWDAF_SFTP=Y`, FTP when `N`). PG writes no `T_CMSWEB_ZONE` row.
+  - `N`: the `T_CMSWEB_ZONE` row must match (expected `ZONE_CODE` = the value read at startup). Then the SC side is watched for
+    `CMS_QUIET_WINDOW` seconds; the data file and `.FIN` must not arrive (`PG Should Not Upload To SC`).
+  - A missing row or no lookup (PDB unreachable) fails without an NTI.
 
 Suite Teardown deletes `T_CMSWEB_ZONE` rows only by the `MSG_ID`s of the NTIs this run sent.
 It never deletes other rows for the real service codes.
@@ -227,7 +228,7 @@ virtual prefix `${CMS_SC_PATH}` onto the real directory `${CMS_SC_UPLOAD_DIR}` (
 Suite Setup prepares the SC side (`Start CMS Upload Server`) together with the download server.
 `[SC] SC_PRIIP` decides how:
 
-| `[SC] SC_PRIIP` | Mode | Suite Setup | TC-006/010 check |
+| `[SC] SC_PRIIP` | Mode | Suite Setup | TC-005/008 upload (`Y`) or no-upload (`N`) check |
 |---|---|---|---|
 | Empty or `${TOOL_HOST}` | `local` | Starts the tool's SC receiver. Port checks: SFTP port ≥ 1024, and different from the download server's port | Receiver history and `${CMS_SC_UPLOAD_DIR}` |
 | Any other IP | `remote` | Starts nothing. Logs in to `SC_PRIIP:<NWDAF_SFTP_PORT or NWDAF_FTP_PORT>` with PG's SC account (`CMS_SC_SFTP_USER` + `PG_PWD_CMS_SFTP_UPLOAD`) and checks that `SC_PATH` is readable. Writes nothing | Polls `SC_PATH` on that server for the data file and `.FIN` (same size checks) |
@@ -237,7 +238,7 @@ A failed check stops Suite Setup with every problem listed.
 The NTI TCs are split by side:
 
 - TC-004/008 check the CMSWEB side: PG downloaded the file, and the `.FIN` exists in the CMSWEB directory.
-- TC-006/010 check the SC side: PG uploaded the data file and its `.FIN` to the SC.
+- TC-005/008 check the SC side: with `SC_FTP_YN=Y` PG uploaded the data file and its `.FIN`; with `N` nothing arrived.
 
 Files are kept by default. With `${CMS_SC_CLEANUP}=True`, Suite Teardown deletes only the names this
 run expected (`${CMS_SC_FILES}`), locally or on the remote SC.
@@ -261,20 +262,18 @@ exit code is non-zero. Typical reasons:
 |---|---|---|
 | 001 | REG `sourceSessionKey` = cfg GROUP/KEY (received in Suite Setup) | reg |
 | 002 | HBC reply fields | hbc |
-| 003 / 007 | NTI → ANS echoes `messageId`, `NTI_OK` | nti lte / 5g |
-| 004 / 008 | SFTP GET + FIN name rule | sftp lte / 5g |
-| 005 / 009 | `T_CMSWEB_ZONE` row: C/E, OK, size, renamed file, zone code (needs `SC_FTP_YN=N`) | db lte / 5g |
-| 006 / 010 | `SC_FTP_YN=Y` → data file (same size) + `.FIN` arrive at the SC | sftp sc lte / 5g |
-| 011 | `serviceCode` missing → ANS only, no GET | nti negative |
-| 012 | Unregistered service code → FIN, `F`/`Err ZoneCode`/`NO` | db negative |
-| 013 | `REG_NOK` → PG closes and re-registers | reg negative |
+| 003 / 006 | NTI → ANS echoes `messageId`, `NTI_OK` | nti lte / 5g |
+| 004 / 007 | SFTP GET + FIN name rule | sftp lte / 5g |
+| 005 / 008 | `SC_FTP_YN` switch — `Y`: data file (same size) + `.FIN` arrive at the SC; `N`: `T_CMSWEB_ZONE` row (C/E, OK, size, renamed file, zone code), then no SC upload | db sc lte / 5g |
+| 009 | `serviceCode` missing → ANS only, no GET | nti negative |
+| 010 | Unregistered service code → FIN, `F`/`Err ZoneCode`/`NO` | db negative |
+| 011 | `REG_NOK` → PG closes and re-registers | reg negative |
 
-003–006 run with `TRAP_LTE_EQP_INFO` and 007–010 repeat them with `TRAP_5G_EQP_INFO`.
-PG either writes `T_CMSWEB_ZONE` (`SC_FTP_YN=N`) or uploads to the SC (`SC_FTP_YN=Y`), never both.
-So in each set one of the two TCs (005/006, 009/010) is skipped, without sending an NTI, based on the startup lookup.
-It uses the `SC_FTP_YN` values read in Suite Setup and does not query the DB itself, so it is not tagged `db`.
+003–005 run with `TRAP_LTE_EQP_INFO` and 006–008 repeat them with `TRAP_5G_EQP_INFO`.
+PG either writes `T_CMSWEB_ZONE` (`SC_FTP_YN=N`) or uploads to the SC (`SC_FTP_YN=Y`), never both,
+so 005/008 pick the check from the `SC_FTP_YN` value read in Suite Setup. Nothing is skipped.
 
-013 first checks that the control socket is still open (`Cms Should Be Connected`,
+011 first checks that the control socket is still open (`Cms Should Be Connected`,
 non-blocking `MSG_PEEK`). If PG already closed it, for example because `CMSWEB_TIMEOUT`
 is shorter than an earlier quiet window, the test fails instead of passing on the
 already closed socket.
@@ -288,9 +287,9 @@ earlier case therefore cannot satisfy or break a later one.
 - Fake PG client that follows `CCMSWeb.cpp`, including a `RunSFtpSC` port, on 142 (Py 3.6.8, `~/venv`): `--exclude db`, `CMS_PG_TIMEOUT` 20 s. 8/8 pass in both modes:
   - `simulator`: the FIN goes to the simulator.
   - `sshd`: the FIN goes to a local stand-in sshd.
-  - TC-006: the SC upload landed in `/home/kky/ROBOT/cmsweb/upload` (sshd run) or a temp dir (simulator run), and Teardown removed exactly those two files.
-  - TC-006 fails alone when `CMS_SC_PG_ADDR` ≠ `TOOL_HOST`.
-  - TC-013 (REG_NOK) fails as intended when the fake closes the connection before it.
+  - TC-006 (now TC-005/008, `Y` branch): the SC upload landed in `/home/kky/ROBOT/cmsweb/upload` (sshd run) or a temp dir (simulator run), and Teardown removed exactly those two files.
+  - TC-006 (now TC-005/008) fails alone when `CMS_SC_PG_ADDR` ≠ `TOOL_HOST`.
+  - TC-011 (REG_NOK) fails as intended when the fake closes the connection before it.
 - **Not tested:** the real sshd path (127.0.0.1:22 as `pg`), because the `pg` password was not available.
   Before the first real run, an operator with `PG_PWD_CMS_FIN_SSH` should run Suite Setup.
   `Check CMS FIN Target` verifies login and write access to `/PG/FTP/CMS`.

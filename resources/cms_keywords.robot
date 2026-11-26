@@ -268,8 +268,9 @@ Show CMS Zone List
             ${info}=    Cms.Cms Zone Summary    ${code}    ${rows}
             # 메시지 안에 공백 2칸 이상을 두지 말 것 — Robot 이 인자 구분으로 읽어 로그 레벨로 해석한다
             Log    [Suite] T_ZONE_LIST(${db}) ${info}[text]    console=True
-            IF    $code in $CMS_SERVICE_CODES_SC and $info['sc_ftp_yn'] != 'Y'
-                Log    [Suite] T_ZONE_LIST(${db}) ${code} 는 SC_FTP_YN 이 'Y' 가 아님 → 이 코드의 SC 업로드 TC 는 SKIP 된다    level=WARN
+            IF    $code in $CMS_SERVICE_CODES_SC
+                ${how}=    Set Variable If    $info['sc_ftp_yn'] == 'Y'    SC 업로드·FIN    T_CMSWEB_ZONE 행 + SC 업로드 없음
+                Log    [Suite] T_ZONE_LIST(${db}) ${code} → SC_FTP_YN 분기 TC 는 ${how} 로 판정    console=True
             END
             # TC 판정은 DB1(PG 가 조회하는 쪽과 같다고 본다) 값으로 한다
             IF    $db == 'DB1'    Set To Dictionary    ${zones}    ${code}=${info}
@@ -277,33 +278,36 @@ Show CMS Zone List
     END
     Set Suite Variable    ${CMS_ZONES}    ${zones}
 
-CMS Zone Should Allow SC Forward
-    [Documentation]    SC 업로드 TC — 시작 전 조회한 이 코드의 SC_FTP_YN 이 'Y' 가 아니면 SKIP(PG 가 SC 로 올리지 않아 확인할 파일이 없다). 조회하지 못했으면 그대로 시험.
-    [Arguments]    ${code}
-    IF    $code not in $CMS_ZONES
-        RETURN
-    END
-    ${info}=    Set Variable    ${CMS_ZONES}[${code}]
-    IF    $info['sc_ftp_yn'] != 'Y'
-        Skip    ${info}[text] — SC_FTP_YN 이 'Y' 가 아니라 PG 가 SC 로 올리지 않습니다(데이터·FIN 파일 없음, 확인 불가)
-    END
-
-CMS Zone Code For Collect
+CMS Zone Info
     [Documentation]
-    ...    T_CMSWEB_ZONE TC 의 기대 ZONE_CODE — 시작 전 조회값. 조회하지 못했거나, 등록이 없거나,
-    ...    SC_FTP_YN='Y'(PG 가 SC 로 올리고 T_CMSWEB_ZONE 에 기록하지 않음)면 SKIP — 확인할 행이 없다.
+    ...    시작 전 조회한 이 코드의 T_ZONE_LIST 값(dict: sc_ftp_yn, zone_code, text …). 조회하지 못했거나
+    ...    등록이 없으면 FAIL — SC_FTP_YN 분기 판정에는 등록된 서비스코드가 필요하다(슈트는 행을 만들지 않음).
     [Arguments]    ${code}
     IF    $code not in $CMS_ZONES
         Fail    ${code} 의 T_ZONE_LIST 값을 시작 전에 조회하지 못했습니다 — PDB 접속을 확인하십시오
     END
     ${info}=    Set Variable    ${CMS_ZONES}[${code}]
     IF    not $info['found']
-        Fail    ${info}[text] — T_CMSWEB_ZONE 판정에는 T_ZONE_LIST 에 등록된(SC_FTP_YN='N') 서비스코드가 필요합니다(슈트는 행을 만들지 않음)
+        Fail    ${info}[text] — SC_FTP_YN 분기 판정에는 T_ZONE_LIST 에 등록된 서비스코드가 필요합니다(슈트는 행을 만들지 않음)
     END
-    IF    $info['sc_ftp_yn'] == 'Y'
-        Skip    ${info}[text] — SC_FTP_YN='Y' 면 PG 가 SC 로 올리고 T_CMSWEB_ZONE 에 기록하지 않습니다(확인 불가)
+    RETURN    ${info}
+
+PG Should Forward By SC_FTP_YN
+    [Documentation]
+    ...    PG 가 T_ZONE_LIST.SC_FTP_YN 에 따라 하는 일을 확인한다(CCMSWeb::Run).
+    ...    - Y : 받은 파일 + 빈 .FIN 을 SC(${CMS_SC_FILE_PROTO}, NWDAF_SFTP 로 결정)로 업로드 — 두 파일·크기 확인.
+    ...          PG 는 업로드 뒤 return 해 T_CMSWEB_ZONE 에 기록하지 않는다.
+    ...    - N : T_CMSWEB_ZONE 행(STATUS C/E, OK, 크기, 바뀐 파일명, ZONE_CODE) 확인 → SC 로 업로드하지 않았는지 확인.
+    [Arguments]    ${case}    ${zone}
+    Log    [CMS] ${zone}[text] → SC_FTP_YN=${zone}[sc_ftp_yn] 분기    console=True
+    IF    $zone['sc_ftp_yn'] == 'Y'
+        PG Should Upload File And FIN To SC    ${case}
+    ELSE
+        Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_OK}    ${CMS_REASON_OK}
+        ...    file_name=${case}[renamed]    file_size=${case}[size]
+        ...    zone_code=${zone}[zone_code]    service_code=${case}[service_code]
+        PG Should Not Upload To SC    ${case}
     END
-    RETURN    ${info}[zone_code]
 
 Ensure CMS DB Connection
     [Documentation]    T_CMSWEB_ZONE 판정용 PDB 접속(한 번만). ${PDB_CONNSTR_2} 가 있으면 두 번째 DB 도 붙는다.
@@ -511,6 +515,21 @@ PG Should Upload File And FIN To SC
     END
     Log    [CMS] SC 수신 — ${got}[data][path] (${got}[data][size]바이트), ${got}[fin][path]    console=True
     RETURN    ${got}
+
+PG Should Not Upload To SC
+    [Documentation]
+    ...    SC_FTP_YN=N — ${CMS_QUIET_WINDOW}초 동안 이 시험의 데이터 파일·.FIN 이 SC(${CMS_SC_FILE_PROTO})로
+    ...    올라오지 않는지 본다(음성 판정). local 은 도구의 SC 수신 서버 이력, remote 는 SC 서버의 SC_PATH 를 본다.
+    [Arguments]    ${case}
+    IF    $CMS_SC_MODE == 'remote'
+        Cms.Cms Sc Remote Should Stay Quiet    ${CMS_SC_FILE_PROTO}    ${CMS_SC_PG_ADDR}    ${CMS_SC_PORT}
+        ...    ${CMS_SC_SFTP_USER}    ${CMS_SC_PATH}    ${case}    ${CMS_QUIET_WINDOW}
+    ELSE IF    $CMS_SC_SERVER is not None
+        Cms.Cms Sc Should Stay Quiet    ${CMS_SC_SERVER}    ${case}    ${CMS_QUIET_WINDOW}
+    ELSE
+        Fail    SC 수신 쪽이 준비되지 않아 SC 업로드 여부를 볼 수 없습니다(Start CMS Upload Server 확인)
+    END
+    Log    [CMS] SC 업로드 없음 확인 (${CMS_QUIET_WINDOW}초) — ${case}[sc_data] / ${case}[sc_fin]
 
 PG Should Not Download File From CMSWEB
     [Documentation]    ${CMS_QUIET_WINDOW}초 동안 PG 가 이 파일을 가져가지 않는지 본다(음성 판정).

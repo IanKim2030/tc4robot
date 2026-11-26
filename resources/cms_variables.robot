@@ -102,7 +102,7 @@ ${CMS_SERVICE_CODE}        TRAP_ROBOT_ZONE_TEST
 ${CMS_SERVICE_CODE_UNREG}    TRAP_ROBOT_ZONE_UNREG
 # 실제 코드 목록 — Suite Setup 이 시작 전에 각 코드의 T_ZONE_LIST 값(SC_FTP_YN 등)을 조회해 보여 준다(막지 않는다).
 # PG 는 조회 전에 마지막 '_V..' 를 뗀다(deleteVersion) — 버전 붙은 코드를 넣어도 조회 키는 PG 와 같다.
-# NTI 정상 세트 서비스코드는 TC 에 고정돼 있다(TC-003~006 TRAP_LTE_EQP_INFO, TC-007~010 TRAP_5G_EQP_INFO).
+# NTI 정상 세트 서비스코드는 TC 에 고정돼 있다(TC-003~005 TRAP_LTE_EQP_INFO, TC-006~008 TRAP_5G_EQP_INFO).
 # 이 목록은 시작 전 조회·표시용이다 — TC 의 코드를 바꾸면 여기도 맞춘다. 슈트·시드는 T_ZONE_LIST 를 INSERT/UPDATE 하지 않는다.
 @{CMS_SERVICE_CODES_SC}    TRAP_LTE_EQP_INFO    TRAP_5G_EQP_INFO
 ${CMS_ZONE_SHOW}           ${TRUE}                # ${FALSE} 면 시작 전 T_ZONE_LIST 조회를 건너뛴다(PDB 없는 가짜 PG 시험)

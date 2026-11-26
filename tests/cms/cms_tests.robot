@@ -31,11 +31,11 @@ Documentation
 ...    [TC 번호 체계]
 ...    001       REG 세션키
 ...    002       HBC HeartBeat
-...    003 ~ 006 NTI LTE 세트(TRAP_LTE_EQP_INFO) — ANS / CMSWEB 다운로드 → FIN / T_CMSWEB_ZONE / SC 업로드 → FIN
-...    007 ~ 010 NTI 5G 세트(TRAP_5G_EQP_INFO)  — 위와 같은 4개
-...              (SC_FTP_YN 에 따라 PG 는 T_CMSWEB_ZONE 기록과 SC 업로드 중 하나만 한다 — 해당 없는 쪽은 SKIP)
-...    011 ~ 012 NTI 이상 — 필수 필드 누락 / 미등록 서비스코드
-...    013       세션 — REG_NOK 재접속
+...    003 ~ 005 NTI LTE 세트(TRAP_LTE_EQP_INFO) — ANS / CMSWEB 다운로드 → FIN / SC_FTP_YN 분기
+...    006 ~ 008 NTI 5G 세트(TRAP_5G_EQP_INFO)  — 위와 같은 3개
+...              (SC_FTP_YN 분기: Y → SC 업로드·FIN 확인 / N → T_CMSWEB_ZONE 확인 + SC 업로드 없음 확인)
+...    009 ~ 010 NTI 이상 — 필수 필드 누락 / 미등록 서비스코드
+...    011       세션 — REG_NOK 재접속
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
@@ -85,40 +85,30 @@ TC-CMS-004 NTI(LTE) - CMSWEB 파일 다운로드 → FIN 생성
     PG Should Download File From CMSWEB    ${case}
     PG Should Upload FIN To CMSWEB    ${case}
 
-TC-CMS-005 NTI(LTE) - T_CMSWEB_ZONE 반영 (STATUS·REASON·FILESIZE)
+TC-CMS-005 NTI(LTE) - SC_FTP_YN 분기 (Y → SC 업로드·FIN / N → T_CMSWEB_ZONE 반영)
     [Documentation]
-    ...    T_ZONE_LIST.SC_FTP_YN='N' 이면 PG 가 T_CMSWEB_ZONE 에 REASON='OK', FILESIZE=실제 크기, FILENAME=크기 자리를
-    ...    뗀 이름, ZONE_CODE=T_ZONE_LIST 값으로 기록한다. STATUS 는 'C'(ZONE 처리 후 'E' 허용).
-    ...    SC_FTP_YN='Y' 면 PG 가 기록하지 않아 확인할 행이 없으므로 NTI 없이 SKIP 한다(시작 전 조회값으로 판단).
-    [Tags]    cms    db    lte
-    ${zone_code}=    CMS Zone Code For Collect    TRAP_LTE_EQP_INFO
+    ...    시작 전 조회한 TRAP_LTE_EQP_INFO 의 T_ZONE_LIST.SC_FTP_YN 으로 판정을 나눈다. 먼저 CMSWEB FIN 업로드를 확인한 뒤
+    ...    - Y : PG 가 받은 파일(크기 자리를 뗀 이름)과 빈 .FIN 을 SC(NWDAF_SFTP=Y → SFTP, N → FTP)의 SC_PATH 로
+    ...          올렸는지 본다. 데이터 파일 크기가 같아야 한다. PG 는 T_CMSWEB_ZONE 에 기록하지 않는다.
+    ...    - N : T_CMSWEB_ZONE 에 REASON='OK', FILESIZE=실제 크기, FILENAME=크기 자리를 뗀 이름, ZONE_CODE=T_ZONE_LIST 값
+    ...          (STATUS 'C', ZONE 처리 후 'E' 허용)으로 기록했는지 본 뒤, SC 로 업로드하지 않았는지 본다.
+    ...    T_ZONE_LIST 에 등록이 없거나 조회하지 못했으면 FAIL.
+    [Tags]    cms    db    sc    lte
+    ${zone}=    CMS Zone Info    TRAP_LTE_EQP_INFO
     ${case}=    Send CMS NTI    service_code=TRAP_LTE_EQP_INFO
     PG Should Upload FIN To CMSWEB    ${case}
-    Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_OK}    ${CMS_REASON_OK}
-    ...    file_name=${case}[renamed]    file_size=${case}[size]
-    ...    zone_code=${zone_code}    service_code=TRAP_LTE_EQP_INFO
-
-TC-CMS-006 NTI(LTE) - SC 파일 업로드 → FIN 생성
-    [Documentation]
-    ...    T_ZONE_LIST.SC_FTP_YN='Y' 면 PG.CMS 가 CMSWEB 에서 받은 파일(크기 자리를 뗀 이름)을
-    ...    SC(${CMS_SC_FILE_PROTO})의 SC_PATH 로 업로드하고 빈 .FIN 을 올린다 → 두 파일이 생기고 데이터 파일
-    ...    크기가 같아야 한다. [SC] SC_PRIIP 가 도구면 도구의 수신 디렉터리, 아니면 그 SC 서버에 접속해 본다.
-    ...    SC_FTP_YN 이 'Y' 가 아니면 PG 가 SC 로 올리지 않아 데이터·FIN 파일을 확인할 수 없으므로 NTI 없이 SKIP 한다.
-    [Tags]    cms    sftp    sc    lte
-    CMS Zone Should Allow SC Forward    TRAP_LTE_EQP_INFO
-    ${case}=    Send CMS NTI    service_code=TRAP_LTE_EQP_INFO
-    PG Should Upload File And FIN To SC    ${case}
+    PG Should Forward By SC_FTP_YN    ${case}    ${zone}
 
 # ════════════════════════════════════════════════════════════════
 # NTI 파일 연동 — 5G 세트 (TRAP_5G_EQP_INFO)
 # ════════════════════════════════════════════════════════════════
 
-TC-CMS-007 NTI(5G) - ANS 수신 (messageId 에코, NTI_OK)
+TC-CMS-006 NTI(5G) - ANS 수신 (messageId 에코, NTI_OK)
     [Documentation]    도구(CMSWEB)가 TRAP_5G_EQP_INFO NTI(Report) 를 보내면 PG.CMS 가 같은 messageId 와 data=NTI_OK 로 ANS 를 보낸다.
     [Tags]    cms    nti    5g
     Send CMS NTI    service_code=TRAP_5G_EQP_INFO
 
-TC-CMS-008 NTI(5G) - CMSWEB 파일 다운로드 → FIN 생성
+TC-CMS-007 NTI(5G) - CMSWEB 파일 다운로드 → FIN 생성
     [Documentation]
     ...    PG.CMS 가 CMSWEB 에서 COLUMN_DATA 경로의 파일을 ${CMS_FILE_PROTO} 로 다운로드하고, 같은 디렉터리에
     ...    빈 파일 <serviceCode>_<dateTime>_<GROUP><KEY>_<시각>.FIN 이 생겼는지 본다(규격 5.1 / 5.4.2).
@@ -127,41 +117,31 @@ TC-CMS-008 NTI(5G) - CMSWEB 파일 다운로드 → FIN 생성
     PG Should Download File From CMSWEB    ${case}
     PG Should Upload FIN To CMSWEB    ${case}
 
-TC-CMS-009 NTI(5G) - T_CMSWEB_ZONE 반영 (STATUS·REASON·FILESIZE)
+TC-CMS-008 NTI(5G) - SC_FTP_YN 분기 (Y → SC 업로드·FIN / N → T_CMSWEB_ZONE 반영)
     [Documentation]
-    ...    T_ZONE_LIST.SC_FTP_YN='N' 이면 PG 가 T_CMSWEB_ZONE 에 REASON='OK', FILESIZE=실제 크기, FILENAME=크기 자리를
-    ...    뗀 이름, ZONE_CODE=T_ZONE_LIST 값으로 기록한다. STATUS 는 'C'(ZONE 처리 후 'E' 허용).
-    ...    SC_FTP_YN='Y' 면 PG 가 기록하지 않아 확인할 행이 없으므로 NTI 없이 SKIP 한다(시작 전 조회값으로 판단).
-    [Tags]    cms    db    5g
-    ${zone_code}=    CMS Zone Code For Collect    TRAP_5G_EQP_INFO
+    ...    시작 전 조회한 TRAP_5G_EQP_INFO 의 T_ZONE_LIST.SC_FTP_YN 으로 판정을 나눈다. 먼저 CMSWEB FIN 업로드를 확인한 뒤
+    ...    - Y : PG 가 받은 파일(크기 자리를 뗀 이름)과 빈 .FIN 을 SC(NWDAF_SFTP=Y → SFTP, N → FTP)의 SC_PATH 로
+    ...          올렸는지 본다. 데이터 파일 크기가 같아야 한다. PG 는 T_CMSWEB_ZONE 에 기록하지 않는다.
+    ...    - N : T_CMSWEB_ZONE 에 REASON='OK', FILESIZE=실제 크기, FILENAME=크기 자리를 뗀 이름, ZONE_CODE=T_ZONE_LIST 값
+    ...          (STATUS 'C', ZONE 처리 후 'E' 허용)으로 기록했는지 본 뒤, SC 로 업로드하지 않았는지 본다.
+    ...    T_ZONE_LIST 에 등록이 없거나 조회하지 못했으면 FAIL.
+    [Tags]    cms    db    sc    5g
+    ${zone}=    CMS Zone Info    TRAP_5G_EQP_INFO
     ${case}=    Send CMS NTI    service_code=TRAP_5G_EQP_INFO
     PG Should Upload FIN To CMSWEB    ${case}
-    Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_OK}    ${CMS_REASON_OK}
-    ...    file_name=${case}[renamed]    file_size=${case}[size]
-    ...    zone_code=${zone_code}    service_code=TRAP_5G_EQP_INFO
-
-TC-CMS-010 NTI(5G) - SC 파일 업로드 → FIN 생성
-    [Documentation]
-    ...    T_ZONE_LIST.SC_FTP_YN='Y' 면 PG.CMS 가 CMSWEB 에서 받은 파일(크기 자리를 뗀 이름)을
-    ...    SC(${CMS_SC_FILE_PROTO})의 SC_PATH 로 업로드하고 빈 .FIN 을 올린다 → 두 파일이 생기고 데이터 파일
-    ...    크기가 같아야 한다. [SC] SC_PRIIP 가 도구면 도구의 수신 디렉터리, 아니면 그 SC 서버에 접속해 본다.
-    ...    SC_FTP_YN 이 'Y' 가 아니면 PG 가 SC 로 올리지 않아 데이터·FIN 파일을 확인할 수 없으므로 NTI 없이 SKIP 한다.
-    [Tags]    cms    sftp    sc    5g
-    CMS Zone Should Allow SC Forward    TRAP_5G_EQP_INFO
-    ${case}=    Send CMS NTI    service_code=TRAP_5G_EQP_INFO
-    PG Should Upload File And FIN To SC    ${case}
+    PG Should Forward By SC_FTP_YN    ${case}    ${zone}
 
 # ════════════════════════════════════════════════════════════════
 # NTI 파일 연동 — 이상
 # ════════════════════════════════════════════════════════════════
 
-TC-CMS-011 NTI - 필수 필드(serviceCode) 누락 → ANS 는 오고 수집 안 함
+TC-CMS-009 NTI - 필수 필드(serviceCode) 누락 → ANS 는 오고 수집 안 함
     [Documentation]    PG 는 필드 검증 전에 ANS 를 보낸다. serviceCode 가 없으면 알람만 남기고 파일을 가져가지 않는다.
     [Tags]    cms    nti    negative
     ${case}=    Send CMS NTI    omit=serviceCode
     PG Should Not Download File From CMSWEB    ${case}
 
-TC-CMS-012 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
+TC-CMS-010 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
     [Documentation]
     ...    등록되지 않은 서비스코드도 PG 는 파일을 가져가고 FIN 을 올린다. 기록은 ZONE_CODE='NO',
     ...    STATUS='F', REASON='Err ZoneCode', FILESIZE=0 이다(dev 실측 행과 같은 형태).
@@ -175,7 +155,7 @@ TC-CMS-012 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
 # 세션 관리
 # ════════════════════════════════════════════════════════════════
 
-TC-CMS-013 REG_NOK → PG 재접속 후 REG 재수신
+TC-CMS-011 REG_NOK → PG 재접속 후 REG 재수신
     [Documentation]    REG_NOK 를 받으면 PG 가 연결을 닫고 다시 접속해 REG 를 보낸다(약 10초 주기).
     [Tags]    cms    reg    negative
     Reject PG Registration
