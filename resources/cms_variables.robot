@@ -106,7 +106,7 @@ ${CMS_SERVICE_CODE_UNREG}    TRAP_ROBOT_ZONE_UNREG
 # 이 목록은 시작 전 조회·표시용이다 — TC 의 코드를 바꾸면 여기도 맞춘다. 슈트는 T_ZONE_LIST 를 INSERT/UPDATE 하지 않는다.
 @{CMS_SERVICE_CODES_SC}    TRAP_LTE_EQP_INFO    TRAP_5G_EQP_INFO
 # T_CMSWEB_ZONE 기록 시험 전용 코드(TC 에 고정) — config/db_seed/dev.sql 이 이 두 코드만 T_ZONE_LIST 에 넣는다.
-#   TRAP_ROBOT_ZONE_TEST   SC_FTP_YN=N NOTI_YN=Y ZN999999 (크기 > 0 → C/OK, 크기 0 → W/Waiting State)
+#   TRAP_ROBOT_ZONE_TEST   SC_FTP_YN=N NOTI_YN=Y ZN999999 (C/OK)
 #   TRAP_ROBOT_ZONE_NOTI_N SC_FTP_YN=N NOTI_YN=N ZN999997 (F/Err ZoneCode)
 @{CMS_SERVICE_CODES_ROBOT}    TRAP_ROBOT_ZONE_TEST    TRAP_ROBOT_ZONE_NOTI_N
 ${CMS_ZONE_SHOW}           ${TRUE}                # ${FALSE} 면 시작 전 T_ZONE_LIST 조회를 건너뛴다(PDB 없는 가짜 PG 시험)

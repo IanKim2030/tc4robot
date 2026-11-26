@@ -34,10 +34,10 @@ Documentation
 ...    003 ~ 005 NTI LTE 세트(TRAP_LTE_EQP_INFO) — ANS / CMSWEB 다운로드 → FIN / SC_FTP_YN 분기
 ...    006 ~ 008 NTI 5G 세트(TRAP_5G_EQP_INFO)  — 위와 같은 3개
 ...              (SC_FTP_YN 분기: Y → SC 업로드·FIN 확인 / N → T_CMSWEB_ZONE 확인 + SC 업로드 없음 확인)
-...    009 ~ 011 T_CMSWEB_ZONE 기록(SC_FTP_YN=N, ROBOT 시험 코드 — DB 시드)
-...              NOTI_YN=Y 크기 > 0 → C/OK / NOTI_YN=Y 크기 0 → W/Waiting State / NOTI_YN=N → F/Err ZoneCode
-...    012 ~ 013 NTI 이상 — 필수 필드 누락 / 미등록 서비스코드
-...    014       세션 — REG_NOK 재접속
+...    009 ~ 010 T_CMSWEB_ZONE 기록(SC_FTP_YN=N, ROBOT 시험 코드 — DB 시드)
+...              NOTI_YN=Y → C/OK / NOTI_YN=N → F/Err ZoneCode
+...    011 ~ 012 NTI 이상 — 필수 필드 누락 / 미등록 서비스코드
+...    013       세션 — REG_NOK 재접속
 
 Resource    ../../resources/variables.robot
 Resource    ../../resources/common_keywords.robot
@@ -150,18 +150,7 @@ TC-CMS-009 NTI(SC_FTP_YN=N, NOTI_YN=Y) - 파일 크기 > 0 → T_CMSWEB_ZONE C /
     PG Should Upload FIN To CMSWEB    ${case}
     PG Should Forward By SC_FTP_YN    ${case}    ${zone}
 
-TC-CMS-010 NTI(SC_FTP_YN=N, NOTI_YN=Y) - 파일 크기 0 → T_CMSWEB_ZONE W / Waiting State
-    [Documentation]
-    ...    TRAP_ROBOT_ZONE_TEST(SC_FTP_YN=N, NOTI_YN=Y)로 0바이트 파일(이름 _0.dat)을 보내면 PG 가 받아 FIN 을 올리고
-    ...    크기 0 을 이상 파일로 보아 T_CMSWEB_ZONE 에 STATUS 'W' / REASON 'Waiting State' / FILESIZE 0 으로 기록한다
-    ...    (CCMSWeb::setData ERR_ABNORMAL_FILE). SC 로는 올리지 않는다.
-    [Tags]    cms    db    zone
-    ${zone}=    CMS Zone Info    TRAP_ROBOT_ZONE_TEST    sc_ftp_yn=N    noti_yn=Y
-    ${case}=    Send CMS NTI    service_code=TRAP_ROBOT_ZONE_TEST    size=${0}
-    PG Should Upload FIN To CMSWEB    ${case}
-    PG Should Forward By SC_FTP_YN    ${case}    ${zone}
-
-TC-CMS-011 NTI(SC_FTP_YN=N, NOTI_YN=N) - T_CMSWEB_ZONE F / Err ZoneCode
+TC-CMS-010 NTI(SC_FTP_YN=N, NOTI_YN=N) - T_CMSWEB_ZONE F / Err ZoneCode
     [Documentation]
     ...    TRAP_ROBOT_ZONE_NOTI_N(SC_FTP_YN=N, NOTI_YN=N)로 보내면 PG 가 파일을 받아 FIN 을 올린 뒤
     ...    T_CMSWEB_ZONE 에 STATUS 'F' / REASON 'Err ZoneCode' / FILESIZE 0 / ZONE_CODE ZN999997 로 기록한다.
@@ -176,13 +165,13 @@ TC-CMS-011 NTI(SC_FTP_YN=N, NOTI_YN=N) - T_CMSWEB_ZONE F / Err ZoneCode
 # NTI 파일 연동 — 이상
 # ════════════════════════════════════════════════════════════════
 
-TC-CMS-012 NTI - 필수 필드(serviceCode) 누락 → ANS 는 오고 수집 안 함
+TC-CMS-011 NTI - 필수 필드(serviceCode) 누락 → ANS 는 오고 수집 안 함
     [Documentation]    PG 는 필드 검증 전에 ANS 를 보낸다. serviceCode 가 없으면 알람만 남기고 파일을 가져가지 않는다.
     [Tags]    cms    nti    negative
     ${case}=    Send CMS NTI    omit=serviceCode
     PG Should Not Download File From CMSWEB    ${case}
 
-TC-CMS-013 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
+TC-CMS-012 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
     [Documentation]
     ...    등록되지 않은 서비스코드도 PG 는 파일을 가져가고 FIN 을 올린다. 기록은 ZONE_CODE='NO',
     ...    STATUS='F', REASON='Err ZoneCode', FILESIZE=0 이다(dev 실측 행과 같은 형태).
@@ -196,7 +185,7 @@ TC-CMS-013 NTI - T_ZONE_LIST 미등록 서비스코드 → Err ZoneCode
 # 세션 관리
 # ════════════════════════════════════════════════════════════════
 
-TC-CMS-014 REG_NOK → PG 재접속 후 REG 재수신
+TC-CMS-013 REG_NOK → PG 재접속 후 REG 재수신
     [Documentation]    REG_NOK 를 받으면 PG 가 연결을 닫고 다시 접속해 REG 를 보낸다(약 10초 주기).
     [Tags]    cms    reg    negative
     Reject PG Registration

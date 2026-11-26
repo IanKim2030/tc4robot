@@ -1050,7 +1050,7 @@ UPDATE T_BAROD_ORDER_HIST SET STATUS = 'Y' WHERE STATUS = 'N' AND MDN IN ('${CDS
 
 -- @name: CMSWEB T_CMSWEB_ZONE 시험 서비스코드 — SC_FTP_YN=N, NOTI_YN=Y (tests/cms)
 -- PG.CMS 는 NTI 의 serviceCode 로 T_ZONE_LIST 를 찾는다. 시험 전용 행이다 — 실제 존 코드와 겹치지 않게
--- ZN999999 를 쓰고 SC/LM/DCG/BIZP 전달은 끈다. 크기 > 0 → C/OK, 크기 0 → W/Waiting State 시험에 쓴다.
+-- ZN999999 를 쓰고 SC/LM/DCG/BIZP 전달은 끈다. C/OK 기록 시험에 쓴다.
 SELECT COUNT(*) FROM T_ZONE_LIST WHERE SERVICE_CODE = 'TRAP_ROBOT_ZONE_TEST';
 INSERT INTO T_ZONE_LIST
 (
