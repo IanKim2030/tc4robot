@@ -184,10 +184,10 @@ before the suite) upserts only two ROBOT test codes; the real codes are never to
 
 | SERVICE_CODE | ZONE_CODE | SC_FTP_YN | NOTI_YN | Used by |
 |---|---|---|---|---|
-| `TRAP_ROBOT_ZONE_TEST` | `ZN999999` | N | Y | TC-009 (`C`/`OK`), TC-011 default code |
-| `TRAP_ROBOT_ZONE_NOTI_N` | `ZN999997` | N | N | TC-010 (`F`/`Err ZoneCode`) |
+| `TRAP_ROBOT_ZONE_TEST` | `ZN999999` | N | Y | TC-011 (`C`/`OK`), default `CMS_SERVICE_CODE` |
+| `TRAP_ROBOT_ZONE_NOTI_N` | `ZN999997` | N | N | TC-012 (`F`/`Err ZoneCode`) |
 
-TC-009–010 fail without an NTI if the startup lookup shows a different `SC_FTP_YN`/`NOTI_YN` (seed not run).
+TC-011–012 fail without an NTI if the startup lookup shows a different `SC_FTP_YN`/`NOTI_YN` (seed not run).
 
 Before any TC runs, Suite Setup (`Show CMS Zone List`) reads `SC_FTP_YN`, `NOTI_YN` and `ZONE_CODE` and prints them.
 It reads the two SC service codes (`CMS_SERVICE_CODES_SC`: `TRAP_LTE_EQP_INFO`, `TRAP_5G_EQP_INFO`)
@@ -201,9 +201,9 @@ and the ROBOT codes (`CMS_SERVICE_CODES_ROBOT`), from DB1 and, if configured, DB
 
 The TCs use those values as follows:
 
-- **`SC_FTP_YN` switch TCs (005/008, `PG Should Forward By SC_FTP_YN`):** send the NTI, check the CMSWEB `.FIN`, then branch on the value read at startup:
-  - `Y`: the data file (same size) and an empty `.FIN` must arrive at the SC (SFTP when `NWDAF_SFTP=Y`, FTP when `N`). PG writes no `T_CMSWEB_ZONE` row.
-  - `N`: the `T_CMSWEB_ZONE` row must match (expected `ZONE_CODE` = the value read at startup). Then the SC side is watched for
+- **`SC_FTP_YN` TC pairs (005/006 LTE, 009/010 5G):** each TC first calls `Skip Unless SC_FTP_YN` with the value it judges. If the value read at startup differs, the TC is skipped before any NTI is sent. Otherwise it sends the NTI, checks the CMSWEB `.FIN`, then:
+  - `Y` TC (005/009, `PG Should Upload File And FIN To SC`): the data file (same size) and an empty `.FIN` must arrive at the SC (SFTP when `NWDAF_SFTP=Y`, FTP when `N`). PG writes no `T_CMSWEB_ZONE` row.
+  - `N` TC (006/010, `PG Should Record CMSWEB Zone Row`): the `T_CMSWEB_ZONE` row must match (expected `ZONE_CODE` = the value read at startup). Then the SC side is watched for
     `CMS_QUIET_WINDOW` seconds; the data file and `.FIN` must not arrive (`PG Should Not Upload To SC`).
     The expected row follows `CCMSWeb::setData`:
 
@@ -243,7 +243,7 @@ virtual prefix `${CMS_SC_PATH}` onto the real directory `${CMS_SC_UPLOAD_DIR}` (
 Suite Setup prepares the SC side (`Start CMS Upload Server`) together with the download server.
 `[SC] SC_PRIIP` decides how:
 
-| `[SC] SC_PRIIP` | Mode | Suite Setup | TC-005/008 upload (`Y`) or no-upload (`N`) check |
+| `[SC] SC_PRIIP` | Mode | Suite Setup | TC-005/009 upload (`Y`) or TC-006/010 no-upload (`N`) check |
 |---|---|---|---|
 | Empty or `${TOOL_HOST}` | `local` | Starts the tool's SC receiver. Port checks: SFTP port ≥ 1024, and different from the download server's port | Receiver history and `${CMS_SC_UPLOAD_DIR}` |
 | Any other IP | `remote` | Starts nothing. Logs in to `SC_PRIIP:<NWDAF_SFTP_PORT or NWDAF_FTP_PORT>` with PG's SC account (`CMS_SC_SFTP_USER` + `PG_PWD_CMS_SFTP_UPLOAD`) and checks that `SC_PATH` is readable. Writes nothing | Polls `SC_PATH` on that server for the data file and `.FIN` (same size checks) |
@@ -253,7 +253,8 @@ A failed check stops Suite Setup with every problem listed.
 The NTI TCs are split by side:
 
 - TC-004/008 check the CMSWEB side: PG downloaded the file, and the `.FIN` exists in the CMSWEB directory.
-- TC-005/008 check the SC side: with `SC_FTP_YN=Y` PG uploaded the data file and its `.FIN`; with `N` nothing arrived.
+- TC-005/009 check the SC side when `SC_FTP_YN=Y`: PG uploaded the data file and its `.FIN`.
+- TC-006/010 check `T_CMSWEB_ZONE` when `SC_FTP_YN=N`, then that nothing arrived at the SC.
 
 Files are kept by default. With `${CMS_SC_CLEANUP}=True`, Suite Teardown deletes only the names this
 run expected (`${CMS_SC_FILES}`), locally or on the remote SC.
@@ -277,23 +278,24 @@ exit code is non-zero. Typical reasons:
 |---|---|---|
 | 001 | REG `sourceSessionKey` = cfg GROUP/KEY (received in Suite Setup) | reg |
 | 002 | HBC reply fields | hbc |
-| 003 / 006 | NTI → ANS echoes `messageId`, `NTI_OK` | nti lte / 5g |
-| 004 / 007 | SFTP GET + FIN name rule | sftp lte / 5g |
-| 005 / 008 | `SC_FTP_YN` switch — `Y`: data file (same size) + `.FIN` arrive at the SC; `N`: `T_CMSWEB_ZONE` row by `NOTI_YN` and size (F/Err ZoneCode, W/Waiting State, C/OK), then no SC upload | db sc lte / 5g |
-| 009 | `TRAP_ROBOT_ZONE_TEST` (N/Y), 128 B → FIN, `C`(`E`)/`OK`/size/`ZN999999`, no SC upload | db zone |
-| 010 | `TRAP_ROBOT_ZONE_NOTI_N` (N/N) → FIN, `F`/`Err ZoneCode`/0/`ZN999997`, no SC upload | db zone |
-| 011 | `serviceCode` missing → ANS only, no GET | nti negative |
-| 012 | Unregistered service code → FIN, `F`/`Err ZoneCode`/`NO` | db negative |
-| 013 | `REG_NOK` → PG closes and re-registers | reg negative |
+| 003 / 007 | NTI → ANS echoes `messageId`, `NTI_OK` | nti lte / 5g |
+| 004 / 008 | SFTP GET + FIN name rule | sftp lte / 5g |
+| 005 / 009 | `SC_FTP_YN=Y` (else SKIP) — data file (same size) + `.FIN` arrive at the SC | sc lte / 5g |
+| 006 / 010 | `SC_FTP_YN=N` (else SKIP) — `T_CMSWEB_ZONE` row by `NOTI_YN` and size (F/Err ZoneCode, W/Waiting State, C/OK), then no SC upload | db lte / 5g |
+| 011 | `TRAP_ROBOT_ZONE_TEST` (N/Y), 128 B → FIN, `C`(`E`)/`OK`/size/`ZN999999`, no SC upload | db zone |
+| 012 | `TRAP_ROBOT_ZONE_NOTI_N` (N/N) → FIN, `F`/`Err ZoneCode`/0/`ZN999997`, no SC upload | db zone |
+| 013 | `serviceCode` missing → ANS only, no GET | nti negative |
+| 014 | Unregistered service code → FIN, `F`/`Err ZoneCode`/`NO` | db negative |
+| 015 | `REG_NOK` → PG closes and re-registers | reg negative |
 
 No TC sends a 0-byte file. On 2026-11-26 PG (141) did not PUT the FIN for a 0-byte file; the `W`/`Waiting State` row
 for size 0 in the table above comes from the source and is unverified.
 
-003–005 run with `TRAP_LTE_EQP_INFO` and 006–008 repeat them with `TRAP_5G_EQP_INFO`.
+003–006 run with `TRAP_LTE_EQP_INFO` and 007–010 repeat them with `TRAP_5G_EQP_INFO`.
 PG either writes `T_CMSWEB_ZONE` (`SC_FTP_YN=N`) or uploads to the SC (`SC_FTP_YN=Y`), never both,
-so 005/008 pick the check from the `SC_FTP_YN` value read in Suite Setup. Nothing is skipped.
+so in each pair (005/006, 009/010) one TC runs and the other is skipped, based on the `SC_FTP_YN` value read in Suite Setup.
 
-013 first checks that the control socket is still open (`Cms Should Be Connected`,
+015 first checks that the control socket is still open (`Cms Should Be Connected`,
 non-blocking `MSG_PEEK`). If PG already closed it, for example because `CMSWEB_TIMEOUT`
 is shorter than an earlier quiet window, the test fails instead of passing on the
 already closed socket.
@@ -307,9 +309,9 @@ earlier case therefore cannot satisfy or break a later one.
 - Fake PG client that follows `CCMSWeb.cpp`, including a `RunSFtpSC` port, on 142 (Py 3.6.8, `~/venv`): `--exclude db`, `CMS_PG_TIMEOUT` 20 s. 8/8 pass in both modes:
   - `simulator`: the FIN goes to the simulator.
   - `sshd`: the FIN goes to a local stand-in sshd.
-  - TC-006 (now TC-005/008, `Y` branch): the SC upload landed in `/home/kky/ROBOT/cmsweb/upload` (sshd run) or a temp dir (simulator run), and Teardown removed exactly those two files.
-  - TC-006 (now TC-005/008) fails alone when `CMS_SC_PG_ADDR` ≠ `TOOL_HOST`.
-  - TC-013 (REG_NOK) fails as intended when the fake closes the connection before it.
+  - TC-006 (now TC-005/009, `SC_FTP_YN=Y`): the SC upload landed in `/home/kky/ROBOT/cmsweb/upload` (sshd run) or a temp dir (simulator run), and Teardown removed exactly those two files.
+  - TC-006 (now TC-005/009) fails alone when `CMS_SC_PG_ADDR` ≠ `TOOL_HOST`.
+  - TC-013 (now TC-015, REG_NOK) fails as intended when the fake closes the connection before it.
 - **Not tested:** the real sshd path (127.0.0.1:22 as `pg`), because the `pg` password was not available.
   Before the first real run, an operator with `PG_PWD_CMS_FIN_SSH` should run Suite Setup.
   `Check CMS FIN Target` verifies login and write access to `/PG/FTP/CMS`.

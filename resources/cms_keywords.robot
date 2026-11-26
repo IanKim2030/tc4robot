@@ -272,8 +272,9 @@ Show CMS Zone List
             # 메시지 안에 공백 2칸 이상을 두지 말 것 — Robot 이 인자 구분으로 읽어 로그 레벨로 해석한다
             Log    [Suite] T_ZONE_LIST(${db}) ${info}[text]    console=True
             IF    $code in $CMS_SERVICE_CODES_SC
-                ${how}=    Set Variable If    $info['sc_ftp_yn'] == 'Y'    SC 업로드·FIN    T_CMSWEB_ZONE 행 + SC 업로드 없음
-                Log    [Suite] T_ZONE_LIST(${db}) ${code} → SC_FTP_YN 분기 TC 는 ${how} 로 판정    console=True
+                ${how}=    Set Variable If    $info['sc_ftp_yn'] == 'Y'
+                ...    SC 업로드 TC 수행 / T_CMSWEB_ZONE TC SKIP    T_CMSWEB_ZONE TC 수행 / SC 업로드 TC SKIP
+                Log    [Suite] T_ZONE_LIST(${db}) ${code} → ${how}    console=True
             END
             # TC 판정은 DB1(PG 가 조회하는 쪽과 같다고 본다) 값으로 한다
             IF    $db == 'DB1'    Set To Dictionary    ${zones}    ${code}=${info}
@@ -299,21 +300,24 @@ CMS Zone Info
     END
     RETURN    ${info}
 
-PG Should Forward By SC_FTP_YN
+Skip Unless SC_FTP_YN
     [Documentation]
-    ...    PG 가 T_ZONE_LIST.SC_FTP_YN 에 따라 하는 일을 확인한다(CCMSWeb::Run).
-    ...    - Y : 받은 파일 + 빈 .FIN 을 SC(${CMS_SC_FILE_PROTO}, NWDAF_SFTP 로 결정)로 업로드 — 두 파일·크기 확인.
-    ...          PG 는 업로드 뒤 return 해 T_CMSWEB_ZONE 에 기록하지 않는다.
-    ...    - N : T_CMSWEB_ZONE 행을 확인한 뒤 SC 로 업로드하지 않았는지 확인한다. 행 값은 CCMSWeb::setData 를 따른다.
+    ...    시작 전 조회한 SC_FTP_YN 이 expected(Y/N) 가 아니면 이 TC 를 SKIP 한다(NTI 를 보내기 전에 호출).
+    ...    SC_FTP_YN=Y 면 PG 는 SC 로 올리고 T_CMSWEB_ZONE 에 기록하지 않으며, N 이면 그 반대다(CCMSWeb::Run).
+    [Arguments]    ${zone}    ${expected}
+    Skip If    $zone['sc_ftp_yn'] != $expected
+    ...    ${zone}[text] — SC_FTP_YN=${zone}[sc_ftp_yn] 이라 이 TC(SC_FTP_YN=${expected} 판정)는 SKIP
+    Log    [CMS] ${zone}[text] → SC_FTP_YN=${expected} 판정 수행    console=True
+
+PG Should Record CMSWEB Zone Row
+    [Documentation]
+    ...    SC_FTP_YN=N 일 때 PG 가 하는 일을 확인한다 — T_CMSWEB_ZONE 행을 본 뒤 SC 로 업로드하지 않았는지 본다.
+    ...    행 값은 CCMSWeb::setData 를 따른다.
     ...          NOTI_YN=N            → STATUS F, REASON 'Err ZoneCode', FILESIZE 0
     ...          NOTI_YN=Y, 크기 0    → STATUS W, REASON 'Waiting State', FILESIZE 0
     ...          NOTI_YN=Y, 크기 > 0  → STATUS C(ZONE 처리 후 E 허용), REASON 'OK', FILESIZE 실제 크기
     [Arguments]    ${case}    ${zone}
-    Log    [CMS] ${zone}[text] → SC_FTP_YN=${zone}[sc_ftp_yn] NOTI_YN=${zone}[noti_yn] 파일 ${case}[size]바이트 분기    console=True
-    IF    $zone['sc_ftp_yn'] == 'Y'
-        PG Should Upload File And FIN To SC    ${case}
-        RETURN
-    END
+    Log    [CMS] ${zone}[text] → NOTI_YN=${zone}[noti_yn] 파일 ${case}[size]바이트    console=True
     IF    $zone['noti_yn'] == 'N'
         ${status}    ${reason}    ${size}=    Set Variable    ${CMS_STATUS_FAILED}    ${CMS_REASON_ZONE}    ${0}
     ELSE IF    int($case['size']) == 0
