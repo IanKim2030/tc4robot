@@ -114,11 +114,9 @@ ${CMS_ZONE_SHOW}           ${TRUE}                # ${FALSE} 면 시작 전 T_ZO
 ${CMS_DB_TBL_ZONE}         T_CMSWEB_ZONE
 ${CMS_DB_SQL_ZONE_BY_MSG}    SELECT ZONE_CODE, FILE_TYPE, SERVICE_CODE, FILENAME, STATUS, REASON, FILESIZE FROM T_CMSWEB_ZONE WHERE MSG_ID = ?
 ${CMS_DB_SQL_ZONE_LIST}    SELECT SERVICE_CODE, ZONE_CODE, SC_FTP_YN, NOTI_YN FROM T_ZONE_LIST WHERE SERVICE_CODE = ?
-# 이번 실행에서 보낸 NTI 의 MSG_ID 행만 지운다 — 실제 코드의 운용 행은 건드리지 않는다.
-${CMS_DB_SQL_CLEANUP}      DELETE FROM T_CMSWEB_ZONE WHERE MSG_ID = ?
+# T_CMSWEB_ZONE 은 조회만 한다 — 슈트는 행을 지우지 않는다(PG 가 넣은 행은 그대로 남긴다).
 ${CMS_DB_WAIT}             30s
 ${CMS_DB_WAIT_INTERVAL}    2s
-${CMS_CLEANUP_ON_TEARDOWN}    ${TRUE}
 
 # PG 상태 코드 (CCMSWeb::setFileStatus)
 ${CMS_STATUS_APPLIED}      C                      # 정상 수집 — REASON 'OK'

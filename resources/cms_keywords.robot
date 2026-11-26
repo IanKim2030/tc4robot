@@ -20,7 +20,7 @@ Documentation
 ...      TC 판정        : NTI → ANS 수신 뒤 다운로드 서버에서 가져갔는지, 업로드 서버로 올라왔는지 본다
 ...                       (PDB 는 첫 DB 판정 때 접속한다 — db 태그를 빼면 PDB 없이 돈다)
 ...      Test Setup     : Check CMS Session (닫혀 있으면 슈트 중단)
-...      Suite Teardown : Close CMSWEB — 시험 행 정리(FIN·SC 파일은 기본으로 남김) → 연결·서버 종료
+...      Suite Teardown : Close CMSWEB — T_CMSWEB_ZONE 행은 남김(FIN·SC 파일도 기본으로 남김) → 연결·서버 종료
 ...
 ...    상세: tests/cms/SPEC.md
 Library    Collections
@@ -42,7 +42,7 @@ ${CMS_SC_FILE_PROTO}  SFTP       # Resolve CMS Settings 가 [CMS] NWDAF_SFTP 로
 ${CMS_DB_CONN}        ${NONE}
 ${CMS_DB_CONN_2}      ${NONE}
 &{CMS_ZONES}         # 시작 전 T_ZONE_LIST 조회 결과(DB1) — 서비스코드 → Cms Zone Summary
-@{CMS_MSG_IDS}         # 이번 실행에서 보낸 NTI 의 messageId — Suite Teardown 이 이 MSG_ID 의 T_CMSWEB_ZONE 행만 지운다
+@{CMS_MSG_IDS}         # 이번 실행에서 보낸 NTI 의 messageId — 판정·로그용. T_CMSWEB_ZONE 행은 지우지 않는다
 @{CMS_FIN_PREFIXES}    # 이번 실행에서 보낸 NTI 의 FIN 접두사 — Suite Teardown 이 이것과 맞는 FIN 만 지운다
 ${CMS_SC_SERVER}      ${NONE}
 ${CMS_SC_REAL_DIR}    ${EMPTY}
@@ -139,7 +139,7 @@ Check CMS Prerequisites
     END
     IF    $problems
         ${detail}=    Evaluate    ' / '.join($problems)
-        Fail    PG_V2.cfg [CMS] 설정이 CMSWEB 시뮬레이터와 맞지 않습니다 — ${detail}. 바꾼 뒤 CMS201 을 재기동하십시오.
+        Fail    PG_V2.cfg [CMS] 설정이 CMSWEB 시뮬레이터와 맞지 않습니다 — ${detail}. 바꾼 뒤 CMS201 을 재기동하십시오(tests/cms/PG_CONFIG.md).
     END
 
 Check CMS FIN Target
@@ -211,7 +211,7 @@ Start CMS Upload Server
     END
     IF    $problems
         ${detail}=    Evaluate    ' / '.join($problems)
-        Fail    업로드(SC 수신) 서버 전제가 맞지 않습니다 — ${detail}. 바꾼 뒤 CMS201 을 재기동하십시오.
+        Fail    업로드(SC 수신) 서버 전제가 맞지 않습니다 — ${detail}. 바꾼 뒤 CMS201 을 재기동하십시오(tests/cms/PG_CONFIG.md).
     END
     IF    $CMS_SC_FILE_PROTO == 'SFTP'
         ${srv}=    Cms.Cms Sc Sftp Start    ${sc_port}    ${CMS_SC_SFTP_HOST}    ${CMS_SC_SFTP_USER}
@@ -359,8 +359,8 @@ Restore CMS Session
     Accept CMS Session
 
 Close CMSWEB
-    [Documentation]    Suite Teardown — 시험 행 정리 → PDB·제어 채널·SFTP 종료. 앞 단계가 실패해도 뒤 단계는 한다.
-    Run Keyword And Ignore Error    Cleanup CMS Zone Rows
+    [Documentation]    Suite Teardown — 이번 실행 MSG_ID 로그(T_CMSWEB_ZONE 행은 남김) → PDB·제어 채널·SFTP 종료. 앞 단계가 실패해도 뒤 단계는 한다.
+    Run Keyword And Ignore Error    Log CMS Zone Rows Kept
     Run Keyword And Ignore Error    Cleanup CMS FIN Files
     Run Keyword And Ignore Error    Cleanup CMS SC Files
     Run Keyword If    $CMS_DB_CONN is not None      CmsDb.Db Close    ${CMS_DB_CONN}
@@ -370,25 +370,14 @@ Close CMSWEB
     Cms.Cms Sftp Stop    ${CMS_SFTP_SERVER}
     Cms.Cms Sftp Stop    ${CMS_SC_SERVER}
 
-Cleanup CMS Zone Rows
-    [Documentation]    이번 실행에서 보낸 NTI(MSG_ID)로 생긴 T_CMSWEB_ZONE 행만 지운다(${CMS_CLEANUP_ON_TEARDOWN}).
-    IF    not ${CMS_CLEANUP_ON_TEARDOWN} or $CMS_DB_CONN is None or not $CMS_MSG_IDS
+Log CMS Zone Rows Kept
+    [Documentation]    T_CMSWEB_ZONE 행은 지우지 않는다 — 이번 실행 NTI 의 MSG_ID 만 로그로 남겨 행을 찾을 수 있게 한다.
+    IF    not $CMS_MSG_IDS
         RETURN
     END
-    ${dbs}=    Create List    DB1
-    IF    $CMS_DB_CONN_2 is not None
-        Append To List    ${dbs}    DB2
-    END
-    FOR    ${db}    IN    @{dbs}
-        ${conn}=    Set Variable If    $db == 'DB1'    ${CMS_DB_CONN}    ${CMS_DB_CONN_2}
-        ${total}=    Set Variable    ${0}
-        FOR    ${msg_id}    IN    @{CMS_MSG_IDS}
-            ${n}=    CmsDb.Db Execute    ${conn}    ${CMS_DB_SQL_CLEANUP}    ${msg_id}
-            ${total}=    Evaluate    $total + int($n or 0)
-        END
-        ${sent}=    Get Length    ${CMS_MSG_IDS}
-        Log    [Suite] 종료 시 정리 — ${CMS_DB_TBL_ZONE} ${total}건 삭제 (${db}, 이번 실행 NTI ${sent}건의 MSG_ID)    console=True
-    END
+    ${sent}=    Get Length    ${CMS_MSG_IDS}
+    ${ids}=    Evaluate    ', '.join($CMS_MSG_IDS)
+    Log    [Suite] ${CMS_DB_TBL_ZONE} 행은 남깁니다 — 이번 실행 NTI ${sent}건 MSG_ID: ${ids}    console=True
 
 Cleanup CMS FIN Files
     [Documentation]

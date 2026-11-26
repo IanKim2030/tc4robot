@@ -16,7 +16,8 @@ The tool is the **server** here (CMSWEB); PG.CMS (`CMS201`) connects to it.
 
 - Send compact JSON only; PG's parser needs `"`/`["` right after each colon ([Wire format](SPEC.md#wire-format)).
 - If Suite Setup cannot prepare the environment (missing setting, server start failure, PG.CMS not connecting), no TC body runs and every TC fails with `CMS TC 미수행 — <reason>` ([SPEC](SPEC.md#when-the-environment-is-not-ready-no-tc-runs-fail)). Put new setup steps inside `Start CMSWEB Session`.
-- Never edit PG configuration from the suite. Report mismatches in `Check CMS Prerequisites`.
+- Never delete `T_CMSWEB_ZONE` rows (read only); Suite Teardown only logs this run's `MSG_ID`s.
+- Never edit PG configuration from the suite. Report mismatches in `Check CMS Prerequisites`. Every PG cfg change the suite needs (required value, mode key, dev value, change log) goes in [PG_CONFIG.md](PG_CONFIG.md), not in SPEC.md.
 - File-server protocol follows the PG cfg (`[CMS] CMSWEB_SFTP` / `NWDAF_SFTP`; first character `N` → FTP). Never hard-code SFTP-only behaviour in a TC ([FTP or SFTP](SPEC.md#ftp-or-sftp--chosen-from-the-pg-cfg-at-startup)).
 - SFTP/FTP passwords only from environment variables, never a Robot argument or a committed value:
   - `PG_PWD_CMS_SFTP`: simulator download.
@@ -34,6 +35,7 @@ The tool is the **server** here (CMSWEB); PG.CMS (`CMS201`) connects to it.
 | Change | Read first |
 |---|---|
 | Connection, prerequisites, settings | [Channels](SPEC.md#channels) |
+| PG cfg values to change | [PG_CONFIG.md](PG_CONFIG.md) |
 | Message fields and order | [Message flow](SPEC.md#message-flow-ccmswebrun) |
 | File names, FIN, retries | [File handling](SPEC.md#file-handling) |
 | SC (NWDAF) forwarding | [SC forwarding](SPEC.md#sc-nwdaf-forwarding-runsftpsc) |

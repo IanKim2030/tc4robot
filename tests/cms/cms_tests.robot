@@ -26,7 +26,7 @@ Documentation
 ...    Suite Setup    : Prepare CMSWEB (T_ZONE_LIST 값 표시 → REG 수신 → REG_OK 까지). 설정값 없음·서버 기동 실패·
 ...                     PG.CMS 미접속이면 TC 를 수행하지 않고 실패(CMS TC 미수행)
 ...    Test Setup     : Check CMS Session (파일 서버 이력 초기화)
-...    Suite Teardown : Close CMSWEB (이번 실행 MSG_ID 의 T_CMSWEB_ZONE 행 정리 — FIN·SC 파일은 남김)
+...    Suite Teardown : Close CMSWEB (T_CMSWEB_ZONE 행은 지우지 않음 — 이번 실행 MSG_ID 만 로그, FIN·SC 파일도 남김)
 ...
 ...    [TC 번호 체계]
 ...    001       REG 세션키

@@ -24,11 +24,9 @@ Sources: CMS interface specification v1.9 and the PG source
 
 ### Prerequisites (PG configuration — the suite never edits it)
 
-`Check CMS Prerequisites` collects every mismatch and fails Suite Setup once:
-
-- `CMSWEB_ADDR` must equal `${TOOL_HOST}` (dev since 2026-11-24: `192.168.15.142`).
-- In SFTP mode `CMS_SFTP_PORT` must be ≥ 1024. On the tool host 22 is the real sshd. dev uses `2322`, separate from the UPM SFTP receiver on 2222.
-- A key repeated in `[CMS]` uses its **last** value, as PG does. The CmsMain startup log on 2026-11-24 printed the later `CMSWEB_ADDR` and `CMS_SFTP_PORT`. The cfg reader logs a warning for each repeated key.
+`Check CMS Prerequisites` and `Start CMS Upload Server` collect every mismatch and fail Suite Setup once.
+The required values, the mode keys, the current dev values and the change log are in
+[PG_CONFIG.md](PG_CONFIG.md). Keep PG cfg changes there, not here.
 
 ### FTP or SFTP — chosen from the PG cfg at startup
 
@@ -214,8 +212,8 @@ The TCs use those values as follows:
     | `Y` | > 0 | `C` (`E` after zone processing) | `OK` | real size |
   - A missing row or no lookup (PDB unreachable) fails without an NTI.
 
-Suite Teardown deletes `T_CMSWEB_ZONE` rows only by the `MSG_ID`s of the NTIs this run sent.
-It never deletes other rows for the real service codes.
+The suite never deletes `T_CMSWEB_ZONE` rows; it only reads them. Suite Teardown logs this run's NTI `MSG_ID`s
+(`Log CMS Zone Rows Kept`) so the rows PG inserted can be found. Each NTI has a unique `MSG_ID`, so old rows do not affect the checks.
 
 ## SC (NWDAF) forwarding (RunSFtpSC)
 
@@ -227,15 +225,7 @@ Source (2026-11-24): `CCMSWeb::Run` (zone lookup → `RunSFtpSC` → `return tru
 2. PG creates an empty local `<file without the last 3 chars>FIN`. The file is the renamed `<name>_<datetime>.dat`, so the FIN is `<name>_<datetime>.FIN`.
 3. PG uploads `sftp://<[SC] SC_PRIIP>:<[CMS] NWDAF_SFTP_PORT><[CMS] SC_PATH>/<file>`, then the `.FIN`, as `scUserId_`/`scPassWd_` (default port 22 if unset).
 
-dev `PG_V2.cfg` on 141 (read 2026-11-24, last value wins):
-
-| Key | Value |
-|---|---|
-| `[SC] SC_PRIIP` | `192.168.15.142` |
-| `[CMS] NWDAF_SFTP` | `Y` (an earlier line has `N`) |
-| `[CMS] NWDAF_SFTP_PORT` | `32001` |
-| `[CMS] NWDAF_FTP_PORT` | `32001` |
-| `[CMS] SC_PATH` | `/PG/FTP/CMS` |
+The dev values of these keys are in [PG_CONFIG.md](PG_CONFIG.md#current-dev-values).
 
 The tool's SC receiver (`Cms Sc Sftp Start`) listens on `${CMS_SC_SFTP_PORT}`. It mounts the
 virtual prefix `${CMS_SC_PATH}` onto the real directory `${CMS_SC_UPLOAD_DIR}` (dev
@@ -269,7 +259,7 @@ exit code is non-zero. Typical reasons:
 - A setting the TCs need is empty (`Check CMS Settings Present` lists them all).
 - A password is missing, or the download/upload server cannot start (port in use, no permission).
 - PG.CMS does not connect to `${CMS_LISTEN_PORT}` within `${CMS_ACCEPT_TIMEOUT}` s, or sends no REG.
-- A PG cfg prerequisite is wrong (`CMSWEB_ADDR`, SC server unreachable).
+- A PG cfg prerequisite is wrong (`CMSWEB_ADDR`, SC server unreachable) — fix it as in [PG_CONFIG.md](PG_CONFIG.md).
 
 
 ## Test cases
