@@ -240,7 +240,7 @@ Accept CMS Session
 
 Show CMS Zone List
     [Documentation]
-    ...    시작 전 — SC 전달 서비스코드(${CMS_SERVICE_CODES_SC})와 정상 수집 코드(${CMS_SERVICE_CODE})의
+    ...    시작 전 — SC 전달 서비스코드(${CMS_SERVICE_CODES_SC})와 ROBOT 시험 코드(${CMS_SERVICE_CODES_ROBOT})의
     ...    T_ZONE_LIST 값(SC_FTP_YN·NOTI_YN·ZONE_CODE)을 조회해 보여 준다. 조회만 하고 INSERT/UPDATE 하지 않는다.
     ...    PG 와 같이 '_V..' 를 뗀 코드로 조회한다. 값이 어떻든 시작을 막지 않는다 — 판정은 TC 가 한다.
     ...    PDB 에 붙지 못하면 경고만 남기고 시작한다(값을 모르는 코드는 TC 가 그대로 시험한다).
@@ -253,7 +253,10 @@ Show CMS Zone List
         Log    [Suite] T_ZONE_LIST 조회 불가 — PDB 접속 실패: ${error}    level=WARN    console=True
         RETURN
     END
-    ${codes}=    Create List    @{CMS_SERVICE_CODES_SC}    ${CMS_SERVICE_CODE}
+    ${codes}=    Create List    @{CMS_SERVICE_CODES_SC}
+    FOR    ${code}    IN    @{CMS_SERVICE_CODES_ROBOT}    ${CMS_SERVICE_CODE}
+        IF    $code not in $codes    Append To List    ${codes}    ${code}
+    END
     ${dbs}=    Create List    DB1
     IF    $CMS_DB_CONN_2 is not None
         Append To List    ${dbs}    DB2
@@ -282,13 +285,17 @@ CMS Zone Info
     [Documentation]
     ...    시작 전 조회한 이 코드의 T_ZONE_LIST 값(dict: sc_ftp_yn, zone_code, text …). 조회하지 못했거나
     ...    등록이 없으면 FAIL — SC_FTP_YN 분기 판정에는 등록된 서비스코드가 필요하다(슈트는 행을 만들지 않음).
-    [Arguments]    ${code}
+    ...    sc_ftp_yn / noti_yn 을 주면 그 값이어야 한다(ROBOT 시험 코드 — DB 시드가 넣는 값).
+    [Arguments]    ${code}    ${sc_ftp_yn}=${EMPTY}    ${noti_yn}=${EMPTY}
     IF    $code not in $CMS_ZONES
         Fail    ${code} 의 T_ZONE_LIST 값을 시작 전에 조회하지 못했습니다 — PDB 접속을 확인하십시오
     END
     ${info}=    Set Variable    ${CMS_ZONES}[${code}]
     IF    not $info['found']
-        Fail    ${info}[text] — SC_FTP_YN 분기 판정에는 T_ZONE_LIST 에 등록된 서비스코드가 필요합니다(슈트는 행을 만들지 않음)
+        Fail    ${info}[text] — SC_FTP_YN 분기 판정에는 T_ZONE_LIST 에 등록된 서비스코드가 필요합니다(슈트는 행을 만들지 않음, ROBOT 코드는 DB 시드가 넣는다)
+    END
+    IF    ($sc_ftp_yn and $info['sc_ftp_yn'] != $sc_ftp_yn) or ($noti_yn and $info['noti_yn'] != $noti_yn)
+        Fail    ${info}[text] — 이 TC 는 SC_FTP_YN=${sc_ftp_yn} NOTI_YN=${noti_yn} 이 필요합니다. config/db_seed/dev.sql 시드를 돌리십시오(run_tests.sh 기본 동작)
     END
     RETURN    ${info}
 
@@ -297,17 +304,28 @@ PG Should Forward By SC_FTP_YN
     ...    PG 가 T_ZONE_LIST.SC_FTP_YN 에 따라 하는 일을 확인한다(CCMSWeb::Run).
     ...    - Y : 받은 파일 + 빈 .FIN 을 SC(${CMS_SC_FILE_PROTO}, NWDAF_SFTP 로 결정)로 업로드 — 두 파일·크기 확인.
     ...          PG 는 업로드 뒤 return 해 T_CMSWEB_ZONE 에 기록하지 않는다.
-    ...    - N : T_CMSWEB_ZONE 행(STATUS C/E, OK, 크기, 바뀐 파일명, ZONE_CODE) 확인 → SC 로 업로드하지 않았는지 확인.
+    ...    - N : T_CMSWEB_ZONE 행을 확인한 뒤 SC 로 업로드하지 않았는지 확인한다. 행 값은 CCMSWeb::setData 를 따른다.
+    ...          NOTI_YN=N            → STATUS F, REASON 'Err ZoneCode', FILESIZE 0
+    ...          NOTI_YN=Y, 크기 0    → STATUS W, REASON 'Waiting State', FILESIZE 0
+    ...          NOTI_YN=Y, 크기 > 0  → STATUS C(ZONE 처리 후 E 허용), REASON 'OK', FILESIZE 실제 크기
     [Arguments]    ${case}    ${zone}
-    Log    [CMS] ${zone}[text] → SC_FTP_YN=${zone}[sc_ftp_yn] 분기    console=True
+    Log    [CMS] ${zone}[text] → SC_FTP_YN=${zone}[sc_ftp_yn] NOTI_YN=${zone}[noti_yn] 파일 ${case}[size]바이트 분기    console=True
     IF    $zone['sc_ftp_yn'] == 'Y'
         PG Should Upload File And FIN To SC    ${case}
-    ELSE
-        Verify CMSWEB Zone Row In PDB    ${case}    ${CMS_STATUS_OK}    ${CMS_REASON_OK}
-        ...    file_name=${case}[renamed]    file_size=${case}[size]
-        ...    zone_code=${zone}[zone_code]    service_code=${case}[service_code]
-        PG Should Not Upload To SC    ${case}
+        RETURN
     END
+    IF    $zone['noti_yn'] == 'N'
+        ${status}    ${reason}    ${size}=    Set Variable    ${CMS_STATUS_FAILED}    ${CMS_REASON_ZONE}    ${0}
+    ELSE IF    int($case['size']) == 0
+        ${status}    ${reason}    ${size}=    Set Variable    ${CMS_STATUS_WAITING}    ${CMS_REASON_WAITING}    ${0}
+    ELSE
+        ${status}    ${reason}    ${size}=    Set Variable    ${CMS_STATUS_OK}    ${CMS_REASON_OK}    ${case}[size]
+    END
+    Log    [CMS] 기대 T_CMSWEB_ZONE — STATUS ${status} / REASON ${reason} / FILESIZE ${size}
+    Verify CMSWEB Zone Row In PDB    ${case}    ${status}    ${reason}
+    ...    file_name=${case}[renamed]    file_size=${size}
+    ...    zone_code=${zone}[zone_code]    service_code=${case}[service_code]
+    PG Should Not Upload To SC    ${case}
 
 Ensure CMS DB Connection
     [Documentation]    T_CMSWEB_ZONE 판정용 PDB 접속(한 번만). ${PDB_CONNSTR_2} 가 있으면 두 번째 DB 도 붙는다.

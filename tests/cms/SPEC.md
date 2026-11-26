@@ -179,11 +179,19 @@ NTI is rejected after ANS (no SFTP) when any of these are empty: `messageType`, 
 
 `SC_FTP_YN=Y` forwards the file to the SC server and writes **no** row. See [SC forwarding](#sc-nwdaf-forwarding-runsftpsc).
 
-The suite and the DB seed never INSERT or UPDATE `T_ZONE_LIST`; they use the rows that already exist.
+The suite never INSERTs or UPDATEs `T_ZONE_LIST`. The DB seed (`config/db_seed/dev.sql`, run by `run_tests.sh`
+before the suite) upserts only two ROBOT test codes; the real codes are never touched:
+
+| SERVICE_CODE | ZONE_CODE | SC_FTP_YN | NOTI_YN | Used by |
+|---|---|---|---|---|
+| `TRAP_ROBOT_ZONE_TEST` | `ZN999999` | N | Y | TC-009 (size > 0 → `C`/`OK`), TC-010 (size 0 → `W`/`Waiting State`), TC-012 default code |
+| `TRAP_ROBOT_ZONE_NOTI_N` | `ZN999997` | N | N | TC-011 (`F`/`Err ZoneCode`) |
+
+TC-009–011 fail without an NTI if the startup lookup shows a different `SC_FTP_YN`/`NOTI_YN` (seed not run).
 
 Before any TC runs, Suite Setup (`Show CMS Zone List`) reads `SC_FTP_YN`, `NOTI_YN` and `ZONE_CODE` and prints them.
 It reads the two SC service codes (`CMS_SERVICE_CODES_SC`: `TRAP_LTE_EQP_INFO`, `TRAP_5G_EQP_INFO`)
-and `CMS_SERVICE_CODE`, from DB1 and, if configured, DB2.
+and the ROBOT codes (`CMS_SERVICE_CODES_ROBOT`), from DB1 and, if configured, DB2.
 
 - The values never stop the suite. If PDB is unreachable, Suite Setup logs a warning and starts anyway.
 - `CMS_ZONE_SHOW=False` skips the lookup (fake-PG runs without PDB).
@@ -197,6 +205,13 @@ The TCs use those values as follows:
   - `Y`: the data file (same size) and an empty `.FIN` must arrive at the SC (SFTP when `NWDAF_SFTP=Y`, FTP when `N`). PG writes no `T_CMSWEB_ZONE` row.
   - `N`: the `T_CMSWEB_ZONE` row must match (expected `ZONE_CODE` = the value read at startup). Then the SC side is watched for
     `CMS_QUIET_WINDOW` seconds; the data file and `.FIN` must not arrive (`PG Should Not Upload To SC`).
+    The expected row follows `CCMSWeb::setData`:
+
+    | `NOTI_YN` | File size | STATUS | REASON | FILESIZE |
+    |---|---|---|---|---|
+    | `N` | any | `F` | `Err ZoneCode` | 0 |
+    | `Y` | 0 | `W` | `Waiting State` | 0 |
+    | `Y` | > 0 | `C` (`E` after zone processing) | `OK` | real size |
   - A missing row or no lookup (PDB unreachable) fails without an NTI.
 
 Suite Teardown deletes `T_CMSWEB_ZONE` rows only by the `MSG_ID`s of the NTIs this run sent.
@@ -264,16 +279,19 @@ exit code is non-zero. Typical reasons:
 | 002 | HBC reply fields | hbc |
 | 003 / 006 | NTI → ANS echoes `messageId`, `NTI_OK` | nti lte / 5g |
 | 004 / 007 | SFTP GET + FIN name rule | sftp lte / 5g |
-| 005 / 008 | `SC_FTP_YN` switch — `Y`: data file (same size) + `.FIN` arrive at the SC; `N`: `T_CMSWEB_ZONE` row (C/E, OK, size, renamed file, zone code), then no SC upload | db sc lte / 5g |
-| 009 | `serviceCode` missing → ANS only, no GET | nti negative |
-| 010 | Unregistered service code → FIN, `F`/`Err ZoneCode`/`NO` | db negative |
-| 011 | `REG_NOK` → PG closes and re-registers | reg negative |
+| 005 / 008 | `SC_FTP_YN` switch — `Y`: data file (same size) + `.FIN` arrive at the SC; `N`: `T_CMSWEB_ZONE` row by `NOTI_YN` and size (F/Err ZoneCode, W/Waiting State, C/OK), then no SC upload | db sc lte / 5g |
+| 009 | `TRAP_ROBOT_ZONE_TEST` (N/Y), 128 B → FIN, `C`(`E`)/`OK`/size/`ZN999999`, no SC upload | db zone |
+| 010 | `TRAP_ROBOT_ZONE_TEST` (N/Y), 0 B (`_0.dat`) → FIN, `W`/`Waiting State`/0, no SC upload | db zone |
+| 011 | `TRAP_ROBOT_ZONE_NOTI_N` (N/N) → FIN, `F`/`Err ZoneCode`/0/`ZN999997`, no SC upload | db zone |
+| 012 | `serviceCode` missing → ANS only, no GET | nti negative |
+| 013 | Unregistered service code → FIN, `F`/`Err ZoneCode`/`NO` | db negative |
+| 014 | `REG_NOK` → PG closes and re-registers | reg negative |
 
 003–005 run with `TRAP_LTE_EQP_INFO` and 006–008 repeat them with `TRAP_5G_EQP_INFO`.
 PG either writes `T_CMSWEB_ZONE` (`SC_FTP_YN=N`) or uploads to the SC (`SC_FTP_YN=Y`), never both,
 so 005/008 pick the check from the `SC_FTP_YN` value read in Suite Setup. Nothing is skipped.
 
-011 first checks that the control socket is still open (`Cms Should Be Connected`,
+014 first checks that the control socket is still open (`Cms Should Be Connected`,
 non-blocking `MSG_PEEK`). If PG already closed it, for example because `CMSWEB_TIMEOUT`
 is shorter than an earlier quiet window, the test fails instead of passing on the
 already closed socket.
@@ -289,7 +307,7 @@ earlier case therefore cannot satisfy or break a later one.
   - `sshd`: the FIN goes to a local stand-in sshd.
   - TC-006 (now TC-005/008, `Y` branch): the SC upload landed in `/home/kky/ROBOT/cmsweb/upload` (sshd run) or a temp dir (simulator run), and Teardown removed exactly those two files.
   - TC-006 (now TC-005/008) fails alone when `CMS_SC_PG_ADDR` ≠ `TOOL_HOST`.
-  - TC-011 (REG_NOK) fails as intended when the fake closes the connection before it.
+  - TC-014 (REG_NOK) fails as intended when the fake closes the connection before it.
 - **Not tested:** the real sshd path (127.0.0.1:22 as `pg`), because the `pg` password was not available.
   Before the first real run, an operator with `PG_PWD_CMS_FIN_SSH` should run Suite Setup.
   `Check CMS FIN Target` verifies login and write access to `/PG/FTP/CMS`.
