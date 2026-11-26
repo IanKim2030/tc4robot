@@ -282,6 +282,9 @@ No TC sends a 0-byte file. On 2026-11-26 PG (141) did not PUT the FIN for a 0-by
 for size 0 in the table above comes from the source and is unverified.
 
 003–006 run with `TRAP_LTE_EQP_INFO` and 007–010 repeat them with `TRAP_5G_EQP_INFO`.
+Each set sends **one** NTI (`CMS Set NTI`): 003/007 send it and store the case; the later TCs of the set judge that same NTI.
+A TC sends its own NTI only when none is stored for the code (run alone, or the first TC failed before the ANS check passed).
+Test Setup therefore does not clear the file-server history; every check looks up this case's unique file name or prefix.
 PG either writes `T_CMSWEB_ZONE` (`SC_FTP_YN=N`) or uploads to the SC (`SC_FTP_YN=Y`), never both,
 so in each pair (005/006, 009/010) one TC runs and the other is skipped, based on the `SC_FTP_YN` value read in Suite Setup.
 

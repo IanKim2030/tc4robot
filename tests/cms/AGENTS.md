@@ -28,6 +28,7 @@ The tool is the **server** here (CMSWEB); PG.CMS (`CMS201`) connects to it.
 - FIN files are kept by default (`${CMS_FIN_CLEANUP}=False`). When cleanup is on, delete only FIN files matching this run's prefixes (`${CMS_FIN_PREFIXES}`). Never remove other files in the real directory.
 - Tests that wait for PG to close the control channel must first call `Cms Should Be Connected`, so an already closed socket fails instead of passing.
 - Give every NTI case a unique file name and `dateTime` (`cms_new_case` does this).
+- The LTE/5G set TCs share one NTI per set through `CMS Set NTI`; do not call `Send CMS NTI` in them. Test Setup must not clear the file-server history, because later TCs of a set judge the earlier NTI.
 - Negative "must not happen" checks observe a bounded window (`${CMS_QUIET_WINDOW}`) by file name, not by count.
 
 ## Task-Specific References

@@ -42,6 +42,7 @@ ${CMS_SC_FILE_PROTO}  SFTP       # Resolve CMS Settings 가 [CMS] NWDAF_SFTP 로
 ${CMS_DB_CONN}        ${NONE}
 ${CMS_DB_CONN_2}      ${NONE}
 &{CMS_ZONES}         # 시작 전 T_ZONE_LIST 조회 결과(DB1) — 서비스코드 → Cms Zone Summary
+&{CMS_SET_CASES}     # NTI 세트(LTE/5G)가 함께 쓰는 NTI — 서비스코드 → Send CMS NTI 결과(세트당 1번 송신)
 @{CMS_MSG_IDS}         # 이번 실행에서 보낸 NTI 의 messageId — 판정·로그용. T_CMSWEB_ZONE 행은 지우지 않는다
 @{CMS_FIN_PREFIXES}    # 이번 실행에서 보낸 NTI 의 FIN 접두사 — Suite Teardown 이 이것과 맞는 FIN 만 지운다
 ${CMS_SC_SERVER}      ${NONE}
@@ -345,12 +346,12 @@ Ensure CMS DB Connection
     END
 
 Check CMS Session
-    [Documentation]    Test Setup — 제어 채널이 살아 있어야 한다.
+    [Documentation]
+    ...    Test Setup — 제어 채널이 살아 있어야 한다. 파일 서버 이력은 지우지 않는다 — NTI 세트의 TC 들이
+    ...    앞 TC 에서 보낸 NTI 의 다운로드·업로드 이력을 이어서 판정하고, 판정은 모두 시험마다 다른 파일명으로 찾는다.
     IF    $CMS_CONN is None
         Fail    PG.CMS 제어 채널이 없습니다 — Suite Setup 이 실패했거나 앞 TC 가 복구하지 못했습니다.
     END
-    Cms.Cms Sftp Clear    ${CMS_SFTP_SERVER}
-    Cms.Cms Sftp Clear    ${CMS_SC_SERVER}
 
 Restore CMS Session
     [Documentation]    TC 가 연결을 끊었다면(REG_NOK·타임아웃 시험) PG 재접속을 받아 원상태로 돌린다.
@@ -484,6 +485,22 @@ Send CMS NTI
     ${ans}=    Cms.Cms Expect    ${CMS_CONN}    ANS    ${CMS_RECV_TIMEOUT}
     Log    [CMS] ← ANS ${ans}[text]
     Cms.Cms Ans Should Match    ${ans}    ${case}    ${CMS_PG_GROUP}    ${CMS_PG_KEY}
+    RETURN    ${case}
+
+CMS Set NTI
+    [Documentation]
+    ...    NTI 세트(같은 서비스코드의 ANS / 다운로드·FIN / SC_FTP_YN TC)가 함께 쓰는 NTI → 시험 정보(dict).
+    ...    이 서비스코드로 이미 보낸 세트 NTI 가 있으면 다시 보내지 않고 그것을 돌려준다 — 세트당 NTI 는 1번이다.
+    ...    없으면(세트 첫 TC, 단독 실행, 첫 TC 가 ANS 에서 실패) 새로 보내고 저장한다.
+    [Arguments]    ${service_code}
+    IF    $service_code in $CMS_SET_CASES
+        ${case}=    Set Variable    ${CMS_SET_CASES}[${service_code}]
+        Log    [CMS] ${service_code} 세트 NTI 재사용 — messageId ${case}[message_id], 파일 ${case}[file_name] (NTI 재송신 없음)    console=True
+        RETURN    ${case}
+    END
+    ${case}=    Send CMS NTI    service_code=${service_code}
+    Set To Dictionary    ${CMS_SET_CASES}    ${service_code}=${case}
+    Log    [CMS] ${service_code} 세트 NTI 송신 — messageId ${case}[message_id], 파일 ${case}[file_name] (세트의 뒤 TC 가 이어서 판정)    console=True
     RETURN    ${case}
 
 # ══════════════════════════════════════════════════════════════════
